@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { CaretDown } from "@phosphor-icons/react/dist/ssr";
 
 import type { AssistantTaskSummary } from "@/types/assistant";
 import { buildProfileHref } from "@/lib/profile/routes";
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { requestChatStart } from "@/components/providers/ChatProvider";
 import { ASSISTANT_DISPLAY_NAME, ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
 
 import styles from "./assistant-panel.module.css";
 
@@ -20,8 +22,6 @@ type AssistantPanelProps = {
   cancelingTaskIds?: Set<string>;
   friends?: FriendItem[];
 };
-
-type BadgeTone = "info" | "success" | "warning";
 
 const RELATIVE_DIVISIONS: Array<{ amount: number; unit: Intl.RelativeTimeFormatUnit }> = [
   { amount: 60, unit: "second" },
@@ -50,34 +50,19 @@ function formatRelativeTime(iso: string | null | undefined): string | null {
 }
 
 function getTaskTitle(task: AssistantTaskSummary): string {
-  if (task.kind === "assistant_broadcast") return "Broadcast";
-  return task.kind.replace(/_/g, " ");
-}
-
-function getPromptPreview(prompt: string | null): string {
-  if (!prompt) return "Assistant outreach";
-  const trimmed = prompt.trim();
-  if (!trimmed) return "Assistant outreach";
-  return trimmed.length > 200 ? `${trimmed.slice(0, 197)}...` : trimmed;
-}
-
-function getTaskBadge(task: AssistantTaskSummary): { label: string; tone: BadgeTone } | null {
-  const awaiting = task.totals.awaitingResponses;
-  const failed = task.totals.failed;
-  // Avoid duplicating "awaiting" pill when metrics also show it; only show awaiting for incoming tasks.
-  if (awaiting > 0 && task.direction === "incoming") {
-    return { label: "awaiting your reply", tone: "info" };
+  if (task.prompt) {
+    const firstLine = task.prompt
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    if (firstLine) {
+      return firstLine.length > 80 ? `${firstLine.slice(0, 77)}...` : firstLine;
+    }
   }
-  if (failed > 0) {
-    return { label: `${failed} failed`, tone: "warning" };
+  if (task.kind) {
+    return task.kind.replace(/_/g, " ");
   }
-  if (task.status === "canceled") {
-    return { label: "canceled", tone: "warning" };
-  }
-  if (task.status === "completed" || task.status === "partial") {
-    return { label: task.status, tone: "success" };
-  }
-  return null;
+  return "Assistant task";
 }
 
 function summarizeTaskMetrics(task: AssistantTaskSummary) {
@@ -116,27 +101,72 @@ function describeTaskStatus(task: AssistantTaskSummary): string {
   }
 }
 
-function describeNextStep(task: AssistantTaskSummary): string {
-  const { awaitingResponses, responded, recipients, failed } = task.totals;
-  if (task.status === "messaging") {
-    return "Assistant is delivering your outreach.";
-  }
-  if (task.status === "awaiting_responses" && awaitingResponses > 0) {
-    return `${awaitingResponses} awaiting replies.`;
-  }
-  if (task.status === "partial") {
-    return `${responded}/${recipients} responded; ${failed} failed.`;
-  }
-  if (task.status === "canceled") {
-    return "Task canceled.";
-  }
-  if (task.status === "completed") {
-    return `${responded}/${recipients} responded.`;
-  }
-  if (awaitingResponses > 0) {
-    return `${awaitingResponses} awaiting replies.`;
-  }
-  return "All responses captured.";
+type CollapsibleSectionProps = {
+  id: string;
+  title: string;
+  eyebrow?: string;
+  status?: React.ReactNode;
+  description?: string;
+  actions?: React.ReactNode;
+  open: boolean;
+  onToggle(next: boolean): void;
+  children: React.ReactNode;
+};
+
+function CollapsibleSection({
+  id,
+  title,
+  eyebrow,
+  status,
+  description,
+  actions,
+  open,
+  onToggle,
+  children,
+}: CollapsibleSectionProps) {
+  const regionId = `${id}-region`;
+  const labelId = `${id}-label`;
+
+  return (
+    <div className={`${styles.collapsible} ${open ? styles.collapsibleOpen : ""}`.trim()}>
+      <div className={styles.collapsibleHeaderRow}>
+        <button
+          type="button"
+          className={styles.collapsibleHeader}
+          aria-expanded={open}
+          aria-controls={regionId}
+          onClick={() => onToggle(!open)}
+        >
+          <div className={styles.collapsibleText}>
+            {eyebrow ? <span className={styles.collapsibleEyebrow}>{eyebrow}</span> : null}
+            <div className={styles.collapsibleTitleRow}>
+              <span className={styles.collapsibleTitle} id={labelId}>
+                {title}
+              </span>
+              {status ? <span className={styles.collapsibleStatus}>{status}</span> : null}
+            </div>
+            {description ? <p className={styles.collapsibleHint}>{description}</p> : null}
+          </div>
+          <CaretDown
+            size={16}
+            weight="bold"
+            className={`${styles.collapsibleCaret} ${open ? styles.collapsibleCaretOpen : ""}`.trim()}
+            aria-hidden
+          />
+        </button>
+        {actions ? <div className={styles.collapsibleActions}>{actions}</div> : null}
+      </div>
+      <div
+        className={`${styles.collapsibleBody} ${open ? styles.collapsibleBodyOpen : ""}`.trim()}
+        id={regionId}
+        role="region"
+        aria-labelledby={labelId}
+        aria-hidden={!open}
+      >
+        <div className={styles.collapsibleBodyInner}>{children}</div>
+      </div>
+    </div>
+  );
 }
 
 export function AssistantPanel({
@@ -162,69 +192,22 @@ export function AssistantPanel({
   );
   const [taskTitle, setTaskTitle] = React.useState("");
   const [taskDetails, setTaskDetails] = React.useState("");
-  const [recipientQuery, setRecipientQuery] = React.useState("");
-  const [manualRecipient, setManualRecipient] = React.useState("");
   const [selectedRecipients, setSelectedRecipients] = React.useState<Set<string>>(new Set());
-  const [trackResponses, setTrackResponses] = React.useState(true);
   const [creatingTask, setCreatingTask] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = React.useState<string | null>(null);
+  const [composerExpanded, setComposerExpanded] = React.useState(true);
+  const [tasksExpanded, setTasksExpanded] = React.useState(true);
+  const [inviteOpen, setInviteOpen] = React.useState(false);
   const hasTasks = Boolean(tasks?.length);
   const waitingState = loading && !hasTasks;
   const primaryError = !loading && !hasTasks && error ? error : null;
+  const composerBodyId = "assistant-task-composer";
+  const tasksBodyId = "assistant-task-list";
 
   const handleRefresh = React.useCallback(() => {
     void onRefresh();
   }, [onRefresh]);
-
-  const recipientOptions = React.useMemo(() => {
-    const query = recipientQuery.trim().toLowerCase();
-    const sorted = [...friendList].sort((a, b) => {
-      const left = a.name?.toLowerCase() ?? a.userId.toLowerCase();
-      const right = b.name?.toLowerCase() ?? b.userId.toLowerCase();
-      return left.localeCompare(right);
-    });
-    return sorted
-      .filter((friend) => {
-        if (!query) return true;
-        const name = friend.name?.toLowerCase() ?? "";
-        return name.includes(query) || friend.userId.toLowerCase().includes(query);
-      })
-      .slice(0, 15);
-  }, [friendList, recipientQuery]);
-
-  const selectedRecipientItems = React.useMemo(
-    () =>
-      Array.from(selectedRecipients).map((id) => {
-        const friend = friendMap.get(id);
-        return {
-          userId: id,
-          name: friend?.name ?? id,
-          avatar: friend?.avatar ?? null,
-        };
-      }),
-    [friendMap, selectedRecipients],
-  );
-
-  const toggleRecipient = React.useCallback((userId: string) => {
-    setSelectedRecipients((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) {
-        next.delete(userId);
-      } else if (next.size < 25) {
-        next.add(userId);
-      }
-      return next;
-    });
-    setCreateError(null);
-  }, []);
-
-  const handleManualRecipient = React.useCallback(() => {
-    const trimmed = manualRecipient.trim();
-    if (!trimmed) return;
-    toggleRecipient(trimmed);
-    setManualRecipient("");
-  }, [manualRecipient, toggleRecipient]);
 
   const openAssistantChat = React.useCallback(async () => {
     setCreateError(null);
@@ -241,23 +224,6 @@ export function AssistantPanel({
       setCreateError(err instanceof Error ? err.message : "Unable to open assistant chat.");
     }
   }, []);
-
-  const openChatWithUser = React.useCallback(async (userId: string, name?: string | null) => {
-    if (!userId) return;
-    setCreateError(null);
-    try {
-      await requestChatStart(
-        {
-          userId,
-          name: name ?? userId,
-          avatar: friendMap.get(userId)?.avatar ?? null,
-        },
-        { activate: true },
-      );
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Unable to open chat.");
-    }
-  }, [friendMap]);
 
   const handleCreateTask = React.useCallback(async () => {
     setCreateError(null);
@@ -284,10 +250,8 @@ export function AssistantPanel({
           return {
             userId,
             name: friend?.name ?? null,
-            trackResponses,
           };
         }),
-        trackResponses,
       };
       const response = await fetch("/api/assistant/tasks", {
         method: "POST",
@@ -300,7 +264,6 @@ export function AssistantPanel({
       }
       setTaskTitle("");
       setTaskDetails("");
-      setRecipientQuery("");
       setSelectedRecipients(new Set());
       setCreateSuccess("Task created. The assistant is reaching out and will track replies.");
       void onRefresh();
@@ -309,7 +272,7 @@ export function AssistantPanel({
     } finally {
       setCreatingTask(false);
     }
-  }, [friendMap, onRefresh, selectedRecipients, taskDetails, taskTitle, trackResponses]);
+  }, [friendMap, onRefresh, selectedRecipients, taskDetails, taskTitle]);
 
   const sortedTasks = React.useMemo(() => {
     if (!tasks || !tasks.length) return [];
@@ -333,7 +296,6 @@ export function AssistantPanel({
 
   const renderTaskCard = React.useCallback(
     (task: AssistantTaskSummary) => {
-      const badge = getTaskBadge(task);
       const metrics = summarizeTaskMetrics(task);
       const lastUpdated = formatRelativeTime(task.lastResponseAt ?? task.updatedAt) ?? "just now";
       const isCanceling = cancelingIds.has(task.id);
@@ -346,31 +308,17 @@ export function AssistantPanel({
         task.status !== "partial" &&
         task.status !== "canceled";
       const stageLabel = describeTaskStatus(task);
-      const nextStep = describeNextStep(task);
 
       return (
         <li key={task.id} className={styles.taskCard}>
           <div className={styles.taskHeader}>
             <div className={styles.taskTopMeta}>
-              <span
-                className={`${styles.pill} ${
-                  direction === "incoming" ? styles.pillIncoming : styles.pillOutgoing
-                }`.trim()}
-              >
-                {directionLabel}
-              </span>
-              <span className={`${styles.pill} ${styles.pill_info}`}>{stageLabel}</span>
-              {badge ? (
-                <span className={`${styles.pill} ${styles[`pill_${badge.tone}`]}`}>{badge.label}</span>
-              ) : null}
+              <span className={styles.taskMetaLabel}>{directionLabel}</span>
+              <span className={styles.taskMetaDivider}>•</span>
+              <span className={styles.taskMetaLabel}>{stageLabel}</span>
             </div>
             <div>
               <span className={styles.taskTitle}>{getTaskTitle(task)}</span>
-              <p className={styles.prompt}>{getPromptPreview(task.prompt)}</p>
-              <p className={styles.nextStep}>{nextStep}</p>
-              <Link href={`/assistant/tasks/${task.id}`} className={styles.linkButton}>
-                View task thread
-              </Link>
             </div>
           </div>
           {task.recipients.length ? (
@@ -405,11 +353,6 @@ export function AssistantPanel({
                   <span className={styles.metric}>
                     {metrics.responded}/{metrics.recipients} responded
                   </span>
-                  {metrics.awaiting > 0 ? (
-                    <span className={`${styles.metric} ${styles.metricAlert}`}>
-                      {metrics.awaiting} awaiting replies
-                    </span>
-                  ) : null}
                   {metrics.failed > 0 ? (
                     <span className={`${styles.metric} ${styles.metricWarning}`}>
                       {metrics.failed} failed deliveries
@@ -418,23 +361,14 @@ export function AssistantPanel({
                 </>
               )}
             </div>
-            <div className={styles.taskActions}>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => void openAssistantChat()}
+            <div className={styles.taskFooter}>
+              <span className={styles.timestamp}>Updated {lastUpdated}</span>
+              <Link
+                href={`/assistant/tasks/${task.id}`}
+                className={`${styles.linkButton} ${styles.inlineLink}`}
               >
-                Chat with assistant
-              </button>
-              {task.counterpartUserId ? (
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => void openChatWithUser(task.counterpartUserId ?? "", task.counterpartName)}
-                >
-                  Open thread with {task.counterpartName ?? "contact"}
-                </button>
-              ) : null}
+                View task thread
+              </Link>
               {canCancel ? (
                 <button
                   type="button"
@@ -446,188 +380,103 @@ export function AssistantPanel({
                 </button>
               ) : null}
             </div>
-            <span className={styles.timestamp}>Updated {lastUpdated}</span>
           </div>
         </li>
       );
     },
-    [cancelingIds, loading, onCancelTask, openAssistantChat, openChatWithUser],
+    [cancelingIds, loading, onCancelTask],
   );
 
   return (
     <div className={styles.panel}>
-      <header className={styles.header}>
-        <div className={styles.headerText}>
-          <p className={styles.kicker}>Capsules Assistant</p>
-          <h3 className={styles.title}>Your connected Capsules assistant</h3>
-          <p className={styles.lede}>
-            Let the assistant organize plans, track invites, and handle conversations across
-            capsules on your behalf.
-          </p>
-        </div>
-        <button
-          type="button"
-          className={styles.refresh}
-          onClick={handleRefresh}
-          disabled={loading}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
-      </header>
-
-      <section className={styles.composer} aria-label="Assistant task composer">
-        <div className={styles.composerHeader}>
-          <div>
-            <p className={styles.kicker}>Scoped tasks</p>
-            <h4 className={styles.composerTitle}>Spin up a task thread</h4>
-            <p className={styles.composerSubhead}>
-              Set the goal and who to reach. The assistant will handle outreach and keep this task
-              separate from your ongoing chat.
-            </p>
-          </div>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => void openAssistantChat()}
-          >
-            Chat with assistant
-          </button>
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="assistant-task-title">
-            Task title
-          </label>
-          <input
-            id="assistant-task-title"
-            className={styles.input}
-            placeholder="Plan Saturday meetup, coordinate invites, gather info..."
-            value={taskTitle}
-            onChange={(event) => {
-              setTaskTitle(event.target.value);
-              setCreateError(null);
-            }}
-          />
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="assistant-task-details">
-            Details for the assistant
-          </label>
-          <textarea
-            id="assistant-task-details"
-            className={styles.textarea}
-            rows={3}
-            placeholder="What outcome do you want? Include timelines, links, or talking points."
-            value={taskDetails}
-            onChange={(event) => {
-              setTaskDetails(event.target.value);
-              setCreateError(null);
-            }}
-          />
-        </div>
-
-        <div className={styles.field}>
-          <div className={styles.labelRow}>
-            <label className={styles.label} htmlFor="assistant-task-recipients">
-              Recipients
+      <CollapsibleSection
+        id="assistant-composer"
+        title="Create task"
+        eyebrow="Assistant"
+        description="Share the goal and who should receive it. The assistant will message them and track replies."
+        status={selectedRecipients.size ? `${selectedRecipients.size} selected` : undefined}
+        open={composerExpanded}
+        onToggle={setComposerExpanded}
+      >
+        <div id={composerBodyId}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="assistant-task-title">
+              Task title
             </label>
-            <span className={styles.muted}>{selectedRecipients.size}/25 selected</span>
-          </div>
-          <input
-            id="assistant-task-recipients"
-            className={styles.input}
-            placeholder="Filter by name or handle"
-            value={recipientQuery}
-            onChange={(event) => setRecipientQuery(event.target.value)}
-          />
-          <div className={styles.recipientPicker}>
-            {recipientOptions.length ? (
-              recipientOptions.map((friend) => {
-                const checked = selectedRecipients.has(friend.userId);
-                return (
-                  <label key={friend.userId} className={styles.recipientOption}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleRecipient(friend.userId)}
-                    />
-                    <span>{friend.name ?? friend.userId}</span>
-                  </label>
-                );
-              })
-            ) : (
-              <p className={styles.muted}>No matches. Add someone manually below.</p>
-            )}
-          </div>
-          <div className={styles.inlineAdd}>
             <input
+              id="assistant-task-title"
               className={styles.input}
-              placeholder="Add another user id"
-              value={manualRecipient}
-              onChange={(event) => setManualRecipient(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleManualRecipient();
-                }
+              placeholder="e.g. Plan Saturday meetup or collect RSVPs"
+              value={taskTitle}
+              onChange={(event) => {
+                setTaskTitle(event.target.value);
+                setCreateError(null);
               }}
             />
-            <button type="button" className={styles.secondaryButton} onClick={handleManualRecipient}>
-              Add
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="assistant-task-details">
+              Details for the assistant
+            </label>
+            <textarea
+              id="assistant-task-details"
+              className={styles.textarea}
+              rows={3}
+              placeholder="Describe the message or steps, plus any key links."
+              value={taskDetails}
+              onChange={(event) => {
+                setTaskDetails(event.target.value);
+                setCreateError(null);
+              }}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <div className={styles.labelRow}>
+              <label className={styles.label} htmlFor="assistant-task-recipients">
+                Who is involved?
+              </label>
+              <span className={styles.muted}>{selectedRecipients.size}/25 selected</span>
+            </div>
+            <button
+              id="assistant-task-recipients"
+              type="button"
+              className={styles.inviteInput}
+              onClick={() => setInviteOpen(true)}
+            >
+              {selectedRecipients.size ? (
+                <span>{selectedRecipients.size} selected</span>
+              ) : (
+                <span className={styles.muted}>Type a name to involve</span>
+              )}
             </button>
           </div>
-          {selectedRecipientItems.length ? (
-            <div className={styles.selectedChips}>
-              {selectedRecipientItems.map((recipient) => (
-                <button
-                  key={recipient.userId}
-                  type="button"
-                  className={styles.selectedChip}
-                  onClick={() => toggleRecipient(recipient.userId)}
-                >
-                  <span>{recipient.name ?? recipient.userId}</span>
-                  <span className={styles.removeChip} aria-hidden="true">
-                    x
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.muted}>Pick people to keep this task scoped.</p>
-          )}
+
+          {createError ? (
+            <p className={`${styles.inlineError} ${styles.inlineErrorTight}`}>{createError}</p>
+          ) : null}
+          {createSuccess ? <p className={styles.success}>{createSuccess}</p> : null}
+
+          <div className={styles.composerFooter}>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => void handleCreateTask()}
+              disabled={creatingTask}
+            >
+              {creatingTask ? "Starting..." : "Start task"}
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => void openAssistantChat()}
+            >
+              Chat with assistant
+            </button>
+          </div>
         </div>
-
-        <label className={styles.checkbox}>
-          <input
-            type="checkbox"
-            checked={trackResponses}
-            onChange={(event) => setTrackResponses(event.target.checked)}
-          />
-          Track replies and mark complete automatically.
-        </label>
-
-        {createError ? <p className={`${styles.inlineError} ${styles.inlineErrorTight}`}>{createError}</p> : null}
-        {createSuccess ? <p className={styles.success}>{createSuccess}</p> : null}
-
-        <div className={styles.composerFooter}>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => void handleCreateTask()}
-            disabled={creatingTask}
-          >
-            {creatingTask ? "Starting..." : "Start task"}
-          </button>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => void openAssistantChat()}
-          >
-            Talk it through with assistant
-          </button>
-        </div>
-      </section>
+      </CollapsibleSection>
 
       {waitingState ? (
         <div className={styles.state} role="status">
@@ -639,52 +488,77 @@ export function AssistantPanel({
         </div>
       ) : (
         <>
-          <section className={styles.taskSection}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.kicker}>Active tasks</p>
-                <h4 className={styles.sectionTitle}>In flight</h4>
+          <CollapsibleSection
+            id="assistant-tasks"
+            title="In progress"
+            eyebrow="Active tasks"
+            status={
+              activeTasks.length
+                ? `${activeTasks.length} open${completedTasks.length ? ` / ${completedTasks.length} past` : ""}`
+                : "No active tasks"
+            }
+            open={tasksExpanded}
+            onToggle={setTasksExpanded}
+          >
+            <div id={tasksBodyId}>
+              <div className={styles.tasksToolbar}>
+                <button
+                  type="button"
+                  className={styles.refresh}
+                  onClick={handleRefresh}
+                  disabled={loading}
+                >
+                  {loading ? "Refreshing..." : "Refresh"}
+                </button>
               </div>
-              <span className={styles.sectionHint}>
-                {activeTasks.length ? `${activeTasks.length} open` : "No active tasks"}
-              </span>
-            </div>
-            {!activeTasks.length ? (
-              <div className={styles.state}>
-                Assistant is idle. Tell it what you&apos;re trying to do: plan, gather info, or reach
-                out, and it will take it from there.
-              </div>
-            ) : (
-              <ul className={styles.tasks} aria-live="polite">
-                {activeTasks.map((task) => renderTaskCard(task))}
-              </ul>
-            )}
-          </section>
-
-          {completedTasks.length ? (
-            <section className={styles.taskSection}>
-              <div className={styles.sectionHeader}>
-                <div>
-                  <p className={styles.kicker}>History</p>
-                  <h4 className={styles.sectionTitle}>Recently wrapped</h4>
+              {!activeTasks.length ? (
+                <div className={styles.state}>
+                  No active tasks. Create one above to start outreach or planning.
                 </div>
-                <span className={styles.sectionHint}>
-                  Showing {Math.min(completedTasks.length, 5)} of {completedTasks.length}
-                </span>
-              </div>
-              <ul className={styles.tasks} aria-live="polite">
-                {completedTasks.slice(0, 5).map((task) => renderTaskCard(task))}
-              </ul>
-            </section>
-          ) : null}
+              ) : (
+                <ul className={styles.tasks} aria-live="polite">
+                  {activeTasks.map((task) => renderTaskCard(task))}
+                </ul>
+              )}
+
+              {completedTasks.length ? (
+                <section className={styles.taskSection}>
+                  <div className={styles.sectionHeader}>
+                    <div>
+                      <p className={styles.kicker}>History</p>
+                      <h4 className={styles.sectionTitle}>Recently completed</h4>
+                    </div>
+                    <span className={styles.sectionHint}>
+                      Showing {Math.min(completedTasks.length, 5)} of {completedTasks.length}
+                    </span>
+                  </div>
+                  <ul className={styles.tasks} aria-live="polite">
+                    {completedTasks.slice(0, 5).map((task) => renderTaskCard(task))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
+          </CollapsibleSection>
         </>
       )}
-
       {error && hasTasks ? (
         <p className={styles.inlineError}>
           {error} - showing recently cached assistant tasks.
         </p>
       ) : null}
+
+      <ChatStartOverlay
+        open={inviteOpen}
+        friends={friendList}
+        onClose={() => setInviteOpen(false)}
+        onSubmit={(userIds) => {
+          setSelectedRecipients(new Set(userIds.slice(0, 25)));
+          setInviteOpen(false);
+          setCreateError(null);
+        }}
+        busy={creatingTask}
+        mode="chat"
+      />
     </div>
   );
 }

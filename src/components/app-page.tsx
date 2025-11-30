@@ -14,7 +14,7 @@ export type AppPageProps = {
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
   showDiscoveryRightRail?: boolean;
-  layoutVariant?: "default" | "capsule";
+  layoutVariant?: "default" | "capsule" | "studio";
 };
 
 export function AppPage({

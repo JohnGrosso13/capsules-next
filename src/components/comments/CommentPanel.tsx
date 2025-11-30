@@ -4,7 +4,18 @@ import Link from "next/link";
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import { X, StackSimple, Smiley, Paperclip } from "@phosphor-icons/react/dist/ssr";
+import {
+  X,
+  StackSimple,
+  Smiley,
+  Paperclip,
+  Heart,
+  ShareNetwork,
+  Brain,
+  DotsThreeCircleVertical,
+  ChatCircle,
+  HourglassHigh,
+} from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./comment-panel.module.css";
 import { ChatComposer, type PendingAttachment, type ComposerStatus } from "@/components/chat/ChatComposer";
@@ -22,6 +33,7 @@ import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "@/components/composer/components/ComposerMemoryPicker";
+import { PostMenu } from "@/components/posts/PostMenu";
 import type { CommentThreadState, CommentSubmitPayload, CommentAttachment } from "./types";
 
 const EmojiPicker = dynamic<EmojiPickerProps>(
@@ -41,6 +53,26 @@ type CommentPanelProps = {
   onSubmit(payload: CommentSubmitPayload): Promise<void>;
   timeAgo(value?: string | null): string;
   exactTime(value?: string | null): string;
+  // Optional engagement + memory context
+  onToggleLike?(postId: string): void;
+  likePending?: boolean;
+  viewerLiked?: boolean;
+  likeCount?: number | null;
+  shareCount?: number | null;
+  remembered?: boolean;
+  memoryPending?: boolean;
+  canRemember?: boolean;
+  onToggleMemory?(post: HomeFeedPost, desired: boolean): void | Promise<unknown>;
+  onShare?(post: HomeFeedPost): void;
+  friendMenu?: {
+    canTarget: boolean;
+    pending?: boolean;
+    followState?: "following" | "not_following" | null;
+    onRequest?: (() => void) | null;
+    onRemove?: (() => void) | null;
+    onFollow?: (() => void) | null;
+    onUnfollow?: (() => void) | null;
+  } | null;
 };
 
 const GIF_SIZE_LIMIT_BYTES = 7 * 1024 * 1024;
@@ -91,6 +123,17 @@ export function CommentPanel({
   onSubmit,
   timeAgo,
   exactTime,
+  onToggleLike,
+  likePending,
+  viewerLiked,
+  likeCount,
+  shareCount,
+  remembered: rememberedProp,
+  memoryPending,
+  canRemember,
+  onToggleMemory,
+  onShare,
+  friendMenu,
 }: CommentPanelProps) {
   const { user } = useCurrentUser();
   const [portalEl, setPortalEl] = React.useState<HTMLElement | null>(null);
@@ -115,6 +158,7 @@ export function CommentPanel({
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
   const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
   const [memoryPickerTab, setMemoryPickerTab] = React.useState<MemoryPickerTab>("uploads");
+  const [friendMenuOpen, setFriendMenuOpen] = React.useState(false);
 
   const memoryUploads = useMemoryUploads("upload");
   const memoryAssets = useMemoryUploads(null);
@@ -140,6 +184,7 @@ export function CommentPanel({
       pendingFilesRef.current = [];
       setPendingFileCount(0);
       clearAttachment();
+      setFriendMenuOpen(false);
       return;
     }
     if (thread.status === "idle") {
@@ -500,6 +545,61 @@ export function CommentPanel({
   );
 
   const commentCount = thread.comments.length;
+  const liked = Boolean(
+    viewerLiked ??
+      post.viewerLiked ??
+      (post as { viewer_liked?: boolean }).viewer_liked ??
+      false,
+  );
+  const remembered = Boolean(
+    rememberedProp ?? post.viewerRemembered ?? (post as { viewer_remembered?: boolean }).viewer_remembered,
+  );
+  const memoryBusy = Boolean(memoryPending) || (!canRemember && canRemember !== undefined);
+  const canToggleMemory = Boolean(onToggleMemory) && !memoryBusy && (canRemember ?? true);
+  const handleMemoryToggle = React.useCallback(() => {
+    if (!onToggleMemory || !canToggleMemory) return;
+    try {
+      void onToggleMemory(post, !remembered);
+    } catch (error) {
+      console.error("Memory toggle failed", error);
+    }
+  }, [canToggleMemory, onToggleMemory, post, remembered]);
+  const handleLikeClick = React.useCallback(() => {
+    if (!onToggleLike || likePending) return;
+    onToggleLike(post.id);
+  }, [likePending, onToggleLike, post.id]);
+  const handleShareClick = React.useCallback(() => {
+    if (onShare) {
+      onShare(post);
+      return;
+    }
+    if (typeof window !== "undefined" && navigator?.clipboard?.writeText) {
+      const url = window.location.href;
+      void navigator.clipboard.writeText(url).catch(() => {
+        /* ignore clipboard failures */
+      });
+    }
+  }, [onShare, post]);
+  const friendMenuData = friendMenu ?? null;
+  React.useEffect(() => {
+    if (!friendMenuData) {
+      setFriendMenuOpen(false);
+    }
+  }, [friendMenuData]);
+  const normalizedLikeCount =
+    typeof likeCount === "number"
+      ? Math.max(0, likeCount)
+      : typeof post.likes === "number"
+        ? Math.max(0, post.likes)
+        : 0;
+  const normalizedShareCount =
+    typeof shareCount === "number"
+      ? Math.max(0, shareCount)
+      : typeof post.shares === "number"
+        ? Math.max(0, post.shares)
+        : 0;
+  const baseCommentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
+  const totalComments = Math.max(commentCount, baseCommentCount);
   const postMediaUrl = React.useMemo(() => {
     if (typeof post.mediaUrl !== "string") return null;
     const trimmed = post.mediaUrl.trim();
@@ -599,9 +699,49 @@ export function CommentPanel({
         <header className={styles.header}>
           <div className={styles.titleGroup}>
             <h2 className={styles.title}>{post.user_name?.trim() || "Post"}</h2>
-            <p className={styles.subtitle}>{commentCount === 1 ? "1 comment" : `${commentCount} comments`}</p>
+            <p className={styles.subtitle}>{totalComments === 1 ? "1 comment" : `${totalComments} comments`}</p>
           </div>
           <div className={styles.headerActions}>
+            {onToggleMemory ? (
+              <button
+                type="button"
+                className={styles.headerIconBtn}
+                data-active={remembered ? "true" : undefined}
+                onClick={handleMemoryToggle}
+                disabled={!canToggleMemory}
+                aria-pressed={remembered}
+                aria-label={remembered ? "Saved to memories" : "Remember this post"}
+              >
+                {memoryPending ? <HourglassHigh size={16} weight="duotone" /> : <Brain size={16} weight="duotone" />}
+              </button>
+            ) : null}
+            {friendMenuData ? (
+              <PostMenu
+                canTarget={friendMenuData.canTarget}
+                pending={Boolean(friendMenuData.pending)}
+                open={friendMenuOpen}
+                onOpenChange={setFriendMenuOpen}
+                {...(friendMenuData.onRequest ? { onAddFriend: friendMenuData.onRequest } : {})}
+                {...(friendMenuData.onRemove ? { onRemoveFriend: friendMenuData.onRemove } : {})}
+                {...(friendMenuData.followState ? { followState: friendMenuData.followState } : {})}
+                {...(friendMenuData.onFollow ? { onFollow: friendMenuData.onFollow } : {})}
+                {...(friendMenuData.onUnfollow ? { onUnfollow: friendMenuData.onUnfollow } : {})}
+                renderTrigger={({ ref, toggle, open, pending }) => (
+                  <button
+                    type="button"
+                    className={styles.headerIconBtn}
+                    aria-haspopup="menu"
+                    aria-expanded={open}
+                    onClick={toggle}
+                    disabled={pending}
+                    ref={ref}
+                    aria-label="Post options"
+                  >
+                    <DotsThreeCircleVertical size={18} weight="duotone" />
+                  </button>
+                )}
+              />
+            ) : null}
             <button
               type="button"
               className={styles.closeButton}
@@ -624,26 +764,51 @@ export function CommentPanel({
               ) : null}
             </div>
           ) : null}
-          {(() => {
-            const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
-            const baseCommentCount = typeof post.comments === "number" ? Math.max(0, post.comments) : 0;
-            const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
-            const totalComments = Math.max(commentCount, baseCommentCount);
-            return (
-              <div className={styles.engagementBar}>
-                <div className={styles.engagementCounts}>
-                  <span>{likeCount} Likes</span>
-                  <span>{totalComments} Comments</span>
-                  <span>{shareCount} Shares</span>
-                </div>
-                <div className={styles.engagementActions}>
-                  <button type="button" className={styles.engageBtn}>Like</button>
-                  <button type="button" className={styles.engageBtn}>Comment</button>
-                  <button type="button" className={styles.engageBtn}>Share</button>
-                </div>
-              </div>
-            );
-          })()}
+          <div className={styles.engagementBar}>
+            <div className={styles.engagementMeta}>
+              <span className={styles.metaPill}>
+                <Heart size={16} weight={liked ? "fill" : "duotone"} />
+                <span>{normalizedLikeCount} Likes</span>
+              </span>
+              <span className={styles.metaPill}>
+                <ChatCircle size={16} weight="duotone" />
+                <span>{totalComments} Comments</span>
+              </span>
+              <span className={styles.metaPill}>
+                <ShareNetwork size={16} weight="duotone" />
+                <span>{normalizedShareCount} Shares</span>
+              </span>
+            </div>
+            <div className={styles.engagementActions}>
+              <button
+                type="button"
+                className={styles.actionChip}
+                data-variant="like"
+                data-active={liked ? "true" : undefined}
+                onClick={handleLikeClick}
+                disabled={likePending}
+                aria-pressed={liked}
+              >
+                <span className={styles.chipIcon}>
+                  <Heart size={16} weight={liked ? "fill" : "duotone"} />
+                </span>
+                <span className={styles.chipLabel}>{liked ? "Liked" : "Like"}</span>
+                <span className={styles.chipCount}>{normalizedLikeCount}</span>
+              </button>
+              <button
+                type="button"
+                className={styles.actionChip}
+                data-variant="share"
+                onClick={handleShareClick}
+              >
+                <span className={styles.chipIcon}>
+                  <ShareNetwork size={16} weight="duotone" />
+                </span>
+                <span className={styles.chipLabel}>Share</span>
+                <span className={styles.chipCount}>{normalizedShareCount}</span>
+              </button>
+            </div>
+          </div>
           {thread.status === "loading" && !commentList.length ? (
             <p className={styles.loadingState}>Loading comments…</p>
           ) : null}

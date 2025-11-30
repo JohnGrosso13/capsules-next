@@ -63,6 +63,14 @@ export const capsuleMembershipViewerSchema = z.object({
   isMember: z.boolean(),
   isFollower: z.boolean(),
   canManage: z.boolean(),
+  canManageMembers: z.boolean(),
+  canApproveRequests: z.boolean(),
+  canInviteMembers: z.boolean(),
+  canChangeRoles: z.boolean(),
+  canRemoveMembers: z.boolean(),
+  canCustomize: z.boolean(),
+  canManageLadders: z.boolean(),
+  canModerateContent: z.boolean(),
   canRequest: z.boolean(),
   canFollow: z.boolean(),
   role: z.string().nullable(),
@@ -88,6 +96,7 @@ export const capsuleMembershipStateSchema = z.object({
     storeBannerUrl: z.string().nullable(),
     promoTileUrl: z.string().nullable(),
     logoUrl: z.string().nullable(),
+    membershipPolicy: z.enum(["open", "request_only", "invite_only"]).nullable().optional(),
   }),
   viewer: capsuleMembershipViewerSchema,
   counts: z.object({
@@ -112,6 +121,7 @@ export const capsuleMembershipActionSchema = z
       "decline_request",
       "remove_member",
       "set_role",
+      "set_policy",
       "follow",
       "unfollow",
       "leave",
@@ -124,6 +134,7 @@ export const capsuleMembershipActionSchema = z
     memberId: z.string().uuid("memberId must be a valid UUID").optional(),
     role: capsuleMemberRoleSchema.optional(),
     targetUserId: z.string().uuid("targetUserId must be a valid UUID").optional(),
+    membershipPolicy: z.enum(["open", "request_only", "invite_only"]).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.action === "set_role") {
@@ -166,6 +177,15 @@ export const capsuleMembershipActionSchema = z
           code: z.ZodIssueCode.custom,
           message: "targetUserId is required to invite a member.",
           path: ["targetUserId"],
+        });
+      }
+    }
+    if (value.action === "set_policy") {
+      if (!value.membershipPolicy) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "membershipPolicy is required to set a policy.",
+          path: ["membershipPolicy"],
         });
       }
     }

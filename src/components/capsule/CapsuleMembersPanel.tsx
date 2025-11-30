@@ -19,6 +19,7 @@ type CapsuleMembersPanelProps = {
   loading: boolean;
   error: string | null;
   mutatingAction: CapsuleMembershipAction | null;
+  onChangePolicy?: (policy: "open" | "request_only" | "invite_only") => Promise<unknown> | unknown;
   onApprove: (requestId: string) => Promise<unknown> | unknown;
   onDecline: (requestId: string) => Promise<unknown> | unknown;
   onRemove: (memberId: string) => Promise<unknown> | unknown;
@@ -42,6 +43,14 @@ const MEMBER_ROLE_LABELS: Record<MemberRoleValue, string> = MEMBER_ROLE_OPTIONS.
   (map, option) => ({ ...map, [option.value]: option.label }),
   {} as Record<MemberRoleValue, string>,
 );
+
+const MEMBERSHIP_POLICY_OPTIONS = [
+  { value: "open", label: "Open - auto-join" },
+  { value: "request_only", label: "Request-only - approval required" },
+  { value: "invite_only", label: "Invite-only - admins invite" },
+] as const;
+
+type MembershipPolicyValue = (typeof MEMBERSHIP_POLICY_OPTIONS)[number]["value"];
 
 const EMPTY_MEMBERS: CapsuleMembershipState["members"] = [];
 const EMPTY_REQUESTS: CapsuleMembershipState["requests"] = [];
@@ -144,6 +153,7 @@ export function CapsuleMembersPanel({
   onRemove,
   onChangeRole,
   onInvite,
+  onChangePolicy,
   onLeave,
 }: CapsuleMembersPanelProps) {
   const handleApprove = React.useCallback(
@@ -179,6 +189,10 @@ export function CapsuleMembersPanel({
   );
 
   const viewer = membership?.viewer ?? null;
+  const canApproveRequests = Boolean(viewer?.canApproveRequests);
+  const canInviteMembers = Boolean(viewer?.canInviteMembers);
+  const canChangeRoles = Boolean(viewer?.canChangeRoles);
+  const canRemoveMembers = Boolean(viewer?.canRemoveMembers);
   const isOwner = Boolean(viewer?.isOwner);
   const requestStatus = viewer?.requestStatus ?? "none";
   const canLeaveCapsule = Boolean(onLeave && viewer?.isMember && !viewer.isOwner);
@@ -194,7 +208,16 @@ export function CapsuleMembersPanel({
   const pendingCount = membership?.counts.pendingRequests ?? 0;
   const membersCount = membership?.counts.members ?? 0;
   const followerCount = membership?.counts.followers ?? followers.length;
-  const canViewPending = isOwner;
+  const canViewPending = canApproveRequests || canInviteMembers;
+  const membershipPolicy = (membership?.capsule?.membershipPolicy ??
+    "request_only") as MembershipPolicyValue;
+  const handlePolicyChange = React.useCallback(
+    (policy: MembershipPolicyValue) => {
+      if (mutatingAction || !onChangePolicy) return;
+      void onChangePolicy(policy);
+    },
+    [mutatingAction, onChangePolicy],
+  );
   const friendsContext = useOptionalFriendsDataContext();
   const availableFriends = friendsContext?.friends ?? EMPTY_FRIENDS;
   const showFollowsTab = followers.length > 0 || isOwner;
@@ -217,11 +240,11 @@ export function CapsuleMembersPanel({
   }, [members, pendingInvites, pendingRequests]);
 
   const friendSuggestions = React.useMemo(() => {
-    if (!isOwner) return [];
+    if (!canInviteMembers) return [];
     return availableFriends
       .filter((friend) => friend.userId && !excludedUserIds.has(friend.userId))
       .slice(0, 6);
-  }, [availableFriends, excludedUserIds, isOwner]);
+  }, [availableFriends, excludedUserIds, canInviteMembers]);
 
   const hasSuggestions = friendSuggestions.length > 0;
   const hasFollowers = followers.length > 0;
@@ -261,8 +284,28 @@ export function CapsuleMembersPanel({
             Manage who has access to this capsule. Pending requests appear here.
           </p>
         </div>
-        {isOwner ? (
-          <div className={styles.actions}>
+        <div className={styles.actions}>
+          {canChangeRoles && onChangePolicy ? (
+            <div className={styles.policySelectGroup}>
+              <label className={styles.policyLabel} htmlFor="membership-policy-select">
+                Membership policy
+              </label>
+              <select
+                id="membership-policy-select"
+                className={styles.roleSelect}
+                value={membershipPolicy}
+                onChange={(event) => handlePolicyChange(event.target.value as MembershipPolicyValue)}
+                disabled={mutatingAction !== null}
+              >
+                {MEMBERSHIP_POLICY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          {canInviteMembers ? (
             <button
               type="button"
               className={styles.button}
@@ -272,8 +315,8 @@ export function CapsuleMembersPanel({
               <UserPlus size={16} weight="bold" />
               Start Inviting Friends
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
       {loading ? <div className={styles.notice}>Loading membership details...</div> : null}
@@ -345,8 +388,8 @@ export function CapsuleMembersPanel({
               {members.map((member) => {
                 const roleValue = resolveMemberRole(member);
                 const roleLabel = MEMBER_ROLE_LABELS[roleValue];
-                const canEditRole = isOwner && !member.isOwner;
-                const canRemove = isOwner && !member.isOwner;
+                const canEditRole = canChangeRoles && !member.isOwner;
+                const canRemove = canRemoveMembers && !member.isOwner;
                 const hasActions = canEditRole || canRemove;
                 const isMutating = mutatingAction !== null;
                 const showRoleInMeta = !canEditRole;
@@ -417,7 +460,7 @@ export function CapsuleMembersPanel({
             <h4 className={styles.sectionTitle}>Pending Requests</h4>
             <span className={styles.sectionBadge}>{pendingCount}</span>
           </header>
-          {hasPending ? (
+          {hasPending && canApproveRequests ? (
             <ul className={styles.list}>
               {pendingRequests.map((request) => (
                 <PendingRequestRow
@@ -430,9 +473,13 @@ export function CapsuleMembersPanel({
               ))}
             </ul>
           ) : (
-            <p className={styles.empty}>No pending requests at the moment.</p>
+            <p className={styles.empty}>
+              {canApproveRequests
+                ? "No pending requests at the moment."
+                : "Requests are managed by founders or admins."}
+            </p>
           )}
-          {isOwner ? (
+          {canInviteMembers ? (
             <>
               {pendingInvites.length ? (
                 <div className={styles.subSection}>

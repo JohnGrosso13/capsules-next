@@ -3,10 +3,15 @@ import { safeRandomUUID } from "@/lib/random";
 import { upsertCommentRow } from "./repository";
 import { resolvePostId } from "./identifiers";
 import { normalizeUuid, pruneNullish } from "./utils";
+import { requireCapsuleContentAccess } from "@/server/capsules/permissions";
+import { fetchPostViewRowByIdentifier } from "./repository";
 
 export async function persistCommentToDB(comment: Record<string, unknown>, userId: string | null) {
   const now = new Date().toISOString();
   const postId = await resolvePostId((comment.postId as string) ?? (comment.post_id as string));
+  if (comment.postId || comment.post_id) {
+    // no-op, postId already resolved
+  }
   const commentCapsuleId = normalizeUuid(
     typeof comment.capsuleId === "string"
       ? (comment.capsuleId as string)
@@ -16,6 +21,26 @@ export async function persistCommentToDB(comment: Record<string, unknown>, userI
   );
   if ((comment.capsuleId || comment.capsule_id) && !commentCapsuleId) {
     throw new Error("capsuleId must be a UUID");
+  }
+
+  let effectiveCapsuleId = commentCapsuleId;
+  if (!effectiveCapsuleId && postId) {
+    try {
+      const postRow = await fetchPostViewRowByIdentifier(postId);
+      const maybeCapsule = normalizeUuid(
+        (postRow as Record<string, unknown> | null)?.capsule_id as string | undefined,
+      );
+      if (maybeCapsule) effectiveCapsuleId = maybeCapsule;
+    } catch (lookupError) {
+      console.warn("comment capsule lookup failed", lookupError);
+    }
+  }
+
+  if (effectiveCapsuleId) {
+    if (!userId) {
+      throw new Error("Authentication required to comment in a capsule.");
+    }
+    await requireCapsuleContentAccess(effectiveCapsuleId, userId);
   }
 
   const attachments = normalizeCommentAttachmentsInput(

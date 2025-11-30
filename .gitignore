@@ -45,5 +45,11 @@ next-env.d.ts
 
 # local temp files
 temp_*.txt
+*.tmp
+.tmp-*/
+.tmp-tsbuild/
+*.tap
+*.tap.log
+*.bak
 
 certificates

@@ -25,6 +25,7 @@ const MESSAGE_ID_NAMESPACE = "capsules.chat.message:v1";
 type RawChatMessagePayload = {
   text?: string;
   attachments?: unknown;
+  task?: unknown;
 };
 
 type RawChatMessageAttachment = {
@@ -36,6 +37,11 @@ type RawChatMessageAttachment = {
   thumbnailUrl?: unknown;
   storageKey?: unknown;
   sessionId?: unknown;
+};
+
+type RawChatMessageTask = {
+  id?: unknown;
+  title?: unknown;
 };
 
 export function sanitizeBody(value: string): string {
@@ -94,16 +100,31 @@ export function sanitizeAttachments(value: unknown): ChatMessageAttachmentRecord
   return Array.from(unique.values());
 }
 
+export function sanitizeTaskPayload(
+  value: unknown,
+): { id: string; title: string | null } | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as RawChatMessageTask;
+  const id = typeof raw.id === "string" && raw.id.trim().length ? raw.id.trim() : null;
+  if (!id) return null;
+  const title =
+    typeof raw.title === "string" && raw.title.trim().length ? raw.title.trim() : null;
+  return { id, title };
+}
+
 export function encodeMessagePayload(
   body: string,
   attachments: ChatMessageAttachmentRecord[],
+  task?: { id?: string | null; title?: string | null } | null,
 ): string {
   const text = sanitizeBody(body ?? "");
-  if (!attachments.length) return text;
+  const taskPayload = sanitizeTaskPayload(task);
+  if (!attachments.length && !taskPayload) return text;
   try {
     return JSON.stringify({
       text,
       attachments,
+      ...(taskPayload ? { task: taskPayload } : {}),
     });
   } catch {
     return text;
@@ -113,13 +134,14 @@ export function encodeMessagePayload(
 export function decodeMessagePayload(raw: string): {
   text: string;
   attachments: ChatMessageAttachmentRecord[];
+  task: { id: string; title: string | null } | null;
 } {
   if (!raw || typeof raw !== "string") {
-    return { text: "", attachments: [] };
+    return { text: "", attachments: [], task: null };
   }
   const trimmed = raw.trim();
   if (!trimmed.startsWith("{")) {
-    return { text: sanitizeBody(raw), attachments: [] };
+    return { text: sanitizeBody(raw), attachments: [], task: null };
   }
   try {
     const parsed = JSON.parse(trimmed) as RawChatMessagePayload;
@@ -128,12 +150,13 @@ export function decodeMessagePayload(raw: string): {
         ? sanitizeBody(parsed.text)
         : "";
     const attachments = sanitizeAttachments(parsed?.attachments);
+    const task = sanitizeTaskPayload(parsed?.task);
     if (!attachments.length && !text) {
-      return { text: sanitizeBody(raw), attachments: [] };
+      return { text: sanitizeBody(raw), attachments: [], task: task ?? null };
     }
-    return { text, attachments };
+    return { text, attachments, task: task ?? null };
   } catch {
-    return { text: sanitizeBody(raw), attachments: [] };
+    return { text: sanitizeBody(raw), attachments: [], task: null };
   }
 }
 
@@ -170,6 +193,8 @@ export function toMessageRecord(
     sentAt: resolveSentAt(row),
     reactions,
     attachments: payload.attachments,
+    taskId: payload.task?.id ?? null,
+    taskTitle: payload.task?.title ?? null,
   };
 }
 

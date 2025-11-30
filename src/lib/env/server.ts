@@ -54,10 +54,13 @@ const optionalVideoDuration = z
       if (typeof value !== "string") return undefined;
       const parsed = Number(value);
       if (!Number.isFinite(parsed)) return undefined;
-      const clamped = Math.max(5, Math.min(120, Math.floor(parsed)));
-      return clamped;
+      const allowed = [4, 8, 12];
+      const nearest = allowed.reduce((prev, current) =>
+        Math.abs(current - parsed) < Math.abs(prev - parsed) ? current : prev,
+      );
+      return nearest;
     },
-    z.number().int().min(5).max(120).optional(),
+    z.number().int().min(4).max(12).optional(),
   )
   .transform((value) => value ?? null);
 

@@ -5,6 +5,8 @@ export type CapsuleMemberProfile = {
   userKey: string | null;
 };
 
+export type CapsuleMembershipPolicy = "open" | "request_only" | "invite_only";
+
 export type CapsuleMemberSummary = {
   userId: string;
   role: string | null;
@@ -55,6 +57,14 @@ export type CapsuleMembershipViewer = {
   isMember: boolean;
   isFollower: boolean;
   canManage: boolean;
+  canManageMembers: boolean;
+  canApproveRequests: boolean;
+  canInviteMembers: boolean;
+  canChangeRoles: boolean;
+  canRemoveMembers: boolean;
+  canCustomize: boolean;
+  canManageLadders: boolean;
+  canModerateContent: boolean;
   canRequest: boolean;
   canFollow: boolean;
   role: string | null;
@@ -72,9 +82,10 @@ export type CapsuleMembershipState = {
     ownerId: string;
     bannerUrl: string | null;
     storeBannerUrl: string | null;
-    promoTileUrl: string | null;
-    logoUrl: string | null;
-  };
+  promoTileUrl: string | null;
+  logoUrl: string | null;
+  membershipPolicy?: CapsuleMembershipPolicy | null;
+};
   viewer: CapsuleMembershipViewer;
   counts: {
     members: number;
@@ -94,6 +105,7 @@ export type CapsuleMembershipAction =
   | "decline_request"
   | "remove_member"
   | "set_role"
+  | "set_policy"
   | "follow"
   | "unfollow"
   | "leave"

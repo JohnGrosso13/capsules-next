@@ -33,6 +33,8 @@ export type ChatMessage = {
   status: "pending" | "sent" | "failed";
   reactions: ChatMessageReaction[];
   attachments: ChatMessageAttachment[];
+  taskId?: string | null;
+  taskTitle?: string | null;
 };
 
 export type ChatTypingEventPayload = {
@@ -88,6 +90,8 @@ export type StoredMessage = {
   sentAt: string;
   reactions?: StoredMessageReaction[];
   attachments?: StoredMessageAttachment[];
+  taskId?: string | null;
+  taskTitle?: string | null;
 };
 
 export type StoredSession = {

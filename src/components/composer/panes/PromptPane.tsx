@@ -69,12 +69,29 @@ export type PromptPaneProps = {
 const AI_ATTACHMENT_FEEDBACK_PROMPT =
   "How does this look? Want me to refine anything or try another variation?";
 
-function isGeneratedImageAttachment(
+const IMAGE_EXTENSION_RE = /\.(apng|avif|bmp|gif|jpe?g|jfif|pjpeg|pjp|png|svg|webp)$/i;
+
+function hasImageLikeExtension(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const normalized = url.split("?")[0]?.toLowerCase() ?? "";
+  return IMAGE_EXTENSION_RE.test(normalized);
+}
+
+function isImageAttachment(
   attachment: ComposerChatAttachment | null | undefined,
 ): attachment is ComposerChatAttachment {
   if (!attachment) return false;
   const mime = (attachment.mimeType ?? "").toLowerCase();
-  if (!mime.startsWith("image/")) return false;
+  if (mime.startsWith("image/")) return true;
+  if (hasImageLikeExtension(attachment.url)) return true;
+  if (hasImageLikeExtension(attachment.thumbnailUrl)) return true;
+  return false;
+}
+
+function isGeneratedImageAttachment(
+  attachment: ComposerChatAttachment | null | undefined,
+): attachment is ComposerChatAttachment {
+  if (!isImageAttachment(attachment)) return false;
   const role = (attachment.role ?? "").toLowerCase();
   const source = (attachment.source ?? "").toLowerCase();
   return role === "output" || source === "ai";
@@ -83,20 +100,20 @@ function isGeneratedImageAttachment(
 function partitionAttachments(
   attachments: ComposerChatAttachment[] | null | undefined,
 ): {
-  generatedImages: ComposerChatAttachment[];
+  imageAttachments: Array<{ attachment: ComposerChatAttachment; generated: boolean }>;
   inlineAttachments: ComposerChatAttachment[];
 } {
-  const generatedImages: ComposerChatAttachment[] = [];
+  const imageAttachments: Array<{ attachment: ComposerChatAttachment; generated: boolean }> = [];
   const inlineAttachments: ComposerChatAttachment[] = [];
-  if (!Array.isArray(attachments)) return { generatedImages, inlineAttachments };
+  if (!Array.isArray(attachments)) return { imageAttachments, inlineAttachments };
   attachments.forEach((attachment) => {
-    if (isGeneratedImageAttachment(attachment)) {
-      generatedImages.push(attachment);
+    if (isImageAttachment(attachment)) {
+      imageAttachments.push({ attachment, generated: isGeneratedImageAttachment(attachment) });
     } else {
       inlineAttachments.push(attachment);
     }
   });
-  return { generatedImages, inlineAttachments };
+  return { imageAttachments, inlineAttachments };
 }
 
 export function PromptPane({
@@ -297,14 +314,14 @@ export function PromptPane({
             ? `${styles.msgBubble} ${styles.userBubble}`
             : `${styles.msgBubble} ${styles.aiBubble}`;
         const key = entry.id || `${keyPrefix}-${role}-${index}`;
-        const { generatedImages, inlineAttachments } = partitionAttachments(
+        const { imageAttachments, inlineAttachments } = partitionAttachments(
           Array.isArray(entry.attachments) ? entry.attachments : [],
         );
         const messageText = typeof entry.content === "string" ? entry.content.trim() : "";
         const showBubble =
           role === "user" ||
           inlineAttachments.length > 0 ||
-          (!generatedImages.length && messageText.length > 0);
+          (!imageAttachments.length && messageText.length > 0);
         const inlineAttachmentNode =
           inlineAttachments.length > 0 ? renderInlineAttachments(inlineAttachments, key) : null;
         const bubbleNode = showBubble ? (
@@ -315,8 +332,8 @@ export function PromptPane({
         ) : null;
 
         const generatedNodes =
-          generatedImages.length > 0
-            ? generatedImages.map((attachment, attachmentIndex) => {
+          imageAttachments.length > 0
+            ? imageAttachments.map(({ attachment, generated }, attachmentIndex) => {
                 const attachmentKey = `${key}-gen-${attachment.id || attachmentIndex}`;
                 const previewSrc =
                   (typeof attachment.url === "string" && attachment.url.trim().length
@@ -326,11 +343,12 @@ export function PromptPane({
                     ? attachment.thumbnailUrl.trim()
                     : null);
                 if (!previewSrc) return null;
+                const defaultCaption = generated ? "Generated visual" : "Attached image";
                 const generatedCaption =
                   attachment.excerpt?.trim() ||
                   (!showBubble ? messageText : "") ||
                   attachment.name ||
-                  "Generated visual";
+                  defaultCaption;
                 const helperLabel =
                   attachment.name && generatedCaption !== attachment.name ? attachment.name : null;
                 const canAddToPreview =
@@ -343,7 +361,7 @@ export function PromptPane({
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={previewSrc}
-                        alt={attachment.name || "Generated visual"}
+                        alt={attachment.name || defaultCaption}
                         className={styles.chatGeneratedMedia}
                       />
                     </div>

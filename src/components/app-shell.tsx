@@ -40,7 +40,7 @@ type AppShellProps = {
   showLiveChatRightRail?: boolean;
   liveChatRailProps?: LiveChatRailProps;
   showDiscoveryRightRail?: boolean;
-  layoutVariant?: "default" | "capsule";
+  layoutVariant?: "default" | "capsule" | "studio";
 };
 
 function AppShellContent({
@@ -70,18 +70,22 @@ function AppShellContent({
 
   const isHome = derivedActive === "home";
   const isCapsule = derivedActive === "capsule";
-  const usesCapsuleLayout = isCapsule || layoutVariant === "capsule";
+  const usesCapsuleLayout =
+    isCapsule || layoutVariant === "capsule" || layoutVariant === "studio";
   const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
   const isCapsuleFeedView = isCapsule && capsuleTab === "feed";
   const isCapsuleStoreView = isCapsule && capsuleTab === "store";
   const shouldShowDiscoveryRail = showDiscoveryRightRail || isCapsuleFeedView;
   const allowLiveChatRail = showLiveChatRightRail && !isCapsuleStoreView;
   const capsuleHasRightRail = shouldShowDiscoveryRail || allowLiveChatRail;
-  const effectiveLayout: "default" | "home" | "capsule" = usesCapsuleLayout
-    ? "capsule"
-    : isHome
-      ? "home"
-      : "default";
+  const effectiveLayout: "default" | "home" | "capsule" | "studio" =
+    layoutVariant === "studio"
+      ? "studio"
+      : usesCapsuleLayout
+        ? "capsule"
+        : isHome
+          ? "home"
+          : "default";
   const nonCapsuleHasRightRail = !usesCapsuleLayout && (isHome || showDiscoveryRightRail);
   const layoutColumns =
     usesCapsuleLayout && !capsuleHasRightRail

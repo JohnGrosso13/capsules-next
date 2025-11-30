@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type Hls from "hls.js";
-import { Play } from "@phosphor-icons/react/dist/ssr";
+import { Play, ArrowsOutSimple } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../home-feed.module.css";
 import type { FeedGalleryItem } from "@/components/home-feed/utils";
@@ -25,23 +25,23 @@ export type LightboxImageItem = {
 };
 
 export function buildLightboxItemsFromGallery(items: FeedGalleryItem[]): LightboxImageItem[] {
-  return items
-    .filter((entry): entry is FeedGalleryItem & { kind: "image" } => entry.kind === "image")
-    .map((entry) => ({
-      id: entry.id,
-      kind: "image" as const,
-      fullUrl: entry.fullUrl,
-      fullSrcSet: entry.fullSrcSet ?? null,
-      displayUrl: entry.displayUrl,
-      displaySrcSet: entry.displaySrcSet ?? null,
-      thumbnailUrl: entry.thumbnailUrl ?? null,
-      name: entry.name ?? null,
-      alt: entry.name ?? "Post attachment",
-      mimeType: entry.mimeType ?? null,
-      width: entry.width ?? null,
-      height: entry.height ?? null,
-      aspectRatio: entry.aspectRatio ?? null,
-    }));
+  return items.map((entry) => ({
+    id: entry.id,
+    kind: entry.kind,
+    fullUrl: entry.fullUrl,
+    fullSrcSet: entry.kind === "image" ? entry.fullSrcSet ?? null : null,
+    displayUrl: entry.displayUrl,
+    displaySrcSet: entry.kind === "image" ? entry.displaySrcSet ?? null : null,
+    thumbnailUrl: entry.thumbnailUrl ?? null,
+    name: entry.name ?? null,
+    alt:
+      entry.name ??
+      (entry.kind === "video" ? "Post video" : "Post attachment"),
+    mimeType: entry.mimeType ?? null,
+    width: entry.width ?? null,
+    height: entry.height ?? null,
+    aspectRatio: entry.aspectRatio ?? null,
+  }));
 }
 
 export type FeedVideoItem = FeedGalleryItem & { kind: "video" };
@@ -53,18 +53,18 @@ type FeedMediaGalleryProps = {
 };
 
 export function FeedMediaGallery({ postId, items, onOpenLightbox }: FeedMediaGalleryProps) {
-  const imageLightboxItems = React.useMemo<LightboxImageItem[]>(
+  const lightboxItems = React.useMemo<LightboxImageItem[]>(
     () => buildLightboxItemsFromGallery(items),
     [items],
   );
 
   const lightboxLookup = React.useMemo(() => {
     const map = new Map<string, number>();
-    imageLightboxItems.forEach((entry, index) => {
+    lightboxItems.forEach((entry, index) => {
       map.set(entry.id, index);
     });
     return map;
-  }, [imageLightboxItems]);
+  }, [lightboxItems]);
 
   const isSingleImageLayout = items.length === 1 && items[0]?.kind === "image";
 
@@ -78,10 +78,22 @@ export function FeedMediaGallery({ postId, items, onOpenLightbox }: FeedMediaGal
     >
       {items.map((item) => {
         if (item.kind === "video") {
-          return <FeedVideo key={item.id} item={item as FeedVideoItem} />;
+          const lightboxIndex = lightboxLookup.get(item.id);
+          const openLightboxProps =
+            typeof lightboxIndex === "number"
+              ? {
+                  onOpenLightbox: () =>
+                    onOpenLightbox({
+                      postId,
+                      index: lightboxIndex,
+                      items: lightboxItems,
+                    }),
+                }
+              : {};
+          return <FeedVideo key={item.id} item={item as FeedVideoItem} {...openLightboxProps} />;
         }
 
-        if (!imageLightboxItems.length) return null;
+        if (!lightboxItems.length) return null;
 
         const imageIndex = lightboxLookup.get(item.id) ?? 0;
         const rawAspectRatio =
@@ -148,7 +160,7 @@ export function FeedMediaGallery({ postId, items, onOpenLightbox }: FeedMediaGal
               onOpenLightbox({
                 postId,
                 index: imageIndex,
-                items: imageLightboxItems,
+                items: lightboxItems,
               })
             }
             aria-label={item.name ? `View ${item.name}` : "View attachment"}
@@ -211,7 +223,7 @@ function looksLikeHlsSource(
   return isHlsMimeType(mimeType) || isHlsUrl(url);
 }
 
-function FeedVideo({ item }: { item: FeedVideoItem }) {
+function FeedVideo({ item, onOpenLightbox }: { item: FeedVideoItem; onOpenLightbox?: () => void }) {
   const videoItem = item;
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -463,6 +475,20 @@ function FeedVideo({ item }: { item: FeedVideoItem }) {
       onFocus={playVideo}
       style={containerStyle}
     >
+      {onOpenLightbox ? (
+        <button
+          type="button"
+          className={styles.mediaLightboxBtn}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpenLightbox();
+          }}
+          aria-label="Open video in viewer"
+        >
+          <ArrowsOutSimple weight="bold" />
+        </button>
+      ) : null}
       <video
         ref={videoRef}
         className={styles.media}

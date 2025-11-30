@@ -59,6 +59,7 @@ create table if not exists public.capsules (
   name text not null,
   description text,
   banner_url text,
+  membership_policy text not null default 'request_only' check (membership_policy in ('open', 'request_only', 'invite_only')),
   logo_url text,
   created_by_id uuid not null references public.users(id) on delete cascade,
   created_at timestamptz not null default now(),

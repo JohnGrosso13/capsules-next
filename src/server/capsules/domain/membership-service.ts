@@ -19,13 +19,25 @@ import {
   upsertCapsuleMember,
   upsertCapsuleMemberRequest,
   updateCapsuleMemberRole,
+  updateCapsuleMembershipPolicy,
 } from "../repository";
 import {
   isCapsuleMemberUiRole,
   resolveViewerUiRole,
   uiRoleToDbRole,
   type CapsuleMemberUiRole,
+  type CapsuleMemberDbRole,
 } from "../roles";
+import {
+  buildCapsuleViewerPermissions,
+  canApproveRequests,
+  canChangeMemberRole,
+  canInviteMembers,
+  canRemoveMember,
+  resolveCapsuleActor,
+  canChangeRoles,
+  canRemoveMembers,
+} from "../permissions";
 import { enqueueCapsuleKnowledgeRefresh } from "../knowledge";
 import {
   CapsuleMembershipError,
@@ -33,8 +45,8 @@ import {
   normalizeMemberRole,
   normalizeOptionalString,
   normalizeRequestMessage,
+  normalizeMembershipPolicy,
   requireCapsule,
-  requireCapsuleOwnership,
   resolveCapsuleMediaUrl,
 } from "./common";
 import { notifyCapsuleInvite } from "@/server/notifications/triggers";
@@ -49,6 +61,7 @@ export async function getCapsuleMembership(
   if (!capsuleIdValue) {
     throw new Error("capsules.membership: capsule has invalid identifier");
   }
+  const membershipPolicy = normalizeMembershipPolicy(capsule.membership_policy);
 
   const normalizedViewerId = normalizeId(viewerId ?? null);
   const isOwner = normalizedViewerId === ownerId;
@@ -75,17 +88,28 @@ export async function getCapsuleMembership(
   const invites = isOwner ? await listCapsuleInvites(capsuleIdValue) : [];
 
   const isFollower = Boolean(followerRecord);
+  const viewerRole = (membershipRecord?.role as CapsuleMemberDbRole | null) ?? null;
+  const permissions = buildCapsuleViewerPermissions({ isOwner, role: viewerRole });
   const viewer: CapsuleMembershipViewer = {
     userId: normalizedViewerId,
     isOwner,
     isMember: isOwner || Boolean(membershipRecord),
     isFollower,
-    canManage: isOwner,
+    canManage: permissions.canManageMembers,
+    canManageMembers: permissions.canManageMembers,
+    canApproveRequests: permissions.canApproveRequests,
+    canInviteMembers: permissions.canInviteMembers,
+    canChangeRoles: permissions.canChangeRoles,
+    canRemoveMembers: permissions.canRemoveMembers,
+    canCustomize: permissions.canCustomize,
+    canManageLadders: permissions.canManageLadders,
+    canModerateContent: permissions.canModerateContent,
     canRequest:
       Boolean(normalizedViewerId) &&
       !isOwner &&
       !membershipRecord &&
-      viewerRequest?.status !== "pending",
+      viewerRequest?.status !== "pending" &&
+      membershipPolicy !== "invite_only",
     canFollow:
       Boolean(normalizedViewerId) && !isOwner && !membershipRecord && !isFollower,
     role: resolveViewerUiRole(membershipRecord?.role ?? null, isOwner),
@@ -105,6 +129,7 @@ export async function getCapsuleMembership(
       storeBannerUrl: resolveCapsuleMediaUrl(capsule.store_banner_url ?? null, options.origin ?? null),
       promoTileUrl: resolveCapsuleMediaUrl(capsule.promo_tile_url ?? null, options.origin ?? null),
       logoUrl: resolveCapsuleMediaUrl(capsule.logo_url ?? null, options.origin ?? null),
+      membershipPolicy,
     },
     viewer,
     counts: {
@@ -136,6 +161,7 @@ export async function requestCapsuleMembership(
   if (!capsuleIdValue) {
     throw new Error("capsules.membership.request: capsule has invalid identifier");
   }
+  const membershipPolicy = normalizeMembershipPolicy(capsule.membership_policy);
 
   if (ownerId === normalizedUserId) {
     throw new CapsuleMembershipError("conflict", "You already own this capsule.", 409);
@@ -144,6 +170,27 @@ export async function requestCapsuleMembership(
   const membership = await getCapsuleMemberRecord(capsuleIdValue, normalizedUserId);
   if (membership) {
     throw new CapsuleMembershipError("conflict", "You are already a member of this capsule.", 409);
+  }
+
+  if (membershipPolicy === "invite_only") {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "This capsule is invite-only. Ask an admin for an invite.",
+      403,
+    );
+  }
+
+  if (membershipPolicy === "open") {
+    await upsertCapsuleMember({
+      capsuleId: capsuleIdValue,
+      userId: normalizedUserId,
+      role: uiRoleToDbRole("member"),
+    });
+    enqueueCapsuleKnowledgeRefresh(
+      capsuleIdValue,
+      normalizeOptionalString(capsule.name ?? null),
+    );
+    return getCapsuleMembership(capsuleIdValue, normalizedUserId, options);
   }
 
   const message = normalizeRequestMessage(params.message ?? null);
@@ -231,11 +278,18 @@ export async function inviteCapsuleMember(
   if (!normalizedTargetId) {
     throw new CapsuleMembershipError("invalid", "A valid user id is required to invite.", 400);
   }
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.invite: capsule has invalid identifier");
+
+  const actor = await resolveCapsuleActor(capsuleId, ownerId);
+  if (!canInviteMembers(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder, admin, or leader to invite members.",
+      403,
+    );
   }
+
+  const { capsuleId: capsuleIdValue, ownerId: capsuleOwnerId } = actor;
+
   if (normalizedTargetId === capsuleOwnerId) {
     throw new CapsuleMembershipError("conflict", "You already own this capsule.", 409);
   }
@@ -249,10 +303,10 @@ export async function inviteCapsuleMember(
   }
   const invite = await upsertCapsuleMemberRequest(capsuleIdValue, normalizedTargetId, {
     origin: "owner_invite",
-    initiatorId: capsuleOwnerId,
+    initiatorId: actor.actorId,
   });
   void notifyCapsuleInvite(invite);
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  return getCapsuleMembership(capsuleIdValue, actor.actorId, options);
 }
 
 export async function acceptCapsuleInvite(
@@ -341,17 +395,21 @@ export async function approveCapsuleMemberRequest(
     throw new CapsuleMembershipError("invalid", "A valid request id is required.", 400);
   }
 
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.approve: capsule has invalid identifier");
+  const actor = await resolveCapsuleActor(capsuleId, ownerId);
+  if (!canApproveRequests(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder or admin to manage requests.",
+      403,
+    );
   }
+  const capsuleIdValue = actor.capsuleId;
 
   const updated = await setCapsuleMemberRequestStatus({
     capsuleId: capsuleIdValue,
     requestId: normalizedRequestId,
     status: "approved",
-    responderId: capsuleOwnerId,
+    responderId: actor.actorId,
   });
 
   if (!updated) {
@@ -372,8 +430,8 @@ export async function approveCapsuleMemberRequest(
     role: dbRole,
   });
 
-  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+  const membershipState = await getCapsuleMembership(capsuleIdValue, actor.actorId, options);
+  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(updated.capsuleName ?? null));
   return membershipState;
 }
 
@@ -388,17 +446,21 @@ export async function declineCapsuleMemberRequest(
     throw new CapsuleMembershipError("invalid", "A valid request id is required.", 400);
   }
 
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.decline: capsule has invalid identifier");
+  const actor = await resolveCapsuleActor(capsuleId, ownerId);
+  if (!canApproveRequests(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder or admin to manage requests.",
+      403,
+    );
   }
+  const capsuleIdValue = actor.capsuleId;
 
   const updated = await setCapsuleMemberRequestStatus({
     capsuleId: capsuleIdValue,
     requestId: normalizedRequestId,
     status: "declined",
-    responderId: capsuleOwnerId,
+    responderId: actor.actorId,
   });
 
   if (!updated) {
@@ -409,7 +471,7 @@ export async function declineCapsuleMemberRequest(
     );
   }
 
-  return getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
+  return getCapsuleMembership(capsuleIdValue, actor.actorId, options);
 }
 
 export async function removeCapsuleMember(
@@ -423,14 +485,28 @@ export async function removeCapsuleMember(
     throw new CapsuleMembershipError("invalid", "A valid member id is required.", 400);
   }
 
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.remove: capsule has invalid identifier");
+  const actor = await resolveCapsuleActor(capsuleId, ownerId);
+  if (!canRemoveMembers(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder or admin to remove members.",
+      403,
+    );
   }
+  const capsuleIdValue = actor.capsuleId;
 
-  if (normalizedMemberId === capsuleOwnerId) {
-    throw new CapsuleMembershipError("conflict", "You cannot remove the capsule owner.", 409);
+  const targetMembership = await getCapsuleMemberRecord(capsuleIdValue, normalizedMemberId);
+  const target = {
+    isOwner: normalizedMemberId === actor.ownerId,
+    role: (targetMembership?.role as CapsuleMemberDbRole | null) ?? null,
+  };
+
+  if (!canRemoveMember(actor, target)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You cannot remove this member.",
+      403,
+    );
   }
 
   const removed = await deleteCapsuleMemberRecord(capsuleIdValue, normalizedMemberId);
@@ -438,8 +514,11 @@ export async function removeCapsuleMember(
     throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
   }
 
-  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+  const membershipState = await getCapsuleMembership(capsuleIdValue, actor.actorId, options);
+  enqueueCapsuleKnowledgeRefresh(
+    capsuleIdValue,
+    normalizeOptionalString(actor.capsule?.name ?? null),
+  );
   return membershipState;
 }
 
@@ -457,27 +536,66 @@ export async function setCapsuleMemberRole(
 
   const normalizedRole = normalizeMemberRole(role);
 
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.membership.role: capsule has invalid identifier");
+  const actor = await resolveCapsuleActor(capsuleId, ownerId);
+  if (!canChangeRoles(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder or admin to change member roles.",
+      403,
+    );
   }
 
-  if (normalizedMemberId === capsuleOwnerId && normalizedRole !== "founder") {
-    throw new CapsuleMembershipError("conflict", "The capsule owner must remain a founder.", 409);
+  const capsuleIdValue = actor.capsuleId;
+  const targetMembership = await getCapsuleMemberRecord(capsuleIdValue, normalizedMemberId);
+  const target = {
+    isOwner: normalizedMemberId === actor.ownerId,
+    role: (targetMembership?.role as CapsuleMemberDbRole | null) ?? null,
+  };
+
+  const nextDbRole = uiRoleToDbRole(normalizedRole);
+  if (!canChangeMemberRole(actor, target, nextDbRole)) {
+    throw new CapsuleMembershipError("forbidden", "You cannot set this role for that member.", 403);
   }
 
   const updated = await updateCapsuleMemberRole({
     capsuleId: capsuleIdValue,
     memberId: normalizedMemberId,
-    role: uiRoleToDbRole(normalizedRole),
+    role: nextDbRole,
   });
 
   if (!updated) {
     throw new CapsuleMembershipError("not_found", "Member not found in this capsule.", 404);
   }
 
-  const membershipState = await getCapsuleMembership(capsuleIdValue, capsuleOwnerId, options);
-  enqueueCapsuleKnowledgeRefresh(capsuleIdValue, normalizeOptionalString(capsule.name ?? null));
+  const membershipState = await getCapsuleMembership(capsuleIdValue, actor.actorId, options);
+  enqueueCapsuleKnowledgeRefresh(
+    capsuleIdValue,
+    normalizeOptionalString(actor.capsule?.name ?? null),
+  );
   return membershipState;
+}
+
+export async function setCapsuleMembershipPolicy(
+  actorId: string,
+  capsuleId: string,
+  policy: string,
+  options: { origin?: string | null } = {},
+): Promise<CapsuleMembershipState> {
+  const actor = await resolveCapsuleActor(capsuleId, actorId);
+  if (!canChangeRoles(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder or admin to change the membership policy.",
+      403,
+    );
+  }
+  const normalizedPolicy = normalizeMembershipPolicy(policy);
+  const updated = await updateCapsuleMembershipPolicy({
+    capsuleId: actor.capsuleId,
+    policy: normalizedPolicy,
+  });
+  if (!updated) {
+    throw new CapsuleMembershipError("invalid", "Failed to update membership policy.", 400);
+  }
+  return getCapsuleMembership(actor.capsuleId, actor.actorId, options);
 }

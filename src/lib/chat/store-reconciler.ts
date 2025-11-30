@@ -67,6 +67,12 @@ export class ChatStoreReconciler {
     const attachments = this.normalizeAttachmentsFromDto(dto.attachments);
     if (!sanitized && attachments.length === 0) return;
     const reactions = this.normalizeReactionsFromDto(dto.reactions);
+    const taskId =
+      typeof dto.taskId === "string" && dto.taskId.trim().length ? dto.taskId.trim() : null;
+    const taskTitle =
+      typeof dto.taskTitle === "string" && dto.taskTitle.trim().length
+        ? dto.taskTitle.trim()
+        : null;
     const chatMessage: ChatMessage = {
       id: dto.id,
       authorId: dto.senderId,
@@ -75,6 +81,8 @@ export class ChatStoreReconciler {
       status: "sent",
       reactions,
       attachments,
+      taskId,
+      taskTitle,
     };
     const isLocal = this.isSelfUser(dto.senderId);
     this.store.addMessage(conversationId, chatMessage, { isLocal });

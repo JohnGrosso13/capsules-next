@@ -1,6 +1,7 @@
 import { listAssistantTasks, listTaskTargetsByTask } from "./repository";
 import type { AssistantTaskTargetRow } from "./repository";
 import type { AssistantTaskSummary } from "@/types/assistant";
+import { getTaskConversationId } from "./tasks";
 
 function summarizeTargets(targets: AssistantTaskTargetRow[]): AssistantTaskSummary["totals"] & {
   lastResponseAt: string | null;
@@ -93,6 +94,10 @@ export async function getAssistantTaskSummaries(options: {
       : null) as Record<string, unknown> | null;
     const directionRaw = typeof payload?.direction === "string" ? payload.direction : null;
     const direction = directionRaw === "incoming" || directionRaw === "outgoing" ? directionRaw : "outgoing";
+    const conversationId =
+      typeof payload?.conversationId === "string" && payload.conversationId.trim().length
+        ? payload.conversationId.trim()
+        : getTaskConversationId(task.owner_user_id, task.assistant_user_id);
     const targets = await listTaskTargetsByTask(task.id);
     const totals = summarizeTargets(targets);
     const firstRecipient = totals.recipientsDetail.length > 0 ? totals.recipientsDetail[0] : null;
@@ -117,6 +122,7 @@ export async function getAssistantTaskSummaries(options: {
       updatedAt: task.updated_at,
       result: task.result ?? null,
       direction,
+      conversationId,
       counterpartName,
       counterpartUserId,
       recipients: totals.recipientsDetail,

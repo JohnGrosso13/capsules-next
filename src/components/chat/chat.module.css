@@ -833,6 +833,10 @@
   text-decoration: none;
   white-space: nowrap;
 }
+.messageTaskBadgeMuted {
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
+  font-weight: 600;
+}
 
 .messageBubble {
   padding: 10px 12px;

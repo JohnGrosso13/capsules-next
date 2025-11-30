@@ -55,6 +55,8 @@ export const chatMessageEventSchema = z.object({
     sentAt: z.string(),
     reactions: z.array(chatReactionSummarySchema).optional(),
     attachments: z.array(chatMessageAttachmentSchema).optional(),
+    taskId: z.string().nullable().optional(),
+    taskTitle: z.string().nullable().optional(),
   }),
 });
 
@@ -68,6 +70,8 @@ export const chatMessageUpdatedEventSchema = z.object({
   senderId: z.string().optional(),
   sentAt: z.string().optional(),
   session: chatSessionMetaSchema,
+  taskId: z.string().nullable().optional(),
+  taskTitle: z.string().nullable().optional(),
 });
 
 export const chatMessageDeletedEventSchema = z.object({
@@ -105,4 +109,3 @@ export type ChatMessageUpdatedEventPayload = z.infer<typeof chatMessageUpdatedEv
 export type ChatMessageDeletedEventPayload = z.infer<typeof chatMessageDeletedEventSchema>;
 export type ChatReactionEventPayload = z.infer<typeof chatReactionEventSchema>;
 export type ChatSessionEventPayload = z.infer<typeof chatSessionEventSchema>;
-

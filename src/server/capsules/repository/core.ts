@@ -20,6 +20,7 @@ export type CapsuleRow = {
   store_banner_url: string | null;
   promo_tile_url: string | null;
   logo_url: string | null;
+  membership_policy?: string | null;
   created_by_id: string | null;
   created_at?: string | null;
 };
@@ -214,6 +215,7 @@ export type CapsuleSummary = {
   logoUrl: string | null;
   role: string | null;
   ownership: "owner" | "member" | "follower";
+  membershipPolicy?: string | null;
 };
 
 export type DiscoverCapsuleSummary = {
@@ -225,6 +227,7 @@ export type DiscoverCapsuleSummary = {
   promoTileUrl: string | null;
   logoUrl: string | null;
   createdAt: string | null;
+  membershipPolicy?: string | null;
 };
 
 function resolveOwnership(capsule: CapsuleRow, viewerId?: string | null): "owner" | "member" {
@@ -418,6 +421,7 @@ function upsertSummary(
     logoUrl: normalizeString(capsule?.logo_url ?? null),
     role: resolvedRole,
     ownership: resolvedOwnership,
+    membershipPolicy: normalizeString(capsule?.membership_policy ?? null),
   };
 
   if (!existing) {
@@ -441,7 +445,7 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
   const membershipResult = await db
     .from("capsule_members")
     .select<CapsuleMemberRow>(
-      "capsule_id, role, joined_at, capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url,created_by_id)",
+      "capsule_id, role, joined_at, capsule:capsule_id!inner(id,name,slug,banner_url,store_banner_url,promo_tile_url,logo_url,membership_policy,created_by_id)",
     )
     .eq("user_id", userId)
     .order("joined_at", { ascending: true })
@@ -459,7 +463,7 @@ export async function listCapsulesForUser(userId: string): Promise<CapsuleSummar
   const ownedResult = await db
     .from("capsules")
     .select<CapsuleRow>(
-      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, membership_policy, created_by_id, created_at",
     )
     .eq("created_by_id", userId)
     .order("created_at", { ascending: true })
@@ -516,7 +520,7 @@ export async function listCapsulesByOwnerIds(
   const result = await db
     .from("capsules")
     .select<CapsuleRow>(
-      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, membership_policy, created_by_id, created_at",
     )
     .in("created_by_id", normalizedOwners)
     .order("created_at", { ascending: false })
@@ -548,7 +552,7 @@ export async function listCapsulesByOwnerIds(
 export async function listAllCapsules(): Promise<Array<{ id: string; name: string | null }>> {
   const result = await db
     .from("capsules")
-    .select<CapsuleRow>("id, name, created_at")
+    .select<CapsuleRow>("id, name, membership_policy, created_at")
     .order("created_at", { ascending: true })
     .fetch();
 
@@ -582,7 +586,7 @@ export async function listRecentPublicCapsules(
   let query = db
     .from("capsules")
     .select<CapsuleRow>(
-      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, membership_policy, created_by_id, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(queryLimit);
@@ -614,6 +618,7 @@ export async function listRecentPublicCapsules(
       promoTileUrl: normalizeString(row?.promo_tile_url ?? null),
       logoUrl: normalizeString(row?.logo_url ?? null),
       createdAt: normalizeString(row?.created_at ?? null),
+      membershipPolicy: normalizeString(row?.membership_policy ?? null),
     });
 
     if (discovered.length >= normalizedLimit) break;
@@ -639,6 +644,7 @@ export async function getCapsuleSummaryForViewer(
     logoUrl: normalizeString(capsule.logo_url),
     role: null,
     ownership: resolveOwnership(capsule, viewerId),
+    membershipPolicy: normalizeString(capsule.membership_policy ?? null),
   };
 }
 
@@ -659,6 +665,7 @@ function makeSummary(row: CapsuleRow, role: "owner" | string | null): CapsuleSum
     logoUrl: normalizeString(row.logo_url),
     role: role ?? null,
     ownership: "owner",
+    membershipPolicy: normalizeString(row.membership_policy ?? null),
   };
 }
 
@@ -858,6 +865,30 @@ export async function updateCapsuleLogo(params: {
   return Boolean(result.data?.id);
 }
 
+export async function updateCapsuleMembershipPolicy(params: {
+  capsuleId: string;
+  policy: string;
+}): Promise<boolean> {
+  const normalizedCapsuleId = normalizeString(params.capsuleId);
+  const normalizedPolicy = normalizeString(params.policy);
+  if (!normalizedCapsuleId || !normalizedPolicy) {
+    return false;
+  }
+
+  const result = await db
+    .from("capsules")
+    .update({ membership_policy: normalizedPolicy })
+    .eq("id", normalizedCapsuleId)
+    .select<{ id: string | null }>("id")
+    .maybeSingle();
+
+  if (result.error) {
+    throw decorateDatabaseError("capsules.updateMembershipPolicy", result.error);
+  }
+
+  return Boolean(result.data?.id);
+}
+
 export async function findCapsuleById(capsuleId: string): Promise<CapsuleRow | null> {
   const normalizedId = normalizeString(capsuleId);
   if (!normalizedId) return null;
@@ -865,7 +896,7 @@ export async function findCapsuleById(capsuleId: string): Promise<CapsuleRow | n
   const result = await db
     .from("capsules")
     .select<CapsuleRow>(
-      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, created_by_id, created_at",
+      "id, name, slug, banner_url, store_banner_url, promo_tile_url, logo_url, membership_policy, created_by_id, created_at",
     )
     .eq("id", normalizedId)
     .maybeSingle();

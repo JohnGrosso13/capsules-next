@@ -99,6 +99,7 @@ export function CapsuleContent({
     declineRequest,
     removeMember,
     setMemberRole,
+    setMembershipPolicy,
     follow: followCapsule,
     unfollow: unfollowCapsule,
     leave,
@@ -167,7 +168,7 @@ export function CapsuleContent({
   }, [membersOpen, setMembershipError]);
 
   const viewer = membership?.viewer ?? null;
-  const canCustomize = Boolean(viewer?.isOwner);
+  const canCustomize = Boolean(viewer?.canCustomize ?? viewer?.isOwner);
   const isAuthenticated = Boolean(user);
   const handleSignIn = React.useCallback(() => {
     if (typeof window === "undefined") return;
@@ -232,6 +233,11 @@ export function CapsuleContent({
     (memberId: string, role: string) => setMemberRole(memberId, role).catch(() => {}),
     [setMemberRole],
   );
+  const handleChangeMembershipPolicy = React.useCallback(
+    (policy: "open" | "request_only" | "invite_only") =>
+      setMembershipPolicy(policy).catch(() => {}),
+    [setMembershipPolicy],
+  );
   const handleInviteMember = React.useCallback(
     (targetUserId: string) => inviteMember(targetUserId).catch(() => {}),
     [inviteMember],
@@ -265,7 +271,7 @@ export function CapsuleContent({
       }
       return { label: "Request to Join", disabled: false, onClick: sendMembershipRequest };
     }
-    if (viewer.isOwner) {
+    if (viewer.canManageMembers) {
       return {
         label: "Manage Members",
         disabled: membershipLoading,
@@ -550,6 +556,7 @@ export function CapsuleContent({
               onRemove={handleRemoveMember}
               onChangeRole={handleChangeMemberRole}
               onInvite={handleInviteMember}
+              onChangePolicy={handleChangeMembershipPolicy}
               {...(heroLeave ? { onLeave: handleLeaveCapsule } : {})}
             />
           ) : (
@@ -584,7 +591,7 @@ export function CapsuleContent({
                 <CapsuleHistorySection
                   capsuleId={capsuleId}
                   capsuleName={normalizedCapsuleName}
-                  viewerIsOwner={Boolean(viewer?.isOwner)}
+                  viewerIsOwner={Boolean(viewer?.canModerateContent ?? viewer?.isOwner)}
                 />
               ) : (
                 <div

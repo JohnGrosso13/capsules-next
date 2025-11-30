@@ -10,6 +10,7 @@ type PerformActionPayload =
   | { action: "decline_request"; requestId: string }
   | { action: "remove_member"; memberId: string }
   | { action: "set_role"; memberId: string; role: string }
+  | { action: "set_policy"; membershipPolicy: "open" | "request_only" | "invite_only" }
   | { action: "follow" }
   | { action: "unfollow" }
   | { action: "leave" }
@@ -29,6 +30,9 @@ type UseCapsuleMembershipResult = {
   declineRequest: (requestId: string) => Promise<CapsuleMembershipState | null>;
   removeMember: (memberId: string) => Promise<CapsuleMembershipState | null>;
   setMemberRole: (memberId: string, role: string) => Promise<CapsuleMembershipState | null>;
+  setMembershipPolicy: (
+    membershipPolicy: "open" | "request_only" | "invite_only",
+  ) => Promise<CapsuleMembershipState | null>;
   follow: () => Promise<CapsuleMembershipState | null>;
   unfollow: () => Promise<CapsuleMembershipState | null>;
   leave: () => Promise<CapsuleMembershipState | null>;
@@ -206,6 +210,12 @@ export function useCapsuleMembership(
     [performAction],
   );
 
+  const setMembershipPolicy = React.useCallback(
+    (membershipPolicy: "open" | "request_only" | "invite_only") =>
+      performAction({ action: "set_policy", membershipPolicy }),
+    [performAction],
+  );
+
   const follow = React.useCallback(() => performAction({ action: "follow" }), [performAction]);
 
   const unfollow = React.useCallback(() => performAction({ action: "unfollow" }), [performAction]);
@@ -239,6 +249,7 @@ export function useCapsuleMembership(
     declineRequest,
     removeMember,
     setMemberRole,
+    setMembershipPolicy,
     follow,
     unfollow,
     leave,

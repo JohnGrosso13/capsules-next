@@ -83,7 +83,7 @@ export function LiveStudioTab({
       className={styles.studioLayout ?? ""}
       autoSaveId={autoSaveIds.main}
       storage={panelStorage}
-      style={{ height: "auto", minHeight: "var(--studio-track-height)", overflow: "visible" }}
+      style={{ height: "var(--studio-track-height)", minHeight: "var(--studio-track-height)", overflow: "visible" }}
     >
       <Panel defaultSize={50} minSize={44} collapsible={false}>
         <PanelGroup
@@ -93,7 +93,7 @@ export function LiveStudioTab({
           autoSaveId={autoSaveIds.leftColumn}
           storage={panelStorage}
         >
-          <Panel defaultSize={58} minSize={46} collapsible={false}>
+          <Panel defaultSize={50} minSize={42} collapsible={false}>
             <div className={styles.panelSection}>
               {notification ? (
                 <StudioNotificationBanner
@@ -183,59 +183,44 @@ export function LiveStudioTab({
 
           <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
 
-          <Panel defaultSize={42} minSize={28} collapsible={false}>
+          <Panel defaultSize={12} minSize={8} collapsible={false}>
+            <div className={styles.panelSection}>
+              <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
+                <div className={styles.quickActionsInline}>
+                  {["Stream health", "Edit stream info", "Open encoder", "Refresh stats"].map((item) => (
+                    <button key={item} type="button" className={styles.quickActionButton} disabled>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Panel>
+
+          <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
+
+          <Panel defaultSize={38} minSize={28} collapsible={false}>
             <div className={styles.panelSection}>
               <div className={`${styles.stageManagerCard} ${styles.panelCard}`}>
                 <header className={styles.stageManagerHeader}>
                   <div>
                     <div className={styles.stageManagerTitle}>Stage manager</div>
                     <div className={styles.stageManagerSubtitle}>
-                      Scene cues, AI prompts, and quick actions coordinated in one timeline.
+                      AI prompts and intent chips to drive your stream without leaving preview.
                     </div>
                   </div>
                   <Button variant="ghost" size="xs" disabled>
-                    Timeline
+                    Pop out
                   </Button>
                 </header>
-                <div className={styles.stageManagerEvents}>
-                  <div className={styles.stageManagerEvent}>
-                    <span className={styles.stageManagerEventTime}>+00</span>
-                    <div className={styles.stageManagerEventBody}>
-                      <strong>Welcome teaser</strong>
-                      <p>60-second intro with host on camera. Slide deck is primed and overlays are synced.</p>
-                    </div>
-                  </div>
-                  <div className={styles.stageManagerEvent}>
-                    <span className={styles.stageManagerEventTime}>+05</span>
-                    <div className={styles.stageManagerEventBody}>
-                      <strong>Invite guest speaker</strong>
-                      <p>Queue split-screen layout and drop guest bio lower-third.</p>
-                    </div>
-                  </div>
-                  <div className={styles.stageManagerEvent}>
-                    <span className={styles.stageManagerEventTime}>+12</span>
-                    <div className={styles.stageManagerEventBody}>
-                      <strong>Community prompt</strong>
-                      <p>Run poll about feature wishlist. AI will surface top responses for wrap-up.</p>
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.stageManagerThread}>
-                  <div className={styles.stageManagerMessage}>
-                    <span className={styles.stageManagerAuthor}>Stage manager</span>
-                    <p>
-                      Want me to prep a sponsor segment once the demo wraps? I can ready the CTA overlay and chat
-                      reminder.
-                    </p>
-                  </div>
-                  <div className={styles.stageManagerMessageSelf}>
-                    <span className={styles.stageManagerAuthor}>You</span>
-                    <p>Yes - schedule it for the 18 minute mark if engagement is high.</p>
-                  </div>
-                </div>
-                <footer className={styles.stageManagerFooter}>
+                <div className={styles.stageManagerFooter}>
                   <div className={styles.stageManagerSuggestions}>
-                    {["Draft outro talking points", "Prep Q&A handoff", "Summarize chat sentiment"].map((item) => (
+                    {[
+                      "Clip the last 30 seconds",
+                      "Save that last game in Memories",
+                      "Drop a poll in chat",
+                      "Post something engaging in chat",
+                    ].map((item) => (
                       <button key={item} type="button" className={styles.stageManagerSuggestion} disabled>
                         {item}
                       </button>
@@ -247,7 +232,7 @@ export function LiveStudioTab({
                         <Paperclip size={18} weight="duotone" />
                       </button>
                       <span className={styles.stageManagerPrompterPlaceholder}>
-                        Ask your Capsule AI to create anything...
+                        Ask Capsule AI: clip last 30s, save a memory, drop a poll, post to chat...
                       </span>
                       <div className={styles.stageManagerPrompterActions}>
                         <button className={styles.stageManagerPrompterIcon} type="button" disabled>
@@ -262,7 +247,7 @@ export function LiveStudioTab({
                       </div>
                     </div>
                   </div>
-                </footer>
+                </div>
               </div>
             </div>
           </Panel>
@@ -271,122 +256,66 @@ export function LiveStudioTab({
 
       <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
-      <Panel defaultSize={12} minSize={11} collapsible={false}>
-        <PanelGroup
-          key={autoSaveIds.rightColumn}
-          direction="vertical"
-          className={styles.panelColumn ?? ""}
-          autoSaveId={autoSaveIds.rightColumn}
-          storage={panelStorage}
-        >
-          <Panel defaultSize={60} minSize={18} collapsible={false}>
-            <div className={styles.panelSection}>
-              <div className={`${styles.resourceCard} ${styles.panelCard}`}>
-                <header className={styles.resourceHeader}>
-                  <div className={styles.resourceTitle}>Activity feed</div>
-                  <Button variant="ghost" size="xs" disabled>
-                    Filter
-                  </Button>
-                </header>
-                <ul className={styles.resourceList}>
-                  <li>
-                    <span className={styles.resourceTime}>00:15</span>
-                    <div>
-                      <strong>luna_dev followed</strong>
-                      <p>Auto thank-you message queued in chat.</p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className={styles.resourceTime}>00:09</span>
-                    <div>
-                      <strong>crowdsource tipped $15</strong>
-                      <p>Overlay shout-out scheduled after current segment.</p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className={styles.resourceTime}>00:03</span>
-                    <div>
-                      <strong>Clip ready</strong>
-                      <p>AI clipped &quot;Live coding reveal&quot; for instant share.</p>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </Panel>
-
-          <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-
-          <Panel defaultSize={40} minSize={24} collapsible={false}>
-            <div className={styles.panelSection}>
-              <div className={`${styles.collaboratorCard} ${styles.panelCard}`}>
-                <header className={styles.sectionHeader}>
-                  <div className={styles.shellCardTitle}>Live collaborators</div>
-                  <Button variant="ghost" size="xs" disabled>
-                    Invite
-                  </Button>
-                </header>
-                <ul className={styles.collaboratorList}>
-                  <li className={styles.collaboratorItem}>
-                    <div className={styles.collaboratorMeta}>
-                      <span className={styles.collaboratorName}>Avery</span>
-                      <span className={styles.collaboratorRole}>Producer</span>
-                    </div>
-                    <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusActive}`}>
-                      On comms
-                    </span>
-                  </li>
-                  <li className={styles.collaboratorItem}>
-                    <div className={styles.collaboratorMeta}>
-                      <span className={styles.collaboratorName}>Jess Patel</span>
-                      <span className={styles.collaboratorRole}>Moderator</span>
-                    </div>
-                    <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusIdle}`}>
-                      Reviewing queue
-                    </span>
-                  </li>
-                  <li className={styles.collaboratorItem}>
-                    <div className={styles.collaboratorMeta}>
-                      <span className={styles.collaboratorName}>Aria</span>
-                      <span className={styles.collaboratorRole}>AI writer</span>
-                    </div>
-                    <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusAway}`}>
-                      Updating recap
-                    </span>
-                  </li>
-                </ul>
-                <footer className={styles.collaboratorFooter}>
-                  <Button variant="ghost" size="xs" disabled>
-                    Manage collaborators
-                  </Button>
-                </footer>
-              </div>
-            </div>
-          </Panel>
-        </PanelGroup>
-      </Panel>
-
-      <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
-
-      <Panel defaultSize={20} minSize={14} collapsible={false}>
+      <Panel defaultSize={22} minSize={18} collapsible={false}>
         <div className={styles.panelSection}>
-          <div className={styles.chatRailShell}>
-            <LiveChatRail capsuleId={selectedCapsule.id} capsuleName={selectedCapsule.name} status="waiting" />
+          <div className={`${styles.resourceCard} ${styles.panelCard}`}>
+            <header className={styles.resourceHeader}>
+              <div className={styles.resourceTitle}>Activity feed</div>
+              <div className={styles.resourceHeaderActions}>
+                <div className={styles.collaboratorPresence} aria-hidden>
+                  <span className={styles.collaboratorPresenceDot} />
+                  <span className={styles.collaboratorPresenceLabel}>On comms: 3</span>
+                </div>
+                <Button variant="ghost" size="xs" disabled>
+                  Filter
+                </Button>
+              </div>
+            </header>
+            <ul className={styles.resourceList}>
+              <li>
+                <span className={styles.resourceTime}>00:15</span>
+                <div>
+                  <strong>luna_dev followed</strong>
+                  <p>Auto thank-you message queued in chat.</p>
+                </div>
+              </li>
+              <li>
+                <span className={styles.resourceTime}>00:09</span>
+                <div>
+                  <strong>crowdsource tipped $15</strong>
+                  <p>Overlay shout-out scheduled after current segment.</p>
+                </div>
+              </li>
+              <li>
+                <span className={styles.resourceTime}>00:03</span>
+                <div>
+                  <strong>Clip ready</strong>
+                  <p>AI clipped &quot;Live coding reveal&quot; for instant share.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </Panel>
+
+      <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
+
+      <Panel defaultSize={28} minSize={18} collapsible={false}>
+        <div className={styles.panelSection}>
+          <div className={`${styles.chatPanelCard} ${styles.panelCard}`}>
+            <div className={styles.chatRailShell}>
+              <LiveChatRail
+                capsuleId={selectedCapsule.id}
+                capsuleName={selectedCapsule.name}
+                status="waiting"
+              />
+            </div>
           </div>
         </div>
       </Panel>
     </PanelGroup>
   );
 }
-
-
-
-
-
-
-
-
-
 
 
 

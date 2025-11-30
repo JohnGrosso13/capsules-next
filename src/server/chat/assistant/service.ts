@@ -19,6 +19,7 @@ import {
   markRecipientFailed,
   markRecipientMessaged,
   recordRecipientResponse,
+  deriveTaskTitle,
   type MessagingRecipient,
 } from "./tasks";
 
@@ -35,12 +36,14 @@ export type AssistantDependencies = {
   sendAssistantMessage: (options: {
     conversationId: string;
     body: string;
+    task?: { id: string; title?: string | null } | null;
   }) => Promise<void>;
   sendUserMessage: (options: {
     conversationId: string;
     senderId: string;
     body: string;
     messageId?: string;
+    task?: { id: string; title?: string | null } | null;
   }) => Promise<{ messageId: string }>;
   listFriends: (userId: string) => Promise<FriendSummary[]>;
   listCapsules: (userId: string) => Promise<CapsuleSummary[]>;
@@ -456,6 +459,8 @@ async function runTool(
           trackResponses: defaultTrackResponses ?? false,
         },
       });
+      const taskTitle = deriveTaskTitle(task.task.prompt) ?? task.task.prompt ?? null;
+      const taskMeta = { id: task.task.id, title: taskTitle };
 
       const targetMap = new Map(task.targets.map((target) => [target.target_user_id, target]));
       let anonymousCounter = 0;
@@ -511,6 +516,7 @@ async function runTool(
             senderId: ctx.ownerUserId,
             body: messageText,
             messageId: clientMessageId,
+            task: taskMeta,
           });
           const persistedMessageId = sendResult?.messageId ?? clientMessageId;
           const updatedTarget = await markRecipientMessaged({
@@ -1185,6 +1191,7 @@ export async function handleAssistantTaskResponse(
     await deps.sendAssistantMessage({
       conversationId: getConversationId(record.ownerUserId, ASSISTANT_USER_ID),
       body: summaryLines.join("\n"),
+      task: { id: record.taskId, title: record.targetName ?? null },
     });
   }
 }

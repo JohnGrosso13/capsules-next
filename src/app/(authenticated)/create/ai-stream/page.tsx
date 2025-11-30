@@ -109,7 +109,7 @@ export default async function AiStreamStudioPage({
       activeNav="create"
       showPrompter={false}
       // Use the Capsule layout for a full-width, familiar studio shell
-      layoutVariant="capsule"
+      layoutVariant="studio"
       // Show Discovery right rail for cohesive Capsule shell
       showDiscoveryRightRail={true}
       showLiveChatRightRail={false}

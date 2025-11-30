@@ -18,9 +18,9 @@ import {
   CapsuleMembershipError,
   normalizeId,
   normalizeOptionalString,
-  requireCapsuleOwnership,
   resolveCapsuleMediaUrl,
 } from "./domain/common";
+import { canCustomizeCapsule, resolveCapsuleActor } from "./permissions";
 import { indexMemory } from "@/server/memories/service";
 import { enqueueCapsuleKnowledgeRefresh } from "./knowledge";
 import { listFriendUserIds } from "@/server/friends/repository";
@@ -46,6 +46,7 @@ export {
   declineCapsuleMemberRequest,
   removeCapsuleMember,
   setCapsuleMemberRole,
+  setCapsuleMembershipPolicy,
 } from "./domain/membership-service";
 export {
   publishCapsuleHistorySection,
@@ -246,6 +247,18 @@ type BannerCrop = {
   offsetY: number;
 };
 
+async function requireCapsuleCustomizer(capsuleId: string, actorId: string) {
+  const actor = await resolveCapsuleActor(capsuleId, actorId);
+  if (!canCustomizeCapsule(actor)) {
+    throw new CapsuleMembershipError(
+      "forbidden",
+      "You must be a capsule founder or admin to update capsule branding.",
+      403,
+    );
+  }
+  return actor;
+}
+
 export async function updateCapsuleBannerImage(
   ownerId: string,
   capsuleId: string,
@@ -264,11 +277,13 @@ export async function updateCapsuleBannerImage(
   },
   context: { origin?: string | null } = {},
 ): Promise<{ bannerUrl: string | null }> {
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.banner.update: capsule has invalid identifier");
+  const actor = await requireCapsuleCustomizer(capsuleId, ownerId);
+  const capsule = actor.capsule;
+  if (!capsule) {
+    throw new CapsuleMembershipError("not_found", "Capsule not found.", 404);
   }
+  const capsuleIdValue = actor.capsuleId;
+  const capsuleOwnerId = actor.ownerId;
 
   const canonicalBannerUrl = normalizeOptionalString(params.bannerUrl ?? null);
   if (!canonicalBannerUrl) {
@@ -367,11 +382,13 @@ export async function updateCapsuleStoreBannerImage(
   },
   context: { origin?: string | null } = {},
 ): Promise<{ storeBannerUrl: string | null }> {
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.storeBanner.update: capsule has invalid identifier");
+  const actor = await requireCapsuleCustomizer(capsuleId, ownerId);
+  const capsule = actor.capsule;
+  if (!capsule) {
+    throw new CapsuleMembershipError("not_found", "Capsule not found.", 404);
   }
+  const capsuleIdValue = actor.capsuleId;
+  const capsuleOwnerId = actor.ownerId;
 
   const canonicalStoreBannerUrl = normalizeOptionalString(params.storeBannerUrl ?? null);
   if (!canonicalStoreBannerUrl) {
@@ -475,11 +492,13 @@ export async function updateCapsulePromoTileImage(
   },
   context: { origin?: string | null } = {},
 ): Promise<{ tileUrl: string | null }> {
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.tile.update: capsule has invalid identifier");
+  const actor = await requireCapsuleCustomizer(capsuleId, ownerId);
+  const capsule = actor.capsule;
+  if (!capsule) {
+    throw new CapsuleMembershipError("not_found", "Capsule not found.", 404);
   }
+  const capsuleIdValue = actor.capsuleId;
+  const capsuleOwnerId = actor.ownerId;
 
   const canonicalTileUrl = normalizeOptionalString(params.tileUrl ?? null);
   if (!canonicalTileUrl) {
@@ -578,11 +597,13 @@ export async function updateCapsuleLogoImage(
   },
   context: { origin?: string | null } = {},
 ): Promise<{ logoUrl: string | null }> {
-  const { capsule, ownerId: capsuleOwnerId } = await requireCapsuleOwnership(capsuleId, ownerId);
-  const capsuleIdValue = normalizeId(capsule.id);
-  if (!capsuleIdValue) {
-    throw new Error("capsules.logo.update: capsule has invalid identifier");
+  const actor = await requireCapsuleCustomizer(capsuleId, ownerId);
+  const capsule = actor.capsule;
+  if (!capsule) {
+    throw new CapsuleMembershipError("not_found", "Capsule not found.", 404);
   }
+  const capsuleIdValue = actor.capsuleId;
+  const capsuleOwnerId = actor.ownerId;
 
   const canonicalLogoUrl = normalizeOptionalString(params.logoUrl ?? null);
   if (!canonicalLogoUrl) {

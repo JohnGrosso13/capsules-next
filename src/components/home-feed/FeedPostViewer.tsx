@@ -6,12 +6,12 @@ import {
   Brain,
   CaretLeft,
   CaretRight,
-  ChatCircle,
   HourglassHigh,
   PaperPlaneTilt,
   ShareNetwork,
   X,
 } from "@phosphor-icons/react/dist/ssr";
+import type Hls from "hls.js";
 
 import styles from "@/components/home-feed.module.css";
 import { FeedCardActions } from "@/components/home-feed/feed-card-actions";
@@ -21,6 +21,45 @@ import type { CommentThreadState, CommentSubmitPayload } from "@/components/comm
 import { safeRandomUUID } from "@/lib/random";
 import { buildProfileHref } from "@/lib/profile/routes";
 import { canRenderInlineImage } from "@/lib/media";
+
+const HLS_MIME_HINTS = [
+  "application/vnd.apple.mpegurl",
+  "application/x-mpegurl",
+  "application/mpegurl",
+];
+
+function isHlsMimeType(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const lowered = value.toLowerCase();
+  return HLS_MIME_HINTS.some((pattern) => lowered.includes(pattern));
+}
+
+function isHlsUrl(value: string | null | undefined): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const lowered = trimmed.toLowerCase();
+  if (lowered.includes(".m3u8")) return true;
+  const withoutHash = lowered.split("#")[0] ?? lowered;
+  const withoutQuery = withoutHash.split("?")[0] ?? withoutHash;
+  if (withoutQuery.endsWith(".m3u8")) return true;
+  try {
+    const url = new URL(trimmed, typeof window === "undefined" ? "http://localhost" : window.location.href);
+    if (url.pathname.toLowerCase().includes(".m3u8")) return true;
+    const formatParam = url.searchParams.get("format");
+    if (formatParam && formatParam.toLowerCase() === "m3u8") return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+function looksLikeHlsSource(
+  mimeType: string | null | undefined,
+  url: string | null | undefined,
+): boolean {
+  return isHlsMimeType(mimeType) || isHlsUrl(url);
+}
 
 type FeedPostViewerFriendControls = {
   canTarget: boolean;
@@ -82,8 +121,15 @@ export function FeedPostViewer({
   friendControls,
 }: FeedPostViewerProps) {
   const draftComposerRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const hlsRef = React.useRef<Hls | null>(null);
   const [commentDraft, setCommentDraft] = React.useState("");
   const [commentError, setCommentError] = React.useState<string | null>(null);
+  const isVideoAttachment = attachment?.kind === "video";
+  const isHlsSource = React.useMemo(
+    () => (isVideoAttachment ? looksLikeHlsSource(attachment?.mimeType, attachment?.fullUrl) : false),
+    [attachment?.fullUrl, attachment?.mimeType, isVideoAttachment],
+  );
 
   const hasMultipleAttachments = attachments.length > 1;
   const activeAttachmentIndex = React.useMemo(() => {
@@ -164,6 +210,92 @@ export function FeedPostViewer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, onNavigateAttachment, onNavigatePost]);
 
+  React.useEffect(() => {
+    const node = videoRef.current;
+    if (!node || !isVideoAttachment) {
+      const existing = hlsRef.current;
+      if (existing) {
+        existing.destroy();
+        hlsRef.current = null;
+      }
+      return undefined;
+    }
+
+    const teardown = () => {
+      const existing = hlsRef.current;
+      if (existing) {
+        existing.destroy();
+        hlsRef.current = null;
+      }
+    };
+
+    if (!isHlsSource || !attachment?.fullUrl) {
+      teardown();
+      return undefined;
+    }
+
+    const nativeSupport =
+      node.canPlayType("application/vnd.apple.mpegurl") ||
+      node.canPlayType("application/x-mpegurl");
+    if (nativeSupport === "probably" || nativeSupport === "maybe") {
+      teardown();
+      node.src = attachment.fullUrl;
+      node.load();
+      return () => {
+        if (node.src === attachment.fullUrl) {
+          node.removeAttribute("src");
+          node.load();
+        }
+      };
+    }
+
+    teardown();
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import("hls.js");
+        if (cancelled) return;
+        const HlsConstructor = mod.default;
+        if (!HlsConstructor || !HlsConstructor.isSupported()) {
+          node.src = attachment.fullUrl;
+          node.load();
+          return;
+        }
+        const instance = new HlsConstructor({ enableWorker: true, backBufferLength: 90 });
+        hlsRef.current = instance;
+        instance.attachMedia(node);
+        instance.on(HlsConstructor.Events.MEDIA_ATTACHED, () => {
+          if (!cancelled) {
+            instance.loadSource(attachment.fullUrl ?? "");
+          }
+        });
+        instance.on(HlsConstructor.Events.ERROR, (_event, data) => {
+          if (!data || !data.fatal) return;
+          if (data.type === HlsConstructor.ErrorTypes.NETWORK_ERROR) {
+            instance.startLoad();
+          } else if (data.type === HlsConstructor.ErrorTypes.MEDIA_ERROR) {
+            instance.recoverMediaError();
+          } else {
+            instance.destroy();
+            if (hlsRef.current === instance) {
+              hlsRef.current = null;
+            }
+          }
+        });
+      } catch {
+        if (!cancelled) {
+          node.src = attachment.fullUrl ?? "";
+          node.load();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      teardown();
+    };
+  }, [attachment?.fullUrl, isHlsSource, isVideoAttachment]);
+
   const handleSubmitComment = React.useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
       if (event) {
@@ -189,14 +321,6 @@ export function FeedPostViewer({
     },
     [commentDraft, commentSubmitting, post?.id, submitComment],
   );
-
-  const focusComposer = React.useCallback(() => {
-    const node = draftComposerRef.current;
-    if (node) {
-      node.focus();
-      node.setSelectionRange(node.value.length, node.value.length);
-    }
-  }, []);
 
   const handleOverlayClick = React.useCallback(() => {
     onClose();
@@ -268,10 +392,25 @@ export function FeedPostViewer({
         : null;
 
     if (attachment.kind === "video") {
+      const poster =
+        attachment.thumbnailUrl && attachment.thumbnailUrl !== attachment.fullUrl
+          ? attachment.thumbnailUrl
+          : attachment.displayUrl ?? undefined;
       return (
         <div className={styles.lightboxMedia} data-orientation={orientation ?? undefined}>
-          <video className={styles.lightboxVideo} controls playsInline preload="auto">
-            <source src={attachment.fullUrl} type={attachment.mimeType ?? undefined} />
+          <video
+            ref={videoRef}
+            className={styles.lightboxVideo}
+            data-hls={isHlsSource ? "true" : undefined}
+            src={!isHlsSource ? attachment.fullUrl : undefined}
+            controls
+            playsInline
+            preload="auto"
+            poster={poster}
+          >
+            {!isHlsSource ? (
+              <source src={attachment.fullUrl} type={attachment.mimeType ?? undefined} />
+            ) : null}
             Your browser does not support embedded video.
           </video>
         </div>
@@ -324,17 +463,6 @@ export function FeedPostViewer({
         if (post) {
           onToggleLike(post.id);
         }
-      },
-    },
-    {
-      key: "comment" as const,
-      label: "Comment",
-      icon: <ChatCircle weight="duotone" />,
-      count: commentCount,
-      handler: (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-        focusComposer();
       },
     },
     {

@@ -23,6 +23,10 @@ function TaskThreadCard({
   task: AssistantTaskSummary;
   onOpenConversation: (recipientUserId: string, conversationId?: string | null, name?: string | null) => void;
 }) {
+  const taskConversationId =
+    typeof task.conversationId === "string" && task.conversationId.trim().length
+      ? task.conversationId.trim()
+      : null;
   return (
     <section className={styles.card}>
       <header className={styles.cardHeader}>
@@ -33,9 +37,22 @@ function TaskThreadCard({
             {task.kind.replace(/_/g, " ")} · {task.status.replace(/_/g, " ")}
           </p>
         </div>
-        <Link href="/friends?tab=Assistant" className={styles.secondaryButton}>
-          Back to Assistant
-        </Link>
+        <div className={styles.cardHeaderActions}>
+          {taskConversationId ? (
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() =>
+                onOpenConversation(ASSISTANT_USER_ID, taskConversationId, ASSISTANT_DISPLAY_NAME)
+              }
+            >
+              Open task chat
+            </button>
+          ) : null}
+          <Link href="/friends?tab=Assistant" className={styles.secondaryButton}>
+            Back to Assistant
+          </Link>
+        </div>
       </header>
 
       <div className={styles.section}>
@@ -107,6 +124,15 @@ function TaskDetailInner() {
   );
 
   const handleOpenAssistant = React.useCallback(async () => {
+    const conversationId =
+      task?.conversationId && task.conversationId.trim().length
+        ? task.conversationId.trim()
+        : null;
+    if (conversationId) {
+      openSession(conversationId);
+      router.push("/friends?tab=Chats");
+      return;
+    }
     await requestChatStart(
       {
         userId: ASSISTANT_USER_ID,
@@ -116,7 +142,7 @@ function TaskDetailInner() {
       { activate: true },
     );
     router.push("/friends?tab=Chats");
-  }, [router]);
+  }, [openSession, router, task?.conversationId]);
 
   return (
     <div className={styles.shell}>

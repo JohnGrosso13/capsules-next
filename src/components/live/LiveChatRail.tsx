@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChatsCircle, Broadcast } from "@phosphor-icons/react/dist/ssr";
+import { ChatsCircle, Broadcast, ArrowUp } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./live-chat-rail.module.css";
 
@@ -179,16 +179,18 @@ export function LiveChatRail({
         )}
       </div>
       <form className={styles.composer} onSubmit={(event) => event.preventDefault()}>
-        <input
-          className={styles.composerInput}
-          placeholder={
-            canSend ? "Share something with the stream..." : "Chat is locked until you're live"
-          }
-          disabled={!canSend}
-        />
-        <button className={styles.composerSend} type="submit" disabled={!canSend}>
-          Send
-        </button>
+        <div className={styles.composerField}>
+          <input
+            className={styles.composerInput}
+            placeholder={
+              canSend ? "Share something with the stream..." : "Chat is locked until you're live"
+            }
+            disabled={!canSend}
+          />
+          <button className={styles.composerSend} type="submit" disabled={!canSend} aria-label="Send message">
+            <ArrowUp size={18} weight="bold" />
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -27,6 +27,18 @@ export type MessagingTask = {
   targets: AssistantTaskTargetRow[];
 };
 
+export function deriveTaskTitle(prompt: string | null | undefined): string | null {
+  if (typeof prompt !== "string") return null;
+  const lines = prompt.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const title = lines[0] ?? "";
+  return title.slice(0, 160);
+}
+
+export function getTaskConversationId(ownerUserId: string, assistantUserId: string = ASSISTANT_USER_ID): string {
+  return getChatConversationId(ownerUserId, assistantUserId);
+}
+
 type TargetData = {
   name?: string | null;
   trackResponses?: boolean;
@@ -162,6 +174,11 @@ export async function createMessagingTask(options: {
   recipients: MessagingRecipient[];
 }): Promise<MessagingTask> {
   const assistantUserId = options.assistantUserId ?? ASSISTANT_USER_ID;
+  const payloadTitle =
+    options.payload && typeof (options.payload as Record<string, unknown>).title === "string"
+      ? ((options.payload as Record<string, unknown>).title as string)
+      : null;
+  const taskTitle = deriveTaskTitle(options.prompt) ?? deriveTaskTitle(payloadTitle) ?? payloadTitle;
   const primaryRecipient = options.recipients[0];
   const payloadFromName =
     options.payload && typeof options.payload === "object"
@@ -180,6 +197,8 @@ export async function createMessagingTask(options: {
       toCount: options.recipients.length,
       toName: primaryRecipient?.name ?? null,
       toUserId: primaryRecipient?.userId ?? null,
+      title: taskTitle,
+      conversationId: getTaskConversationId(options.ownerUserId, assistantUserId),
     },
   });
 
@@ -197,6 +216,8 @@ export async function createMessagingTask(options: {
         fromUserId: options.ownerUserId,
         fromName: normalizedFromName ?? options.ownerUserId,
         sourceTaskId: task.id,
+        title: taskTitle,
+        conversationId: getTaskConversationId(recipient.userId, assistantUserId),
       },
     });
     const mirrorTargets = await insertAssistantTaskTargets([

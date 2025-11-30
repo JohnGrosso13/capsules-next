@@ -39,6 +39,12 @@
   gap: 12px;
 }
 
+.cardHeaderActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .title {
   margin: 2px 0 0;
   font-size: 1.1rem;

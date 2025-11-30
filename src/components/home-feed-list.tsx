@@ -906,6 +906,78 @@ export function HomeFeedList({
 
   ]);
 
+  const activeCommentFriendMenu = React.useMemo(() => {
+    if (!activeCommentPost) return null;
+    const resolvedUserId =
+      activeCommentPost.owner_user_id ??
+      activeCommentPost.ownerUserId ??
+      activeCommentPost.author_user_id ??
+      activeCommentPost.authorUserId ??
+      null;
+    const resolvedUserKey =
+      activeCommentPost.owner_user_key ??
+      activeCommentPost.ownerUserKey ??
+      activeCommentPost.author_user_key ??
+      activeCommentPost.authorUserKey ??
+      null;
+
+    const normalizedAuthorIds = [
+      normalizeIdentifier(resolvedUserId),
+      normalizeIdentifier(resolvedUserKey),
+      normalizeIdentifier(activeCommentPost.owner_user_id),
+      normalizeIdentifier(activeCommentPost.ownerUserId),
+      normalizeIdentifier(activeCommentPost.author_user_id),
+      normalizeIdentifier(activeCommentPost.authorUserId),
+      normalizeIdentifier(activeCommentPost.owner_user_key),
+      normalizeIdentifier(activeCommentPost.ownerKey),
+      normalizeIdentifier(activeCommentPost.author_user_key),
+      normalizeIdentifier(activeCommentPost.authorUserKey),
+    ].filter((value): value is string => Boolean(value));
+
+    const friendTargetKey = resolvedUserId ?? resolvedUserKey ?? activeCommentPost.id;
+    const menuIdentifier = `${friendTargetKey}::${activeCommentPost.id}`;
+    const canTarget = Boolean(resolvedUserId ?? resolvedUserKey);
+    const viewerOwnsPost =
+      normalizedAuthorIds.length > 0 && normalizedAuthorIds.some((id) => viewerIdentifierSet.has(id));
+    const allowFollowActions = canTarget && !viewerOwnsPost;
+    const isFollowingAuthor =
+      allowFollowActions &&
+      Boolean(
+        followingIdentifierSet &&
+          normalizedAuthorIds.some((id) => followingIdentifierSet.has(id)),
+      );
+    const followState: "following" | "not_following" | null = allowFollowActions
+      ? isFollowingAuthor
+        ? "following"
+        : "not_following"
+      : null;
+
+    return {
+      canTarget,
+      pending: friendActionPending === menuIdentifier,
+      followState,
+      onRequest: () => onFriendRequest(activeCommentPost, menuIdentifier),
+      onRemove: () => onRemoveFriend(activeCommentPost, menuIdentifier),
+      onFollow:
+        followState === "not_following"
+          ? () => onFollowUser(activeCommentPost, menuIdentifier)
+          : null,
+      onUnfollow:
+        followState === "following"
+          ? () => onUnfollowUser(activeCommentPost, menuIdentifier)
+          : null,
+    };
+  }, [
+    activeCommentPost,
+    followingIdentifierSet,
+    friendActionPending,
+    onFollowUser,
+    onFriendRequest,
+    onRemoveFriend,
+    onUnfollowUser,
+    viewerIdentifierSet,
+  ]);
+
   return (
 
     <>
@@ -1211,6 +1283,30 @@ export function HomeFeedList({
           onSubmit={submitComment}
           timeAgo={timeAgo}
           exactTime={exactTime}
+          onToggleLike={onToggleLike}
+          likePending={Boolean(likePending[activeCommentPost.id])}
+          likeCount={
+            typeof activeCommentPost.likes === "number" ? activeCommentPost.likes : null
+          }
+          shareCount={
+            typeof activeCommentPost.shares === "number" ? activeCommentPost.shares : null
+          }
+          viewerLiked={Boolean(
+            activeCommentPost.viewerLiked ?? activeCommentPost.viewer_liked ?? false,
+          )}
+          remembered={Boolean(
+            activeCommentPost.viewerRemembered ?? activeCommentPost.viewer_remembered ?? false,
+          )}
+          memoryPending={Boolean(memoryPending[activeCommentPost.id])}
+          canRemember={canRemember}
+          onToggleMemory={(post, desired) => {
+            const outcome = onToggleMemory(post, desired);
+            if (outcome && typeof (outcome as Promise<unknown>).then === "function") {
+              return (outcome as Promise<unknown>).then(() => {});
+            }
+            return undefined;
+          }}
+          friendMenu={activeCommentFriendMenu}
         />
 
       ) : null}

@@ -6,6 +6,7 @@ import {
   createMessagingTask,
   markRecipientFailed,
   markRecipientMessaged,
+  deriveTaskTitle,
 } from "@/server/chat/assistant/tasks";
 import { createAssistantDependenciesForUser } from "@/server/chat/service";
 import type { MessagingRecipient } from "@/server/chat/assistant/tasks";
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
       trackResponses: trackResponsesDefault,
     },
   });
+  const taskTitle = deriveTaskTitle(prompt);
 
   const targetMap = new Map(task.targets.map((target) => [target.target_user_id, target]));
   for (const recipient of recipients) {
@@ -101,6 +103,7 @@ export async function POST(request: Request) {
         conversationId: target.conversation_id,
         senderId: supabaseUserId,
         body: prompt,
+        task: { id: task.task.id, title: taskTitle ?? prompt },
       });
       const persistedMessageId = sendResult?.messageId ?? target.message_id ?? "";
       await markRecipientMessaged({

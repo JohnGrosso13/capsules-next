@@ -29,6 +29,8 @@ export type ChatMessageRecord = {
   sentAt: string;
   reactions: ChatMessageReactionRecord[];
   attachments: ChatMessageAttachmentRecord[];
+  taskId?: string | null;
+  taskTitle?: string | null;
 };
 
 export type ChatReactionMutationResult = {

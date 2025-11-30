@@ -55,7 +55,7 @@ export function createAssistantDependenciesForUser(ownerUserId: string): Assista
         requesterId: ownerUserId,
         ...(typeof limit === "number" ? { limit } : {}),
       }),
-    sendAssistantMessage: async ({ conversationId, body }) => {
+    sendAssistantMessage: async ({ conversationId, body, task }) => {
       try {
         await sendDirectMessage({
           conversationId,
@@ -63,18 +63,20 @@ export function createAssistantDependenciesForUser(ownerUserId: string): Assista
           messageId: randomUUID(),
           body,
           attachments: [],
+          ...(task ? { task } : {}),
         });
       } catch (error) {
         console.error("assistant send message error", error);
       }
     },
-    sendUserMessage: async ({ conversationId, senderId, body, messageId }) => {
+    sendUserMessage: async ({ conversationId, senderId, body, messageId, task }) => {
       const result = await sendDirectMessage({
         conversationId,
         senderId,
         messageId: messageId ?? randomUUID(),
         body,
         attachments: [],
+        ...(task ? { task } : {}),
       });
       return { messageId: result.message.id };
     },
@@ -95,6 +97,7 @@ export async function sendDirectMessage(params: {
   body: string;
   attachments?: ChatMessageAttachmentRecord[];
   clientSentAt?: string | null;
+  task?: { id?: string | null; title?: string | null } | null;
 }): Promise<{
   message: ChatMessageRecord;
   participants: ChatParticipantSummary[];
@@ -184,7 +187,7 @@ export async function sendDirectMessage(params: {
     }
   }
 
-  const serializedBody = encodeMessagePayload(bodySanitized, attachments);
+  const serializedBody = encodeMessagePayload(bodySanitized, attachments, params.task);
 
   const messageRow = await upsertChatMessage({
     id: canonicalMessageId,
@@ -208,6 +211,8 @@ export async function sendDirectMessage(params: {
       emoji: reaction.emoji,
       users: reaction.users,
     })),
+    taskId: messageRecord.taskId ?? null,
+    taskTitle: messageRecord.taskTitle ?? null,
     session: {
       type: "direct",
       title: buildConversationTitle(participantSummaries, messageRecord.senderId),
@@ -358,7 +363,7 @@ export async function updateDirectMessageAttachments(params: {
     );
   }
 
-  const serializedBody = encodeMessagePayload(payload.text, filteredAttachments);
+  const serializedBody = encodeMessagePayload(payload.text, filteredAttachments, payload.task);
   const updatedRow =
     (await updateChatMessageBody({ id: messageRow.id, body: serializedBody })) ?? {
       ...messageRow,
@@ -375,6 +380,8 @@ export async function updateDirectMessageAttachments(params: {
     participants: participantSummaries,
     senderId: messageRecord.senderId,
     sentAt: messageRecord.sentAt,
+    taskId: messageRecord.taskId ?? null,
+    taskTitle: messageRecord.taskTitle ?? null,
     session: {
       type: "direct",
       title: buildConversationTitle(participantSummaries, messageRecord.senderId),
@@ -441,4 +448,3 @@ export async function deleteDirectMessage(params: {
     participants: participantSummaries,
   };
 }
-

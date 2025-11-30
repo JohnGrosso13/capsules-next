@@ -53,6 +53,7 @@ export async function sendDirectMessage(params: {
   body: string;
   attachments?: ChatMessageAttachmentRecord[];
   clientSentAt?: string | null;
+  task?: { id?: string | null; title?: string | null } | null;
 }): Promise<{ message: ChatMessageRecord; participants: ChatParticipantSummary[] }> {
   if (isGroupConversationId(params.conversationId)) {
     return sendGroupMessageCore(params);

@@ -3,6 +3,7 @@
   grid-template-rows: auto auto 1fr auto;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   border-radius: 20px;
   border: 1px solid var(--live-chat-border, var(--card-border, rgba(255, 255, 255, 0.12)));
   background: var(--live-chat-bg, var(--surface-overlay));
@@ -14,10 +15,11 @@
 }
 
 .header {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 18px 20px 14px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid var(--live-chat-divider, var(--card-border, rgba(255, 255, 255, 0.12)));
 }
 
@@ -25,19 +27,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: var(--live-chat-header-icon-bg, var(--pill-bg-1, rgba(112, 128, 255, 0.3)));
   color: var(--text);
 }
 
 .headerMeta {
+  min-width: 0;
   display: grid;
   gap: 6px;
 }
 
 .headerTitleRow {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -96,6 +100,9 @@
 .headerSubtitle {
   font-size: 0.85rem;
   color: var(--text-2);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .headerCapsuleName {
@@ -103,13 +110,16 @@
   font-weight: 600;
   color: var(--text);
   opacity: 0.85;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .participantRow {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 20px 12px;
+  padding: 8px 14px 10px;
   border-bottom: 1px dashed
     var(--live-chat-divider, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(--live-chat-participant-row-bg, transparent);
@@ -130,19 +140,23 @@
 
 .participantText {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .messageScroll {
   position: relative;
   min-height: 0;
+  max-width: 100%;
   overflow: auto;
-  padding: 18px 20px;
+  padding: 12px 14px;
 }
 
 .messageScroll[data-empty="true"] {
   display: grid;
   place-items: center;
-  padding: 32px 24px;
+  padding: 20px 16px;
 }
 
 .messageList {
@@ -157,7 +171,7 @@
   display: grid;
   gap: 6px;
   border-radius: 14px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: var(
     --live-chat-message-bg,
     linear-gradient(180deg, rgba(22, 24, 54, 0.82), rgba(12, 14, 32, 0.88))
@@ -198,13 +212,17 @@
   text-align: center;
   color: var(--live-chat-placeholder-fg, var(--text-2));
   font-size: 0.9rem;
+  padding-inline: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .composer {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 18px 18px;
+  padding: 12px 14px 14px;
   border-top: 1px solid
     var(--live-chat-composer-border, color-mix(in srgb, var(--card-border) 70%, transparent));
   background: var(
@@ -213,8 +231,16 @@
   );
 }
 
+.composerField {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .composerInput {
   flex: 1;
+  min-width: 0;
   border-radius: 999px;
   border: 1px solid
     var(--live-chat-input-border, color-mix(in srgb, var(--card-border) 82%, transparent));
@@ -222,7 +248,7 @@
     --live-chat-input-bg,
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(12, 14, 28, 0.6))
   );
-  padding: 10px 16px;
+  padding: 10px 44px 10px 16px;
   color: var(--text);
   font-size: 0.9rem;
 }
@@ -233,19 +259,27 @@
 }
 
 .composerSend {
-  border-radius: 999px;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   border: none;
-  padding: 10px 18px;
-  font-weight: 700;
-  color: var(--live-chat-send-fg, var(--text));
   background: var(
     --live-chat-send-bg,
     linear-gradient(135deg, rgba(120, 86, 255, 0.85), rgba(84, 150, 255, 0.85))
   );
+  color: var(--live-chat-send-fg, var(--text));
   cursor: pointer;
   transition:
     transform 140ms ease,
-    opacity 140ms ease;
+    opacity 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .composerSend:disabled {
@@ -261,7 +295,8 @@
 }
 
 .composerSend:not(:disabled):hover {
-  transform: translateY(-1px);
+  transform: translateY(-50%) scale(1.03);
+  box-shadow: 0 8px 18px color-mix(in srgb, rgba(120, 86, 255, 0.65) 45%, transparent);
 }
 
 @media (max-width: 1000px) {

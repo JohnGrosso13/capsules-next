@@ -7,6 +7,7 @@ export type AssistantTaskSummary = {
   updatedAt: string;
   result: Record<string, unknown> | null;
   direction: "incoming" | "outgoing";
+  conversationId?: string | null;
   counterpartName?: string | null;
   counterpartUserId?: string | null;
   recipients: Array<{

@@ -37,6 +37,8 @@ export async function publishDirectMessageEvent(params: {
   participants: ChatParticipantSummary[];
   reactions?: Array<{ emoji: string; users: ChatParticipantSummary[] }>;
   session?: DirectChatSessionMeta;
+  taskId?: string | null;
+  taskTitle?: string | null;
 }): Promise<void> {
   const publisher = getRealtimePublisher();
   if (!publisher) return;
@@ -90,6 +92,8 @@ export async function publishDirectMessageEvent(params: {
               sessionId: attachment.sessionId ?? null,
             }))
           : [],
+      taskId: params.taskId ?? null,
+      taskTitle: params.taskTitle ?? null,
     },
   });
 
@@ -127,6 +131,8 @@ export async function publishMessageUpdateEvent(params: {
   senderId: string;
   sentAt: string;
   session?: DirectChatSessionMeta;
+  taskId?: string | null;
+  taskTitle?: string | null;
 }): Promise<void> {
   const publisher = getRealtimePublisher();
   if (!publisher) return;
@@ -163,6 +169,8 @@ export async function publishMessageUpdateEvent(params: {
       avatar: params.session?.avatar ?? null,
       createdBy: params.session?.createdBy ?? null,
     },
+    taskId: params.taskId ?? null,
+    taskTitle: params.taskTitle ?? null,
   });
 
   const channels = new Set<string>();

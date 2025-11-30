@@ -60,7 +60,11 @@ export async function runAssistantReminderSweep(options: ReminderOptions = {}) {
     const body = `Still awaiting a reply from ${recipientName} (${ageHours}h). Want me to send a polite follow-up or summarize where things stand?`;
 
     try {
-      await deps.sendAssistantMessage({ conversationId, body });
+      await deps.sendAssistantMessage({
+        conversationId,
+        body,
+        task: { id: target.task_id, title: recipientName },
+      });
       const data = (target.data && typeof target.data === "object" ? { ...target.data } : {}) as Record<string, unknown>;
       data.reminded_at = new Date().toISOString();
       data.reminder_count = typeof data.reminder_count === "number" ? (data.reminder_count as number) + 1 : 1;

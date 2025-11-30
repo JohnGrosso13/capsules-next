@@ -262,6 +262,12 @@ type MediaToolResult = {
   playbackUrl: string | null;
   mimeType?: string | null;
   name?: string | null;
+  runId?: string | null;
+  runStatus?: "pending" | "running" | "uploading" | "succeeded" | "failed" | null;
+  memoryId?: string | null;
+  muxAssetId?: string | null;
+  muxPlaybackId?: string | null;
+  durationSeconds?: number | null;
 };
 
 function extractMediaResult(result: Record<string, unknown>): MediaToolResult | null {
@@ -289,6 +295,54 @@ function extractMediaResult(result: Record<string, unknown>): MediaToolResult | 
   const resolvedUrl = kindRaw === "video" ? playbackUrl || downloadUrl || url : url;
   if (!resolvedUrl) return null;
 
+  const runId =
+    typeof (result as { runId?: unknown }).runId === "string"
+      ? ((result as { runId: string }).runId ?? "").trim()
+      : typeof (result as { videoRunId?: unknown }).videoRunId === "string"
+        ? ((result as { videoRunId: string }).videoRunId ?? "").trim()
+        : typeof (result as { video_run_id?: unknown }).video_run_id === "string"
+          ? ((result as { video_run_id: string }).video_run_id ?? "").trim()
+          : null;
+  const runStatusRaw =
+    typeof (result as { videoRunStatus?: unknown }).videoRunStatus === "string"
+      ? ((result as { videoRunStatus: string }).videoRunStatus ?? "").trim()
+      : typeof (result as { video_run_status?: unknown }).video_run_status === "string"
+        ? ((result as { video_run_status: string }).video_run_status ?? "").trim()
+        : typeof (result as { runStatus?: unknown }).runStatus === "string"
+          ? ((result as { runStatus: string }).runStatus ?? "").trim()
+          : null;
+  const runStatus = (() => {
+    if (!runStatusRaw) return null;
+    const lowered = runStatusRaw.toLowerCase();
+    if (lowered === "pending" || lowered === "running" || lowered === "uploading") return "running";
+    if (lowered === "succeeded" || lowered === "failed") return lowered as "succeeded" | "failed";
+    return null;
+  })();
+  const durationSeconds =
+    typeof (result as { durationSeconds?: unknown }).durationSeconds === "number"
+      ? Number((result as { durationSeconds: number }).durationSeconds)
+      : typeof (result as { duration_seconds?: unknown }).duration_seconds === "number"
+        ? Number((result as { duration_seconds: number }).duration_seconds)
+        : null;
+  const muxAssetId =
+    typeof (result as { muxAssetId?: unknown }).muxAssetId === "string"
+      ? ((result as { muxAssetId: string }).muxAssetId ?? "").trim()
+      : typeof (result as { mux_asset_id?: unknown }).mux_asset_id === "string"
+        ? ((result as { mux_asset_id: string }).mux_asset_id ?? "").trim()
+        : null;
+  const muxPlaybackId =
+    typeof (result as { muxPlaybackId?: unknown }).muxPlaybackId === "string"
+      ? ((result as { muxPlaybackId: string }).muxPlaybackId ?? "").trim()
+      : typeof (result as { mux_playback_id?: unknown }).mux_playback_id === "string"
+        ? ((result as { mux_playback_id: string }).mux_playback_id ?? "").trim()
+        : null;
+  const memoryId =
+    typeof (result as { memoryId?: unknown }).memoryId === "string"
+      ? ((result as { memoryId: string }).memoryId ?? "").trim()
+      : typeof (result as { memory_id?: unknown }).memory_id === "string"
+        ? ((result as { memory_id: string }).memory_id ?? "").trim()
+        : null;
+
   return {
     kind: kindRaw,
     url: resolvedUrl,
@@ -305,6 +359,12 @@ function extractMediaResult(result: Record<string, unknown>): MediaToolResult | 
       typeof (result as { name?: unknown }).name === "string"
         ? ((result as { name: string }).name ?? "").trim()
         : null,
+    runId: runId || null,
+    runStatus,
+    durationSeconds,
+    muxAssetId,
+    muxPlaybackId,
+    memoryId,
   };
 }
 
@@ -410,6 +470,60 @@ function applyToolMediaToResponse(
         (post as Record<string, unknown>).media_prompt = media.prompt;
       }
     }
+    if (media.muxPlaybackId) {
+      const hasMuxPlayback =
+        typeof (post as { muxPlaybackId?: unknown }).muxPlaybackId === "string" ||
+        typeof (post as { mux_playback_id?: unknown }).mux_playback_id === "string";
+      if (!hasMuxPlayback) {
+        (post as Record<string, unknown>).muxPlaybackId = media.muxPlaybackId;
+        (post as Record<string, unknown>).mux_playback_id = media.muxPlaybackId;
+      }
+    }
+    if (media.muxAssetId) {
+      const hasMuxAsset =
+        typeof (post as { muxAssetId?: unknown }).muxAssetId === "string" ||
+        typeof (post as { mux_asset_id?: unknown }).mux_asset_id === "string";
+      if (!hasMuxAsset) {
+        (post as Record<string, unknown>).muxAssetId = media.muxAssetId;
+        (post as Record<string, unknown>).mux_asset_id = media.muxAssetId;
+      }
+    }
+    if (media.durationSeconds !== null && media.durationSeconds !== undefined) {
+      const hasDuration =
+        typeof (post as { durationSeconds?: unknown }).durationSeconds === "number" ||
+        typeof (post as { duration_seconds?: unknown }).duration_seconds === "number";
+      if (!hasDuration) {
+        (post as Record<string, unknown>).durationSeconds = media.durationSeconds;
+        (post as Record<string, unknown>).duration_seconds = media.durationSeconds;
+      }
+    }
+    if (media.runId) {
+      const hasRunId =
+        typeof (post as { videoRunId?: unknown }).videoRunId === "string" ||
+        typeof (post as { video_run_id?: unknown }).video_run_id === "string";
+      if (!hasRunId) {
+        (post as Record<string, unknown>).videoRunId = media.runId;
+        (post as Record<string, unknown>).video_run_id = media.runId;
+      }
+    }
+    if (media.runStatus) {
+      const hasRunStatus =
+        typeof (post as { videoRunStatus?: unknown }).videoRunStatus === "string" ||
+        typeof (post as { video_run_status?: unknown }).video_run_status === "string";
+      if (!hasRunStatus) {
+        (post as Record<string, unknown>).videoRunStatus = media.runStatus;
+        (post as Record<string, unknown>).video_run_status = media.runStatus;
+      }
+    }
+    if (media.memoryId) {
+      const hasMemory =
+        typeof (post as { memoryId?: unknown }).memoryId === "string" ||
+        typeof (post as { memory_id?: unknown }).memory_id === "string";
+      if (!hasMemory) {
+        (post as Record<string, unknown>).memoryId = media.memoryId;
+        (post as Record<string, unknown>).memory_id = media.memoryId;
+      }
+    }
     if (!(post as { kind?: unknown }).kind) {
       (post as Record<string, unknown>).kind = media.kind;
     }
@@ -512,6 +626,7 @@ async function handleRenderVideo(
     memoryId: result.memoryId,
     runId: result.runId,
     provider: result.provider,
+    videoRunStatus: result.runStatus ?? "succeeded",
   };
 }
 

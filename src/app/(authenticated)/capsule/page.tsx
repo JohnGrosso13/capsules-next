@@ -125,6 +125,7 @@ export default async function CapsulePage({ searchParams }: CapsulePageProps) {
     <AppPage
       activeNav="capsule"
       showPrompter={false}
+      layoutVariant="studio"
       showLiveChatRightRail={true}
       liveChatRailProps={
         hasAnyCapsule

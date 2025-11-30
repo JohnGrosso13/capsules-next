@@ -50,6 +50,19 @@
     flex-wrap: wrap;
   }
 
+  .policySelectGroup {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .policyLabel {
+    font-size: 0.85rem;
+    color: var(--text-2);
+    font-weight: 600;
+  }
+
   .button {
     display: inline-flex;
     align-items: center;

@@ -39,7 +39,6 @@ import type {
 } from "@/types/ladders";
 import {
   findCapsuleById,
-  getCapsuleMemberRecord,
   listCapsulesForUser,
   type CapsuleRow,
 } from "@/server/capsules/repository";
@@ -58,6 +57,7 @@ import {
   getCapsuleMembershipStats,
 } from "@/server/capsules/structured";
 import { resolveCapsuleMediaUrl } from "@/server/capsules/domain/common";
+import { canManageLadders, resolveCapsuleActor } from "@/server/capsules/permissions";
 
 type ScoringSystem = "simple" | "elo" | "ai" | "points" | "custom";
 
@@ -437,48 +437,19 @@ async function requireCapsuleManager(
   capsuleId: string,
   actorId: string,
 ): Promise<CapsuleManagerContext> {
-  const normalizedCapsuleId = normalizeId(capsuleId);
-  if (!normalizedCapsuleId) {
-    throw new CapsuleLadderAccessError("invalid", "A valid capsule identifier is required.", 400);
-  }
-
-  const normalizedActorId = normalizeId(actorId);
-  if (!normalizedActorId) {
-    throw new CapsuleLadderAccessError("forbidden", "Authentication required.", 403);
-  }
-
-  const capsule = await findCapsuleById(normalizedCapsuleId);
-  if (!capsule?.id) {
-    throw new CapsuleLadderAccessError("not_found", "Capsule not found.", 404);
-  }
-  const ownerId = normalizeId(capsule.created_by_id);
-  if (!ownerId) {
-    throw new Error("capsule manager check failed: capsule missing owner identifier");
-  }
-  if (ownerId === normalizedActorId) {
-    return {
-      capsuleId: normalizedCapsuleId,
-      ownerId,
-      actorId: normalizedActorId,
-      role: "owner",
-    };
-  }
-
-  const membership = await getCapsuleMemberRecord(normalizedCapsuleId, normalizedActorId);
-  const role = membership?.role ?? null;
-  if (!role || !MANAGER_ROLES.has(role)) {
+  const actor = await resolveCapsuleActor(capsuleId, actorId);
+  if (!canManageLadders(actor)) {
     throw new CapsuleLadderAccessError(
       "forbidden",
-      "You must be a capsule owner or moderator to manage ladders.",
+      "You must be a capsule founder, admin, or leader to manage ladders.",
       403,
     );
   }
-
   return {
-    capsuleId: normalizedCapsuleId,
-    ownerId,
-    actorId: normalizedActorId,
-    role,
+    capsuleId: actor.capsuleId,
+    ownerId: actor.ownerId,
+    actorId: actor.actorId,
+    role: actor.role ?? "member",
   };
 }
 
@@ -494,49 +465,38 @@ async function resolveCapsuleViewer(
   capsuleId: string,
   viewerId: string | null | undefined,
 ): Promise<CapsuleViewerContext> {
-  const normalizedCapsuleId = normalizeId(capsuleId);
-  if (!normalizedCapsuleId) {
-    throw new CapsuleLadderAccessError("invalid", "A valid capsule identifier is required.", 400);
-  }
-
   const normalizedViewerId = normalizeId(viewerId ?? null);
-  const capsule = await findCapsuleById(normalizedCapsuleId);
-  if (!capsule?.id) {
-    throw new CapsuleLadderAccessError("not_found", "Capsule not found.", 404);
-  }
-  const ownerId = normalizeId(capsule.created_by_id);
-  if (!ownerId) {
-    throw new Error("capsule viewer context: capsule missing owner id");
-  }
+  const actor = normalizedViewerId
+    ? await resolveCapsuleActor(capsuleId, normalizedViewerId)
+    : await (async () => {
+        const normalizedCapsuleId = normalizeId(capsuleId);
+        if (!normalizedCapsuleId) {
+          throw new CapsuleLadderAccessError("invalid", "A valid capsule identifier is required.", 400);
+        }
+        const capsule = await findCapsuleById(normalizedCapsuleId);
+        if (!capsule?.id) {
+          throw new CapsuleLadderAccessError("not_found", "Capsule not found.", 404);
+        }
+        const ownerId = normalizeId(capsule.created_by_id);
+        if (!ownerId) {
+          throw new Error("capsule viewer context: capsule missing owner id");
+        }
+        return {
+          capsuleId: normalizedCapsuleId,
+          ownerId,
+          actorId: "",
+          role: null,
+          isOwner: false,
+          capsule,
+        };
+      })();
 
-  if (normalizedViewerId && normalizedViewerId === ownerId) {
-    return {
-      capsuleId: normalizedCapsuleId,
-      viewerId: normalizedViewerId,
-      role: "owner",
-      isOwner: true,
-      isMember: true,
-    };
-  }
-
-  if (!normalizedViewerId) {
-    return {
-      capsuleId: normalizedCapsuleId,
-      viewerId: null,
-      role: null,
-      isOwner: false,
-      isMember: false,
-    };
-  }
-
-  const membership = await getCapsuleMemberRecord(normalizedCapsuleId, normalizedViewerId);
-  const role = membership?.role ?? null;
   return {
-    capsuleId: normalizedCapsuleId,
+    capsuleId: actor.capsuleId,
     viewerId: normalizedViewerId,
-    role,
-    isOwner: false,
-    isMember: Boolean(membership),
+    role: actor.role ?? null,
+    isOwner: actor.isOwner,
+    isMember: actor.isOwner || Boolean(actor.role),
   };
 }
 

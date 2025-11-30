@@ -60,6 +60,43 @@ export function ProducerConsoleTab({ selectedCapsule, notification }: ProducerCo
             </li>
           </ul>
         </div>
+        <div className={styles.shellCard}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.shellCardTitle}>Live collaborators</div>
+            <Button variant="outline" size="sm" disabled>
+              Manage
+            </Button>
+          </div>
+          <ul className={styles.collaboratorList}>
+            <li className={styles.collaboratorItem}>
+              <div className={styles.collaboratorMeta}>
+                <span className={styles.collaboratorName}>Avery</span>
+                <span className={styles.collaboratorRole}>Producer</span>
+              </div>
+              <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusOnline}`}>
+                On comms
+              </span>
+            </li>
+            <li className={styles.collaboratorItem}>
+              <div className={styles.collaboratorMeta}>
+                <span className={styles.collaboratorName}>Jess Patel</span>
+                <span className={styles.collaboratorRole}>Moderator</span>
+              </div>
+              <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusIdle}`}>
+                Reviewing queue
+              </span>
+            </li>
+            <li className={styles.collaboratorItem}>
+              <div className={styles.collaboratorMeta}>
+                <span className={styles.collaboratorName}>Aria</span>
+                <span className={styles.collaboratorRole}>AI writer</span>
+              </div>
+              <span className={`${styles.collaboratorStatus} ${styles.collaboratorStatusAway}`}>
+                Updating recap
+              </span>
+            </li>
+          </ul>
+        </div>
       </div>
       <div className={styles.timelineCard}>
         <div className={styles.sectionHeader}>
@@ -96,7 +133,6 @@ export function ProducerConsoleTab({ selectedCapsule, notification }: ProducerCo
     </div>
   );
 }
-
 
 
 

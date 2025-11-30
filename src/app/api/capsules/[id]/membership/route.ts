@@ -14,6 +14,7 @@ import {
   removeCapsuleMember,
   requestCapsuleMembership,
   setCapsuleMemberRole,
+  setCapsuleMembershipPolicy,
   unfollowCapsule,
 } from "@/server/capsules/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
@@ -85,6 +86,7 @@ export async function POST(req: Request, context: CapsuleMembershipRouteContext)
   }
 
   const { action, message, requestId, memberId, role } = parsedBody.data;
+  const membershipPolicy = parsedBody.data.membershipPolicy;
   const targetUserId = parsedBody.data.targetUserId;
   const requestOrigin = deriveRequestOrigin(req) ?? null;
 
@@ -159,6 +161,22 @@ export async function POST(req: Request, context: CapsuleMembershipRouteContext)
       }
       case "leave": {
         membership = await leaveCapsule(actorId, parsedParams.data.id, { origin: requestOrigin });
+        break;
+      }
+      case "set_policy": {
+        if (!membershipPolicy) {
+          return returnError(
+            400,
+            "invalid_request",
+            "membershipPolicy is required to set a policy.",
+          );
+        }
+        membership = await setCapsuleMembershipPolicy(
+          actorId,
+          parsedParams.data.id,
+          membershipPolicy,
+          { origin: requestOrigin },
+        );
         break;
       }
       case "invite_member": {

@@ -5,6 +5,7 @@ import { persistCommentToDB } from "@/server/posts/comments";
 import { resolvePostId } from "@/server/posts/identifiers";
 import { listCommentsForPost, fetchCommentById } from "@/server/posts/repository";
 import { notifyPostComment } from "@/server/notifications/triggers";
+import { CapsuleMembershipError } from "@/server/capsules/domain/common";
 
 export const runtime = "edge";
 
@@ -188,6 +189,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, comment: responseComment });
   } catch (error) {
+    if (error instanceof CapsuleMembershipError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Persist comment error", error);
     return NextResponse.json({ error: "Failed to save comment" }, { status: 500 });
   }

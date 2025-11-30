@@ -88,6 +88,8 @@ function mapMessage(record: ChatMessageRecord): ChatMessageDTO {
       count: reaction.count,
       users: mapParticipants(reaction.users),
     })),
+    taskId: record.taskId ?? null,
+    taskTitle: record.taskTitle ?? null,
   };
 }
 
@@ -168,6 +170,7 @@ export async function sendChatMessageAction(
       body: input.body,
       clientSentAt: input.clientSentAt ?? null,
       ...(attachments ? { attachments } : {}),
+      ...(input.task ? { task: input.task } : {}),
     });
 
     return {

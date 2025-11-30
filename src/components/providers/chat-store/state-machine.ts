@@ -84,6 +84,8 @@ type MessageAckPayload = {
   sentAt: string;
   reactions?: Array<{ emoji: string; users?: ChatParticipant[] }>;
   attachments?: ChatMessageEventPayload["message"]["attachments"];
+  taskId?: string | null;
+  taskTitle?: string | null;
 };
 
 type MessageUpdatePayload = {
@@ -92,6 +94,8 @@ type MessageUpdatePayload = {
   sentAt?: string | null;
   attachments?: ChatMessageUpdatedEventPayload["attachments"];
   participants?: ChatParticipant[];
+  taskId?: string | null;
+  taskTitle?: string | null;
 };
 
 type MessageDeletePayload = {
@@ -569,6 +573,14 @@ export class ChatStateMachine {
     const attachments = sanitizeIncomingAttachments(payload.attachments);
     if (!sanitizedBody && attachments.length === 0) return false;
     const normalizedReactions = normalizeReactions(payload.reactions, (id) => this.isSelfId(id));
+    const taskId =
+      typeof payload.taskId === "string" && payload.taskId.trim().length
+        ? payload.taskId.trim()
+        : null;
+    const taskTitle =
+      typeof payload.taskTitle === "string" && payload.taskTitle.trim().length
+        ? payload.taskTitle.trim()
+        : null;
 
     const baseMessage: ChatMessage = {
       id: payload.id,
@@ -578,6 +590,8 @@ export class ChatStateMachine {
       status: "sent",
       reactions: normalizedReactions,
       attachments,
+      taskId,
+      taskTitle,
     };
     const clientIndex = session.messageIndex[clientMessageId];
     const serverIndex = session.messageIndex[baseMessage.id];
@@ -716,6 +730,14 @@ export class ChatStateMachine {
         : undefined,
       (id) => this.isSelfId(id),
     );
+    const taskId =
+      typeof payload.message.taskId === "string" && payload.message.taskId.trim().length
+        ? payload.message.taskId.trim()
+        : null;
+    const taskTitle =
+      typeof payload.message.taskTitle === "string" && payload.message.taskTitle.trim().length
+        ? payload.message.taskTitle.trim()
+        : null;
     const chatMessage: ChatMessage = {
       id: payload.message.id,
       authorId,
@@ -724,6 +746,8 @@ export class ChatStateMachine {
       status: "sent",
       reactions,
       attachments,
+      taskId,
+      taskTitle,
     };
     const isLocal = this.isSelfId(authorId);
     return this.addMessage(session.id, chatMessage, { isLocal });
@@ -794,6 +818,16 @@ export class ChatStateMachine {
       typeof payload.sentAt === "string" && payload.sentAt.trim().length
         ? payload.sentAt.trim()
         : undefined;
+    const hasTaskId = Object.prototype.hasOwnProperty.call(payload, "taskId");
+    const hasTaskTitle = Object.prototype.hasOwnProperty.call(payload, "taskTitle");
+    const taskId =
+      typeof payload.taskId === "string" && payload.taskId.trim().length
+        ? payload.taskId.trim()
+        : null;
+    const taskTitle =
+      typeof payload.taskTitle === "string" && payload.taskTitle.trim().length
+        ? payload.taskTitle.trim()
+        : null;
     const messageIndex = session.messageIndex[messageId];
     if (typeof messageIndex !== "number") {
       const authorId =
@@ -808,6 +842,8 @@ export class ChatStateMachine {
         status: "sent",
         reactions: [],
         attachments,
+        taskId: hasTaskId ? taskId : null,
+        taskTitle: hasTaskTitle ? taskTitle : null,
       };
       return this.addMessage(conversationId, message, { isLocal: false });
     }
@@ -818,6 +854,8 @@ export class ChatStateMachine {
       body: sanitizedBody.length > 0 ? sanitizedBody : existing.body,
       attachments,
       sentAt: sentAt ?? existing.sentAt,
+      taskId: hasTaskId ? taskId : existing.taskId ?? null,
+      taskTitle: hasTaskTitle ? taskTitle : existing.taskTitle ?? null,
     };
     session.messages[messageIndex] = updatedMessage;
     session.messageIndex[updatedMessage.id] = messageIndex;
@@ -1156,6 +1194,18 @@ export class ChatStateMachine {
         if (persistedAttachments && persistedAttachments.length > 0) {
           storedMessage.attachments = persistedAttachments;
         }
+        if (message.taskId) {
+          const trimmedId = message.taskId.trim();
+          if (trimmedId) {
+            storedMessage.taskId = trimmedId;
+          }
+        }
+        if (message.taskTitle) {
+          const trimmedTitle = message.taskTitle.trim();
+          if (trimmedTitle) {
+            storedMessage.taskTitle = trimmedTitle;
+          }
+        }
         return storedMessage;
       }),
     }));
@@ -1229,6 +1279,14 @@ export class ChatStateMachine {
                 }))
               : [];
           const reactions = normalizeReactions(reactionDescriptors, (id) => this.isSelfId(id));
+          const taskId =
+            typeof storedMessage.taskId === "string" && storedMessage.taskId.trim().length
+              ? storedMessage.taskId.trim()
+              : null;
+          const taskTitle =
+            typeof storedMessage.taskTitle === "string" && storedMessage.taskTitle.trim().length
+              ? storedMessage.taskTitle.trim()
+              : null;
           const restoredMessage: ChatMessage = {
             id: storedMessage.id,
             authorId: storedMessage.authorId,
@@ -1239,6 +1297,8 @@ export class ChatStateMachine {
             attachments: hydrateMessageAttachments(
               sanitizeStoredAttachments(storedMessage.attachments),
             ),
+            taskId,
+            taskTitle,
           };
           session.messages.push(restoredMessage);
           session.messageIndex[restoredMessage.id] = session.messages.length - 1;
@@ -1452,10 +1512,3 @@ export class ChatStateMachine {
     return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
   }
 }
-
-
-
-
-
-
-

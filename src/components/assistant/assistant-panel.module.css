@@ -2,21 +2,186 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 6px 0 12px;
+  padding: 10px 10px 14px;
+  border-radius: var(--radius-3xl, 26px);
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(520px 200px at 18% -20%, rgba(255, 255, 255, 0.08), transparent 60%),
+    radial-gradient(540px 220px at 82% -18%, rgba(255, 255, 255, 0.06), transparent 65%),
+    linear-gradient(
+      180deg,
+      var(--card-bg-1, color-mix(in srgb, var(--surface-overlay) 80%, transparent)),
+      var(--card-bg-2, color-mix(in srgb, var(--surface-app, #020617) 86%, transparent))
+    );
+  box-shadow: var(--card-shadow, 0 18px 40px rgba(0, 0, 0, 0.35));
+}
+
+.collapsible {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
   background: linear-gradient(
-      135deg,
-      color-mix(in srgb, rgba(255, 255, 255, 0.06) 70%, transparent),
-      transparent
-    ),
-    radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.08), transparent 40%),
-    radial-gradient(circle at 90% 20%, rgba(79, 156, 255, 0.1), transparent 35%);
-  border-radius: 22px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.2)) 80%, transparent);
+    160deg,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 90%, transparent) 0%,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 76%, transparent) 100%
+  );
   box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
+    0 16px 32px color-mix(in srgb, var(--color-brand, #6e78ff) 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg, #ffffff) 10%, transparent);
+  overflow: hidden;
+}
+
+.collapsible::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--color-brand, var(--color-brand-strong, #6e78ff)) 10%, transparent);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.collapsibleOpen {
+  border-color: color-mix(in srgb, var(--color-brand, #4ea7ff) 60%, transparent);
+  box-shadow:
+    0 18px 36px color-mix(in srgb, var(--color-brand, #4ea7ff) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.collapsibleHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px 4px;
+}
+
+.collapsibleHeader {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 36%, transparent);
+  border: none;
+  color: var(--text, #fff);
+  padding: 12px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 150ms ease,
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+.collapsibleHeader:hover {
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 48%, transparent);
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.collapsibleText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.collapsibleEyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text, #fff) 62%, transparent);
+}
+
+.collapsibleTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.collapsibleTitle {
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
+}
+
+.collapsibleStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.35)) 80%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.1) 70%, transparent),
+    color-mix(in srgb, rgba(20, 40, 80, 0.45) 60%, transparent)
+  );
+  color: color-mix(in srgb, var(--text, #fff) 80%, transparent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.collapsibleHint {
+  margin: 0;
+  color: color-mix(in srgb, var(--text, #fff) 68%, transparent);
+  line-height: 1.35;
+}
+
+.collapsibleCaret {
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--text, #fff) 70%, transparent);
+  transition: transform 180ms ease, color 150ms ease;
+}
+
+.collapsibleHeader:hover .collapsibleCaret {
+  color: color-mix(in srgb, var(--text, #fff) 82%, transparent);
+}
+
+.collapsibleCaretOpen {
+  transform: rotate(180deg);
+}
+
+.collapsibleActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px 0 0;
+}
+
+.collapsibleBody {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 12px;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition:
+    max-height 220ms ease,
+    opacity 180ms ease,
+    visibility 200ms ease,
+    transform 180ms ease;
+}
+
+.collapsibleBodyOpen {
+  max-height: 9999px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  padding-bottom: 12px;
+}
+
+.collapsibleBodyInner {
+  padding: 4px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .header {
@@ -38,6 +203,12 @@
   gap: 12px;
 }
 
+.sectionHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .sectionTitle {
   margin: 2px 0 0;
   font-size: 1rem;
@@ -46,6 +217,49 @@
 .sectionHint {
   color: color-mix(in srgb, var(--text, #fff) 60%, transparent);
   font-size: 0.88rem;
+}
+
+.sectionToggle {
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.2)) 80%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--glass-bg-1, rgba(255, 255, 255, 0.06)) 70%, transparent),
+    color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.035)) 60%, transparent)
+  );
+  color: var(--text, #fff);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 6px 16px rgba(5, 10, 30, 0.42);
+}
+
+.sectionToggle:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 22px rgba(5, 10, 30, 0.5);
+}
+
+.sectionToggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sectionToggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 75%, transparent);
+  outline-offset: 2px;
 }
 
 .headerText {
@@ -76,24 +290,36 @@
 }
 
 .refresh {
-  align-self: flex-start;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, #2f5fd7 65%, transparent);
-  background: linear-gradient(135deg, #2f5fd7 0%, #19a1e6 100%);
-  color: #ffffff;
+  align-self: center;
+  border-radius: var(--radius-xl, 16px);
+  border: 1px solid color-mix(in srgb, var(--pill-border, var(--card-border)) 85%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 70%, transparent),
+    color-mix(in srgb, var(--color-accent, var(--color-brand)) 55%, transparent)
+  );
+  color: var(--cta-button-text, #ffffff);
   font-weight: 600;
-  padding: 8px 16px;
+  font-size: 0.8rem;
+  padding: 6px 14px;
   cursor: pointer;
   transition:
     transform 120ms ease,
     filter 120ms ease,
-    border-color 120ms ease;
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 18px rgba(5, 10, 30, 0.55);
 }
 
 .refresh:hover:not(:disabled) {
   transform: translateY(-1px);
-  filter: brightness(1.03);
-  border-color: color-mix(in srgb, #19a1e6 75%, transparent);
+  filter: brightness(1.04);
+  border-color: color-mix(in srgb, var(--color-brand) 80%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 10px 22px rgba(5, 10, 30, 0.6);
 }
 
 .refresh:disabled {
@@ -134,6 +360,12 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.composerFooter .primaryButton,
+.composerFooter .secondaryButton {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .field {
@@ -203,35 +435,39 @@
   flex: 1;
 }
 
-.selectedChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.selectedChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.2)) 80%, transparent);
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 70%, transparent);
-  color: var(--text, #fff);
-  cursor: pointer;
-}
-
-.removeChip {
-  color: color-mix(in srgb, var(--text, #fff) 60%, transparent);
-  font-weight: 700;
-}
-
 .checkbox {
   display: flex;
   align-items: center;
   gap: 10px;
   color: color-mix(in srgb, var(--text, #fff) 75%, transparent);
+}
+
+.inviteInput {
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.2)) 80%, transparent);
+  background: color-mix(in srgb, rgba(0, 0, 0, 0.28) 60%, transparent);
+  padding: 12px;
+  color: var(--text, #fff);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(5, 10, 30, 0.36);
+  transition:
+    transform 120ms ease,
+    filter 120ms ease,
+    border-color 120ms ease;
+}
+
+.inviteInput:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
 }
 
 .primaryButton {
@@ -278,6 +514,26 @@
   font-weight: 700;
   color: color-mix(in srgb, var(--color-info, #38bdf8) 85%, var(--text, #fff) 15%);
 }
+
+.inlineLink {
+  margin-top: 0;
+  padding: 11px 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 72%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 90%, transparent),
+    color-mix(in srgb, var(--color-accent, var(--color-brand)) 70%, transparent)
+  );
+  color: var(--cta-button-text, #ffffff);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 10px 22px rgba(15, 23, 42, 0.7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
 .state {
   padding: 16px 18px;
   border-radius: 16px;
@@ -302,22 +558,28 @@
   gap: 14px;
 }
 
+.tasksToolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .taskCard {
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  position: relative;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 76%, transparent);
   background: linear-gradient(
-      145deg,
-      color-mix(in srgb, rgba(255, 255, 255, 0.12) 70%, transparent),
-      color-mix(in srgb, rgba(255, 255, 255, 0.04) 50%, transparent)
-    ),
-    radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.12), transparent 45%),
-    radial-gradient(circle at 85% 10%, rgba(80, 140, 255, 0.16), transparent 40%);
+    150deg,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 88%, transparent),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 82%, transparent)
+  );
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.25),
+    0 18px 40px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px);
 }
@@ -326,13 +588,26 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  align-items: flex-start;
 }
 
 .taskTopMeta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 6px;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2, color-mix(in srgb, var(--text, #fff) 65%, transparent));
+}
+
+.taskMetaLabel {
+  opacity: 0.9;
+}
+
+.taskMetaDivider {
+  opacity: 0.4;
 }
 
 .recipientRow {
@@ -356,16 +631,14 @@
 .recipientChip {
   text-decoration: none;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-info, #38bdf8) 65%, transparent);
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 80%, transparent);
-  padding: 6px 10px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 6px 12px rgba(0, 0, 0, 0.25);
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 60%, transparent);
+  padding: 6px 11px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .recipientName {
-  color: color-mix(in srgb, var(--color-info, #38bdf8) 85%, var(--text, #fff) 25%);
+  color: var(--text, #fff);
   font-weight: 600;
   font-size: 0.88rem;
 }
@@ -383,17 +656,21 @@
 
 .pill {
   align-self: flex-start;
-  padding: 7px 12px;
+  padding: 6px 11px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border: 1px solid;
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 80%, transparent);
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.1) 70%, transparent),
+    color-mix(in srgb, rgba(0, 10, 30, 0.4) 55%, transparent)
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 4px 14px rgba(0, 0, 0, 0.25);
+    0 6px 12px rgba(0, 0, 0, 0.2);
 }
 
 .pillIncoming {
@@ -429,6 +706,15 @@
   gap: 8px;
 }
 
+.taskFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.18)) 80%, transparent);
+}
+
 .metrics {
   display: flex;
   flex-wrap: wrap;
@@ -446,6 +732,9 @@
     var(--glass-bg-1, rgba(255, 255, 255, 0.12)) 65%,
     transparent
   );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 12px rgba(0, 0, 0, 0.16);
 }
 
 .metricAlert {
@@ -477,16 +766,20 @@
 }
 
 .cancel {
-  align-self: flex-start;
-  margin-top: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
+  align-self: stretch;
+  margin-top: 4px;
+  padding: 11px 18px;
+  border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--color-danger, #f87171) 60%, transparent);
   background: color-mix(in srgb, var(--color-danger, #f87171) 14%, transparent);
   color: color-mix(in srgb, var(--color-danger, #f87171) 90%, var(--text, #fff) 25%);
   font-weight: 600;
   cursor: pointer;
   transition: transform 120ms ease, filter 120ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .cancel:hover:not(:disabled) {

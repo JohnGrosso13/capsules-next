@@ -29,6 +29,8 @@ export type ChatMessageDTO = {
   sentAt: string;
   reactions: ChatReactionDTO[];
   attachments: ChatMessageAttachmentDTO[];
+  taskId?: string | null;
+  taskTitle?: string | null;
 };
 
 export type ChatConversationSessionDTO = {
@@ -51,6 +53,7 @@ export type ChatSendMessageInput = {
   body: string;
   attachments?: ChatMessageAttachmentDTO[];
   clientSentAt?: string | null;
+  task?: { id?: string | null; title?: string | null } | null;
 };
 
 export type ChatSendMessageResult = {

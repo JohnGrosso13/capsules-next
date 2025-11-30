@@ -71,6 +71,7 @@ export { ChatStorePersistence } from "@/components/providers/chat-store/persiste
 export type { ChatStorePersistenceOptions } from "@/components/providers/chat-store/persistence";
 
 type SelfParticipantOptions = Parameters<ChatStateMachine["applySelfParticipant"]>[0];
+type MessageAckOptions = Parameters<ChatStateMachine["acknowledgeMessage"]>[2];
 type MessageUpdateOptions = Parameters<ChatStateMachine["applyMessageUpdateEvent"]>[2];
 type MessageDeleteOptions = Parameters<ChatStateMachine["applyMessageDeleteEvent"]>[2];
 type PrepareLocalOptions = Parameters<ChatStateMachine["prepareLocalMessage"]>[2];
@@ -271,14 +272,7 @@ export class ChatStore extends ChatStateMachine {
   override acknowledgeMessage(
     sessionId: string,
     clientMessageId: string,
-    payload: {
-      id: string;
-      authorId: string;
-      body: string;
-      sentAt: string;
-      reactions?: Array<{ emoji: string; users?: ChatParticipant[] }>;
-      attachments?: ChatMessageEventPayload["message"]["attachments"];
-    },
+    payload: MessageAckOptions,
   ): boolean {
     const changed = super.acknowledgeMessage(sessionId, clientMessageId, payload);
     this.emitIf(changed);
@@ -355,6 +349,12 @@ export class ChatStore extends ChatStateMachine {
     }
     if (payload.participants !== undefined) {
       updatePayload.participants = payload.participants;
+    }
+    if (payload.taskId !== undefined) {
+      updatePayload.taskId = payload.taskId;
+    }
+    if (payload.taskTitle !== undefined) {
+      updatePayload.taskTitle = payload.taskTitle;
     }
     const changed = super.applyMessageUpdateEvent(conversationId, messageId, updatePayload);
     this.emitIf(changed);

@@ -476,6 +476,8 @@ export class ChatEngine {
           sentAt: result.message.sentAt,
           reactions: reactionDescriptors,
           attachments: acknowledgedAttachments,
+          taskId: result.message.taskId ?? null,
+          taskTitle: result.message.taskTitle ?? null,
         });
         this.recordDirectChannelWatermarkFromIso(result.message.sentAt);
       } else {
@@ -904,6 +906,8 @@ export class ChatEngine {
             status: "sent" as const,
             reactions,
             attachments,
+            taskId: lastMessage.taskId ?? null,
+            taskTitle: lastMessage.taskTitle ?? null,
           };
           const isLocal = this.isSelfUser(chatMessage.authorId);
           this.store.addMessage(descriptor.id, chatMessage, { isLocal });
@@ -1142,6 +1146,8 @@ export class ChatEngine {
         participants,
         senderId: result.message.senderId,
         sentAt: result.message.sentAt,
+        taskId: result.message.taskId ?? null,
+        taskTitle: result.message.taskTitle ?? null,
       });
     } catch (error) {
       console.error("ChatEngine updateMessageAttachments error", error);

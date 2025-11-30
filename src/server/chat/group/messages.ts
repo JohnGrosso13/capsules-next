@@ -43,6 +43,7 @@ export async function sendGroupMessage(params: {
   body: string;
   attachments?: ChatMessageAttachmentRecord[];
   clientSentAt?: string | null;
+  task?: { id?: string | null; title?: string | null } | null;
 }): Promise<{
   message: ChatMessageRecord;
   participants: ChatParticipantSummary[];
@@ -119,7 +120,7 @@ export async function sendGroupMessage(params: {
   }
 
   const canonicalMessageId = canonicalizeMessageId(params.messageId, trimmedConversationId);
-  const serializedBody = encodeMessagePayload(bodySanitized, attachments);
+  const serializedBody = encodeMessagePayload(bodySanitized, attachments, params.task);
   const messageRow = await upsertGroupMessage({
     id: canonicalMessageId,
     conversation_id: trimmedConversationId,
@@ -153,6 +154,8 @@ export async function sendGroupMessage(params: {
     sentAt: messageRecord.sentAt,
     participants: participantSummaries,
     reactions: [],
+    taskId: messageRecord.taskId ?? null,
+    taskTitle: messageRecord.taskTitle ?? null,
     session: {
       type: "group",
       title: sessionTitle,
@@ -246,7 +249,7 @@ export async function updateGroupMessageAttachments(params: {
     );
   }
 
-  const serializedBody = encodeMessagePayload(payload.text, filteredAttachments);
+  const serializedBody = encodeMessagePayload(payload.text, filteredAttachments, payload.task);
   const updatedRow =
     (await updateGroupMessageBody({ id: messageRow.id, body: serializedBody })) ?? {
       ...messageRow,
@@ -268,6 +271,8 @@ export async function updateGroupMessageAttachments(params: {
     participants: participantSummaries,
     senderId: messageRecord.senderId,
     sentAt: messageRecord.sentAt,
+    taskId: messageRecord.taskId ?? null,
+    taskTitle: messageRecord.taskTitle ?? null,
     session: {
       type: "group",
       title: sessionTitle,
@@ -362,4 +367,3 @@ export async function deleteGroupMessage(params: {
     participants: participantSummaries,
   };
 }
-

@@ -7,6 +7,7 @@ import { isCapsuleMemberUiRole } from "../roles";
 import { findCapsuleById } from "../repository";
 
 const REQUEST_MESSAGE_MAX_LENGTH = 500;
+const MEMBERSHIP_POLICIES = new Set(["open", "request_only", "invite_only"]);
 
 export class CapsuleMembershipError extends Error {
   constructor(
@@ -67,6 +68,14 @@ export function normalizeRequestMessage(value: unknown): string | null {
   const trimmed = value.trim();
   if (!trimmed.length) return null;
   return trimmed.slice(0, REQUEST_MESSAGE_MAX_LENGTH);
+}
+
+export function normalizeMembershipPolicy(value: unknown): "open" | "request_only" | "invite_only" {
+  const normalized = normalizeOptionalString(value)?.toLowerCase() ?? null;
+  if (normalized && MEMBERSHIP_POLICIES.has(normalized)) {
+    return normalized as "open" | "request_only" | "invite_only";
+  }
+  return "request_only";
 }
 
 export function resolveCapsuleMediaUrl(

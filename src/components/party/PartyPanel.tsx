@@ -1472,6 +1472,7 @@ function PartyStageScene({
   summaryEnabled,
   onTranscriptsChange,
 }: PartyStageSceneProps) {
+  const { updateMetadata } = usePartyContext();
   const room = useRoomContext();
   const participants = useParticipants();
   const chat = useChatContext();
@@ -1844,7 +1845,44 @@ function PartyStageScene({
       ),
     [participants],
   );
-  const assistantDesired = session.metadata.assistant?.desired ?? true;
+
+  const applyAssistantMetadata = React.useCallback(
+    (
+      assistant:
+        | {
+            desired?: boolean;
+            lastRequestedAt?: string | null;
+            lastDismissedAt?: string | null;
+          }
+        | null,
+      fallbackDesired: boolean,
+    ) => {
+      updateMetadata((metadata) => {
+        const currentAssistant =
+          metadata.assistant ?? { desired: fallbackDesired, lastRequestedAt: null, lastDismissedAt: null };
+        const nextDesired =
+          assistant && typeof assistant.desired === "boolean" ? assistant.desired : currentAssistant.desired;
+        const nextLastRequested =
+          assistant && "lastRequestedAt" in assistant
+            ? assistant.lastRequestedAt ?? null
+            : currentAssistant.lastRequestedAt ?? null;
+        const nextLastDismissed =
+          assistant && "lastDismissedAt" in assistant
+            ? assistant.lastDismissedAt ?? null
+            : currentAssistant.lastDismissedAt ?? null;
+
+        return {
+          ...metadata,
+          assistant: {
+            desired: typeof nextDesired === "boolean" ? nextDesired : fallbackDesired,
+            lastRequestedAt: nextLastRequested,
+            lastDismissedAt: nextLastDismissed,
+          },
+        };
+      });
+    },
+    [updateMetadata],
+  );
 
   const summonAssistant = React.useCallback(async () => {
     if (!session) return;
@@ -1864,6 +1902,15 @@ function PartyStageScene({
             : "Unable to call the assistant right now.";
         throw new Error(message);
       }
+      const assistantPayload =
+        payload && typeof payload === "object" && "assistant" in payload
+          ? ((payload as { assistant?: unknown }).assistant as {
+              desired?: boolean;
+              lastRequestedAt?: string | null;
+              lastDismissedAt?: string | null;
+            } | null)
+          : null;
+      applyAssistantMetadata(assistantPayload, true);
       setAssistantNotice("Assistant invited. It may take a few seconds to join.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to call the assistant.";
@@ -1871,7 +1918,7 @@ function PartyStageScene({
     } finally {
       setAssistantBusy(false);
     }
-  }, [session]);
+  }, [applyAssistantMetadata, session]);
 
   const dismissAssistant = React.useCallback(async () => {
     if (!session) return;
@@ -1887,6 +1934,15 @@ function PartyStageScene({
             : "Unable to dismiss the assistant right now.";
         throw new Error(message);
       }
+      const assistantPayload =
+        payload && typeof payload === "object" && "assistant" in payload
+          ? ((payload as { assistant?: unknown }).assistant as {
+              desired?: boolean;
+              lastRequestedAt?: string | null;
+              lastDismissedAt?: string | null;
+            } | null)
+          : null;
+      applyAssistantMetadata(assistantPayload, false);
       setAssistantNotice("Assistant dismissed.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to dismiss the assistant.";
@@ -1894,7 +1950,7 @@ function PartyStageScene({
     } finally {
       setAssistantBusy(false);
     }
-  }, [session]);
+  }, [applyAssistantMetadata, session]);
 
   return (
     <>
@@ -1968,26 +2024,27 @@ function PartyStageScene({
           <div className={styles.controlGroup}>
             <button
               type="button"
-              className={`${styles.controlButton} ${styles.controlCompact}`}
+              className={`${styles.controlButton} ${
+                assistantPresent ? styles.controlDanger : styles.controlCompact
+              }`}
               onClick={() => {
-                void summonAssistant();
+                if (assistantPresent) {
+                  void dismissAssistant();
+                } else {
+                  void summonAssistant();
+                }
               }}
               disabled={assistantBusy || !room}
-              aria-pressed={assistantDesired}
+              aria-pressed={assistantPresent}
             >
-              <Sparkle size={16} weight="bold" />
-              Call Assistant
-            </button>
-            <button
-              type="button"
-              className={`${styles.controlButton} ${styles.controlDanger}`}
-              onClick={() => {
-                void dismissAssistant();
-              }}
-              disabled={assistantBusy || !assistantPresent || !room}
-            >
-              <XCircle size={16} weight="bold" />
-              Dismiss Assistant
+              {assistantPresent ? <XCircle size={16} weight="bold" /> : <Sparkle size={16} weight="bold" />}
+              {assistantBusy
+                ? assistantPresent
+                  ? "Dismissing..."
+                  : "Calling..."
+                : assistantPresent
+                  ? "Dismiss Assistant"
+                  : "Call Assistant"}
             </button>
           </div>
         ) : null}
