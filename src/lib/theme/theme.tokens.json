@@ -380,23 +380,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "surface.background-fx.confetti",
-    "cssVar": "--background-fx-confetti",
-    "label": "Background FX / Confetti",
-    "category": "surface",
-    "valueKind": "gradient",
-    "tags": [
-      "background",
-      "fx",
-      "confetti"
-    ],
-    "semantics": "Background FX / Confetti",
-    "layer": "foundation",
-    "fallback": "radial-gradient(420px 420px at 12% 14%, rgba(147, 197, 253, 0.22), transparent 72%), radial-gradient(360px 360px at 86% 12%, rgba(59, 130, 246, 0.18), transparent 74%), radial-gradient(540px 540px at 50% 100%, rgba(14, 165, 233, 0.16), transparent 70%)",
-    "lightFallback": "radial-gradient(420px 420px at 12% 14%, rgba(96, 165, 250, 0.26), transparent 72%), radial-gradient(360px 360px at 86% 12%, rgba(14, 165, 233, 0.2), transparent 74%), radial-gradient(540px 540px at 50% 100%, rgba(236, 72, 153, 0.16), transparent 70%)",
-    "exposeToStyler": true
-  },
-  {
     "id": "surface.background-fx.indigo",
     "cssVar": "--background-fx-indigo",
     "label": "Background FX / Indigo",
@@ -462,57 +445,6 @@
     "layer": "foundation",
     "fallback": "radial-gradient(\r\n      closest-side at 50% 50%,\r\n      rgba(124, 58, 237, 0.38),\r\n      rgba(124, 58, 237, 0) 70%\r\n    )",
     "lightFallback": "radial-gradient(\r\n      closest-side at 50% 50%,\r\n      color-mix(in srgb, var(--color-brand) 24%, rgba(255, 255, 255, 0.9)),\r\n      transparent 70%\r\n    )",
-    "exposeToStyler": true
-  },
-  {
-    "id": "surface.background-fx.scanlines",
-    "cssVar": "--background-fx-scanlines",
-    "label": "Background FX / Scanlines",
-    "category": "surface",
-    "valueKind": "gradient",
-    "tags": [
-      "background",
-      "fx",
-      "scanlines"
-    ],
-    "semantics": "Background FX / Scanlines",
-    "layer": "foundation",
-    "fallback": "linear-gradient(180deg, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0.12) 8%, rgba(14, 165, 233, 0.1) 8%, rgba(14, 165, 233, 0.1) 16%)",
-    "lightFallback": "linear-gradient(180deg, rgba(79, 70, 229, 0.12) 0%, rgba(79, 70, 229, 0.12) 8%, rgba(14, 165, 233, 0.08) 8%, rgba(14, 165, 233, 0.08) 16%)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "surface.background-fx.snow",
-    "cssVar": "--background-fx-snow",
-    "label": "Background FX / Snow",
-    "category": "surface",
-    "valueKind": "gradient",
-    "tags": [
-      "background",
-      "fx",
-      "snow"
-    ],
-    "semantics": "Background FX / Snow",
-    "layer": "foundation",
-    "fallback": "radial-gradient(420px 420px at 50% 110%, rgba(96, 165, 250, 0.22), transparent 74%), linear-gradient(180deg, rgba(12, 28, 58, 0.72) 0%, rgba(4, 12, 30, 0.88) 65%, rgba(3, 8, 24, 0.96) 100%)",
-    "lightFallback": "radial-gradient(420px 420px at 50% 110%, rgba(191, 219, 254, 0.26), transparent 74%), linear-gradient(180deg, rgba(236, 244, 255, 0.68) 0%, rgba(222, 236, 255, 0.48) 50%, rgba(248, 249, 253, 0) 100%)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "surface.background-fx.stars",
-    "cssVar": "--background-fx-stars",
-    "label": "Background FX / Stars",
-    "category": "surface",
-    "valueKind": "gradient",
-    "tags": [
-      "background",
-      "fx",
-      "stars"
-    ],
-    "semantics": "Background FX / Stars",
-    "layer": "foundation",
-    "fallback": "radial-gradient(4px 4px at 8% 12%, rgba(255, 255, 255, 0.9), transparent 60%), radial-gradient(6px 6px at 18% 36%, rgba(176, 218, 255, 0.75), transparent 65%), radial-gradient(4px 4px at 74% 28%, rgba(225, 242, 255, 0.85), transparent 60%), radial-gradient(5px 5px at 60% 14%, rgba(120, 198, 255, 0.9), transparent 70%)",
-    "lightFallback": "radial-gradient(4px 4px at 8% 12%, rgba(70, 90, 240, 0.9), transparent 60%), radial-gradient(5px 5px at 18% 32%, rgba(129, 140, 248, 0.75), transparent 64%), radial-gradient(4px 4px at 74% 22%, rgba(22, 211, 238, 0.82), transparent 60%), radial-gradient(5px 5px at 60% 14%, rgba(14, 165, 233, 0.82), transparent 70%)",
     "exposeToStyler": true
   },
   {
@@ -2976,22 +2908,6 @@
     }
   },
   {
-    "id": "brand.muted",
-    "cssVar": "--color-brand-muted",
-    "label": "Brand / Muted",
-    "category": "brand",
-    "valueKind": "color",
-    "tags": [
-      "brand",
-      "muted"
-    ],
-    "semantics": "Brand / Muted",
-    "layer": "foundation",
-    "fallback": "rgba(99, 102, 241, 0.14)",
-    "lightFallback": "rgba(79, 70, 229, 0.16)",
-    "exposeToStyler": true
-  },
-  {
     "id": "brand.strong",
     "cssVar": "--color-brand-strong",
     "label": "Brand / Strong",
@@ -4857,38 +4773,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "dock.sheet-bg-1",
-    "cssVar": "--dock-sheet-bg-1",
-    "label": "Dock Sheet / Background 1",
-    "category": "dock",
-    "valueKind": "color",
-    "tags": [
-      "dock",
-      "sheet"
-    ],
-    "semantics": "Dock Sheet / Background 1",
-    "layer": "semantic",
-    "fallback": "rgba(18, 24, 49, 0.95)",
-    "lightFallback": "rgba(255, 255, 255, 0.98)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "dock.sheet-bg-2",
-    "cssVar": "--dock-sheet-bg-2",
-    "label": "Dock Sheet / Background 2",
-    "category": "dock",
-    "valueKind": "color",
-    "tags": [
-      "dock",
-      "sheet"
-    ],
-    "semantics": "Dock Sheet / Background 2",
-    "layer": "semantic",
-    "fallback": "rgba(9, 14, 33, 0.92)",
-    "lightFallback": "rgba(247, 249, 255, 0.94)",
-    "exposeToStyler": true
-  },
-  {
     "id": "dock.sheet-border",
     "cssVar": "--dock-sheet-border",
     "label": "Dock Sheet / Border",
@@ -5303,18 +5187,6 @@
     "semantics": "Friends Presence Offline",
     "layer": "foundation",
     "fallback": "var(\n    --presence-offline-dot,\n    color-mix(in srgb, var(--text-2, #b8c1d8) 62%, transparent)\n  )",
-    "exposeToStyler": true
-  },
-  {
-    "id": "friends.presence.online",
-    "cssVar": "--friends-presence-online",
-    "label": "Friends Presence Online",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [],
-    "semantics": "Friends Presence Online",
-    "layer": "foundation",
-    "fallback": "var(--presence-online-dot, var(--color-success, #34d399))",
     "exposeToStyler": true
   },
   {

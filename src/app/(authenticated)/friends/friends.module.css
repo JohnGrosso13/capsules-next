@@ -4,7 +4,6 @@
   gap: 16px;
   padding: 0 4px 32px;
   /* Presence state tokens so theme overrides flow through */
-  --friends-presence-online: var(--presence-online-dot, var(--color-success, #34d399));
   --friends-presence-away: var(--presence-away-dot, var(--color-warning, #fbbf24));
   --friends-presence-offline: var(
     --presence-offline-dot,

@@ -13,15 +13,10 @@ export default meta;
 
 export function Default() {
   const [lastAction, setLastAction] = React.useState<string | null>(null);
-  const actions = ["Post an update", "Share a photo", "Summarize my feed", "Style my capsule"].map(
-    (label) => ({
-      label,
-      value: label,
-    }),
-  );
+  const actions = ["Post an update", "Share a photo", "Summarize my feed", "Style my capsule"].map((label, index) => ({ id: `story-chip-${index}`, label, value: label }));
   return (
     <div style={{ maxWidth: 520 }}>
-      <PrompterSuggestedActions actions={actions} onSelect={(action) => setLastAction(action)} />
+      <PrompterSuggestedActions actions={actions} onSelect={(action) => setLastAction(action.label)} />
       {lastAction ? (
         <p style={{ marginTop: "1rem" }}>
           Last selected:
@@ -31,3 +26,4 @@ export function Default() {
     </div>
   );
 }
+

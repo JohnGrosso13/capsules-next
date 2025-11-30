@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import { ChatsCircle, Broadcast, ArrowUp } from "@phosphor-icons/react/dist/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import styles from "./live-chat-rail.module.css";
+import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { useCurrentUser } from "@/services/auth/client";
 
 type LiveChatStatus = "waiting" | "scheduled" | "live" | "ended";
 
@@ -46,6 +49,7 @@ export function LiveChatRail({
   participantCount: participantCountProp = null,
   initialMessages = EMPTY_MESSAGES,
 }: LiveChatRailProps = {}) {
+  const { user } = useCurrentUser();
   const [capsuleId, setCapsuleId] = React.useState<string | null>(capsuleIdProp ?? null);
   const [capsuleName, setCapsuleName] = React.useState<string | null>(capsuleNameProp ?? null);
   const [status, setStatus] = React.useState<LiveChatStatus>(statusProp);
@@ -53,6 +57,10 @@ export function LiveChatRail({
     participantCountProp ?? null,
   );
   const [messages, setMessages] = React.useState<LiveChatMessage[]>(initialMessages);
+  const [draft, setDraft] = React.useState("");
+  const supabaseRef = React.useRef<SupabaseClient | null>(null);
+  const channelRef = React.useRef<ReturnType<SupabaseClient["channel"]> | null>(null);
+  const messageIdsRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
     setCapsuleId(capsuleIdProp ?? null);
@@ -73,6 +81,61 @@ export function LiveChatRail({
   React.useEffect(() => {
     setMessages((prev) => (prev === initialMessages ? prev : initialMessages));
   }, [initialMessages]);
+
+  React.useEffect(() => {
+    const appendMessage = (incoming: LiveChatMessage) => {
+      if (messageIdsRef.current.has(incoming.id)) return;
+      messageIdsRef.current.add(incoming.id);
+      setMessages((prev) => [...prev.slice(-99), incoming]);
+    };
+
+    const connect = async (capsule: string) => {
+      try {
+        supabaseRef.current = getBrowserSupabaseClient();
+      } catch (error) {
+        console.warn("livechat.supabase.unavailable", error);
+        return;
+      }
+      const supabase = supabaseRef.current;
+      const channelName = `capsule-live-chat:${capsule}`;
+      const channel = supabase.channel(channelName, {
+        config: { broadcast: { self: true } },
+      });
+      channel
+        .on("broadcast", { event: "message" }, (payload) => {
+          const data = payload?.payload as Partial<LiveChatMessage> | undefined;
+          if (!data?.id || !data.body || !data.authorName || !data.sentAt) return;
+          appendMessage({
+            id: data.id,
+            body: data.body,
+            authorName: data.authorName,
+            authorAvatar: data.authorAvatar ?? null,
+            sentAt: data.sentAt,
+          });
+        })
+        .subscribe();
+
+      channelRef.current = channel;
+    };
+
+    if (!capsuleId) {
+      if (channelRef.current) {
+        void channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    messageIdsRef.current = new Set(initialMessages.map((m) => m.id));
+    void connect(capsuleId);
+
+    return () => {
+      if (channelRef.current) {
+        void channelRef.current.unsubscribe();
+        channelRef.current = null;
+      }
+    };
+  }, [capsuleId, initialMessages]);
 
   React.useEffect(() => {
     const handleCapsuleEvent = (event: Event) => {
@@ -104,8 +167,39 @@ export function LiveChatRail({
     };
   }, []);
 
-  const canSend = status === "live" && Boolean(capsuleId);
+  const canSend = status === "live" && Boolean(capsuleId) && Boolean(user);
   const hasMessages = messages.length > 0;
+  const authorName = user?.name?.trim() || user?.email?.trim() || "You";
+
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canSend) return;
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    const now = new Date().toISOString();
+    const id =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `msg-${Math.random().toString(36).slice(2, 10)}`;
+    const message: LiveChatMessage = {
+      id,
+      authorName,
+      body: trimmed,
+      sentAt: now,
+      authorAvatar: user?.avatarUrl ?? null,
+    };
+    messageIdsRef.current.add(id);
+    setMessages((prev) => [...prev.slice(-99), message]);
+    setDraft("");
+    const channel = channelRef.current;
+    if (channel) {
+      await channel.send({
+        type: "broadcast",
+        event: "message",
+        payload: message,
+      });
+    }
+  };
 
   let subtitle = "Live chat will unlock once your stream starts.";
   if (!capsuleId) {
@@ -178,7 +272,7 @@ export function LiveChatRail({
           <div className={styles.messagePlaceholder}>Live chat messages will appear here.</div>
         )}
       </div>
-      <form className={styles.composer} onSubmit={(event) => event.preventDefault()}>
+      <form className={styles.composer} onSubmit={handleSend}>
         <div className={styles.composerField}>
           <input
             className={styles.composerInput}
@@ -186,6 +280,8 @@ export function LiveChatRail({
               canSend ? "Share something with the stream..." : "Chat is locked until you're live"
             }
             disabled={!canSend}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
           />
           <button className={styles.composerSend} type="submit" disabled={!canSend} aria-label="Send message">
             <ArrowUp size={18} weight="bold" />

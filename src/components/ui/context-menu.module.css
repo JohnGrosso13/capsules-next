@@ -16,12 +16,8 @@
   border-radius: 16px;
   border: 1px solid var(--card-border);
   background:
-    linear-gradient(180deg, rgba(15, 18, 42, 0.86), rgba(11, 14, 34, 0.78)),
-    linear-gradient(
-      180deg,
-      var(--glass-bg-1, rgba(255, 255, 255, 0.08)),
-      var(--glass-bg-2, rgba(255, 255, 255, 0.04))
-    );
+    /* Use an opaque base so content behind doesn't bleed through */
+    linear-gradient(180deg, rgb(15, 18, 42), rgb(11, 14, 34));
   background-blend-mode: normal, overlay;
   box-shadow: 0 20px 48px rgba(5, 10, 30, 0.5);
   color: var(--text, rgba(255, 255, 255, 0.92));

@@ -14,6 +14,8 @@ import { PrimaryHeader } from "@/components/primary-header";
 import { MobileHeader } from "@/components/mobile-header";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
 import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChatRail";
+import { HOME_COMPOSER_CHIPS, EXPLORE_COMPOSER_CHIPS, CREATE_COMPOSER_CHIPS, CAPSULE_COMPOSER_CHIPS, MEMORY_COMPOSER_CHIPS, PROFILE_COMPOSER_CHIPS, SETTINGS_COMPOSER_CHIPS, LIVE_COMPOSER_CHIPS, STUDIO_COMPOSER_CHIPS, MARKET_COMPOSER_CHIPS } from "@/lib/prompter/chips";
+import { usePrompterChips } from "@/hooks/usePrompterChips";
 
 import styles from "./app-shell.module.css";
 
@@ -28,7 +30,7 @@ const ConnectionsRailIsland = dynamic(
   },
 );
 
-type NavKey = "home" | "explore" | "create" | "capsule" | "market" | "memory";
+type NavKey = "home" | "explore" | "create" | "capsule" | "market" | "memory" | "profile" | "settings" | "live" | "studio";
 type CapsuleTab = "live" | "feed" | "store";
 
 type AppShellProps = {
@@ -67,6 +69,31 @@ function AppShellContent({
     if (pathname.startsWith("/memory")) return "memory";
     return "home";
   }, [activeNav, pathname]);
+
+                const { chips: prompterChips } = usePrompterChips(
+    derivedActive,
+    derivedActive === "home"
+      ? HOME_COMPOSER_CHIPS
+      : derivedActive === "explore"
+        ? EXPLORE_COMPOSER_CHIPS
+        : derivedActive === "create"
+          ? CREATE_COMPOSER_CHIPS
+          : derivedActive === "capsule"
+            ? CAPSULE_COMPOSER_CHIPS
+            : derivedActive === "memory"
+              ? MEMORY_COMPOSER_CHIPS
+              : derivedActive === "profile"
+                ? PROFILE_COMPOSER_CHIPS
+                : derivedActive === "settings"
+                  ? SETTINGS_COMPOSER_CHIPS
+                  : derivedActive === "live"
+                    ? LIVE_COMPOSER_CHIPS
+                    : derivedActive === "market"
+                      ? MARKET_COMPOSER_CHIPS
+                      : derivedActive === "studio"
+                        ? STUDIO_COMPOSER_CHIPS
+                        : undefined,
+  );
 
   const isHome = derivedActive === "home";
   const isCapsule = derivedActive === "capsule";
@@ -176,7 +203,9 @@ function AppShellContent({
               <AiPrompterStage
                 onAction={composer.handlePrompterAction}
                 onHandoff={composer.handlePrompterHandoff}
+                chips={prompterChips ?? []}
                 statusMessage={statusMessage}
+                surface={derivedActive}
               />
             </div>
           ) : null}
@@ -234,3 +263,16 @@ export function AppShell(props: AppShellProps) {
     </ComposerProvider>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

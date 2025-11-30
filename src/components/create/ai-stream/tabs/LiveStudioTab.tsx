@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { LiveChatRail } from "@/components/live/LiveChatRail";
 import type { CapsuleSummary } from "@/server/capsules/service";
 import MuxPlayer from "@mux/mux-player-react";
-import { Paperclip, Microphone, CaretDown } from "@phosphor-icons/react/dist/ssr";
+import { Paperclip, Microphone, ArrowUp } from "@phosphor-icons/react/dist/ssr";
+import contextMenuStyles from "@/components/ui/context-menu.module.css";
+import chatStyles from "@/components/chat/chat.module.css";
+import prompterStyles from "@/components/prompter/prompter.module.css";
 
 import { AiStreamCapsuleGate } from "../AiStreamCapsuleGate";
 import {
@@ -65,6 +68,41 @@ export function LiveStudioTab({
   onNavigateToEncoder,
 }: LiveStudioTabProps) {
   const encoderBannerClassName = styles.encoderBanner ?? "";
+  const [actionsMenuOpen, setActionsMenuOpen] = React.useState(false);
+  const actionsMenuRef = React.useRef<HTMLDivElement | null>(null);
+  const actionsMenuTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const handleGoLive = React.useCallback(() => {
+    if (!selectedCapsule) return;
+    onEnsureStream();
+    onNavigateToEncoder();
+  }, [onEnsureStream, onNavigateToEncoder, selectedCapsule]);
+
+  React.useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!actionsMenuRef.current) return;
+      if (
+        actionsMenuRef.current.contains(target) ||
+        actionsMenuTriggerRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setActionsMenuOpen(false);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActionsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [actionsMenuOpen]);
 
   if (selectorOpen || !selectedCapsule) {
     return (
@@ -93,7 +131,7 @@ export function LiveStudioTab({
           autoSaveId={autoSaveIds.leftColumn}
           storage={panelStorage}
         >
-          <Panel defaultSize={50} minSize={42} collapsible={false}>
+          <Panel defaultSize={60} minSize={50} collapsible={false}>
             <div className={styles.panelSection}>
               {notification ? (
                 <StudioNotificationBanner
@@ -116,13 +154,60 @@ export function LiveStudioTab({
                       <div className={styles.previewSubtitle}>{overviewErrorMessage}</div>
                     ) : null}
                   </div>
-                  <div className={styles.previewActions}>
-                    <Button variant="outline" size="sm" onClick={onNavigateToEncoder}>
-                      Encoder settings
-                    </Button>
-                    <Button variant="gradient" size="sm" disabled>
-                      Go live
-                    </Button>
+                    <div className={styles.previewActions}>
+                      <Button variant="outline" size="sm" onClick={onNavigateToEncoder}>
+                        Encoder settings
+                      </Button>
+                      <Button
+                        variant="gradient"
+                        size="sm"
+                        onClick={handleGoLive}
+                        disabled={!selectedCapsule || overviewLoading || actionBusy === "ensure"}
+                      >
+                        Go live
+                      </Button>
+                      <div className={styles.previewActionsMenu}>
+                        <button
+                          type="button"
+                          aria-label="Stream actions"
+                          aria-haspopup="true"
+                          aria-expanded={actionsMenuOpen}
+                          onClick={() => setActionsMenuOpen((prev) => !prev)}
+                          ref={actionsMenuTriggerRef}
+                          className={`${chatStyles.chatMenuTrigger} ${styles.previewActionsMenuTrigger}`.trim()}
+                        >
+                          <span className={chatStyles.chatMenuIcon} aria-hidden>
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                        </button>
+                      {actionsMenuOpen ? (
+                        <div
+                          ref={actionsMenuRef}
+                          className={`${contextMenuStyles.menu} ${styles.previewActionsMenuList}`.trim()}
+                          role="menu"
+                          style={{ top: "calc(100% + 10px)", right: 0, opacity: 1 }}
+                        >
+                          {[
+                            "Stream health",
+                            "Edit stream info",
+                            "Refresh stats",
+                          ].map((label) => (
+                            <button
+                              key={label}
+                              type="button"
+                              className={contextMenuStyles.item}
+                              aria-disabled="true"
+                              disabled
+                              role="menuitem"
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <div className={styles.previewFrame}>
@@ -183,69 +268,50 @@ export function LiveStudioTab({
 
           <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
 
-          <Panel defaultSize={12} minSize={8} collapsible={false}>
-            <div className={styles.panelSection}>
-              <div className={`${styles.quickActionsCard} ${styles.panelCard}`}>
-                <div className={styles.quickActionsInline}>
-                  {["Stream health", "Edit stream info", "Open encoder", "Refresh stats"].map((item) => (
-                    <button key={item} type="button" className={styles.quickActionButton} disabled>
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleHorizontal}`} />
-
-          <Panel defaultSize={38} minSize={28} collapsible={false}>
-            <div className={styles.panelSection}>
+          <Panel defaultSize={40} minSize={32} collapsible={false}>
+                <div className={styles.panelSection}>
               <div className={`${styles.stageManagerCard} ${styles.panelCard}`}>
                 <header className={styles.stageManagerHeader}>
-                  <div>
-                    <div className={styles.stageManagerTitle}>Stage manager</div>
-                    <div className={styles.stageManagerSubtitle}>
-                      AI prompts and intent chips to drive your stream without leaving preview.
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="xs" disabled>
-                    Pop out
-                  </Button>
+                  <div />
                 </header>
                 <div className={styles.stageManagerFooter}>
-                  <div className={styles.stageManagerSuggestions}>
-                    {[
-                      "Clip the last 30 seconds",
-                      "Save that last game in Memories",
-                      "Drop a poll in chat",
-                      "Post something engaging in chat",
-                    ].map((item) => (
-                      <button key={item} type="button" className={styles.stageManagerSuggestion} disabled>
-                        {item}
-                      </button>
-                    ))}
-                  </div>
+                  <div className={styles.stageManagerChatShell} aria-hidden />
                   <div className={styles.stageManagerComposer}>
                     <div className={styles.stageManagerPrompter} aria-hidden>
                       <button className={styles.stageManagerPrompterIcon} type="button" disabled>
                         <Paperclip size={18} weight="duotone" />
                       </button>
                       <span className={styles.stageManagerPrompterPlaceholder}>
-                        Ask Capsule AI: clip last 30s, save a memory, drop a poll, post to chat...
+                        Command your stream...
                       </span>
                       <div className={styles.stageManagerPrompterActions}>
                         <button className={styles.stageManagerPrompterIcon} type="button" disabled>
                           <Microphone size={18} weight="duotone" />
                         </button>
-                        <button className={styles.stageManagerPrompterPrimary} type="button" disabled>
-                          Generate
-                        </button>
-                        <button className={styles.stageManagerPrompterCaret} type="button" disabled>
-                          <CaretDown size={14} weight="bold" />
+                        <button className={styles.stageManagerPrompterSend} type="button" disabled>
+                          <ArrowUp size={18} weight="bold" />
                         </button>
                       </div>
                     </div>
+                  </div>
+                  <div
+                    className={`${prompterStyles.chips} ${styles.stageManagerSuggestions}`.trim()}
+                  >
+                    {[
+                      "Clip the last 30 seconds",
+                      "Save that last game in Memories",
+                      "Drop a poll in chat",
+                      "Post something engaging in chat",
+                    ].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`${prompterStyles.chip} ${styles.stageManagerSuggestion}`.trim()}
+                        disabled
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -257,22 +323,13 @@ export function LiveStudioTab({
       <PanelResizeHandle className={`${styles.resizeHandle} ${styles.resizeHandleVertical}`} />
 
       <Panel defaultSize={22} minSize={18} collapsible={false}>
-        <div className={styles.panelSection}>
-          <div className={`${styles.resourceCard} ${styles.panelCard}`}>
-            <header className={styles.resourceHeader}>
-              <div className={styles.resourceTitle}>Activity feed</div>
-              <div className={styles.resourceHeaderActions}>
-                <div className={styles.collaboratorPresence} aria-hidden>
-                  <span className={styles.collaboratorPresenceDot} />
-                  <span className={styles.collaboratorPresenceLabel}>On comms: 3</span>
-                </div>
-                <Button variant="ghost" size="xs" disabled>
-                  Filter
-                </Button>
-              </div>
-            </header>
-            <ul className={styles.resourceList}>
-              <li>
+          <div className={styles.panelSection}>
+            <div className={`${styles.resourceCard} ${styles.panelCard}`}>
+              <header className={styles.resourceHeader}>
+                <div className={styles.resourceTitle}>Activity feed</div>
+              </header>
+              <ul className={styles.resourceList}>
+                <li>
                 <span className={styles.resourceTime}>00:15</span>
                 <div>
                   <strong>luna_dev followed</strong>
@@ -316,6 +373,3 @@ export function LiveStudioTab({
     </PanelGroup>
   );
 }
-
-
-

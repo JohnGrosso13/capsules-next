@@ -621,8 +621,6 @@
   --dock-btn-border: rgba(255, 255, 255, 0.16);
   --dock-btn-hover-border: rgba(255, 255, 255, 0.28);
   --dock-shadow: 0 -1px 0 rgba(3, 7, 18, 0.55), 0 18px 38px rgba(3, 7, 18, 0.5);
-  --dock-sheet-bg-1: rgba(18, 24, 49, 0.95);
-  --dock-sheet-bg-2: rgba(9, 14, 33, 0.92);
   --dock-sheet-border: rgba(148, 163, 184, 0.24);
   --dock-sheet-shadow: 0 24px 46px rgba(3, 7, 18, 0.55);
   --dock-text-muted: var(--color-fg-muted);
@@ -660,7 +658,6 @@
     --presence-offline-dot,
     color-mix(in srgb, var(--text-2, #b8c1d8) 62%, transparent)
   );
-  --friends-presence-online: var(--presence-online-dot, var(--color-success, #34d399));
   --glass-bg-1: rgba(255, 255, 255, 0.06);
   --glass-bg-2: rgba(255, 255, 255, 0.035);
   --glass-blur-strong: 16px;
@@ -722,6 +719,7 @@
   --header-shadow-color: color-mix(in srgb, var(--header-brand-strong) 18%, transparent);
   --header-shadow-sm: 0 10px 22px var(--header-shadow-color);
   --header-tint-from: transparent;
+  --header-tint-to: transparent;
   --home-actionbar-border: transparent;
   --home-card--before-background: radial-gradient(120% 90% at 50% -10%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 68%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
@@ -1168,6 +1166,7 @@
   --radius-xl: 1.5rem;
   --rail-bg-1: rgba(17, 22, 45, 0.82);
   --rail-bg-2: rgba(14, 18, 38, 0.72);
+  --rail-border: rgba(255, 255, 255, 0.16);
   --ring-primary: 0 0 0 1px rgba(79, 70, 229, 0.45);
   --settings-active-badge-background: transparent;
   --settings-active-badge-border: transparent;
@@ -1446,6 +1445,8 @@
         radial-gradient(880px 560px at 50% 108%, rgba(147, 197, 253, 0.12), transparent 76%),
       #f7f9ff
     );
+  --surface-elevated: rgba(17, 22, 45, 0.86);
+  --surface-muted: rgba(17, 22, 45, 0.8);
   --surface-outline: rgba(255, 255, 255, 0.12);
   --surface-overlay: rgba(255, 255, 255, 0.78);
   --text: var(--color-fg, rgba(255, 255, 255, 0.94));

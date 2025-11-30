@@ -73,7 +73,8 @@ const COLOR_NAME_MAP = new Map<string, string>([
   ["charcoal", "#1f2937"],
 ]);
 
-const COMPLEX_MULTI_COLOR_PROMPT = /\b(unique|each|every|different)\b[^.?!]*(colors?|palettes?|tones?)\b/i;
+const COMPLEX_MULTI_COLOR_PROMPT =
+  /\b(unique|each|every|different)\b[^.?!]*(colors?|palettes?|tones?)\b/i;
 
 const THEME_PRESETS: ThemePreset[] = [
   {
@@ -316,7 +317,6 @@ function applyAccentPalette(
   vars["--color-brand"] = accent.hex;
   vars["--color-brand-strong"] = rgbToHex(brandTo);
   vars["--color-brand-foreground"] = brandText;
-  vars["--color-brand-muted"] = rgba(accent.rgb, 0.2);
   vars["--cta-chip-gradient"] = gradient;
   vars["--cta-chip-text"] = brandText;
 
@@ -1002,7 +1002,6 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
 
   const borderDefault = rgba(cardBorderRgb, textIsLight ? 0.32 : 0.24);
   const borderStrong = rgba(cardBorderRgb, textIsLight ? 0.48 : 0.34);
-  const brandMuted = rgba(brandMidAdjusted, textIsLight ? 0.18 : 0.22);
 
   const shadowBaseRgb = shade(cardBg1Rgb, isLight ? 0.52 : 0.38);
   const shadowLiftRgb = shade(cardBg1Rgb, isLight ? 0.62 : 0.48);
@@ -1069,7 +1068,6 @@ function buildSiteThemeVars(color: ColorSpec): Record<string, string> {
     "--color-brand": rgbToHex(brandMidAdjusted),
     "--color-brand-strong": rgbToHex(brandToAdjusted),
     "--color-brand-foreground": textOnBrand,
-    "--color-brand-muted": brandMuted,
     "--gradient-brand": brandGradient,
     "--cta-gradient": brandGradient,
     "--cta-button-gradient": ctaGradient,

@@ -16,6 +16,7 @@ import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompte
 import type { PrompterAiOptions, PrompterHandoff } from "@/components/composer/prompter-handoff";
 import type { PrompterVariantConfig } from "./usePrompterContext";
 import type { PrompterPostPlan } from "@/lib/prompter/actions";
+import type { PrompterChipOption } from "@/components/prompter/hooks/usePrompterStageController";
 import {
   isFeedSummaryRequest,
   SUMMARIZE_FEED_LABEL,
@@ -36,6 +37,7 @@ type UsePrompterActionsOptions = {
   textRef: React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>;
   setText: (value: string) => void;
   clearManualIntentOverrides: () => void;
+  surface?: string | null;
   manualTool: PrompterToolKey | null;
   suggestedTools: SuggestedTool[];
   variantConfig: PrompterVariantConfig;
@@ -56,6 +58,7 @@ export function usePrompterActions({
   textRef,
   setText,
   clearManualIntentOverrides,
+  surface = null,
   manualTool,
   suggestedTools,
   variantConfig,
@@ -74,6 +77,31 @@ export function usePrompterActions({
   const { attachmentList, readyAttachment, attachmentUploading, clearAllAttachments } =
     attachmentState;
 
+  const logChipEvent = React.useCallback(
+    (option: PrompterChipOption) => {
+      if (!option) return;
+      const payload = {
+        chipId: option.id ?? option.value ?? option.label,
+        label: option.label,
+        surface: surface ?? null,
+        source: option.surface ?? surface ?? null,
+      };
+      try {
+        void fetch("/api/prompter/chips/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("prompter: failed to log chip event", error);
+        }
+      }
+    },
+    [surface],
+  );
+
   const triggerFeedSummary = React.useCallback(
     (origin: SummarizeFeedRequestOrigin) => {
       if (typeof window === "undefined") return;
@@ -87,9 +115,16 @@ export function usePrompterActions({
   );
 
   const handleSuggestedAction = React.useCallback(
-    (value: string) => {
+    (action: PrompterChipOption | string) => {
+      const option =
+        typeof action === "string"
+          ? { label: action, value: action }
+          : action;
+      const value = option.value ?? option.label;
+
       if (value === SUMMARIZE_FEED_LABEL) {
         triggerFeedSummary("chip");
+        logChipEvent(option);
         setText("");
         clearManualIntentOverrides();
         closeMenu();
@@ -97,10 +132,32 @@ export function usePrompterActions({
         textRef.current?.focus();
         return;
       }
+
+      if (option.handoff && onHandoff) {
+        logChipEvent(option);
+        onHandoff(option.handoff);
+        setText("");
+        clearManualIntentOverrides();
+        closeMenu();
+        clearAllAttachments();
+        textRef.current?.focus();
+        return;
+      }
+
+      logChipEvent(option);
       setText(value);
       textRef.current?.focus();
     },
-    [clearAllAttachments, clearManualIntentOverrides, closeMenu, setText, textRef, triggerFeedSummary],
+    [
+      clearAllAttachments,
+      clearManualIntentOverrides,
+      closeMenu,
+      logChipEvent,
+      onHandoff,
+      setText,
+      textRef,
+      triggerFeedSummary,
+    ],
   );
 
   const handleGenerate = React.useCallback(() => {

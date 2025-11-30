@@ -22,6 +22,7 @@ import {
   UsersThree,
   WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
+import MuxPlayer from "@mux/mux-player-react";
 import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
 import { CapsuleEventsSection } from "@/components/capsule/CapsuleEventsSection";
@@ -54,6 +55,7 @@ import { useCapsuleLibrary, type CapsuleLibraryItem } from "@/hooks/useCapsuleLi
 import { useCapsuleHistory } from "@/hooks/useCapsuleHistory";
 import CapsuleHistoryCuration from "./CapsuleHistoryCuration";
 import CapsuleWikiView from "./CapsuleWikiView";
+import { fetchViewerLiveStream } from "@/lib/mux/liveClient";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
@@ -571,12 +573,12 @@ export function CapsuleContent({
                   error={laddersError}
                   onRetry={refreshLadders}
                 />
-              ) : heroSection === "media" ? (
-                <CapsuleMediaSection
-                  items={capsuleMedia}
-                  loading={libraryLoading}
-                  error={libraryError}
-                  onRetry={refreshLibrary}
+      ) : heroSection === "media" ? (
+        <CapsuleMediaSection
+          items={capsuleMedia}
+          loading={libraryLoading}
+          error={libraryError}
+          onRetry={refreshLibrary}
                 />
               ) : heroSection === "files" ? (
                 <CapsuleFilesSection
@@ -607,7 +609,7 @@ export function CapsuleContent({
         </>
       ) : tab === "live" ? (
         <div className={capTheme.liveCanvas} aria-label="Live stream area">
-          <LiveStreamCanvas />
+          <LiveStreamCanvas capsuleId={capsuleId} capsuleName={normalizedCapsuleName} />
         </div>
       ) : (
         <CapsuleStorePlaceholder
@@ -1106,24 +1108,132 @@ function CapsuleHistorySection({
   );
 }
 
-function LiveStreamCanvas() {
-  // Placeholder canvas that fits a 16:9 stream inside the available area
-  // When wired to a real player, replace the inner element with the player.
+function LiveStreamCanvas({
+  capsuleId,
+  capsuleName,
+}: {
+  capsuleId: string | null;
+  capsuleName: string | null;
+}) {
+  const [status, setStatus] = React.useState<string>("loading");
+  const [playbackId, setPlaybackId] = React.useState<string | null>(null);
+  const [latency, setLatency] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const refreshRef = React.useRef<AbortController | null>(null);
+
+  const dispatchChatStatus = React.useCallback(
+    (nextStatus: string) => {
+      if (typeof window === "undefined") return;
+      const detail = {
+        capsuleId,
+        capsuleName,
+        status: nextStatus.toLowerCase() === "active" ? ("live" as const) : ("waiting" as const),
+      };
+      window.dispatchEvent(new CustomEvent("capsule:live-chat", { detail }));
+    },
+    [capsuleId, capsuleName],
+  );
+
+  const loadStream = React.useCallback(async () => {
+    if (!capsuleId) {
+      setStatus("idle");
+      setPlaybackId(null);
+      setError("Select a capsule to view its live stream.");
+      return;
+    }
+    const controller = new AbortController();
+    if (refreshRef.current) {
+      refreshRef.current.abort();
+    }
+    refreshRef.current = controller;
+    setError(null);
+    try {
+      const payload = await fetchViewerLiveStream({ capsuleId, signal: controller.signal });
+      setPlaybackId(payload.playback.playbackId);
+      setLatency(payload.liveStream.latencyMode);
+      setStatus(payload.status ?? "idle");
+      dispatchChatStatus(payload.status ?? "idle");
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      const message =
+        err instanceof Error ? err.message : "Unable to load the live stream right now.";
+      setError(message);
+      setStatus("errored");
+      dispatchChatStatus("waiting");
+    } finally {
+      if (refreshRef.current === controller) {
+        refreshRef.current = null;
+      }
+    }
+  }, [capsuleId, dispatchChatStatus]);
+
+  React.useEffect(() => {
+    void loadStream();
+    const timer = window.setInterval(() => {
+      void loadStream();
+    }, 15000);
+    return () => {
+      window.clearInterval(timer);
+      if (refreshRef.current) {
+        refreshRef.current.abort();
+      }
+    };
+  }, [loadStream]);
+
+  const resolvedStatus =
+    status === "active" || status === "connected"
+      ? "live"
+      : status === "idle"
+        ? "idle"
+        : status === "errored"
+          ? "error"
+          : "loading";
+
+  const showPlayer = Boolean(playbackId);
+
   return (
     <div className={capTheme.streamStage}>
-      <div className={capTheme.streamSurface} role="img" aria-label="Live stream placeholder">
+      <div className={capTheme.streamSurface} role="img" aria-label="Live stream player">
         <div className={capTheme.streamOverlay}>
-          <span className={capTheme.streamBadge} aria-hidden>
+          <span className={capTheme.streamBadge} aria-hidden data-status={resolvedStatus}>
             LIVE
           </span>
-          <span className={capTheme.streamStatus}>Stream preview</span>
+          <span className={capTheme.streamStatus}>
+            {resolvedStatus === "live"
+              ? "Streaming now"
+              : resolvedStatus === "idle"
+                ? "Standby"
+                : resolvedStatus === "error"
+                  ? "Stream unavailable"
+                  : "Connecting..."}
+          </span>
         </div>
         <div className={capTheme.streamMessage}>
-          <p className={capTheme.streamMessageTitle}>Waiting for your broadcast</p>
-          <p className={capTheme.streamMessageSubtitle}>
-            Start streaming from your encoder or studio. Once the signal arrives, your show will
-            appear here.
-          </p>
+          {showPlayer ? (
+            <MuxPlayer
+              playbackId={playbackId!}
+              streamType="live"
+              metadata={{
+                video_title: capsuleName ? `${capsuleName} live stream` : "Live stream",
+              }}
+              style={{ width: "100%", height: "100%", borderRadius: "18px" }}
+            />
+          ) : (
+            <>
+              <p className={capTheme.streamMessageTitle}>
+                {error ?? "Waiting for the broadcast"}
+              </p>
+              <p className={capTheme.streamMessageSubtitle}>
+                {error
+                  ? "We couldn't load the stream. Try again soon."
+                  : "Start streaming from your encoder or studio. Once the signal arrives, it will appear here."}
+              </p>
+            </>
+          )}
+        </div>
+        <div className={capTheme.streamMeta}>
+          <span>Latency: {latency ?? "unknown"}</span>
+          <span>Status: {status}</span>
         </div>
       </div>
     </div>

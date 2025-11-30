@@ -28,7 +28,6 @@ const SUMMER_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f97316",
   "--color-brand-strong": "#c2410c",
   "--color-brand-foreground": "#fff7f0",
-  "--color-brand-muted": "rgba(249, 115, 22, 0.28)",
   "--gradient-brand": "linear-gradient(120deg,#f97316 0%,#facc15 55%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#fb923c 0%,#f97316 52%,#facc15 100%)",
   "--cta-button-text": "#fff7f0",
@@ -70,12 +69,8 @@ const SUMMER_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-active-shadow": "0 18px 36px rgba(215, 122, 58, 0.4)",
   "--dock-active-glow": "rgba(249, 169, 92, 0.32)",
   "--dock-text-muted": "rgba(76, 52, 34, 0.72)",
-  "--dock-sheet-bg-1": "rgba(255, 237, 208, 0.95)",
-  "--dock-sheet-bg-2": "rgba(255, 226, 194, 0.92)",
   "--dock-sheet-border": "rgba(236, 167, 100, 0.42)",
   "--dock-sheet-shadow": "0 24px 52px rgba(215, 130, 60, 0.32)",
-  "--background-fx-confetti":
-    "radial-gradient(420px 420px at 12% 14%, rgba(249, 181, 106, 0.35), transparent 72%), radial-gradient(360px 360px at 86% 12%, rgba(14, 181, 200, 0.28), transparent 74%), radial-gradient(540px 540px at 50% 100%, rgba(255, 232, 186, 0.24), transparent 70%)",
   "--background-fx-mist":
     "linear-gradient(180deg, rgba(255, 236, 210, 0.6) 0%, rgba(254, 226, 194, 0.35) 40%, rgba(254, 241, 222, 0) 100%)",
 };
@@ -95,7 +90,6 @@ const FALL_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f59e0b",
   "--color-brand-strong": "#d97706",
   "--color-brand-foreground": "#130903",
-  "--color-brand-muted": "rgba(245, 158, 11, 0.24)",
   "--gradient-brand": "linear-gradient(120deg,#fb923c 0%,#f59e0b 55%,#f97316 100%)",
   "--cta-gradient": "linear-gradient(120deg,#f97316 0%,#ea580c 52%,#f59e0b 100%)",
   "--cta-button-text": "#130903",
@@ -137,14 +131,10 @@ const FALL_DARK_OVERRIDES: Record<string, string> = {
   "--dock-active-shadow": "0 18px 36px rgba(176, 96, 40, 0.5)",
   "--dock-active-glow": "rgba(248, 156, 66, 0.28)",
   "--dock-text-muted": "rgba(242, 198, 160, 0.72)",
-  "--dock-sheet-bg-1": "rgba(42, 22, 12, 0.96)",
-  "--dock-sheet-bg-2": "rgba(30, 16, 8, 0.94)",
   "--dock-sheet-border": "rgba(176, 96, 40, 0.4)",
   "--dock-sheet-shadow": "0 22px 54px rgba(12, 6, 3, 0.64)",
   "--background-fx-mist":
     "radial-gradient(560px 480px at 12% 8%, rgba(208, 104, 46, 0.34), transparent 70%), radial-gradient(520px 420px at 82% 12%, rgba(255, 186, 92, 0.22), transparent 72%), linear-gradient(120deg, rgba(41, 18, 8, 0.92) 0%, rgba(26, 12, 6, 0.94) 45%, rgba(18, 8, 4, 0.96) 100%)",
-  "--background-fx-confetti":
-    "radial-gradient(240px 240px at 24% 18%, rgba(255, 149, 79, 0.32), transparent 80%), radial-gradient(280px 280px at 74% 28%, rgba(229, 90, 34, 0.28), transparent 76%)",
 };
 
 const WINTER_DARK_OVERRIDES: Record<string, string> = {
@@ -162,7 +152,6 @@ const WINTER_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#60a5fa",
   "--color-brand-strong": "#2563eb",
   "--color-brand-foreground": "#051022",
-  "--color-brand-muted": "rgba(96, 165, 250, 0.24)",
   "--gradient-brand": "linear-gradient(120deg,#38bdf8 0%,#60a5fa 55%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#38bdf8 55%,#60a5fa 100%)",
   "--cta-button-text": "#051022",
@@ -204,14 +193,8 @@ const WINTER_DARK_OVERRIDES: Record<string, string> = {
   "--dock-active-shadow": "0 18px 36px rgba(40, 88, 156, 0.48)",
   "--dock-active-glow": "rgba(96, 165, 250, 0.32)",
   "--dock-text-muted": "rgba(183, 208, 242, 0.74)",
-  "--dock-sheet-bg-1": "rgba(24, 42, 74, 0.94)",
-  "--dock-sheet-bg-2": "rgba(18, 36, 64, 0.92)",
   "--dock-sheet-border": "rgba(84, 152, 236, 0.32)",
   "--dock-sheet-shadow": "0 24px 54px rgba(6, 16, 34, 0.64)",
-  "--background-fx-stars":
-    "radial-gradient(4px 4px at 8% 12%, rgba(255, 255, 255, 0.9), transparent 60%), radial-gradient(6px 6px at 18% 36%, rgba(176, 218, 255, 0.75), transparent 65%), radial-gradient(4px 4px at 74% 28%, rgba(225, 242, 255, 0.85), transparent 60%), radial-gradient(5px 5px at 60% 14%, rgba(120, 198, 255, 0.9), transparent 70%)",
-  "--background-fx-snow":
-    "radial-gradient(420px 420px at 50% 110%, rgba(96, 165, 250, 0.22), transparent 74%), linear-gradient(180deg, rgba(12, 28, 58, 0.72) 0%, rgba(4, 12, 30, 0.88) 65%, rgba(3, 8, 24, 0.96) 100%)",
 };
 
 const SPRING_LIGHT_OVERRIDES: Record<string, string> = {
@@ -229,7 +212,6 @@ const SPRING_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#22c55e",
   "--color-brand-strong": "#15803d",
   "--color-brand-foreground": "#05291f",
-  "--color-brand-muted": "rgba(34, 197, 94, 0.28)",
   "--gradient-brand": "linear-gradient(120deg,#34d399 0%,#22c55e 55%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22c55e 0%,#16a34a 55%,#10b981 100%)",
   "--cta-button-text": "#05291f",
@@ -271,8 +253,6 @@ const SPRING_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-active-shadow": "0 18px 34px rgba(64, 176, 132, 0.32)",
   "--dock-active-glow": "rgba(120, 214, 176, 0.3)",
   "--dock-text-muted": "rgba(40, 90, 66, 0.72)",
-  "--dock-sheet-bg-1": "rgba(226, 252, 240, 0.95)",
-  "--dock-sheet-bg-2": "rgba(210, 245, 228, 0.93)",
   "--dock-sheet-border": "rgba(118, 204, 164, 0.4)",
   "--dock-sheet-shadow": "0 22px 50px rgba(74, 185, 140, 0.24)",
   "--background-fx-mist":
@@ -294,7 +274,6 @@ const SUMMER_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f97316",
   "--color-brand-strong": "#fb923c",
   "--color-brand-foreground": "#0c111f",
-  "--color-brand-muted": "rgba(251, 146, 60, 0.28)",
   "--gradient-brand": "linear-gradient(120deg,#f97316 0%,#fb923c 52%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#fb923c 0%,#f97316 55%,#0ea5e9 100%)",
   "--cta-button-text": "#0c111f",
@@ -316,8 +295,6 @@ const SUMMER_DARK_OVERRIDES: Record<string, string> = {
   "--dock-border": "rgba(15, 136, 185, 0.32)",
   "--dock-shadow": "0 -1px 0 rgba(4, 12, 24, 0.6), 0 20px 44px rgba(6, 14, 28, 0.58)",
   "--dock-active-glow": "rgba(251, 146, 60, 0.34)",
-  "--background-fx-confetti":
-    "radial-gradient(380px 380px at 14% 16%, rgba(251, 146, 60, 0.36), transparent 74%), radial-gradient(420px 420px at 86% 14%, rgba(14, 181, 200, 0.28), transparent 76%), radial-gradient(520px 520px at 50% 108%, rgba(251, 191, 36, 0.22), transparent 74%)",
   "--background-fx-mist":
     "linear-gradient(180deg, rgba(18, 40, 68, 0.84) 0%, rgba(12, 28, 54, 0.7) 50%, rgba(6, 14, 30, 0.9) 100%)",
 };
@@ -337,7 +314,6 @@ const FALL_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#d97706",
   "--color-brand-strong": "#b45309",
   "--color-brand-foreground": "#140a04",
-  "--color-brand-muted": "rgba(217, 119, 6, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#fb923c 0%,#f59e0b 52%,#ea580c 100%)",
   "--cta-gradient": "linear-gradient(120deg,#f59e0b 0%,#ea580c 55%,#fb923c 100%)",
   "--cta-button-text": "#140a04",
@@ -354,8 +330,6 @@ const FALL_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(255, 232, 202, 0.92)",
   "--dock-border": "rgba(214, 140, 74, 0.4)",
   "--dock-shadow": "0 -1px 0 rgba(222, 166, 112, 0.2), 0 18px 40px rgba(176, 96, 52, 0.22)",
-  "--background-fx-confetti":
-    "radial-gradient(420px 420px at 16% -6%, rgba(244, 179, 116, 0.35), transparent 72%), radial-gradient(480px 480px at 84% -4%, rgba(247, 203, 156, 0.32), transparent 70%), linear-gradient(180deg, rgba(255, 244, 224, 0.72) 0%, rgba(255, 236, 210, 0.52) 48%, rgba(255, 244, 225, 0) 100%)",
 };
 
 const WINTER_LIGHT_OVERRIDES: Record<string, string> = {
@@ -373,7 +347,6 @@ const WINTER_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#2563eb",
   "--color-brand-strong": "#1d4ed8",
   "--color-brand-foreground": "#04132d",
-  "--color-brand-muted": "rgba(59, 130, 246, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#60a5fa 0%,#2563eb 52%,#7dd3fc 100%)",
   "--cta-gradient": "linear-gradient(120deg,#38bdf8 0%,#60a5fa 55%,#0ea5e9 100%)",
   "--cta-button-text": "#04132d",
@@ -390,8 +363,6 @@ const WINTER_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(224, 236, 255, 0.92)",
   "--dock-border": "rgba(120, 180, 255, 0.42)",
   "--dock-shadow": "0 -1px 0 rgba(172, 208, 255, 0.24), 0 18px 40px rgba(98, 148, 214, 0.22)",
-  "--background-fx-snow":
-    "radial-gradient(360px 360px at 18% -6%, rgba(191, 219, 254, 0.35), transparent 72%), radial-gradient(480px 480px at 82% -4%, rgba(148, 197, 255, 0.32), transparent 72%), linear-gradient(180deg, rgba(236, 244, 255, 0.72) 0%, rgba(222, 236, 255, 0.52) 48%, rgba(240, 248, 255, 0) 100%)",
 };
 
 const SPRING_DARK_OVERRIDES: Record<string, string> = {
@@ -409,7 +380,6 @@ const SPRING_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#22c55e",
   "--color-brand-strong": "#15803d",
   "--color-brand-foreground": "#052814",
-  "--color-brand-muted": "rgba(34, 197, 94, 0.32)",
   "--gradient-brand": "linear-gradient(120deg,#34d399 0%,#22c55e 55%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#0ea5e9 0%,#22c55e 52%,#2dd4bf 100%)",
   "--cta-button-text": "#052814",
@@ -445,7 +415,6 @@ const HALLOWEEN_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#c2410c",
   "--color-brand-strong": "#9a3412",
   "--color-brand-foreground": "#160a04",
-  "--color-brand-muted": "rgba(249, 115, 22, 0.28)",
   "--gradient-brand": "linear-gradient(120deg,#f97316 0%,#fb7185 45%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#fb923c 0%,#f97316 55%,#facc15 100%)",
   "--cta-button-text": "#160a04",
@@ -462,8 +431,6 @@ const HALLOWEEN_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(236, 216, 253, 0.92)",
   "--dock-border": "rgba(178, 132, 255, 0.34)",
   "--dock-shadow": "0 -1px 0 rgba(208, 174, 255, 0.24), 0 18px 40px rgba(124, 72, 180, 0.24)",
-  "--background-fx-confetti":
-    "radial-gradient(420px 420px at 18% -4%, rgba(249, 168, 38, 0.32), transparent 72%), radial-gradient(420px 420px at 82% -2%, rgba(180, 96, 255, 0.3), transparent 70%), linear-gradient(180deg, rgba(250, 232, 255, 0.72) 0%, rgba(240, 220, 255, 0.52) 46%, rgba(250, 232, 255, 0) 100%)",
 };
 
 const HALLOWEEN_DARK_OVERRIDES: Record<string, string> = {
@@ -481,7 +448,6 @@ const HALLOWEEN_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f97316",
   "--color-brand-strong": "#ea580c",
   "--color-brand-foreground": "#160a04",
-  "--color-brand-muted": "rgba(249, 115, 22, 0.28)",
   "--gradient-brand": "linear-gradient(120deg,#facc15 0%,#f97316 45%,#60a5fa 100%)",
   "--cta-gradient": "linear-gradient(120deg,#f97316 0%,#fb7185 55%,#0ea5e9 100%)",
   "--cta-button-text": "#160a04",
@@ -498,8 +464,6 @@ const HALLOWEEN_DARK_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(26, 14, 48, 0.88)",
   "--dock-border": "rgba(146, 64, 255, 0.34)",
   "--dock-shadow": "0 -1px 0 rgba(8, 3, 20, 0.64), 0 20px 46px rgba(6, 2, 18, 0.64)",
-  "--background-fx-stars":
-    "radial-gradient(4px 4px at 12% 8%, rgba(255, 247, 196, 0.9), transparent 62%), radial-gradient(6px 6px at 22% 32%, rgba(251, 180, 76, 0.8), transparent 66%), radial-gradient(4px 4px at 74% 22%, rgba(212, 176, 255, 0.85), transparent 62%)",
 };
 
 const HOLIDAY_LIGHT_OVERRIDES: Record<string, string> = {
@@ -517,7 +481,6 @@ const HOLIDAY_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#15803d",
   "--color-brand-strong": "#14532d",
   "--color-brand-foreground": "#04130a",
-  "--color-brand-muted": "rgba(22, 101, 52, 0.32)",
   "--gradient-brand": "linear-gradient(120deg,#16a34a 0%,#ef4444 45%,#facc15 100%)",
   "--cta-gradient": "linear-gradient(120deg,#ef4444 0%,#f97316 55%,#facc15 100%)",
   "--cta-button-text": "#04130a",
@@ -534,8 +497,6 @@ const HOLIDAY_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(222, 248, 236, 0.92)",
   "--dock-border": "rgba(94, 190, 140, 0.38)",
   "--dock-shadow": "0 -1px 0 rgba(166, 217, 190, 0.26), 0 18px 40px rgba(70, 154, 112, 0.22)",
-  "--background-fx-snow":
-    "radial-gradient(340px 340px at 16% -4%, rgba(220, 252, 248, 0.32), transparent 72%), radial-gradient(420px 420px at 84% -2%, rgba(255, 230, 230, 0.32), transparent 70%), linear-gradient(180deg, rgba(238, 255, 246, 0.74) 0%, rgba(226, 252, 240, 0.5) 46%, rgba(238, 255, 246, 0) 100%)",
 };
 
 const HOLIDAY_DARK_OVERRIDES: Record<string, string> = {
@@ -553,7 +514,6 @@ const HOLIDAY_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#dc2626",
   "--color-brand-strong": "#b91c1c",
   "--color-brand-foreground": "#1f0606",
-  "--color-brand-muted": "rgba(248, 113, 113, 0.32)",
   "--gradient-brand": "linear-gradient(120deg,#22c55e 0%,#f97316 45%,#ef4444 100%)",
   "--cta-gradient": "linear-gradient(120deg,#ef4444 0%,#f97316 55%,#facc15 100%)",
   "--cta-button-text": "#1f0606",
@@ -570,8 +530,6 @@ const HOLIDAY_DARK_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(18, 36, 26, 0.88)",
   "--dock-border": "rgba(56, 189, 148, 0.32)",
   "--dock-shadow": "0 -1px 0 rgba(4, 12, 8, 0.64), 0 20px 44px rgba(6, 12, 10, 0.62)",
-  "--background-fx-snow":
-    "radial-gradient(4px 4px at 18% 10%, rgba(244, 255, 250, 0.92), transparent 62%), radial-gradient(6px 6px at 42% 26%, rgba(200, 248, 232, 0.8), transparent 66%), radial-gradient(4px 4px at 74% 18%, rgba(255, 237, 237, 0.86), transparent 60%)",
 };
 
 const SPACE_LIGHT_OVERRIDES: Record<string, string> = {
@@ -589,7 +547,6 @@ const SPACE_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#4338ca",
   "--color-brand-strong": "#1e3a8a",
   "--color-brand-foreground": "#0a0f1f",
-  "--color-brand-muted": "rgba(129, 140, 248, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#2563eb 0%,#60a5fa 55%,#22d3ee 100%)",
   "--cta-gradient": "linear-gradient(120deg,#3b82f6 0%,#2563eb 55%,#0ea5e9 100%)",
   "--cta-button-text": "#0a0f1f",
@@ -606,8 +563,6 @@ const SPACE_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(220, 232, 255, 0.92)",
   "--dock-border": "rgba(129, 140, 248, 0.36)",
   "--dock-shadow": "0 -1px 0 rgba(176, 190, 255, 0.24), 0 18px 40px rgba(96, 110, 255, 0.2)",
-  "--background-fx-stars":
-    "radial-gradient(4px 4px at 6% 12%, rgba(70, 90, 240, 0.9), transparent 62%), radial-gradient(5px 5px at 36% 28%, rgba(129, 140, 248, 0.8), transparent 64%), radial-gradient(4px 4px at 82% 14%, rgba(22, 211, 238, 0.82), transparent 60%)",
 };
 
 const SPACE_DARK_OVERRIDES: Record<string, string> = {
@@ -625,7 +580,6 @@ const SPACE_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#22d3ee",
   "--color-brand-strong": "#38bdf8",
   "--color-brand-foreground": "#02101b",
-  "--color-brand-muted": "rgba(34, 211, 238, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#60a5fa 0%,#2563eb 55%,#22d3ee 100%)",
   "--cta-gradient": "linear-gradient(120deg,#0ea5e9 0%,#2563eb 55%,#22d3ee 100%)",
   "--cta-button-text": "#02101b",
@@ -642,8 +596,6 @@ const SPACE_DARK_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(12, 20, 44, 0.88)",
   "--dock-border": "rgba(37, 99, 235, 0.34)",
   "--dock-shadow": "0 -1px 0 rgba(3, 6, 18, 0.68), 0 20px 46px rgba(4, 8, 22, 0.64)",
-  "--background-fx-stars":
-    "radial-gradient(3px 3px at 18% 10%, rgba(255, 255, 255, 0.92), transparent 62%), radial-gradient(4px 4px at 32% 28%, rgba(148, 197, 255, 0.85), transparent 64%), radial-gradient(4px 4px at 78% 16%, rgba(22, 211, 238, 0.88), transparent 60%)",
 };
 
 const OCEAN_LIGHT_OVERRIDES: Record<string, string> = {
@@ -661,7 +613,6 @@ const OCEAN_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#0ea5e9",
   "--color-brand-strong": "#0369a1",
   "--color-brand-foreground": "#01131f",
-  "--color-brand-muted": "rgba(14, 165, 233, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#38bdf8 0%,#0ea5e9 55%,#34d399 100%)",
   "--cta-gradient": "linear-gradient(120deg,#14b8a6 0%,#0ea5e9 55%,#38bdf8 100%)",
   "--cta-button-text": "#01131f",
@@ -697,7 +648,6 @@ const OCEAN_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#0ea5e9",
   "--color-brand-strong": "#0f766e",
   "--color-brand-foreground": "#02131f",
-  "--color-brand-muted": "rgba(56, 189, 248, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#0ea5e9 0%,#22d3ee 55%,#14b8a6 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#0ea5e9 55%,#34d399 100%)",
   "--cta-button-text": "#02131f",
@@ -733,7 +683,6 @@ const FOREST_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#16a34a",
   "--color-brand-strong": "#166534",
   "--color-brand-foreground": "#04130a",
-  "--color-brand-muted": "rgba(34, 197, 94, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#86efac 0%,#34d399 55%,#22c55e 100%)",
   "--cta-gradient": "linear-gradient(120deg,#34d399 0%,#22c55e 55%,#0ea5e9 100%)",
   "--cta-button-text": "#04130a",
@@ -769,7 +718,6 @@ const FOREST_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#22c55e",
   "--color-brand-strong": "#15803d",
   "--color-brand-foreground": "#032110",
-  "--color-brand-muted": "rgba(34, 197, 94, 0.28)",
   "--gradient-brand": "linear-gradient(120deg,#22c55e 0%,#2dd4bf 55%,#10b981 100%)",
   "--cta-gradient": "linear-gradient(120deg,#34d399 0%,#22c55e 55%,#0ea5e9 100%)",
   "--cta-button-text": "#032110",
@@ -805,7 +753,6 @@ const CYBERPUNK_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#ec4899",
   "--color-brand-strong": "#db2777",
   "--color-brand-foreground": "#1a0614",
-  "--color-brand-muted": "rgba(236, 72, 153, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#ec4899 0%,#60a5fa 55%,#22d3ee 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#60a5fa 55%,#ec4899 100%)",
   "--cta-button-text": "#1a0614",
@@ -822,8 +769,6 @@ const CYBERPUNK_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(235, 242, 255, 0.92)",
   "--dock-border": "rgba(241, 171, 255, 0.32)",
   "--dock-shadow": "0 -1px 0 rgba(212, 188, 248, 0.24), 0 18px 40px rgba(180, 120, 226, 0.24)",
-  "--background-fx-scanlines":
-    "linear-gradient(180deg, rgba(236, 72, 153, 0.08) 0%, rgba(236, 72, 153, 0.08) 10%, rgba(14, 165, 233, 0.08) 10%, rgba(14, 165, 233, 0.08) 20%)",
 };
 
 const CYBERPUNK_DARK_OVERRIDES: Record<string, string> = {
@@ -841,7 +786,6 @@ const CYBERPUNK_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#ec4899",
   "--color-brand-strong": "#0ea5e9",
   "--color-brand-foreground": "#160311",
-  "--color-brand-muted": "rgba(236, 72, 153, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#ec4899 0%,#60a5fa 55%,#22d3ee 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#60a5fa 55%,#ec4899 100%)",
   "--cta-button-text": "#160311",
@@ -858,10 +802,6 @@ const CYBERPUNK_DARK_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(26, 8, 44, 0.88)",
   "--dock-border": "rgba(22, 211, 238, 0.3)",
   "--dock-shadow": "0 -1px 0 rgba(6, 1, 18, 0.7), 0 20px 46px rgba(12, 2, 28, 0.68)",
-  "--background-fx-scanlines":
-    "linear-gradient(180deg, rgba(236, 72, 153, 0.2) 0%, rgba(236, 72, 153, 0.2) 6%, rgba(22, 211, 238, 0.12) 6%, rgba(22, 211, 238, 0.12) 12%)",
-  "--background-fx-stars":
-    "radial-gradient(3px 3px at 18% 10%, rgba(236, 72, 153, 0.86), transparent 62%), radial-gradient(3px 3px at 42% 22%, rgba(22, 211, 238, 0.8), transparent 64%), radial-gradient(3px 3px at 72% 16%, rgba(139, 92, 246, 0.84), transparent 60%)",
 };
 
 const RETRO_LIGHT_OVERRIDES: Record<string, string> = {
@@ -879,7 +819,6 @@ const RETRO_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f59e0b",
   "--color-brand-strong": "#d97706",
   "--color-brand-foreground": "#1a0c02",
-  "--color-brand-muted": "rgba(245, 158, 11, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#f59e0b 0%,#f97316 55%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#f97316 0%,#f59e0b 55%,#22d3ee 100%)",
   "--cta-button-text": "#1a0c02",
@@ -896,8 +835,6 @@ const RETRO_LIGHT_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(246, 232, 206, 0.92)",
   "--dock-border": "rgba(244, 187, 68, 0.36)",
   "--dock-shadow": "0 -1px 0 rgba(224, 198, 140, 0.26), 0 18px 40px rgba(199, 144, 60, 0.22)",
-  "--background-fx-scanlines":
-    "linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.08) 8%, rgba(14, 165, 233, 0.08) 8%, rgba(14, 165, 233, 0.08) 16%)",
 };
 
 const RETRO_DARK_OVERRIDES: Record<string, string> = {
@@ -915,7 +852,6 @@ const RETRO_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f59e0b",
   "--color-brand-strong": "#d97706",
   "--color-brand-foreground": "#1f0c02",
-  "--color-brand-muted": "rgba(245, 158, 11, 0.26)",
   "--gradient-brand": "linear-gradient(120deg,#f59e0b 0%,#f97316 55%,#0ea5e9 100%)",
   "--cta-gradient": "linear-gradient(120deg,#0ea5e9 0%,#f97316 55%,#f59e0b 100%)",
   "--cta-button-text": "#1f0c02",
@@ -932,8 +868,6 @@ const RETRO_DARK_OVERRIDES: Record<string, string> = {
   "--dock-bg-2": "rgba(28, 22, 12, 0.88)",
   "--dock-border": "rgba(245, 158, 11, 0.26)",
   "--dock-shadow": "0 -1px 0 rgba(10, 8, 4, 0.7), 0 20px 46px rgba(12, 10, 4, 0.66)",
-  "--background-fx-scanlines":
-    "linear-gradient(180deg, rgba(245, 158, 11, 0.18) 0%, rgba(245, 158, 11, 0.18) 6%, rgba(16, 185, 129, 0.12) 6%, rgba(16, 185, 129, 0.12) 12%)",
 };
 
 const MINIMAL_LIGHT_OVERRIDES: Record<string, string> = {
@@ -951,7 +885,6 @@ const MINIMAL_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#1f2937",
   "--color-brand-strong": "#111827",
   "--color-brand-foreground": "#f9fafb",
-  "--color-brand-muted": "rgba(17, 24, 39, 0.16)",
   "--gradient-brand": "linear-gradient(120deg,#4b5563 0%,#1f2937 55%,#0f172a 100%)",
   "--cta-gradient": "linear-gradient(120deg,#111827 0%,#1f2937 55%,#0f172a 100%)",
   "--cta-button-text": "#f9fafb",
@@ -987,7 +920,6 @@ const MINIMAL_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#3f4c6b",
   "--color-brand-strong": "#283146",
   "--color-brand-foreground": "#f9fafb",
-  "--color-brand-muted": "rgba(63, 76, 107, 0.24)",
   "--gradient-brand": "linear-gradient(120deg,#3f4c6b 0%,#1f2937 55%,#0f172a 100%)",
   "--cta-gradient": "linear-gradient(120deg,#1f2937 0%,#0f172a 55%,#111827 100%)",
   "--cta-button-text": "#f9fafb",
@@ -1023,7 +955,6 @@ const VAPORWAVE_LIGHT_OVERRIDES: Record<string, string> = {
   "--color-brand": "#d946ef",
   "--color-brand-strong": "#9333ea",
   "--color-brand-foreground": "#1a061f",
-  "--color-brand-muted": "rgba(217, 70, 239, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#60a5fa 0%,#60a5fa 55%,#22d3ee 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#60a5fa 55%,#f472b6 100%)",
   "--cta-button-text": "#1a061f",
@@ -1059,7 +990,6 @@ const VAPORWAVE_DARK_OVERRIDES: Record<string, string> = {
   "--color-brand": "#f472b6",
   "--color-brand-strong": "#0ea5e9",
   "--color-brand-foreground": "#1a061f",
-  "--color-brand-muted": "rgba(244, 114, 182, 0.3)",
   "--gradient-brand": "linear-gradient(120deg,#f472b6 0%,#0ea5e9 55%,#22d3ee 100%)",
   "--cta-gradient": "linear-gradient(120deg,#22d3ee 0%,#f472b6 55%,#0ea5e9 100%)",
   "--cta-button-text": "#1a061f",
@@ -1078,8 +1008,6 @@ const VAPORWAVE_DARK_OVERRIDES: Record<string, string> = {
   "--dock-shadow": "0 -1px 0 rgba(6, 2, 22, 0.7), 0 20px 46px rgba(12, 4, 28, 0.68)",
   "--background-fx-mist":
     "radial-gradient(420px 420px at 18% -4%, rgba(244, 114, 182, 0.28), transparent 72%), radial-gradient(420px 420px at 82% -2%, rgba(56, 189, 248, 0.26), transparent 70%), linear-gradient(180deg, rgba(30, 12, 58, 0.82) 0%, rgba(20, 8, 46, 0.82) 46%, rgba(12, 4, 28, 0.9) 100%)",
-  "--background-fx-stars":
-    "radial-gradient(3px 3px at 16% 12%, rgba(252, 231, 255, 0.88), transparent 62%), radial-gradient(3px 3px at 44% 22%, rgba(168, 216, 255, 0.8), transparent 64%), radial-gradient(3px 3px at 72% 16%, rgba(244, 114, 182, 0.84), transparent 60%)",
 };
 
 export const PRESET_THEME_CONFIGS: PresetThemeConfig[] = [

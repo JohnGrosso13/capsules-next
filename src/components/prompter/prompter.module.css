@@ -79,7 +79,7 @@
 
   @media (max-width: 640px) {
     .prompterStage {
-      margin-bottom: 0;
+      margin: 0 auto;
     }
   }
 
@@ -89,6 +89,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
+    box-sizing: border-box;
     box-sizing: border-box;
     padding: 12px 14px;
     border-radius: var(--pill-radius, 999px);
@@ -183,6 +184,7 @@
     justify-content: center;
     width: 34px;
     height: 34px;
+    flex-shrink: 0;
     border-radius: 12px;
     border: 1px solid var(--icon-plate-border);
     background: linear-gradient(
@@ -467,11 +469,14 @@
   @media (max-width: 560px) {
     .promptBar {
       gap: 8px;
-      padding: 0.8rem clamp(0.75rem, 3vw, 1rem);
+      padding: 0.85rem clamp(0.75rem, 3vw, 1rem);
+      min-height: 52px;
+      max-width: 100%;
     }
 
     .promptBar > .input {
-      font-size: 0.98rem;
+      font-size: 1rem;
+      line-height: 1.5;
     }
 
     .genSplitMain {

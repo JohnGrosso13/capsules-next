@@ -31,6 +31,13 @@
   .layout {
     gap: var(--layout-mobile-section-gap);
   }
+  .page[data-layout="home"] {
+    /* Tighten the drop between chips and promo row on mobile */
+    --layout-prompter-margin-bottom-mobile: clamp(0px, 0.8vw, var(--space-sm));
+  }
+  .page[data-layout="home"] .main {
+    gap: clamp(var(--space-sm), 1.6vw, var(--space-md));
+  }
 }
 
 .page {
@@ -45,6 +52,12 @@
   --app-feed-width: clamp(620px, 48vw, 720px);
   --app-rail-width: clamp(300px, 22vw, 340px);
   --app-column-gap: clamp(18px, 2.2vw, 32px);
+}
+
+.page[data-layout="home"] {
+  /* Pull the home prompter closer to the content so the chips sit nearer to the promo row */
+  --layout-prompter-margin-bottom: clamp(var(--space-xl), 2vw, var(--space-3xl));
+  --layout-prompter-margin-bottom-mobile: var(--space-lg-plus);
 }
 
 @supports (width: 1cqw) {
@@ -70,7 +83,11 @@
   padding-left: 0;
   padding-right: 0;
 }
+
 @media (min-width: 641px) {
+  .page[data-layout="home"] .main {
+    gap: clamp(var(--space-lg), 1.6vw, var(--space-xl-plus));
+  }
   .page[data-layout="capsule"] {
     padding-left: clamp(14px, 1.8vw, 28px);
     padding-right: clamp(14px, 1.8vw, 28px);
@@ -86,7 +103,7 @@
   /* Match feed column width so rails can sit beside it cleanly */
   max-width: var(--app-feed-width, clamp(640px, 52vw, 760px));
   width: 100%;
-  margin: 0 auto calc(var(--layout-prompter-margin-bottom) + var(--mobile-dock-height, 0px));
+  margin: 0 auto var(--layout-prompter-margin-bottom);
   position: relative;
   z-index: 300;
   isolation: isolate;
@@ -97,9 +114,7 @@
 
 @media (max-width: 640px) {
   .prompterStage {
-    margin-bottom: calc(
-      var(--layout-prompter-margin-bottom-mobile) + var(--mobile-dock-height, 0px)
-    );
+    margin: 0 auto var(--layout-prompter-margin-bottom-mobile);
   }
   /* Ensure center content is never clamped on small screens */
   .content,

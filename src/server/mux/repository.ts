@@ -647,6 +647,7 @@ type LiveStreamUpdate = Partial<{
   latencyMode: string | null;
   isLowLatency: boolean | null;
   reconnectWindowSeconds: number | null;
+  muxLiveStreamId: string | null;
   streamKey: string | null;
   streamKeyBackup: string | null;
   ingestUrl: string | null;
@@ -668,6 +669,7 @@ function buildLiveStreamUpdatePayload(updates: LiveStreamUpdate): Record<string,
   if (updates.status !== undefined) payload.status = updates.status;
   if (updates.latencyMode !== undefined) payload.latency_mode = updates.latencyMode;
   if (updates.isLowLatency !== undefined) payload.is_low_latency = updates.isLowLatency;
+  if (updates.muxLiveStreamId !== undefined) payload.mux_live_stream_id = updates.muxLiveStreamId;
   if (updates.reconnectWindowSeconds !== undefined) {
     payload.reconnect_window_seconds = updates.reconnectWindowSeconds;
   }

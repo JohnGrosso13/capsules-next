@@ -47,8 +47,21 @@ export type PrompterAction =
   | { kind: "tool_logo"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
   | { kind: "tool_poll"; prompt: string; raw: string; attachments?: PrompterAttachment[] }
   | { kind: "tool_image_edit"; prompt: string; raw: string; attachments?: PrompterAttachment[] };
-export type PrompterChipOption = { label: string; value: string };
-type PrompterChip = string | PrompterChipOption;
+export type PrompterChipOption = {
+  /** Short label shown on the chip. */
+  label: string;
+  /** Optional stable identifier for logging/ranking. */
+  id?: string | undefined;
+  /** Optional surface key (home, explore, etc.) for logging. */
+  surface?: string | undefined;
+  /** Value used when falling back to plain text insertion. */
+  value?: string | undefined;
+  /** Optional payload to hand off directly to the Composer. */
+  handoff?: PrompterHandoff | undefined;
+  /** Optional metadata for ranking or analytics. */
+  meta?: Record<string, unknown> | undefined;
+};
+export type PrompterChip = string | PrompterChipOption;
 
 type UsePrompterStageControllerProps = {
   placeholder?: string;
@@ -57,6 +70,7 @@ type UsePrompterStageControllerProps = {
   onAction?: (action: PrompterAction) => void;
   onHandoff?: (handoff: PrompterHandoff) => void;
   variant?: "default" | "bannerCustomizer";
+  surface?: string | null;
 };
 
 function inferMimeFromUrl(url?: string | null): string | null {
@@ -80,6 +94,7 @@ export function usePrompterStageController({
   onAction,
   onHandoff,
   variant = "default",
+  surface = null,
 }: UsePrompterStageControllerProps) {
   const {
     composerContext,
@@ -350,6 +365,7 @@ export function usePrompterStageController({
       setManualIntent(null);
       setManualPostMode(null);
     }, [setManualIntent, setManualPostMode]),
+    surface,
     manualTool,
     suggestedTools,
     variantConfig,
@@ -548,17 +564,26 @@ export function usePrompterStageController({
       attachment?.status === "error");
 
   const chipOptions = React.useMemo<PrompterChipOption[]>(
-    () =>
-      chips.map((chip) =>
-        typeof chip === "string"
-          ? {
-              label: chip,
-              value: chip,
-            }
-          : chip,
-      ),
-    [chips],
-  );
+  () =>
+    chips.map((chip) =>
+      typeof chip === "string"
+        ? {
+            id: chip,
+            label: chip,
+            value: chip,
+            surface: surface ?? undefined,
+          }
+        : {
+            id: chip.id ?? chip.value ?? chip.label ?? "",
+            label: chip.label ?? chip.value ?? "",
+            value: chip.value ?? chip.label ?? "",
+            surface: chip.surface ?? surface ?? undefined,
+            handoff: chip.handoff,
+            meta: chip.meta,
+          },
+    ),
+  [chips, surface],
+);
 
   return {
     composerContext,
@@ -636,3 +661,6 @@ export function usePrompterStageController({
     handleVoiceToggle,
   };
 }
+
+
+

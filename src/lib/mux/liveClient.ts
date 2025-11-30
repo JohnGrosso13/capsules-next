@@ -7,6 +7,23 @@ export type StreamOverviewPayload<TOverview, TPreferences> = {
 
 export type StreamPreferenceUpdate<TPreferences> = Partial<TPreferences>;
 
+export type ViewerStreamPayload = {
+  status: string;
+  playback: {
+    playbackId: string | null;
+    playbackUrl: string | null;
+    playbackPolicy: string | null;
+  };
+  liveStream: {
+    id: string;
+    capsuleId: string;
+    muxLiveStreamId: string;
+    latencyMode: string | null;
+    lastSeenAt: string | null;
+    lastActiveAt: string | null;
+  };
+};
+
 export class MuxLiveClientError extends Error {
   readonly status: number;
   readonly code: string | undefined;
@@ -140,6 +157,10 @@ type FetchOverviewParams = RequestOptions & {
   capsuleId: string;
 };
 
+type FetchViewerStreamParams = RequestOptions & {
+  capsuleId: string;
+};
+
 function withSignal(init: RequestInit, signal: AbortSignal | null | undefined): RequestInit {
   if (signal === undefined) {
     return init;
@@ -167,6 +188,28 @@ export async function fetchLiveStreamOverview<TOverview, TPreferences>({
   }
 
   return (await response.json()) as StreamOverviewPayload<TOverview, TPreferences>;
+}
+
+export async function fetchViewerLiveStream({
+  capsuleId,
+  signal,
+}: FetchViewerStreamParams): Promise<ViewerStreamPayload> {
+  const response = await fetch(
+    `/api/mux/live/view?capsuleId=${encodeURIComponent(capsuleId)}`,
+    withSignal(
+      {
+        method: "GET",
+        cache: "no-store",
+      },
+      signal,
+    ),
+  );
+
+  if (!response.ok) {
+    throw await createErrorFromResponse(response, "Failed to load live stream status.");
+  }
+
+  return (await response.json()) as ViewerStreamPayload;
 }
 
 export async function ensureLiveStream<TOverview, TPreferences>({

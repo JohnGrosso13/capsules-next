@@ -18,7 +18,7 @@ const cssClass = (...keys: Array<keyof typeof styles>): string =>
     .join(" ")
     .trim();
 
-type PrompterChip = string | PrompterChipOption;
+export type PrompterChip = string | PrompterChipOption;
 
 type Props = {
   placeholder?: string;
@@ -29,6 +29,7 @@ type Props = {
   variant?: "default" | "bannerCustomizer";
   showIntentMenu?: boolean;
   submitVariant?: "default" | "icon";
+  surface?: string | null;
 };
 
 export type {

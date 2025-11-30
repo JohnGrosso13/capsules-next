@@ -132,6 +132,7 @@ function ComposerToolbar({
   isMobile,
   onSearchSelect,
 }: ComposerToolbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const handleSearchClick = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const detail: SearchOpenDetail | undefined =
@@ -144,6 +145,133 @@ function ComposerToolbar({
         : new CustomEvent(SEARCH_EVENT_NAME),
     );
   }, [onSearchSelect]);
+
+  const cycleQuality = React.useCallback(() => {
+    const options = COMPOSER_IMAGE_QUALITY_OPTIONS;
+    const currentIndex = options.indexOf(imageQuality);
+    const next = options[(currentIndex + 1) % options.length];
+    onQualityChange(next);
+  }, [imageQuality, onQualityChange]);
+
+  if (isMobile) {
+    const contextLabel = smartContextEnabled ? "Context on" : "Context off";
+    return (
+      <>
+        <button
+          type="button"
+          className={styles.closeIcon}
+          onClick={onClose}
+          disabled={disabled}
+          aria-label="Close composer"
+        >
+          <X size={18} weight="bold" />
+        </button>
+        <header className={styles.mobileToolbar} aria-label="Composer controls">
+          <div className={styles.mobileMenuWrap}>
+            <button
+              type="button"
+              className={styles.mobileMenuButton}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              aria-expanded={mobileMenuOpen}
+              aria-haspopup="true"
+              disabled={disabled}
+            >
+              <List size={18} weight="bold" />
+            </button>
+            {mobileMenuOpen ? (
+              <div className={styles.mobileMenuSheet} role="menu">
+                <button
+                  type="button"
+                  className={styles.mobileMenuItem}
+                  onClick={() => setMobileMenuOpen(false)}
+                  role="menuitem"
+                >
+                  <FileText size={18} weight="duotone" />
+                  <span>Recent chats</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileMenuItem}
+                  onClick={() => setMobileMenuOpen(false)}
+                  role="menuitem"
+                >
+                  <FolderSimple size={18} weight="duotone" />
+                  <span>Saved drafts</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileMenuItem}
+                  onClick={() => setMobileMenuOpen(false)}
+                  role="menuitem"
+                >
+                  <SidebarSimple size={18} weight="duotone" />
+                  <span>Projects</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.mobileMenuItem}
+                  onClick={() => setMobileMenuOpen(false)}
+                  role="menuitem"
+                >
+                  <Sparkle size={18} weight="duotone" />
+                  <span>Memories</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.mobileMenuItem} ${styles.mobileMenuToggle}`.trim()}
+                  onClick={() => {
+                    onToggleContext();
+                    setMobileMenuOpen(false);
+                  }}
+                  role="menuitem"
+                  aria-pressed={smartContextEnabled}
+                  disabled={disabled}
+                >
+                  <SidebarSimple size={18} weight="duotone" />
+                  <span>{contextLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.mobileMenuItem} ${styles.mobileMenuToggle}`.trim()}
+                  onClick={cycleQuality}
+                  role="menuitem"
+                  disabled={disabled}
+                >
+                  <Sparkle size={18} weight="duotone" />
+                  <span>Image: {titleCaseComposerQuality(imageQuality)}</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <button
+            type="button"
+            className={styles.mobileSearch}
+            onClick={handleSearchClick}
+            disabled={disabled}
+            aria-label="Search"
+          >
+            <MagnifyingGlass size={16} weight="duotone" />
+            <span>Search</span>
+          </button>
+
+          {onPreviewToggle ? (
+            <button
+              type="button"
+              className={styles.mobilePreviewBtn}
+              onClick={onPreviewToggle}
+              aria-label="Toggle preview"
+              aria-pressed={previewOpen}
+              data-active={previewOpen ? "true" : undefined}
+              disabled={disabled}
+            >
+              <SidebarSimple size={18} weight="bold" />
+            </button>
+          ) : null}
+        </header>
+      </>
+    );
+  }
 
   return (
     <>

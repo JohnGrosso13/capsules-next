@@ -474,9 +474,42 @@ async function ensureLiveStreamRecord(params: {
       const muxStream = await fetchMuxLiveStream(existing.muxLiveStreamId);
       return await syncLiveStreamFromMux(existing, muxStream);
     } catch (error) {
-      if (!isMuxNotFoundError(error)) {
-        console.warn("mux.ensureLiveStreamRecord.sync", error);
+      if (isMuxNotFoundError(error)) {
+        // Mux no longer has this stream; recreate and update the local record.
+        const fallbackLatency = params.latencyMode ?? normalizeLatencyModeValue(existing.latencyMode);
+        const muxStream = await createMuxLiveStream({
+          playback_policies: ["public"],
+          new_asset_settings: { playback_policies: ["public"] },
+          latency_mode: fallbackLatency,
+          reconnect_window: fallbackLatency === "low" ? 30 : 60,
+          use_slate_for_standard_latency: fallbackLatency === "standard",
+          passthrough: `capsule:${params.capsuleId}`,
+        });
+        const playback = selectPlayback(muxStream);
+        const metadata = ensureMetadata(existing.metadata);
+        metadata.mux = {
+          ...(metadata.mux as Record<string, unknown> | undefined),
+          recreatedAt: new Date().toISOString(),
+        };
+        const updated = await updateLiveStreamRecord(existing.id, {
+          muxLiveStreamId: muxStream.id,
+          streamKey: muxStream.stream_key,
+          streamKeyBackup: null,
+          status: muxStream.status ?? "idle",
+          latencyMode: normalizeLatencyModeValue(muxStream.latency_mode ?? fallbackLatency),
+          isLowLatency: muxStream.latency_mode ? muxStream.latency_mode === "low" : fallbackLatency === "low",
+          reconnectWindowSeconds: muxStream.reconnect_window ?? existing.reconnectWindowSeconds,
+          ingestUrl: existing.ingestUrl ?? PRIMARY_INGEST_URL,
+          ingestUrlBackup: existing.ingestUrlBackup ?? BACKUP_INGEST_URL,
+          playbackId: playback.playbackId,
+          playbackUrl: playback.playbackUrl,
+          playbackPolicy: playback.playbackPolicy,
+          activeAssetId: muxStream.active_asset_id ?? null,
+          metadata,
+        });
+        return updated ?? existing;
       }
+      console.warn("mux.ensureLiveStreamRecord.sync", error);
       return existing;
     }
   }
@@ -582,6 +615,60 @@ export async function getCapsuleLiveStreamOverview(
   const record = await getLiveStreamByCapsuleId(capsuleId);
   if (!record) return null;
   return buildOverview(record);
+}
+
+export async function reconcileCapsuleLiveStream(
+  capsuleId: string,
+): Promise<CapsuleLiveStreamOverview | null> {
+  const record = await getLiveStreamByCapsuleId(capsuleId);
+  if (!record) return null;
+  try {
+    const muxStream = await fetchMuxLiveStream(record.muxLiveStreamId);
+    const synced = await syncLiveStreamFromMux(record, muxStream);
+    return buildOverview(synced);
+  } catch (error) {
+    if (!isMuxNotFoundError(error)) {
+      console.warn("mux.reconcile.sync", error);
+      return buildOverview(record);
+    }
+  }
+
+  // If the stream was deleted in Mux, recreate it and refresh the record.
+  try {
+    const fallbackLatency = normalizeLatencyModeValue(record.latencyMode);
+    const muxStream = await createMuxLiveStream({
+      playback_policies: ["public"],
+      new_asset_settings: { playback_policies: ["public"] },
+      latency_mode: fallbackLatency,
+      reconnect_window: fallbackLatency === "low" ? 30 : 60,
+      use_slate_for_standard_latency: fallbackLatency === "standard",
+      passthrough: `capsule:${record.capsuleId}`,
+    });
+    const playback = selectPlayback(muxStream);
+    const metadata = ensureMetadata(record.metadata);
+    metadata.mux = {
+      ...(metadata.mux as Record<string, unknown> | undefined),
+      recreatedAt: new Date().toISOString(),
+    };
+    const updated = await updateLiveStreamRecord(record.id, {
+      muxLiveStreamId: muxStream.id,
+      streamKey: muxStream.stream_key,
+      streamKeyBackup: null,
+      status: muxStream.status ?? "idle",
+      latencyMode: normalizeLatencyModeValue(muxStream.latency_mode ?? fallbackLatency),
+      isLowLatency: muxStream.latency_mode ? muxStream.latency_mode === "low" : fallbackLatency === "low",
+      reconnectWindowSeconds: muxStream.reconnect_window ?? record.reconnectWindowSeconds,
+      playbackId: playback.playbackId,
+      playbackUrl: playback.playbackUrl,
+      playbackPolicy: playback.playbackPolicy,
+      activeAssetId: muxStream.active_asset_id ?? null,
+      metadata,
+    });
+    return buildOverview(updated ?? record);
+  } catch (error) {
+    console.error("mux.reconcile.recreate", error);
+    return buildOverview(record);
+  }
 }
 
 export async function rotateLiveStreamKeyForCapsule(params: {

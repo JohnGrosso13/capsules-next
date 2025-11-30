@@ -101,6 +101,9 @@ export function PrompterInputBar({
   const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
   const showSend = isCompact && value.trim().length > 0;
   const useIconSubmit = submitVariant === "icon";
+  const allowVoiceButton = showVoiceButton && !isCompact;
+  const showCompactSendButton = isCompact;
+  const compactSendDisabled = buttonDisabled || value.trim().length === 0;
 
   return (
     <div className={styles.promptBar}>
@@ -159,7 +162,7 @@ export function PrompterInputBar({
           onChange={onFileChange}
         />
       ) : null}
-      {showVoiceButton ? (
+      {allowVoiceButton ? (
         showSend ? (
           <button
             type="button"
@@ -191,6 +194,18 @@ export function PrompterInputBar({
             )}
           </button>
         )
+      ) : showCompactSendButton ? (
+        <button
+          type="button"
+          className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
+          aria-label="Send"
+          title="Send"
+          onClick={onGenerate}
+          data-status={voiceStatus}
+          disabled={compactSendDisabled}
+        >
+          <ArrowUp size={18} weight="bold" className={styles.voiceIcon} />
+        </button>
       ) : null}
       {!isCompact && useIconSubmit ? (
         <button
