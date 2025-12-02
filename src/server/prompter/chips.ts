@@ -365,9 +365,22 @@ function recencyBoost(lastUsed: Date | null, now: Date): number {
   return boost;
 }
 
-function scoreChip(def: ChipDefinition, usage: Record<string, { useCount: number; lastUsed: Date | null }>, now: Date): RankedChip {
+function scoreChip(
+  def: ChipDefinition,
+  usage: Record<string, { useCount: number; lastUsed: Date | null }>,
+  now: Date,
+): RankedChip {
+  // Keep pinned chips competitive but not dominant so recents/context/AI can surface.
   const base =
-    def.pinned ? 120 : def.source === "recent" ? 80 : def.source === "context" ? 70 : def.source === "ai" ? 55 : 60;
+    def.pinned
+      ? 90
+      : def.source === "recent"
+        ? 88
+        : def.source === "context"
+          ? 84
+          : def.source === "ai"
+            ? 80
+            : 82;
   const use = usage[def.id] ?? null;
   const useCountBoost = use ? Math.min(40, use.useCount * 6) : 0;
   const recency = use ? recencyBoost(use.lastUsed, now) : 0;
@@ -434,22 +447,27 @@ function slotAndRank(
   const withRecents = dedupeById([...recent, ...all]);
   const scored = withRecents.map((chip) => scoreChip(chip, usage, now));
 
-  const pinned = scored.filter((chip) => chip.pinned).sort((a, b) => b.score - a.score);
-  const nonPinned = scored.filter((chip) => !chip.pinned).sort((a, b) => b.score - a.score);
+  const sorted = scored.sort((a, b) => b.score - a.score);
+  const familySafe = enforceFamilyDiversity(sorted);
+  const top = familySafe.slice(0, MAX_CHIPS);
 
-  const ordered: RankedChip[] = [];
-  for (const chip of pinned) {
-    if (ordered.length >= MAX_CHIPS) break;
-    ordered.push(chip);
+  // Ensure we keep at least one dynamic chip (recent/context/ai) in the mix.
+  const dynamicSources = new Set(["recent", "context", "ai"]);
+  const hasDynamic = top.some((chip) => dynamicSources.has(chip.source ?? ""));
+  if (!hasDynamic) {
+    const bestDynamic = familySafe.find((chip) => dynamicSources.has(chip.source ?? ""));
+    if (bestDynamic) {
+      const existing = new Set(top.map((chip) => chip.id));
+      if (!existing.has(bestDynamic.id)) {
+        if (top.length >= MAX_CHIPS) {
+          top.pop();
+        }
+        top.push(bestDynamic);
+      }
+    }
   }
 
-  const familySafe = enforceFamilyDiversity(nonPinned);
-  for (const chip of familySafe) {
-    if (ordered.length >= MAX_CHIPS) break;
-    ordered.push(chip);
-  }
-
-  return ordered.slice(0, MAX_CHIPS);
+  return top.slice(0, MAX_CHIPS);
 }
 
 // --- Public API -----------------------------------------------------------

@@ -17,6 +17,7 @@ import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
 import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChatRail";
 import { HOME_COMPOSER_CHIPS, EXPLORE_COMPOSER_CHIPS, CREATE_COMPOSER_CHIPS, CAPSULE_COMPOSER_CHIPS, MEMORY_COMPOSER_CHIPS, PROFILE_COMPOSER_CHIPS, SETTINGS_COMPOSER_CHIPS, LIVE_COMPOSER_CHIPS, STUDIO_COMPOSER_CHIPS, MARKET_COMPOSER_CHIPS } from "@/lib/prompter/chips";
 import { usePrompterChips } from "@/hooks/usePrompterChips";
+import { useCurrentUser } from "@/services/auth/client";
 
 import styles from "./app-shell.module.css";
 
@@ -59,6 +60,7 @@ function AppShellContent({
 }: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposer();
+  const { user } = useCurrentUser();
 
   const derivedActive: NavKey = React.useMemo(() => {
     if (activeNav) return activeNav;
@@ -68,10 +70,14 @@ function AppShellContent({
     if (pathname.startsWith("/capsule")) return "capsule";
     if (pathname.startsWith("/market")) return "market";
     if (pathname.startsWith("/memory")) return "memory";
+    if (pathname.startsWith("/profile")) return "profile";
+    if (pathname.startsWith("/settings")) return "settings";
+    if (pathname.startsWith("/live")) return "live";
+    if (pathname.startsWith("/studio")) return "studio";
     return "home";
   }, [activeNav, pathname]);
 
-                const { chips: prompterChips } = usePrompterChips(
+  const { chips: prompterChips } = usePrompterChips(
     derivedActive,
     derivedActive === "home"
       ? HOME_COMPOSER_CHIPS
@@ -94,6 +100,7 @@ function AppShellContent({
                       : derivedActive === "studio"
                         ? STUDIO_COMPOSER_CHIPS
                         : undefined,
+    user?.id,
   );
 
   const isHome = derivedActive === "home";

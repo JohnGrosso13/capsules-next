@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { deriveRequestOrigin } from "@/lib/url";
-import { globalSearch } from "@/server/search/service";
+import { quickSearch } from "@/server/search/quick";
 
 export const runtime = "nodejs";
 
@@ -12,20 +12,9 @@ export async function POST(req: Request) {
   const limitRaw = body?.limit;
   const limit =
     typeof limitRaw === "number" && Number.isFinite(limitRaw)
-      ? Math.min(Math.max(Math.floor(limitRaw), 1), 48)
-      : 24;
+      ? Math.min(Math.max(Math.floor(limitRaw), 1), 32)
+      : undefined;
   const userPayload = (body?.user as Record<string, unknown>) ?? {};
-  const capsuleId =
-    typeof body?.capsuleId === "string" && body.capsuleId.trim().length
-      ? body.capsuleId.trim()
-      : null;
-  const scopes = Array.isArray(body?.scopes)
-    ? (body.scopes as unknown[])
-        .map((entry) => (typeof entry === "string" ? entry.trim().toLowerCase() : ""))
-        .filter((entry) =>
-          ["users", "capsules", "memories", "capsule_records"].includes(entry),
-        )
-    : null;
 
   const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: false });
   if (!ownerId) {
@@ -33,23 +22,18 @@ export async function POST(req: Request) {
   }
 
   const trimmed = query.trim();
-  if (trimmed.length < 2) {
-    return NextResponse.json({ query: trimmed, sections: [] });
-  }
 
   try {
     const origin = deriveRequestOrigin(req);
-    const result = await globalSearch({
+    const result = await quickSearch({
       ownerId,
       query: trimmed,
-      limit,
-      capsuleId,
+      ...(typeof limit === "number" ? { limit } : {}),
       origin: origin ?? null,
-      scopes: scopes && scopes.length ? (scopes as Array<"users" | "capsules" | "memories" | "capsule_records">) : null,
     });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("global search error", error);
+    console.error("quick search error", error);
     return NextResponse.json({ query: trimmed, sections: [] }, { status: 500 });
   }
 }

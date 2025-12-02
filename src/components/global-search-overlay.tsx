@@ -22,6 +22,50 @@ const SEARCH_EVENT_NAME = "capsules:search:open";
 const LIGHTBOX_EVENT_NAME = "capsules:lightbox:open";
 const DEBOUNCE_DELAY_MS = 140;
 const MIN_QUERY_LENGTH = 2;
+const MIN_MEMORY_QUERY = 5;
+const FAST_SCOPES: Array<"users" | "capsules"> = ["users", "capsules"];
+const FULL_SCOPES: Array<"users" | "capsules" | "memories" | "capsule_records"> = [
+  "users",
+  "capsules",
+  "memories",
+  "capsule_records",
+];
+const MEMORY_HINT_KEYWORDS = new Set([
+  "photo",
+  "photos",
+  "pic",
+  "pics",
+  "picture",
+  "pictures",
+  "video",
+  "videos",
+  "clip",
+  "clips",
+  "file",
+  "files",
+  "doc",
+  "docs",
+  "document",
+  "documents",
+  "post",
+  "posts",
+  "story",
+  "stories",
+  "yesterday",
+  "today",
+  "last",
+  "week",
+  "month",
+  "year",
+  "record",
+  "recording",
+  "audio",
+  "image",
+  "images",
+  "memory",
+  "memories",
+]);
+const METRICS_ENABLED = process.env.NODE_ENV === "development";
 const RECORD_KIND_LABEL: Record<CapsuleRecordSearchResult["kind"], string> = {
   membership: "Membership",
   posts: "Posts",
@@ -51,6 +95,96 @@ function normalizeSections(
   return sections.slice();
 }
 
+type SearchIntent = {
+  allowFull: boolean;
+  fullScopes: typeof FULL_SCOPES | typeof FAST_SCOPES;
+  fullDelayMs: number;
+  memoryLikely: boolean;
+};
+
+function resolveIntent(query: string): SearchIntent {
+  const tokens = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const hasMemoryKeyword =
+    tokens.some((t) => MEMORY_HINT_KEYWORDS.has(t)) || query.includes("?");
+  const memoryLikely = hasMemoryKeyword && tokens.length >= 1;
+
+  const allowFull = hasMemoryKeyword && query.length >= MIN_MEMORY_QUERY;
+  const fullScopes = allowFull ? FULL_SCOPES : FAST_SCOPES;
+  const fullDelayMs = memoryLikely ? 260 : 420;
+
+  return { allowFull, fullScopes, fullDelayMs, memoryLikely };
+}
+
+function logMetric(event: string, detail: Record<string, unknown>) {
+  if (!METRICS_ENABLED) return;
+  const payload = { event, ...detail };
+  console.info("search-metric", payload);
+}
+
+function scoreMatch(haystack: string | null | undefined, needle: string): number {
+  if (!haystack) return 0;
+  const lower = haystack.toLowerCase();
+  if (lower === needle) return 10;
+  if (lower.startsWith(needle)) return 6;
+  if (lower.includes(needle)) return 3;
+  return 0;
+}
+
+function rerankSections(sections: GlobalSearchSection[], query: string): GlobalSearchSection[] {
+  const needle = query.toLowerCase();
+  if (!needle) return sections;
+
+  const rerankUsers = (items: UserSearchResult[]) => {
+    return items
+      .map((user) => {
+        const score = Math.max(scoreMatch(user.name, needle), scoreMatch(user.userKey, needle));
+        return { item: user, score };
+      })
+      .sort((a, b) => b.score - a.score);
+  };
+
+  const rerankCapsules = (items: CapsuleSearchResult[]) => {
+    return items
+      .map((capsule) => {
+        const score = Math.max(scoreMatch(capsule.name, needle), scoreMatch(capsule.slug, needle));
+        return { item: capsule, score };
+      })
+      .sort((a, b) => b.score - a.score);
+  };
+
+  const rerankMemories = (items: MemorySearchResult[]) => {
+    return items
+      .map((memory) => {
+        const score = Math.max(
+          scoreMatch(memory.title ?? null, needle),
+          scoreMatch(memory.description ?? null, needle),
+        );
+        return { item: memory, score };
+      })
+      .sort((a, b) => b.score - a.score);
+  };
+
+  return sections.map((section) => {
+    if (section.type === "users") {
+      const ranked = rerankUsers(section.items);
+      return { type: "users", items: ranked.map((r) => r.item) };
+    }
+    if (section.type === "capsules") {
+      const ranked = rerankCapsules(section.items);
+      return { type: "capsules", items: ranked.map((r) => r.item) };
+    }
+    if (section.type === "memories") {
+      const ranked = rerankMemories(section.items);
+      return { type: "memories", items: ranked.map((r) => r.item) };
+    }
+    return { type: "capsule_records", items: section.items };
+  });
+}
+
 export function GlobalSearchOverlay() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -60,10 +194,15 @@ export function GlobalSearchOverlay() {
   const [sections, setSections] = useState<GlobalSearchSection[]>([]);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("default");
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const quickAbortRef = useRef<AbortController | null>(null);
+  const fullAbortRef = useRef<AbortController | null>(null);
+  const fullTimerRef = useRef<number | null>(null);
+  const cacheRef = useRef<Map<string, GlobalSearchSection[]>>(new Map());
+  const zeroPrefetchRef = useRef(false);
   const overlayPointerDownRef = useRef(false);
   const selectionHandlerRef = useRef<SearchOpenDetail["onSelect"] | null>(null);
   const trimmedQuery = useMemo(() => query.trim(), [query]);
+  const intent = useMemo(() => resolveIntent(trimmedQuery), [trimmedQuery]);
 
   const formatter = useMemo(() => {
     try {
@@ -115,6 +254,26 @@ export function GlobalSearchOverlay() {
 
   useEffect(() => {
     if (!open) return;
+    if (zeroPrefetchRef.current) return;
+    zeroPrefetchRef.current = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/search/quick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: "", limit: 12 }),
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as GlobalSearchResponse;
+        cacheRef.current.set(FAST_SCOPES.join(",") + "::", normalizeSections(data.sections));
+      } catch {
+        // ignore prefetch errors
+      }
+    })().catch(() => undefined);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -144,22 +303,91 @@ export function GlobalSearchOverlay() {
     if (!open) return;
 
     if (trimmedQuery.length < MIN_QUERY_LENGTH) {
-      abortRef.current?.abort();
-      abortRef.current = null;
+      quickAbortRef.current?.abort();
+      fullAbortRef.current?.abort();
+      if (fullTimerRef.current) window.clearTimeout(fullTimerRef.current);
+      fullTimerRef.current = null;
       setSections([]);
       setLoading(false);
       setError(null);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const cacheKey = (scopes: string[]) => `${scopes.join(",")}::${trimmedQuery.toLowerCase()}`;
 
-    const controller = new AbortController();
-    abortRef.current?.abort();
-    abortRef.current = controller;
+    const getCached = (scopes: string[]) => {
+      const key = cacheKey(scopes);
+      const cached = cacheRef.current.get(key);
+      if (cached) {
+        setSections(cached);
+        return true;
+      }
+      return false;
+    };
 
-    const timer = window.setTimeout(async () => {
+    const setCache = (scopes: string[], nextSections: GlobalSearchSection[]) => {
+      cacheRef.current.set(cacheKey(scopes), nextSections);
+    };
+
+    const runQuick = async () => {
+      const controller = new AbortController();
+      quickAbortRef.current?.abort();
+      quickAbortRef.current = controller;
+      const fastPathScopes = FAST_SCOPES;
+      const cacheHit = getCached(fastPathScopes);
+      setLoading(true);
+      setError(null);
+      const started = typeof performance !== "undefined" ? performance.now() : 0;
+      try {
+        const response = await fetch("/api/search/quick", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: trimmedQuery, limit: 12 }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          if (response.status === 401) {
+            setError("You need to be signed in to search.");
+          } else {
+            setError("Search failed. Please try again.");
+          }
+          if (!cacheHit) setSections([]);
+          return;
+        }
+        const data = (await response.json()) as GlobalSearchResponse;
+        const nextSections = rerankSections(normalizeSections(data.sections), trimmedQuery);
+        setCache(fastPathScopes, nextSections);
+        setSections(nextSections);
+        if (started) {
+          logMetric("quick", {
+            durationMs: Math.round((performance.now() - started) * 100) / 100,
+            cacheHit,
+            qlen: trimmedQuery.length,
+          });
+        }
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return;
+        setError("Search request was interrupted. Try again.");
+        if (!cacheHit) setSections([]);
+      } finally {
+        if (!intent.allowFull) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const runFull = async () => {
+      if (!intent.allowFull) {
+        // no full search for very short terms
+        setLoading(false);
+        return;
+      }
+      const controller = new AbortController();
+      fullAbortRef.current?.abort();
+      fullAbortRef.current = controller;
+      const fullScopes = FULL_SCOPES;
+      const cacheHit = getCached(fullScopes);
+      const started = typeof performance !== "undefined" ? performance.now() : 0;
       try {
         const activeCapsuleId =
           typeof document === "undefined"
@@ -170,7 +398,12 @@ export function GlobalSearchOverlay() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ q: trimmedQuery, limit: 24, capsuleId: activeCapsuleId }),
+          body: JSON.stringify({
+            q: trimmedQuery,
+            limit: 24,
+            capsuleId: activeCapsuleId,
+            scopes: fullScopes,
+          }),
           signal: controller.signal,
         });
 
@@ -180,30 +413,49 @@ export function GlobalSearchOverlay() {
           } else {
             setError("Search failed. Please try again.");
           }
-          setSections([]);
+          if (!cacheHit) setSections([]);
         } else {
           const data = (await response.json()) as GlobalSearchResponse;
-          if (Array.isArray(data.sections)) {
-            setSections(normalizeSections(data.sections));
-          } else {
-            setSections([]);
+          const nextSections = rerankSections(normalizeSections(data.sections), trimmedQuery);
+          setCache(fullScopes, nextSections);
+          setSections(nextSections);
+          if (started) {
+            logMetric("full", {
+              durationMs: Math.round((performance.now() - started) * 100) / 100,
+              cacheHit,
+              qlen: trimmedQuery.length,
+              memory: intent.memoryLikely,
+            });
           }
         }
       } catch (err) {
-        if ((err as Error)?.name !== "AbortError") {
-          setError("Search request was interrupted. Try again.");
-          setSections([]);
-        }
+        if ((err as Error)?.name === "AbortError") return;
+        setError("Search request was interrupted. Try again.");
+        if (!cacheHit) setSections([]);
       } finally {
         setLoading(false);
       }
+    };
+
+    const timer = window.setTimeout(() => {
+      runQuick().catch(() => undefined);
+      if (fullTimerRef.current) {
+        window.clearTimeout(fullTimerRef.current);
+      }
+      fullTimerRef.current = window.setTimeout(() => {
+        runFull().catch(() => undefined);
+      }, intent.fullDelayMs);
     }, DEBOUNCE_DELAY_MS);
 
     return () => {
       window.clearTimeout(timer);
-      controller.abort();
+      if (fullTimerRef.current) {
+        window.clearTimeout(fullTimerRef.current);
+      }
+      quickAbortRef.current?.abort();
+      fullAbortRef.current?.abort();
     };
-  }, [open, trimmedQuery]);
+  }, [close, intent.allowFull, intent.fullDelayMs, intent.memoryLikely, open, trimmedQuery]);
 
   const hasResults = sections.some((section) => section.items.length > 0);
 

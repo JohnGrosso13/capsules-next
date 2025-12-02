@@ -66,7 +66,7 @@ export default async function SettingsPage() {
   };
 
   return (
-    <AppPage showPrompter={true}>
+    <AppPage showPrompter={true} activeNav="settings">
       <SettingsShell
         initialCapsules={ownedCapsules}
         accountProfile={accountProfile}

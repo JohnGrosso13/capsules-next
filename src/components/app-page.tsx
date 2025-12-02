@@ -7,7 +7,17 @@ import type { LiveChatRailProps } from "@/components/live/LiveChatRail";
 
 export type AppPageProps = {
   children: React.ReactNode;
-  activeNav?: "home" | "explore" | "create" | "capsule" | "market" | "memory";
+  activeNav?:
+    | "home"
+    | "explore"
+    | "create"
+    | "capsule"
+    | "market"
+    | "memory"
+    | "profile"
+    | "settings"
+    | "live"
+    | "studio";
   showPrompter?: boolean;
   promoSlot?: React.ReactNode;
   capsuleBanner?: React.ReactNode;

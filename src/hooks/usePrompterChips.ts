@@ -3,6 +3,17 @@ import * as React from "react";
 import type { PrompterChipOption } from "@/components/prompter/hooks/usePrompterStageController";
 
 const MAX_CLIENT_CHIPS = 4;
+const CACHE_TTL_MS = 15 * 60 * 1000;
+
+type CachedChipsEntry = {
+  ts: number;
+  user: string;
+  chips: PrompterChipOption[];
+};
+
+function stableHash(input: string): number {
+  return Array.from(input).reduce((acc, char) => Math.imul(acc ^ char.charCodeAt(0), 16777619), 0);
+}
 
 type UsePrompterChipsResult = {
   chips: PrompterChipOption[] | undefined;
@@ -13,11 +24,14 @@ type UsePrompterChipsResult = {
 export function usePrompterChips(
   surface: string | null | undefined,
   fallback?: PrompterChipOption[],
+  userId?: string | null,
 ): UsePrompterChipsResult {
+  const isBrowser = typeof window !== "undefined";
   // Use a deterministic seed to keep SSR/CSR chip ordering stable and avoid hydration mismatches.
-  const seedRef = React.useRef<number>(0);
-  const [hydrated, setHydrated] = React.useState(false);
-  const cacheKey = surface ? `prompter_chips:${surface}` : null;
+  const userCacheKey = (userId ?? "anon").trim() || "anon";
+  const seedRef = React.useRef<number>(stableHash(`${surface ?? "chips"}:${userCacheKey}`));
+  const [hydrated, setHydrated] = React.useState(isBrowser);
+  const cacheKey = surface ? `prompter_chips:${surface}:${userCacheKey}` : null;
 
   const pickInitialChips = React.useCallback(
     (options?: PrompterChipOption[] | null): PrompterChipOption[] | undefined => {
@@ -51,26 +65,44 @@ export function usePrompterChips(
     try {
       const raw = window.sessionStorage.getItem(cacheKey);
       if (!raw) return undefined;
-      const parsed = JSON.parse(raw) as PrompterChipOption[] | null;
-      return pickInitialChips(parsed ?? undefined);
+      const parsed = JSON.parse(raw) as CachedChipsEntry | PrompterChipOption[] | null;
+      const entry =
+        parsed && !Array.isArray(parsed) && typeof parsed === "object" && "chips" in parsed
+          ? (parsed as CachedChipsEntry)
+          : null;
+      const payload = entry?.chips ?? (Array.isArray(parsed) ? parsed : null);
+      const ts = entry?.ts ?? null;
+      const cacheUser = entry?.user ?? userCacheKey;
+      if (!payload || cacheUser !== userCacheKey) return undefined;
+      if (typeof ts === "number" && ts + CACHE_TTL_MS < Date.now()) {
+        window.sessionStorage.removeItem(cacheKey);
+        return undefined;
+      }
+      return pickInitialChips(payload ?? undefined);
     } catch {
       return undefined;
     }
-  }, [cacheKey, pickInitialChips]);
+  }, [cacheKey, pickInitialChips, userCacheKey]);
 
-  const seedChips = React.useMemo(
-    () => pickInitialChips(fallback),
-    [fallback, pickInitialChips],
-  );
+  const seedChips = React.useMemo(() => pickInitialChips(fallback), [fallback, pickInitialChips]);
 
-  const [chips, setChips] = React.useState<PrompterChipOption[] | undefined>(seedChips);
+  const [chips, setChips] = React.useState<PrompterChipOption[] | undefined>(() => {
+    const cached = isBrowser ? readCachedChips() : undefined;
+    return cached ?? seedChips;
+  });
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // Track client hydration to avoid reading sessionStorage during SSR render.
   React.useEffect(() => {
-    setHydrated(true);
-  }, []);
+    if (!hydrated) {
+      setHydrated(true);
+    }
+  }, [hydrated]);
+
+  React.useEffect(() => {
+    seedRef.current = stableHash(`${surface ?? "chips"}:${userCacheKey}`);
+  }, [surface, userCacheKey]);
 
   // Keep state aligned when surface changes before the fetch resolves.
   React.useEffect(() => {
@@ -103,7 +135,12 @@ export function usePrompterChips(
           setChips(payload.chips);
           if (cacheKey && typeof window !== "undefined") {
             try {
-              window.sessionStorage.setItem(cacheKey, JSON.stringify(payload.chips));
+              const cached: CachedChipsEntry = {
+                ts: Date.now(),
+                user: userCacheKey,
+                chips: payload.chips,
+              };
+              window.sessionStorage.setItem(cacheKey, JSON.stringify(cached));
             } catch {
               /* ignore cache write failures */
             }
@@ -123,7 +160,7 @@ export function usePrompterChips(
       cancelled = true;
       controller.abort();
     };
-  }, [cacheKey, surface, hydrated]);
+  }, [cacheKey, surface, hydrated, userCacheKey]);
 
   return { chips, loading, error };
 }

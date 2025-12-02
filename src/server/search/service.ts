@@ -22,6 +22,27 @@ import {
 
 const USER_SECTION_LIMIT = 6;
 const CAPSULE_SECTION_LIMIT = 6;
+const EMBED_BUDGET_LIMIT = 8;
+const EMBED_BUDGET_WINDOW_MS = 60_000;
+const MEMORIES_ENABLED = process.env.SEARCH_DISABLE_MEMORIES !== "true";
+
+const embedBudget = new Map<string, { count: number; resetAt: number }>();
+
+function canUseEmbeddings(ownerId: string): boolean {
+  if (!ownerId) return false;
+  const now = Date.now();
+  const entry = embedBudget.get(ownerId);
+  if (!entry || now >= entry.resetAt) {
+    embedBudget.set(ownerId, { count: 1, resetAt: now + EMBED_BUDGET_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= EMBED_BUDGET_LIMIT) {
+    return false;
+  }
+  entry.count += 1;
+  embedBudget.set(ownerId, entry);
+  return true;
+}
 
 type FriendRow = {
   friend_user_id: string | null;
@@ -39,7 +60,11 @@ type GlobalSearchParams = {
   limit: number;
   capsuleId?: string | null;
   origin?: string | null;
+  scopes?: SearchScope[] | null;
 };
+
+type SearchScope = "users" | "capsules" | "memories" | "capsule_records";
+const DEFAULT_SCOPES: SearchScope[] = ["users", "capsules", "memories", "capsule_records"];
 
 function normalizeQueryTokens(query: string): string[] {
   return query
@@ -319,6 +344,7 @@ export async function globalSearch({
   limit,
   capsuleId,
   origin,
+  scopes = null,
 }: GlobalSearchParams): Promise<GlobalSearchResponse> {
   const trimmed = query.trim();
   if (!trimmed.length) {
@@ -331,14 +357,34 @@ export async function globalSearch({
   }
 
   const memoryLimit = Math.max(1, limit);
+  const scopeSet = new Set<SearchScope>(scopes && scopes.length ? scopes : DEFAULT_SCOPES);
+  const includeUsers = scopeSet.has("users");
+  const includeCapsules = scopeSet.has("capsules");
+  const includeMemories = MEMORIES_ENABLED && scopeSet.has("memories");
+  const includeCapsuleRecords = scopeSet.has("capsule_records");
+  const shouldSearchMemories = includeMemories && trimmed.length >= 4;
+  const shouldSearchStructured = includeCapsuleRecords && capsuleId && trimmed.length >= 4;
+
+  const allowEmbeddings = shouldSearchMemories && canUseEmbeddings(ownerId);
+  if (shouldSearchMemories && !allowEmbeddings) {
+    if (process.env.NODE_ENV === "development") {
+      console.info("search:skip-memories", { ownerId, reason: "embed-budget" });
+    }
+  }
 
   const [memoryItems, capsules, users, capsuleKnowledge] = await Promise.all([
-    searchMemories({ ownerId, query: trimmed, limit: memoryLimit, origin: origin ?? null }),
-    searchCapsulesForUser(ownerId, trimmed, tokens, origin, CAPSULE_SECTION_LIMIT),
-    searchFriendsForUser(ownerId, trimmed, tokens, origin, USER_SECTION_LIMIT),
-    capsuleId
+    shouldSearchMemories && allowEmbeddings
+      ? searchMemories({ ownerId, query: trimmed, limit: memoryLimit, origin: origin ?? null })
+      : Promise.resolve([]),
+    includeCapsules
+      ? searchCapsulesForUser(ownerId, trimmed, tokens, origin, CAPSULE_SECTION_LIMIT)
+      : Promise.resolve([]),
+    includeUsers
+      ? searchFriendsForUser(ownerId, trimmed, tokens, origin, USER_SECTION_LIMIT)
+      : Promise.resolve([]),
+    shouldSearchStructured
       ? searchCapsuleKnowledgeSnippets({
-          capsuleId,
+          capsuleId: capsuleId as string,
           query: trimmed,
           limit: memoryLimit,
         })
@@ -346,12 +392,12 @@ export async function globalSearch({
   ]);
 
   let capsuleRecords: CapsuleRecordSearchResult[] = [];
-  if (capsuleId) {
+  if (shouldSearchStructured) {
     const structuredIntents = parseStructuredQuery(trimmed);
     if (structuredIntents.length) {
       try {
         const structuredPayloads = await fetchStructuredPayloads({
-          capsuleId,
+          capsuleId: capsuleId as string,
           intents: structuredIntents,
         });
         capsuleRecords = structuredPayloads
@@ -364,13 +410,13 @@ export async function globalSearch({
   }
 
   const sections: GlobalSearchSection[] = [];
-  if (users.length) {
+  if (includeUsers && users.length) {
     sections.push({ type: "users", items: users });
   }
-  if (capsules.length) {
+  if (includeCapsules && capsules.length) {
     sections.push({ type: "capsules", items: capsules });
   }
-  if (capsuleRecords.length) {
+  if (includeCapsuleRecords && capsuleRecords.length) {
     sections.push({ type: "capsule_records", items: capsuleRecords });
   }
 
@@ -381,7 +427,7 @@ export async function globalSearch({
     ) ?? []),
   ];
 
-  const memoryResults = coerceMemoryResults(combinedMemoryItems, memoryLimit);
+  const memoryResults = includeMemories ? coerceMemoryResults(combinedMemoryItems, memoryLimit) : [];
   if (memoryResults.length) {
     sections.push({ type: "memories", items: memoryResults });
   }
