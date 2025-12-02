@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { DotsThree } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "@/app/(authenticated)/friends/friends.module.css";
 
@@ -112,11 +113,7 @@ export function FriendMenu({
         disabled={Boolean(pending)}
         ref={triggerRef}
       >
-        <span className={styles.friendMenuIcon} aria-hidden>
-          <span />
-          <span />
-          <span />
-        </span>
+        <DotsThree size={16} weight="bold" aria-hidden />
       </button>
       {open
         ? createPortal(

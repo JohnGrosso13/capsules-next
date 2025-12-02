@@ -177,3 +177,55 @@
   color: var(--text-2);
   font-size: 0.9rem;
 }
+
+.upgradeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 8px 0 4px;
+}
+
+.upgradeCard {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--card-bg-1, rgba(16, 20, 42, 0.9)) 90%, transparent),
+      color-mix(in srgb, var(--card-bg-2, rgba(10, 14, 32, 0.82)) 80%, transparent)
+    ),
+    radial-gradient(160% 120% at 20% 20%, rgba(124, 58, 237, 0.08), transparent 60%),
+    radial-gradient(160% 120% at 80% 0%, rgba(59, 130, 246, 0.08), transparent 65%);
+  box-shadow: var(--shadow-md, 0 10px 28px rgba(6, 12, 32, 0.28));
+  display: grid;
+  gap: 8px;
+}
+
+.upgradeEyebrow {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.upgradeTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 750;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.upgradeCopy {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.upgradeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}

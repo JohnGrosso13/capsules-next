@@ -71,6 +71,10 @@ export interface Env {
   CF_ACCOUNT_ID: string;
   CF_STREAM_API_TOKEN?: string;
   CF_AI_TOKEN?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_BASE_URL?: string;
+  OPENAI_ORGANIZATION?: string;
+  OPENAI_PROJECT?: string;
   MUX_TOKEN_ID?: string;
   MUX_TOKEN_SECRET?: string;
   MUX_ENVIRONMENT?: string;

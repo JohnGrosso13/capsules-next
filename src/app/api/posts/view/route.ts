@@ -58,6 +58,21 @@ function sanitizeAttachment(
     } else {
       delete cloned.full;
     }
+    if (Object.prototype.hasOwnProperty.call(variants, "promo")) {
+      if (variants.promo == null) {
+        cloned.promo = null;
+      } else {
+        const sanitizedPromo = resolveToAbsoluteUrl(variants.promo, originForAssets);
+        cloned.promo = sanitizedPromo ?? variants.promo;
+      }
+    } else {
+      delete cloned.promo;
+    }
+    if (Object.prototype.hasOwnProperty.call(variants, "promoSrcset")) {
+      cloned.promoSrcset = variants.promoSrcset ?? null;
+    } else {
+      delete cloned.promoSrcset;
+    }
     sanitizedVariants = cloned;
   }
 
@@ -65,9 +80,11 @@ function sanitizeAttachment(
     sanitizedVariants = {
       original: resolvedUrl,
       feed: resolvedThumb ?? resolvedUrl,
+      promo: resolvedThumb ?? resolvedUrl,
       thumb: resolvedThumb ?? resolvedUrl,
       full: resolvedUrl,
       feedSrcset: null,
+      promoSrcset: null,
       fullSrcset: null,
     };
   }

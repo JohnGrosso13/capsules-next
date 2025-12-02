@@ -161,6 +161,19 @@
       var(--tile-shadow-hover, var(--tile-shadow-hover-base));
   }
 
+  .connectionTile:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+    outline-offset: 2px;
+    transform: translateY(-2px);
+    border-color: var(
+      --tile-border-hover,
+      var(--tile-border-hover-base, color-mix(in srgb, var(--tile-accent-a) 64%, transparent))
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent),
+      var(--tile-shadow-hover, var(--tile-shadow-hover-base));
+  }
+
   .connectionTile:hover::before {
     opacity: var(--tile-glow-opacity-hover, 0.5);
   }
@@ -278,15 +291,7 @@
   }
 
   .connectionTile[data-tile="friends"] {
-    --tile-bg-final: var(
-      --style-friends-bg,
-      linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--color-accent) 28%, color-mix(in srgb, var(--color-fg) 12%, transparent)),
-        color-mix(in srgb, var(--color-brand) 12%, color-mix(in srgb, var(--color-fg) 8%, transparent))
-      ),
-      var(--tile-bg-base)
-    );
+    --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: var(
       --style-friends-border,
       color-mix(in srgb, var(--color-accent) 24%, var(--tile-border-base))
@@ -323,24 +328,8 @@
   }
 
   .connectionTile[data-tile="party"] {
-    /* Cohesive light theme: use site brand blues instead of purple */
-    --tile-bg-final: var(
-      --style-party-bg,
-      linear-gradient(
-        160deg,
-        color-mix(
-          in srgb,
-          var(--header-brand, var(--color-brand)) 22%,
-          color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent)
-        ),
-        color-mix(
-          in srgb,
-          var(--header-brand-strong, var(--color-brand-strong)) 16%,
-          color-mix(in srgb, var(--color-fg, var(--text)) 12%, transparent)
-        )
-      ),
-      var(--tile-bg-base)
-    );
+    /* Default state: share base background, lean on icon + border for color */
+    --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: var(
       --style-party-border,
       color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--tile-border-base))
@@ -384,15 +373,7 @@
   }
 
   .connectionTile[data-tile="chats"] {
-    --tile-bg-final: var(
-      --style-chats-bg,
-      linear-gradient(
-        160deg,
-        color-mix(in srgb, var(--color-info) 26%, transparent),
-        color-mix(in srgb, var(--color-brand) 12%, transparent)
-      ),
-      var(--tile-bg-base)
-    );
+    --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: var(
       --style-chats-border,
       color-mix(in srgb, var(--color-info) 35%, var(--tile-border-base))
@@ -423,23 +404,7 @@
   }
 
   .connectionTile[data-tile="requests"] {
-    --tile-bg-final: var(
-      --style-requests-bg,
-      linear-gradient(
-        160deg,
-        color-mix(
-          in srgb,
-          var(--color-warning) 42%,
-          color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent)
-        ),
-        color-mix(
-          in srgb,
-          var(--color-success) 22%,
-          color-mix(in srgb, var(--color-fg, var(--text)) 12%, transparent)
-        )
-      ),
-      var(--tile-bg-base)
-    );
+    --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: var(
       --style-requests-border,
       color-mix(in srgb, var(--color-warning) 38%, var(--tile-border-base))
@@ -463,6 +428,27 @@
     --tile-accent-a: color-mix(in srgb, var(--color-warning) 68%, var(--color-warning));
     --tile-accent-b: color-mix(in srgb, var(--color-success) 42%, var(--color-success));
     --tile-accent-c: color-mix(in srgb, var(--color-warning) 36%, transparent);
+  }
+
+  .connectionTile[data-tile="party"][data-live="true"] {
+    --tile-border-final: color-mix(
+      in srgb,
+      var(--header-brand, var(--color-brand)) 72%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-shadow-final: 0 0 0 1px
+        color-mix(in srgb, var(--header-brand, var(--color-brand)) 55%, transparent),
+      0 16px 32px
+        color-mix(
+          in srgb,
+          var(--header-brand-strong, var(--color-brand-strong)) 30%,
+          color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 40%, transparent)
+        );
+    --tile-glow-opacity: 0.5;
+  }
+
+  .connectionTile[data-tile="party"][data-live="true"]::before {
+    opacity: 0.8;
   }
 
   .railHeaderRow {

@@ -5,12 +5,13 @@ import {
   X,
   ArrowsClockwise,
   TrashSimple,
-  Stack,
-  UsersThree,
-  SlidersHorizontal,
   Brain,
   List,
   SidebarSimple,
+  MagnifyingGlass,
+  ChatsTeardrop,
+  FileText,
+  FolderSimple,
 } from "@phosphor-icons/react/dist/ssr";
 import {
   PanelGroup,
@@ -46,6 +47,10 @@ import {
 import { CapsuleBannerPreview } from "./CapsuleBannerPreview";
 import { CapsuleAssetActions } from "./CapsuleAssetActions";
 import { CapsuleMemoryPicker } from "./CapsuleMemoryPicker";
+import {
+  COMPOSER_IMAGE_QUALITY_OPTIONS,
+  titleCaseComposerQuality,
+} from "@/lib/composer/image-settings";
 
 type CapsuleCustomizerProps = {
   open?: boolean;
@@ -56,19 +61,19 @@ type CapsuleCustomizerProps = {
   mode?: CapsuleCustomizerMode;
 };
 
-type LeftRailTab = "versions" | "personas" | "advanced" | "memory";
+type LeftRailTab = "recent" | "drafts" | "projects" | "memory";
 
 const LEFT_TAB_BUTTON_IDS: Record<LeftRailTab, string> = {
-  versions: "capsule-customizer-tab-versions",
-  personas: "capsule-customizer-tab-personas",
-  advanced: "capsule-customizer-tab-advanced",
+  recent: "capsule-customizer-tab-recent",
+  drafts: "capsule-customizer-tab-drafts",
+  projects: "capsule-customizer-tab-projects",
   memory: "capsule-customizer-tab-memory",
 };
 
 const LEFT_TAB_PANEL_IDS: Record<LeftRailTab, string> = {
-  versions: "capsule-customizer-panel-versions",
-  personas: "capsule-customizer-panel-personas",
-  advanced: "capsule-customizer-panel-advanced",
+  recent: "capsule-customizer-panel-recent",
+  drafts: "capsule-customizer-panel-drafts",
+  projects: "capsule-customizer-panel-projects",
   memory: "capsule-customizer-panel-memory",
 };
 
@@ -76,24 +81,27 @@ function joinClassNames(...tokens: Array<string | undefined | null>): string {
   return tokens.filter((token): token is string => Boolean(token)).join(" ");
 }
 
+const SEARCH_EVENT_NAME = "capsules:search:open";
 
 function ChatMessageBubble({
   message,
   onBannerSelect,
-  onSuggestionSelect,
+  onSuggestionSelect: _onSuggestionSelect,
 }: {
   message: ChatMessage;
   onBannerSelect: (option: ChatBannerOption) => void;
   onSuggestionSelect?: (suggestion: string) => void;
 }) {
+  const isUser = message.role === "user";
   return (
-    <div className={styles.chatMessage} data-role={message.role}>
-      <span
-        className={styles.chatAvatar}
-        aria-label={message.role === "assistant" ? "Assistant" : "You"}
-      />
-      <div className={styles.chatBubble}>
-        {message.content}
+    <div className={styles.chatMessage} data-role={isUser ? "user" : "ai"}>
+      <div
+        className={joinClassNames(
+          styles.chatBubble,
+          isUser ? styles.chatBubbleUser : styles.chatBubbleAi,
+        )}
+      >
+        <div className={styles.chatMessageText}>{message.content}</div>
         {message.bannerOptions && message.bannerOptions.length ? (
           <div className={styles.chatBannerGallery} role="list">
             {message.bannerOptions.map((option, index) => (
@@ -113,21 +121,6 @@ function ChatMessageBubble({
                   loading="lazy"
                 />
                 <span className={styles.chatBannerOptionOverlay}>Add to banner</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {message.role === "assistant" && message.suggestions?.length ? (
-          <div className={styles.chatSuggestions} role="list">
-            {message.suggestions.map((suggestion) => (
-              <button
-                key={`${message.id}-${suggestion}`}
-                type="button"
-                className={styles.chatSuggestionChip}
-                onClick={() => onSuggestionSelect?.(suggestion)}
-                role="listitem"
-              >
-                {suggestion}
               </button>
             ))}
           </div>
@@ -179,6 +172,16 @@ function CapsuleCustomizerContent() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = React.useState(false);
   const mobileNavCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
+  const [imageQuality, setImageQuality] = React.useState<
+    (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]
+  >("standard");
+  const smartContextEnabled = chat.smartContextEnabled;
+  const toggleSmartContext = chat.onToggleSmartContext;
+
+  const handleSearchClick = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent(SEARCH_EVENT_NAME));
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -334,29 +337,29 @@ function CapsuleCustomizerContent() {
     meta.mode === "logo" ||
     meta.mode === "avatar";
 
-  const [activeRailTab, setActiveRailTab] = React.useState<LeftRailTab>(
-    variantsSupported ? "versions" : "memory",
-  );
+  const [activeRailTab, setActiveRailTab] = React.useState<LeftRailTab>("recent");
 
   const railTabs = React.useMemo(
     () => [
       {
-        key: "versions" as LeftRailTab,
-        label: "Versions",
-        renderIcon: (selected: boolean) => <Stack size={18} weight={selected ? "fill" : "duotone"} />,
-      },
-      {
-        key: "personas" as LeftRailTab,
-        label: "Personas",
+        key: "recent" as LeftRailTab,
+        label: "Recent chats",
         renderIcon: (selected: boolean) => (
-          <UsersThree size={18} weight={selected ? "fill" : "duotone"} />
+          <ChatsTeardrop size={18} weight={selected ? "fill" : "duotone"} />
         ),
       },
       {
-        key: "advanced" as LeftRailTab,
-        label: "Advanced",
+        key: "drafts" as LeftRailTab,
+        label: "Saved drafts",
         renderIcon: (selected: boolean) => (
-          <SlidersHorizontal size={18} weight={selected ? "fill" : "duotone"} />
+          <FileText size={18} weight={selected ? "fill" : "duotone"} />
+        ),
+      },
+      {
+        key: "projects" as LeftRailTab,
+        label: "Projects",
+        renderIcon: (selected: boolean) => (
+          <FolderSimple size={18} weight={selected ? "fill" : "duotone"} />
         ),
       },
       {
@@ -480,376 +483,413 @@ function CapsuleCustomizerContent() {
           <SidebarSimple size={16} weight={navCollapsed ? "fill" : "duotone"} />
         </button>
       </div>
-    <div
-    className={styles.railScroll}
-    role="tabpanel"
-    id={LEFT_TAB_PANEL_IDS[activeRailTab]}
-    aria-labelledby={LEFT_TAB_BUTTON_IDS[activeRailTab]}
-    tabIndex={0}
-    >
-    {activeRailTab === "memory" ? (
-      <div className={styles.railSection}>
-        <div className={styles.recentHeader}>
-          <h3 id="customizer-memory-heading">Memories</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={memory.openPicker}
-            aria-haspopup="dialog"
-            aria-expanded={memory.isPickerOpen}
-            aria-controls="memory-picker-dialog"
-          >
-            View all memories
-          </Button>
-        </div>
-        <div className={styles.recentDescription}>{meta.recentDescription}</div>
-        <div className={styles.recentList} role="list">
-          {!memory.user ? (
-            <p className={styles.recentHint}>Sign in to see recent memories.</p>
-          ) : memory.loading ? (
-            <p className={styles.recentHint}>Loading your recent memories...</p>
-          ) : memory.error ? (
-            <p className={styles.recentHint}>{memory.error}</p>
-          ) : memory.recentMemories.length ? (
-            memory.recentMemories.map((memoryItem, index) => {
-              const alt =
-                memoryItem.title?.trim() ||
-                memoryItem.description?.trim() ||
-                "Capsule memory preview";
-              const selected =
-                preview.selected?.kind === "memory" && preview.selected.id === memoryItem.id;
-              const memoryKey = memoryItem.id ? `${memoryItem.id}-${index}` : `memory-${index}`;
-              return (
-                <button
-                  key={memoryKey}
-                  type="button"
-                  role="listitem"
-                  className={styles.recentItem}
-                  data-selected={selected ? "true" : undefined}
-                  onClick={() => memory.onSelectMemory(memoryItem)}
-                  aria-label={`Use memory ${alt}`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={memoryItem.displayUrl}
-                    alt={alt}
-                    className={styles.recentImage}
-                    loading="lazy"
-                  />
-                  <div className={styles.recentMeta}>
-                    <span className={styles.recentTitle}>{alt}</span>
-                    <span className={styles.recentSubtle}>Memory</span>
-                  </div>
-                </button>
-              );
-            })
-          ) : (
-            <p className={styles.recentHint}>
-              Generate, upload, or pick a memory to see it surface here.
-            </p>
-          )}
-        </div>
-      </div>
-    ) : null}
-    {activeRailTab === "versions" ? (
-      variantsSupported ? (
-        <div className={styles.railSection} aria-labelledby="customizer-versions-heading">
-          <div className={styles.recentHeader}>
-            <h3 id="customizer-versions-heading">AI versions</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                void variants.refresh();
-              }}
-              disabled={variants.loading}
-            >
-              Refresh
-            </Button>
+      <div
+        className={styles.railScroll}
+        role="tabpanel"
+        id={LEFT_TAB_PANEL_IDS[activeRailTab]}
+        aria-labelledby={LEFT_TAB_BUTTON_IDS[activeRailTab]}
+        tabIndex={0}
+      >
+        {activeRailTab === "recent" ? (
+          <div className={styles.railSection} aria-labelledby="customizer-recent-heading">
+            <div className={styles.recentHeader}>
+              <h3 id="customizer-recent-heading">Recent chats</h3>
+            </div>
+            <div className={styles.recentDescription}>
+              Pull a message from this session back into the prompt.
+            </div>
+            <div className={styles.recentList} role="list">
+              {chat.messages.length ? (
+                [...chat.messages].slice(-8).reverse().map((message) => {
+                  const label = message.role === "user" ? "You" : "Capsule AI";
+                  const snippet = truncate(message.content, 120);
+                  return (
+                    <button
+                      key={message.id}
+                      type="button"
+                      role="listitem"
+                      className={styles.recentItem}
+                      onClick={() => chat.onSuggestionSelect(message.content)}
+                      aria-label={`Reuse ${label.toLowerCase()} message "${snippet}"`}
+                    >
+                      <div className={styles.recentMeta}>
+                        <span className={styles.recentTitle}>{label}</span>
+                        <span className={styles.recentSnippet}>{snippet}</span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className={styles.recentHint}>
+                  Start chatting with Capsule AI to see history here.
+                </p>
+              )}
+            </div>
           </div>
-          <div className={styles.recentDescription}>{variantDescription}</div>
-          <div className={styles.recentList} role="list">
-            {variants.loading ? (
-              <p className={styles.recentHint}>Loading your saved versions...</p>
-            ) : variants.error ? (
-              <p className={styles.recentHint}>{variants.error}</p>
-            ) : variants.items.length ? (
-              variants.items.map((variant: CapsuleVariant) => {
-                const metadata = (variant.metadata ?? {}) as Record<string, unknown>;
-                const mode =
-                  typeof metadata.mode === "string" && metadata.mode.trim().length
-                    ? metadata.mode.trim().toLowerCase()
-                    : "generate";
-                const stylePreset =
-                  typeof metadata.stylePreset === "string" && metadata.stylePreset.trim().length
-                    ? humanize(metadata.stylePreset.trim())
-                    : null;
-                const providerRaw =
-                  typeof metadata.provider === "string" && metadata.provider.trim().length
-                    ? metadata.provider.trim().toLowerCase()
-                    : null;
-                const provider =
-                  providerRaw === "openai"
-                    ? "OpenAI"
-                    : providerRaw === "stability"
-                      ? "Stability"
-                      : providerRaw
-                        ? humanize(providerRaw)
+        ) : null}
+        {activeRailTab === "drafts" ? (
+          variantsSupported ? (
+            <div className={styles.railSection} aria-labelledby="customizer-drafts-heading">
+              <div className={styles.recentHeader}>
+                <h3 id="customizer-drafts-heading">Saved drafts</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void variants.refresh();
+                  }}
+                  disabled={variants.loading}
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className={styles.recentDescription}>{variantDescription}</div>
+              <div className={styles.recentList} role="list">
+                {variants.loading ? (
+                  <p className={styles.recentHint}>Loading your saved drafts...</p>
+                ) : variants.error ? (
+                  <p className={styles.recentHint}>{variants.error}</p>
+                ) : variants.items.length ? (
+                  variants.items.map((variant: CapsuleVariant) => {
+                    const metadata = (variant.metadata ?? {}) as Record<string, unknown>;
+                    const mode =
+                      typeof metadata.mode === "string" && metadata.mode.trim().length
+                        ? metadata.mode.trim().toLowerCase()
+                        : "generate";
+                    const stylePreset =
+                      typeof metadata.stylePreset === "string" && metadata.stylePreset.trim().length
+                        ? humanize(metadata.stylePreset.trim())
                         : null;
-                const resolvedPrompt =
-                  typeof metadata.resolvedPrompt === "string" && metadata.resolvedPrompt.trim().length
-                    ? metadata.resolvedPrompt.trim()
-                    : null;
-                const userPrompt =
-                  typeof metadata.userPrompt === "string" && metadata.userPrompt.trim().length
-                    ? metadata.userPrompt.trim()
-                    : null;
-                const snippetSource = resolvedPrompt || userPrompt || "";
-                const snippet = snippetSource.length ? `“${truncate(snippetSource, 68)}”` : null;
-                const detailParts = [
-                  mode === "edit" ? "Edit" : "Generate",
-                  stylePreset,
-                  provider,
-                ].filter(Boolean) as string[];
-                const detail = detailParts.join(" • ");
-                const thumbUrl = variant.thumbUrl ?? variant.imageUrl;
-                const selected =
-                  preview.selected?.kind === "memory" && preview.selected.id === variant.id;
-                return (
-                  <button
-                    key={variant.id}
-                    type="button"
-                    role="listitem"
-                    className={styles.recentItem}
-                    data-selected={selected ? "true" : undefined}
-                    onClick={() => variants.select(variant)}
-                    aria-label={`Switch to AI version ${variant.version}`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={thumbUrl}
-                      alt={`AI version ${variant.version}`}
-                      className={styles.recentImage}
-                      loading="lazy"
-                    />
-                    <div className={styles.recentMeta}>
-                      <span className={styles.recentTitle}>Version v{variant.version}</span>
-                      {snippet ? <span className={styles.recentSnippet}>{snippet}</span> : null}
-                      {detail ? <span className={styles.recentSubtle}>{detail}</span> : null}
-                    </div>
-                  </button>
-                );
-              })
-            ) : (
-              <p className={styles.recentHint}>
-                Versions appear here after you generate or edit with Capsule AI.
-              </p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={styles.railSection} aria-labelledby="customizer-versions-heading">
-          <h3 id="customizer-versions-heading">AI versions</h3>
-          <p className={styles.recentHint}>
-            Switch to a banner, store banner, logo, or avatar to work with AI versions.
-          </p>
-        </div>
-      )
-    ) : null}
-    {activeRailTab === "personas" ? (
-      <div className={styles.railSection} aria-labelledby="style-personas-heading">
-        <div className={styles.recentHeader}>
-          <h3 id="style-personas-heading">Style personas</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              void personas.refresh();
-            }}
-            disabled={personas.loading}
-            leftIcon={<ArrowsClockwise size={16} weight="bold" />}
-          >
-            Refresh
-          </Button>
-        </div>
-        <div className={styles.recentDescription}>
-          Save reusable palettes, mediums, and camera cues so prompts stay consistent.
-        </div>
-        <form className={styles.personaForm} onSubmit={handlePersonaSubmit}>
-          <input
-            className={styles.personaInput}
-            type="text"
-            placeholder="Persona name"
-            value={personaName}
-            onChange={(event) => setPersonaName(event.target.value)}
-            required
-            disabled={personaFormDisabled}
-          />
-          <textarea
-            className={styles.personaInput}
-            placeholder="Palette (colors, lighting, mood)"
-            value={personaPalette}
-            onChange={(event) => setPersonaPalette(event.target.value)}
-            disabled={personaFormDisabled}
-          />
-          <textarea
-            className={styles.personaInput}
-            placeholder="Medium or materials"
-            value={personaMedium}
-            onChange={(event) => setPersonaMedium(event.target.value)}
-            disabled={personaFormDisabled}
-          />
-          <textarea
-            className={styles.personaInput}
-            placeholder="Camera or framing"
-            value={personaCamera}
-            onChange={(event) => setPersonaCamera(event.target.value)}
-            disabled={personaFormDisabled}
-          />
-          <textarea
-            className={styles.personaInput}
-            placeholder="Notes (optional)"
-            value={personaNotes}
-            onChange={(event) => setPersonaNotes(event.target.value)}
-            disabled={personaFormDisabled}
-          />
-          <div className={styles.personaFormActions}>
-            <Button
-              type="submit"
-              size="sm"
-              variant="secondary"
-              disabled={personaFormDisabled || !personaName.trim()}
-              loading={personaSubmitting}
-            >
-              Save persona
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={clearPersonaSelection}
-              disabled={!personas.selectedId}
-            >
-              Clear selection
-            </Button>
-          </div>
-        </form>
-        {personas.error ? <p className={styles.personaError}>{personas.error}</p> : null}
-        <div className={styles.personaList} role="list">
-          {personas.loading && personas.items.length === 0 ? (
-            <p className={styles.recentHint}>Loading personas...</p>
-          ) : personas.items.length ? (
-            personas.items.map((persona) => {
-              const selected = personas.selectedId === persona.id;
-              return (
-                <button
-                  key={persona.id}
-                  type="button"
-                  className={styles.personaItem}
-                  role="listitem"
-                  data-selected={selected ? "true" : undefined}
-                  onClick={() => personas.select(persona.id)}
-                >
-                  <div className={styles.personaItemDetails}>
-                    <span className={styles.personaName}>{persona.name}</span>
-                    {persona.palette ? (
-                      <span className={styles.personaTrait}>Palette: {persona.palette}</span>
-                    ) : null}
-                    {persona.medium ? (
-                      <span className={styles.personaTrait}>Medium: {persona.medium}</span>
-                    ) : null}
-                    {persona.camera ? (
-                      <span className={styles.personaTrait}>Camera: {persona.camera}</span>
-                    ) : null}
-                    {persona.notes ? (
-                      <span className={styles.personaTrait}>Notes: {persona.notes}</span>
-                    ) : null}
-                  </div>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className={styles.personaDeleteButton}
-                    aria-label="Remove persona"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void handlePersonaRemove(persona.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        void handlePersonaRemove(persona.id);
-                      }
-                    }}
-                  >
-                    <TrashSimple size={14} weight="bold" />
-                  </span>
-                </button>
-              );
-            })
+                    const providerRaw =
+                      typeof metadata.provider === "string" && metadata.provider.trim().length
+                        ? metadata.provider.trim().toLowerCase()
+                        : null;
+                    const provider =
+                      providerRaw === "openai"
+                        ? "OpenAI"
+                        : providerRaw === "stability"
+                          ? "Stability"
+                          : providerRaw
+                            ? humanize(providerRaw)
+                            : null;
+                    const resolvedPrompt =
+                      typeof metadata.resolvedPrompt === "string" && metadata.resolvedPrompt.trim().length
+                        ? metadata.resolvedPrompt.trim()
+                        : null;
+                    const userPrompt =
+                      typeof metadata.userPrompt === "string" && metadata.userPrompt.trim().length
+                        ? metadata.userPrompt.trim()
+                        : null;
+                    const snippetSource = resolvedPrompt || userPrompt || "";
+                    const snippet = snippetSource.length ? `"${truncate(snippetSource, 68)}"` : null;
+                    const detailParts = [
+                      mode === "edit" ? "Edit" : "Generate",
+                      stylePreset,
+                      provider,
+                    ].filter(Boolean) as string[];
+                    const detail = detailParts.join(" | ");
+                    const thumbUrl = variant.thumbUrl ?? variant.imageUrl;
+                    const selected =
+                      preview.selected?.kind === "memory" && preview.selected.id === variant.id;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        role="listitem"
+                        className={styles.recentItem}
+                        data-selected={selected ? "true" : undefined}
+                        onClick={() => variants.select(variant)}
+                        aria-label={`Switch to draft ${variant.version}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={thumbUrl}
+                          alt={`Draft ${variant.version}`}
+                          className={styles.recentImage}
+                          loading="lazy"
+                        />
+                        <div className={styles.recentMeta}>
+                          <span className={styles.recentTitle}>Draft v{variant.version}</span>
+                          {snippet ? <span className={styles.recentSnippet}>{snippet}</span> : null}
+                          {detail ? <span className={styles.recentSubtle}>{detail}</span> : null}
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className={styles.recentHint}>
+                    Drafts appear here after you generate or edit with Capsule AI.
+                  </p>
+                )}
+              </div>
+            </div>
           ) : (
-            <p className={styles.recentHint}>Save a persona to reuse your aesthetic cues.</p>
-          )}
-        </div>
+            <div className={styles.railSection} aria-labelledby="customizer-drafts-heading">
+              <h3 id="customizer-drafts-heading">Saved drafts</h3>
+              <p className={styles.recentHint}>
+                Switch to a banner, store banner, logo, or avatar to work with drafts.
+              </p>
+            </div>
+          )
+        ) : null}
+        {activeRailTab === "projects" ? (
+          <>
+            <div className={styles.railSection} aria-labelledby="style-personas-heading">
+              <div className={styles.recentHeader}>
+                <h3 id="style-personas-heading">Style personas</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void personas.refresh();
+                  }}
+                  disabled={personas.loading}
+                  leftIcon={<ArrowsClockwise size={16} weight="bold" />}
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className={styles.recentDescription}>
+                Save reusable palettes, mediums, and camera cues so prompts stay consistent.
+              </div>
+              <form className={styles.personaForm} onSubmit={handlePersonaSubmit}>
+                <input
+                  className={styles.personaInput}
+                  type="text"
+                  placeholder="Persona name"
+                  value={personaName}
+                  onChange={(event) => setPersonaName(event.target.value)}
+                  required
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Palette (colors, lighting, mood)"
+                  value={personaPalette}
+                  onChange={(event) => setPersonaPalette(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Medium or materials"
+                  value={personaMedium}
+                  onChange={(event) => setPersonaMedium(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Camera or framing"
+                  value={personaCamera}
+                  onChange={(event) => setPersonaCamera(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <textarea
+                  className={styles.personaInput}
+                  placeholder="Notes (optional)"
+                  value={personaNotes}
+                  onChange={(event) => setPersonaNotes(event.target.value)}
+                  disabled={personaFormDisabled}
+                />
+                <div className={styles.personaFormActions}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="secondary"
+                    disabled={personaFormDisabled || !personaName.trim()}
+                    loading={personaSubmitting}
+                  >
+                    Save persona
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={clearPersonaSelection}
+                    disabled={!personas.selectedId}
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+              </form>
+              {personas.error ? <p className={styles.personaError}>{personas.error}</p> : null}
+              <div className={styles.personaList} role="list">
+                {personas.loading && personas.items.length === 0 ? (
+                  <p className={styles.recentHint}>Loading personas...</p>
+                ) : personas.items.length ? (
+                  personas.items.map((persona) => {
+                    const selected = personas.selectedId === persona.id;
+                    return (
+                      <button
+                        key={persona.id}
+                        type="button"
+                        className={styles.personaItem}
+                        role="listitem"
+                        data-selected={selected ? "true" : undefined}
+                        onClick={() => personas.select(persona.id)}
+                      >
+                        <div className={styles.personaItemDetails}>
+                          <span className={styles.personaName}>{persona.name}</span>
+                          {persona.palette ? (
+                            <span className={styles.personaTrait}>Palette: {persona.palette}</span>
+                          ) : null}
+                          {persona.medium ? (
+                            <span className={styles.personaTrait}>Medium: {persona.medium}</span>
+                          ) : null}
+                          {persona.camera ? (
+                            <span className={styles.personaTrait}>Camera: {persona.camera}</span>
+                          ) : null}
+                          {persona.notes ? (
+                            <span className={styles.personaTrait}>Notes: {persona.notes}</span>
+                          ) : null}
+                        </div>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          className={styles.personaDeleteButton}
+                          aria-label="Remove persona"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handlePersonaRemove(persona.id);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void handlePersonaRemove(persona.id);
+                            }
+                          }}
+                        >
+                          <TrashSimple size={14} weight="bold" />
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className={styles.recentHint}>Save a persona to reuse your aesthetic cues.</p>
+                )}
+              </div>
+            </div>
+            <div className={styles.railSection} aria-labelledby="advanced-controls-heading">
+              <div className={styles.recentHeader}>
+                <h3 id="advanced-controls-heading">Advanced controls</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={advanced.clear}
+                  disabled={advanced.seed === null && advanced.guidance === null}
+                >
+                  Reset
+                </Button>
+              </div>
+              <div className={styles.recentDescription}>
+                Set deterministic seeds or guidance strength for supported models.
+              </div>
+              <div className={styles.advancedForm}>
+                <label className={styles.advancedField}>
+                  <span className={styles.advancedLabel}>Seed</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    className={styles.advancedInput}
+                    placeholder="Random"
+                    value={advanced.seed ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      advanced.setSeed(value === "" ? null : Number(value));
+                    }}
+                  />
+                </label>
+                <label className={styles.advancedField}>
+                  <span className={styles.advancedLabel}>Guidance</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={30}
+                    step={0.5}
+                    className={styles.advancedInput}
+                    placeholder="Model default"
+                    value={advanced.guidance ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      advanced.setGuidance(value === "" ? null : Number(value));
+                    }}
+                  />
+                </label>
+              </div>
+              <p className={styles.advancedHint}>
+                Seed and guidance apply when generating with Stability models.
+              </p>
+            </div>
+          </>
+        ) : null}
+        {activeRailTab === "memory" ? (
+          <div className={styles.railSection}>
+            <div className={styles.recentHeader}>
+              <h3 id="customizer-memory-heading">Memory</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={memory.openPicker}
+                aria-haspopup="dialog"
+                aria-expanded={memory.isPickerOpen}
+                aria-controls="memory-picker-dialog"
+              >
+                View all memories
+              </Button>
+            </div>
+            <div className={styles.recentDescription}>{meta.recentDescription}</div>
+            <div className={styles.recentList} role="list">
+              {!memory.user ? (
+                <p className={styles.recentHint}>Sign in to see recent memories.</p>
+              ) : memory.loading ? (
+                <p className={styles.recentHint}>Loading your recent memories...</p>
+              ) : memory.error ? (
+                <p className={styles.recentHint}>{memory.error}</p>
+              ) : memory.recentMemories.length ? (
+                memory.recentMemories.map((memoryItem, index) => {
+                  const alt =
+                    memoryItem.title?.trim() ||
+                    memoryItem.description?.trim() ||
+                    "Capsule memory preview";
+                  const selected =
+                    preview.selected?.kind === "memory" && preview.selected.id === memoryItem.id;
+                  const memoryKey = memoryItem.id ? `${memoryItem.id}-${index}` : `memory-${index}`;
+                  return (
+                    <button
+                      key={memoryKey}
+                      type="button"
+                      role="listitem"
+                      className={styles.recentItem}
+                      data-selected={selected ? "true" : undefined}
+                      onClick={() => memory.onSelectMemory(memoryItem)}
+                      aria-label={`Use memory ${alt}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={memoryItem.displayUrl}
+                        alt={alt}
+                        className={styles.recentImage}
+                        loading="lazy"
+                      />
+                      <div className={styles.recentMeta}>
+                        <span className={styles.recentTitle}>{alt}</span>
+                        <span className={styles.recentSubtle}>Memory</span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <p className={styles.recentHint}>
+                  Generate, upload, or pick a memory to see it surface here.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
-    ) : null}
-    {activeRailTab === "advanced" ? (
-      <div className={styles.railSection} aria-labelledby="advanced-controls-heading">
-        <div className={styles.recentHeader}>
-          <h3 id="advanced-controls-heading">Advanced controls</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={advanced.clear}
-            disabled={advanced.seed === null && advanced.guidance === null}
-          >
-            Reset
-          </Button>
-        </div>
-        <div className={styles.recentDescription}>
-          Set deterministic seeds or guidance strength for supported models.
-        </div>
-        <div className={styles.advancedForm}>
-          <label className={styles.advancedField}>
-            <span className={styles.advancedLabel}>Seed</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              step={1}
-              className={styles.advancedInput}
-              placeholder="Random"
-              value={advanced.seed ?? ""}
-              onChange={(event) => {
-                const value = event.target.value;
-                advanced.setSeed(value === "" ? null : Number(value));
-              }}
-            />
-          </label>
-          <label className={styles.advancedField}>
-            <span className={styles.advancedLabel}>Guidance</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={30}
-              step={0.5}
-              className={styles.advancedInput}
-              placeholder="Model default"
-              value={advanced.guidance ?? ""}
-              onChange={(event) => {
-                const value = event.target.value;
-                advanced.setGuidance(value === "" ? null : Number(value));
-              }}
-            />
-          </label>
-        </div>
-        <p className={styles.advancedHint}>
-          Seed and guidance apply when generating with Stability models.
-        </p>
-      </div>
-    ) : null}
-    </div>
     </section>
   );
 
@@ -903,13 +943,76 @@ function CapsuleCustomizerContent() {
         className={styles.panel}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="capsule-customizer-heading"
+        aria-label={meta.headerTitle}
       >
         <header className={styles.header}>
-          <div className={styles.titleGroup}>
-            <h2 id="capsule-customizer-heading">{meta.headerTitle}</h2>
-            <p>{meta.headerSubtitle}</p>
-          </div>
+          {!isMobile ? (
+            <div className={styles.aiToolbar} aria-label="AI controls">
+              <div className={styles.aiToolbarHeading}>
+                <div className={styles.aiToolbarBrandRow}>
+                  <span className={styles.aiMemoryLogo} aria-label="Memory">
+                    <Brain size={18} weight="duotone" />
+                  </span>
+                  <div className={styles.aiImageControls}>
+                    <label className={styles.aiImageControl}>
+                      <span className={styles.aiImageLabel}>Image Quality</span>
+                      <select
+                        className={styles.aiImageSelect}
+                        value={imageQuality}
+                        onChange={(event) =>
+                          setImageQuality(
+                            event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number],
+                          )
+                        }
+                      >
+                        {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
+                          <option key={quality} value={quality}>
+                            {titleCaseComposerQuality(quality)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.aiHeaderSearch}>
+                <button
+                  type="button"
+                  className={styles.aiSearchButton}
+                  onClick={handleSearchClick}
+                  aria-label="Open search"
+                  title="Search memories, capsules, and more"
+                >
+                  <MagnifyingGlass size={18} weight="duotone" />
+                  <span className={styles.aiSearchLabel}>Search</span>
+                </button>
+              </div>
+
+              <div className={styles.aiHeaderActions}>
+                <button
+                  type="button"
+                  className={styles.aiContextToggle}
+                  onClick={toggleSmartContext}
+                  aria-pressed={smartContextEnabled}
+                  data-active={smartContextEnabled ? "true" : undefined}
+                >
+                  <span>Auto context</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className={styles.aiCloseIcon}
+                onClick={actions.handleClose}
+                aria-label={`Close ${meta.assetLabel} customizer`}
+              >
+                <X size={18} weight="bold" />
+              </button>
+            </div>
+          ) : null}
+
+          <div className={styles.headerMainRow}>
           <div className={styles.headerActions}>
             {isMobile ? (
               <>
@@ -937,14 +1040,17 @@ function CapsuleCustomizerContent() {
                 </button>
               </>
             ) : null}
-            <button
-              type="button"
-              className={styles.closeButton}
-              onClick={actions.handleClose}
-              aria-label={`Close ${meta.assetLabel} customizer`}
-            >
-              <X size={18} weight="bold" />
-            </button>
+            {isMobile ? (
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={actions.handleClose}
+                aria-label={`Close ${meta.assetLabel} customizer`}
+              >
+                <X size={18} weight="bold" />
+              </button>
+            ) : null}
+          </div>
           </div>
         </header>
 

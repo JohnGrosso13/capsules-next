@@ -143,14 +143,16 @@ function useVideoPresentation(
   ref: React.RefObject<HTMLVideoElement | null>,
   src: string | null | undefined,
   mimeType: string | null | undefined,
-  presetLetterbox?: boolean,
+  options?: { presetLetterbox?: boolean; preferContainWhenMismatch?: boolean },
 ): VideoPresentationState {
+  const { presetLetterbox, preferContainWhenMismatch = false } = options ?? {};
   const letterboxHint = React.useMemo(
     () => (typeof presetLetterbox === "boolean" ? presetLetterbox : shouldLetterboxMedia(mimeType, src)),
     [mimeType, presetLetterbox, src],
   );
   const [isSquare, setIsSquare] = React.useState(false);
   const [rotation, setRotation] = React.useState<"clockwise" | "counterclockwise" | null>(null);
+  const [letterboxMismatch, setLetterboxMismatch] = React.useState(false);
 
   const updateFromNode = React.useCallback(
     (node: HTMLVideoElement | null) => {
@@ -163,9 +165,18 @@ function useVideoPresentation(
       const square = Math.abs(ratio - 1) <= squareThreshold;
       setIsSquare(square);
 
+      const rect = node.getBoundingClientRect();
+      if (preferContainWhenMismatch && rect.width && rect.height) {
+        const displayRatio = rect.width / rect.height;
+        const ratioDelta = Math.abs(displayRatio - ratio);
+        const mismatch = ratioDelta > 0.12;
+        setLetterboxMismatch(mismatch);
+      } else {
+        setLetterboxMismatch(false);
+      }
+
       if (letterboxHint) {
         const intrinsicLandscape = ratio >= 1;
-        const rect = node.getBoundingClientRect();
         if (!rect.width || !rect.height) {
           setRotation(null);
         } else {
@@ -180,12 +191,13 @@ function useVideoPresentation(
         setRotation(null);
       }
     },
-    [letterboxHint],
+    [letterboxHint, preferContainWhenMismatch],
   );
 
   React.useEffect(() => {
     setIsSquare(false);
     setRotation(null);
+    setLetterboxMismatch(false);
     updateFromNode(ref.current);
   }, [ref, src, letterboxHint, updateFromNode]);
 
@@ -197,7 +209,7 @@ function useVideoPresentation(
   );
 
   return {
-    letterbox: letterboxHint || isSquare,
+    letterbox: letterboxHint || isSquare || letterboxMismatch,
     rotation,
     handleLoadedMetadata,
   };
@@ -406,6 +418,7 @@ function extractPostMedia(
       attachment.mimeType ?? null,
       url,
       normalizeMediaUrl(attachment.thumbnailUrl),
+      normalizeMediaUrl(attachment.variants?.promo),
       normalizeMediaUrl(attachment.variants?.feed),
       normalizeMediaUrl(attachment.variants?.thumb),
       normalizeMediaUrl(attachment.variants?.original),
@@ -414,12 +427,14 @@ function extractPostMedia(
 
     if (kind === "image") {
       const displayUrl =
+        normalizeMediaUrl(attachment.variants?.promo) ??
         normalizeMediaUrl(attachment.variants?.feed) ??
         normalizeMediaUrl(attachment.variants?.full) ??
         url;
       const posterUrl =
         normalizeMediaUrl(attachment.variants?.thumb) ??
         normalizeMediaUrl(attachment.thumbnailUrl) ??
+        normalizeMediaUrl(attachment.variants?.promo) ??
         displayUrl;
       return {
         mediaUrl: displayUrl ?? url,
@@ -436,6 +451,7 @@ function extractPostMedia(
         normalizeMediaUrl(attachment.variants?.feed);
       if (!mediaUrl) continue;
       const posterUrl =
+        normalizeMediaUrl(attachment.variants?.promo) ??
         normalizeMediaUrl(attachment.thumbnailUrl) ??
         normalizeMediaUrl(attachment.variants?.thumb) ??
         null;
@@ -892,11 +908,15 @@ export function PromoRow() {
     currentItem && currentItem.kind === "video" ? currentItem.mediaSrc ?? null : null,
     currentItem && currentItem.kind === "video" ? currentItem.mimeType ?? null : null,
   );
+  const lightboxPreset =
+    currentItem && currentItem.kind === "video" && typeof currentItem.letterbox === "boolean"
+      ? currentItem.letterbox
+      : undefined;
   const lightboxPresentation = useVideoPresentation(
     lightboxVideoRef,
     currentItem && currentItem.kind === "video" ? currentItem.mediaSrc ?? null : null,
     currentItem && currentItem.kind === "video" ? currentItem.mimeType ?? null : null,
-    currentItem?.letterbox,
+    lightboxPreset === undefined ? undefined : { presetLetterbox: lightboxPreset },
   );
   const activeVideoItem =
     activeVideoIndex === null ? null : (videoLightboxItems[activeVideoIndex] ?? null);
@@ -905,11 +925,13 @@ export function PromoRow() {
     activeVideoItem?.mediaSrc ?? null,
     activeVideoItem?.mimeType ?? null,
   );
+  const overlayPreset =
+    typeof activeVideoItem?.letterbox === "boolean" ? activeVideoItem.letterbox : undefined;
   const overlayPresentation = useVideoPresentation(
     videoViewerRef,
     activeVideoItem?.mediaSrc ?? null,
     activeVideoItem?.mimeType ?? null,
-    activeVideoItem?.letterbox,
+    overlayPreset === undefined ? undefined : { presetLetterbox: overlayPreset },
   );
   React.useEffect(() => {
     if (activeVideoItem) return;
@@ -1534,7 +1556,9 @@ function PromoVideoTile({ src, poster, mimeType }: PromoVideoTileProps) {
   const [isPlaying, setIsPlaying] = React.useState(false);
   const { isHlsSource } = useHlsVideo(videoRef, src, mimeType);
   const sanitizedPoster = poster && poster !== src ? poster : null;
-  const presentation = useVideoPresentation(videoRef, src, mimeType);
+  const presentation = useVideoPresentation(videoRef, src, mimeType, {
+    preferContainWhenMismatch: true,
+  });
 
   const startPlayback = React.useCallback(() => {
     const node = videoRef.current;

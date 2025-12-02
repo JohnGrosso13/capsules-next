@@ -101,6 +101,22 @@ export function CreateTiles() {
         router.push("/create/ai-stream");
         return;
       }
+      if (key === "content") {
+        router.push("/create/content");
+        return;
+      }
+      if (key === "moderation") {
+        router.push("/create/moderation");
+        return;
+      }
+      if (key === "insights") {
+        router.push("/create/insights");
+        return;
+      }
+      if (key === "growth") {
+        router.push("/create/growth");
+        return;
+      }
       if (key === "ladders") {
         router.push("/create/ladders");
         return;

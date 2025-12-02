@@ -4,6 +4,12 @@ export const runtime = "nodejs";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { indexMemory } from "@/lib/supabase/memories";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -19,6 +25,36 @@ export async function POST(req: Request) {
   }
 
   try {
+    try {
+      const walletContext = await resolveWalletContext({
+        ownerType: "user",
+        ownerId,
+        supabaseUserId: ownerId,
+        req,
+        ensureDevCredits: true,
+      });
+      ensureFeatureAccess({
+        balance: walletContext.balance,
+        bypass: walletContext.bypass,
+        requiredTier: "default",
+        featureName: "Memory uploads",
+      });
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "compute",
+        amount: 500,
+        reason: "memory.upsert",
+        bypass: walletContext.bypass,
+      });
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return NextResponse.json({ error: billingError.message }, { status: billingError.status });
+      }
+      console.error("billing.memory_upsert.failed", billingError);
+      return NextResponse.json({ error: "Billing check failed" }, { status: 500 });
+    }
+
     await indexMemory({
       ownerId,
       kind: typeof item.kind === "string" ? item.kind : "upload",

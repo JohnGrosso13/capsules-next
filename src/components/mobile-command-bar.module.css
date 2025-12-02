@@ -10,7 +10,7 @@
 }
 
 /* Mobile only */
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .bar {
     display: block;
   }

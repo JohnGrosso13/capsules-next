@@ -918,6 +918,44 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       const trimmedPrompt = prompt.trim();
       if (!trimmedPrompt.length) return;
       const normalizedAttachments = attachments && attachments.length ? attachments : undefined;
+      const prefillOnly =
+        typeof (options?.extras as { prefillOnly?: unknown } | undefined)?.prefillOnly === "boolean"
+          ? Boolean((options!.extras as { prefillOnly: boolean }).prefillOnly)
+          : false;
+
+      if (prefillOnly) {
+        const createdAt = new Date().toISOString();
+        const assistantMessage: ComposerChatMessage = {
+          id: safeRandomUUID(),
+          role: "assistant",
+          content: trimmedPrompt,
+          createdAt,
+          attachments: normalizedAttachments
+            ? normalizedAttachments.map((attachment) => mapPrompterAttachmentToChat(attachment))
+            : null,
+        };
+        setState((prev) => {
+          const existingHistory = prev.history ?? [];
+          const resolvedThreadId = prev.threadId ?? safeRandomUUID();
+          return {
+            ...prev,
+            open: true,
+            loading: false,
+            loadingKind: null,
+            prompt: "",
+            message: assistantMessage.content,
+            choices: null,
+            history: [...existingHistory, assistantMessage],
+            threadId: resolvedThreadId,
+            summaryContext: null,
+            summaryResult: null,
+            summaryOptions: null,
+            summaryMessageId: assistantMessage.id,
+          };
+        });
+        return;
+      }
+
       const composeOptions: Record<string, unknown> = {};
       if (options?.composeMode) {
         composeOptions.compose = options.composeMode;

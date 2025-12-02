@@ -14,6 +14,8 @@ import { ConnectionsSettingsSection } from "./connections-section";
 import { ComposerSettingsSection } from "./composer-settings-section";
 import { NotificationsSettingsSection } from "./notifications-section";
 import { AccessibilitySettingsSection } from "./accessibility-section";
+import { SecurityPrivacySection } from "./security-section";
+import { BillingSection } from "./billing-section";
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
 type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];
@@ -28,11 +30,13 @@ type SettingsSectionKey =
   | "capsules"
   | "account"
   | "connections"
+  | "billing"
   | "appearance"
   | "voice"
   | "composer"
   | "notifications"
-  | "accessibility";
+  | "accessibility"
+  | "security";
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -49,11 +53,13 @@ const NAVIGATION_ITEMS: Array<
   { key: "capsules", label: "Capsules", enabled: true },
   { key: "account", label: "Account", enabled: true },
   { key: "connections", label: "Connections", enabled: true },
+  { key: "billing", label: "Billing", enabled: true },
   { key: "appearance", label: "Appearance", enabled: true },
   { key: "composer", label: "Composer Settings", enabled: true },
   { key: "voice", label: "Voice", enabled: true },
   { key: "notifications", label: "Notifications", enabled: true },
   { key: "accessibility", label: "Accessibility", enabled: true },
+  { key: "security", label: "Security & Privacy", enabled: true },
   { key: "devices", label: "Devices", enabled: false },
   { key: "privacy", label: "Privacy", enabled: false },
   { key: "advanced", label: "Advanced", enabled: false },
@@ -67,6 +73,8 @@ export function SettingsShell({
   const [activeSection, setActiveSection] = React.useState<SettingsSectionKey>("capsules");
   const [accountProfileState, setAccountProfileState] =
     React.useState<AccountProfileProps>(accountProfile);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [isNarrow, setIsNarrow] = React.useState(false);
   const lastAccountProfileProp = React.useRef<AccountProfileProps>(accountProfile);
 
   React.useEffect(() => {
@@ -84,11 +92,13 @@ export function SettingsShell({
         case "capsules":
         case "account":
         case "connections":
+        case "billing":
         case "appearance":
         case "composer":
         case "voice":
         case "notifications":
         case "accessibility":
+        case "security":
           return key as SettingsSectionKey;
         default:
           return null;
@@ -100,6 +110,7 @@ export function SettingsShell({
   const setSectionWithHistory = React.useCallback(
     (section: SettingsSectionKey) => {
       setActiveSection(section);
+      setMenuOpen(false);
       if (typeof window === "undefined") return;
       try {
         const url = new URL(window.location.href);
@@ -154,6 +165,54 @@ export function SettingsShell({
   }, [activeSection, normalizeSectionKey]);
 
   React.useEffect(() => {
+    const media = typeof window !== "undefined" ? window.matchMedia("(max-width: 1024px)") : null;
+    const handler = (event: MediaQueryListEvent | MediaQueryList) => {
+      setIsNarrow(event.matches);
+    };
+    if (media) {
+      handler(media);
+      try {
+        media.addEventListener("change", handler);
+      } catch {
+        media.addListener(handler);
+      }
+    }
+    return () => {
+      if (!media) return;
+      try {
+        media.removeEventListener("change", handler);
+      } catch {
+        media.removeListener(handler);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isNarrow && menuOpen) {
+      setMenuOpen(false);
+    }
+  }, [isNarrow, menuOpen]);
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.(`.${layout.menuSheet}`)) return;
+      if (target?.closest?.(`.${layout.menuButton}`)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
+    };
+  }, [menuOpen]);
+
+  React.useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
     }
@@ -192,41 +251,97 @@ export function SettingsShell({
   return (
     <div className={layout.main}>
       <section className={layout.shell}>
-        <aside className={layout.side} aria-label="Settings sections">
-          <div className={layout.sideInner}>
-            <nav className={layout.sideNav} aria-label="Settings navigation">
-              {NAVIGATION_ITEMS.map((item) => {
-                const isActive = item.enabled && item.key === activeSection;
-                const className = `${layout.sideItem}${isActive ? ` ${layout.sideItemActive}` : ""}`;
+        <aside
+          className={`${layout.side}${isNarrow ? ` ${layout.sideHidden}` : ""}`}
+          aria-label="Settings sections"
+        >
+          {!isNarrow ? (
+            <div className={layout.sideInner}>
+              <nav className={layout.sideNav} aria-label="Settings navigation">
+                {NAVIGATION_ITEMS.map((item) => {
+                  const isActive = item.enabled && item.key === activeSection;
+                  const className = `${layout.sideItem}${isActive ? ` ${layout.sideItemActive}` : ""}`;
 
-                if (!item.enabled) {
+                  if (!item.enabled) {
+                    return (
+                      <button key={item.key} className={className} disabled aria-disabled>
+                        {item.label}
+                      </button>
+                    );
+                  }
+
                   return (
-                    <button key={item.key} className={className} disabled aria-disabled>
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={className}
+                      aria-pressed={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => {
+                        setSectionWithHistory(item.key);
+                      }}
+                    >
                       {item.label}
                     </button>
                   );
-                }
-
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={className}
-                    aria-pressed={isActive}
-                    aria-current={isActive ? "page" : undefined}
-                    onClick={() => {
-                      setSectionWithHistory(item.key);
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+                })}
+              </nav>
+            </div>
+          ) : null}
         </aside>
 
         <div className={layout.content}>
+          {isNarrow ? (
+            <div className={layout.mobileBar}>
+              <button
+                type="button"
+                className={layout.menuButton}
+                aria-expanded={menuOpen}
+                aria-haspopup="dialog"
+                onClick={() => setMenuOpen((v) => !v)}
+              >
+                <span className={layout.menuButtonLabel}>Sections</span>
+                <span className={layout.menuButtonValue}>
+                  {NAVIGATION_ITEMS.find((item) => item.key === activeSection)?.label ?? "Settings"}
+                </span>
+              </button>
+              {menuOpen ? (
+                <div className={layout.menuSheet} role="dialog" aria-label="Settings sections">
+                  <div className={layout.menuSheetHeader}>Settings</div>
+                  <div className={layout.menuSheetList} role="list">
+                    {NAVIGATION_ITEMS.map((item) => {
+                      const disabled = !item.enabled;
+                      const isActive = item.enabled && item.key === activeSection;
+                      const className = `${layout.menuItem}${
+                        isActive ? ` ${layout.menuItemActive}` : ""
+                      }${disabled ? ` ${layout.menuItemDisabled}` : ""}`;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          className={className}
+                          role="listitem"
+                          disabled={disabled}
+                          aria-current={isActive ? "true" : undefined}
+                          onClick={() => {
+                            if (!item.enabled) return;
+                            setSectionWithHistory(item.key as SettingsSectionKey);
+                          }}
+                        >
+                          <span className={layout.menuItemLabel}>{item.label}</span>
+                          {isActive ? (
+                            <span className={layout.menuItemCheck} aria-hidden="true">
+                              •
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {activeSection === "capsules" ? (
             <section aria-label="Capsule management" className={layout.section}>
               <CapsuleSettingsSection initialCapsules={initialCapsules} />
@@ -242,6 +357,12 @@ export function SettingsShell({
           {activeSection === "connections" ? (
             <section aria-label="Connections settings" className={layout.section}>
               <ConnectionsSettingsSection />
+            </section>
+          ) : null}
+
+          {activeSection === "billing" ? (
+            <section aria-label="Billing and wallets" className={layout.section}>
+              <BillingSection capsules={initialCapsules} />
             </section>
           ) : null}
 
@@ -277,6 +398,12 @@ export function SettingsShell({
           {activeSection === "accessibility" ? (
             <section aria-label="Accessibility settings" className={layout.section}>
               <AccessibilitySettingsSection />
+            </section>
+          ) : null}
+
+          {activeSection === "security" ? (
+            <section aria-label="Security and privacy settings" className={layout.section}>
+              <SecurityPrivacySection />
             </section>
           ) : null}
         </div>

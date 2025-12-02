@@ -31,9 +31,11 @@ export type CloudflareImageVariantSet = {
   original: string;
   thumb?: string | null;
   feed?: string | null;
+  promo?: string | null;
   feedSrcset?: string | null;
   full?: string | null;
   fullSrcset?: string | null;
+  promoSrcset?: string | null;
 };
 
 const DEFAULT_RESIZE_BASE =
@@ -51,12 +53,18 @@ const NAMED_VARIANTS = {
     process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGE_VARIANT_THUMB?.trim() ||
     process.env.CLOUDFLARE_IMAGE_VARIANT_THUMB?.trim() ||
     "",
+  promo:
+    process.env.NEXT_PUBLIC_CLOUDFLARE_IMAGE_VARIANT_PROMO?.trim() ||
+    process.env.CLOUDFLARE_IMAGE_VARIANT_PROMO?.trim() ||
+    "",
 } as const;
 
 const FEED_WIDTH_STEPS = [720, 1080, 1440, 1920] as const;
 const FEED_DEFAULT_BASE_WIDTH = 1080;
 const FULL_WIDTH_STEPS = [1280, 1600, 2048, 2560] as const;
 const FULL_DEFAULT_BASE_WIDTH = 2048;
+const PROMO_WIDTH_STEPS = [540, 720, 900, 1080] as const;
+const PROMO_DEFAULT_BASE_WIDTH = 900;
 
 function isDataOrBlobUrl(url: string): boolean {
   return /^data:/i.test(url) || /^blob:/i.test(url);
@@ -240,12 +248,14 @@ export function buildImageVariants(
     thumbnailUrl,
     includeFull = true,
     includeFeed = true,
+    includePromo = true,
     origin,
   }: {
     base?: string | null;
     thumbnailUrl?: string | null;
     includeFull?: boolean;
     includeFeed?: boolean;
+    includePromo?: boolean;
     origin?: string | null;
   } = {},
 ): CloudflareImageVariantSet {
@@ -263,6 +273,7 @@ export function buildImageVariants(
   const isLocal = isLocalOrigin(normalizedOrigin);
   const hasNamedFeed = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.feed.length > 0;
   const hasNamedFull = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.full.length > 0;
+  const hasNamedPromo = isCloudflareImagesDelivery(originalUrl) && NAMED_VARIANTS.promo.length > 0;
   const canUseNamedThumb =
     ((thumbnailUrl && isCloudflareImagesDelivery(thumbnailUrl)) ||
       isCloudflareImagesDelivery(originalUrl)) &&
@@ -273,6 +284,10 @@ export function buildImageVariants(
     const absoluteThumb = toAbsoluteSource(thumbSource, normalizedOrigin);
     if (includeFeed) {
       variants.feed = absoluteThumb;
+    }
+    if (includePromo) {
+      variants.promo = absoluteThumb;
+      variants.promoSrcset = null;
     }
     if (includeFull) {
       variants.full = absoluteOriginal;
@@ -323,6 +338,61 @@ export function buildImageVariants(
               width: FEED_DEFAULT_BASE_WIDTH,
               height: FEED_DEFAULT_BASE_WIDTH,
               fit: "cover",
+              gravity: "faces",
+              quality: 90,
+              format: "auto",
+              sharpen: 1,
+            },
+            resizeBase,
+            origin,
+          );
+        }
+      }
+    }
+  }
+
+  if (includePromo) {
+    if (hasNamedPromo) {
+      variants.promo = buildCloudflareImageUrl(
+        originalUrl,
+        {
+          namedVariant: NAMED_VARIANTS.promo,
+        },
+        resizeBase,
+        origin,
+      );
+      variants.promoSrcset = null;
+    } else {
+      const promoEntries = buildSrcSetEntries(
+        originalUrl,
+        PROMO_WIDTH_STEPS,
+        (width) => ({
+          width,
+          height: Math.round((width * 16) / 9),
+          fit: "contain",
+          gravity: "faces",
+          quality: 90,
+          format: "auto",
+          sharpen: 1,
+        }),
+        resizeBase,
+        origin,
+      );
+      variants.promoSrcset = serializeSrcSet(promoEntries);
+      const preferredPromo = pickPreferredEntry(promoEntries, PROMO_DEFAULT_BASE_WIDTH);
+      if (preferredPromo) {
+        variants.promo = preferredPromo.url;
+      } else {
+        const fallbackPromo = promoEntries.at(-1);
+        if (fallbackPromo) {
+          variants.promo = fallbackPromo.url;
+        } else {
+          variants.promo = buildCloudflareImageUrl(
+            originalUrl,
+            {
+              width: PROMO_DEFAULT_BASE_WIDTH,
+              height: Math.round((PROMO_DEFAULT_BASE_WIDTH * 16) / 9),
+              fit: "contain",
               gravity: "faces",
               quality: 90,
               format: "auto",

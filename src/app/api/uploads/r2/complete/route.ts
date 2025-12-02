@@ -13,6 +13,7 @@ import {
 } from "@/server/memories/uploads";
 import { deriveUploadMetadata, mergeUploadMetadata, resetProcessingForMissingQueue } from "@/lib/uploads/metadata";
 import { getStorageUploadQueueName } from "@/config/storage";
+import { chargeUsage, resolveWalletContext, EntitlementError } from "@/server/billing/entitlements";
 
 export const runtime = "nodejs";
 
@@ -147,6 +148,33 @@ export async function POST(req: Request) {
     }
   } catch (queueError) {
     console.warn("enqueue upload event failed", queueError);
+  }
+
+  const bytesUsed = Math.max(0, session?.content_length ?? 0);
+  if (bytesUsed > 0) {
+    try {
+      const walletContext = await resolveWalletContext({
+        ownerType: "user",
+        ownerId,
+        supabaseUserId: ownerId,
+        req,
+        ensureDevCredits: true,
+      });
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "storage",
+        amount: bytesUsed,
+        reason: "upload.completed",
+        bypass: walletContext.bypass,
+      });
+    } catch (error) {
+      if (error instanceof EntitlementError) {
+        return returnError(error.status, error.code, error.message);
+      }
+      console.error("billing.upload.charge_failed", error);
+      return returnError(500, "billing_error", "Failed to record storage usage");
+    }
   }
 
   return validatedJson(completeUploadResponseSchema, {

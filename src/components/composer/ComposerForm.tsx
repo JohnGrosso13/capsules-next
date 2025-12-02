@@ -125,8 +125,8 @@ function ComposerToolbar({
   contextActive,
   imageQuality,
   onQualityChange,
-  onMenuToggle,
-  mobileRailOpen,
+  onMenuToggle: _onMenuToggle,
+  mobileRailOpen: _mobileRailOpen,
   onPreviewToggle,
   previewOpen,
   isMobile,
@@ -274,7 +274,69 @@ function ComposerToolbar({
   }
 
   return (
-    <>
+    <header
+      className={styles.panelToolbar}
+      data-context-active={contextActive ? "true" : undefined}
+    >
+      <div className={styles.toolbarHeading}>
+        <div className={styles.toolbarBrandRow}>
+          <span className={styles.memoryLogo} aria-label="Memory">
+            <Brain size={18} weight="duotone" />
+          </span>
+          <div className={styles.imageControls}>
+            <label className={styles.imageControl}>
+              <span className={styles.imageControlLabel}>Image Quality</span>
+              <select
+                className={styles.imageSelect}
+                value={imageQuality}
+                onChange={(event) =>
+                  onQualityChange(event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number])
+                }
+                disabled={disabled}
+              >
+                {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
+                  <option key={quality} value={quality}>
+                    {titleCaseComposerQuality(quality)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.headerSearch}>
+        <button
+          type="button"
+          className={styles.toolbarSearchBtn}
+          onClick={handleSearchClick}
+          disabled={disabled}
+          aria-label="Open search"
+          title="Search memories, capsules, and more"
+        >
+          <MagnifyingGlass size={18} weight="duotone" />
+          <span className={styles.toolbarSearchLabel}>Search</span>
+        </button>
+      </div>
+
+      <div className={styles.headerActions}>
+        <button
+          type="button"
+          className={styles.smartContextToggle}
+          onClick={onToggleContext}
+          aria-pressed={smartContextEnabled}
+          disabled={disabled}
+          data-active={smartContextEnabled ? "true" : undefined}
+          title={
+            smartContextEnabled
+              ? "Auto context is on. Click to turn off."
+              : "Auto context is off. Click to turn on."
+          }
+        >
+          <span>Auto context</span>
+        </button>
+      </div>
+
       <button
         type="button"
         className={styles.closeIcon}
@@ -284,91 +346,7 @@ function ComposerToolbar({
       >
         <X size={18} weight="bold" />
       </button>
-
-      <header
-        className={styles.panelToolbar}
-        data-context-active={contextActive ? "true" : undefined}
-      >
-        <div className={styles.toolbarHeading}>
-          <div className={styles.toolbarBrandRow}>
-            <span className={styles.memoryLogo} aria-label="Memory">
-              <Brain size={18} weight="duotone" />
-            </span>
-            <div className={styles.imageControls}>
-              <label className={styles.imageControl}>
-                <span className={styles.imageControlLabel}>Image Quality</span>
-                <select
-                  className={styles.imageSelect}
-                  value={imageQuality}
-                  onChange={(event) =>
-                    onQualityChange(event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number])
-                  }
-                  disabled={disabled}
-                >
-                  {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
-                    <option key={quality} value={quality}>
-                      {titleCaseComposerQuality(quality)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <button
-              type="button"
-              className={styles.toolbarIconBtn}
-              onClick={handleSearchClick}
-              disabled={disabled}
-              aria-label="Open search"
-              title="Search memories, capsules, and more"
-            >
-              <MagnifyingGlass size={18} weight="duotone" />
-              <span className={styles.toolbarIconLabel}>Search</span>
-            </button>
-          </div>
-        </div>
-        <div className={styles.headerActions}>
-          <button
-            type="button"
-            className={styles.smartContextToggle}
-            onClick={onToggleContext}
-            aria-pressed={smartContextEnabled}
-            disabled={disabled}
-            data-active={smartContextEnabled ? "true" : undefined}
-            title={smartContextEnabled ? "Smart context is feeding Capsule AI" : "Enable smart context to ground Capsule AI with your memories"}
-          >
-            <span>{smartContextEnabled ? "Context on" : "Context off"}</span>
-          </button>
-          {isMobile && onMenuToggle ? (
-            <button
-              type="button"
-              className={styles.mobileHeaderButton}
-              onClick={onMenuToggle}
-              aria-expanded={mobileRailOpen}
-              aria-controls="composer-mobile-menu"
-              data-active={mobileRailOpen ? "true" : undefined}
-              disabled={disabled}
-            >
-              <List size={18} weight="bold" />
-              <span>Sections</span>
-            </button>
-          ) : null}
-          {isMobile && onPreviewToggle ? (
-            <button
-              type="button"
-              className={styles.mobileHeaderButton}
-              onClick={onPreviewToggle}
-              aria-expanded={previewOpen}
-              aria-controls="composer-mobile-preview"
-              data-active={previewOpen ? "true" : undefined}
-              disabled={disabled}
-            >
-              <SidebarSimple size={18} weight="bold" />
-              <span>Preview</span>
-            </button>
-          ) : null}
-        </div>
-      </header>
-    </>
+    </header>
   );
 }
 

@@ -166,3 +166,23 @@ export async function updateInviteStatus(
     .maybeSingle();
   return resultOrNull(result, "party.invites.updateStatus");
 }
+
+export async function hasActiveInviteForParty(
+  partyId: string,
+  recipientId: string,
+  nowIso: string,
+): Promise<boolean> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("party_invites")
+    .select<Pick<RawInviteRow, "id">>("id")
+    .eq("party_id", partyId)
+    .eq("recipient_id", recipientId)
+    .in("status", ["pending", "accepted"])
+    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+    .limit(1)
+    .maybeSingle();
+
+  const row = resultOrNull(result, "party.invites.hasActiveInvite");
+  return Boolean(row?.id);
+}

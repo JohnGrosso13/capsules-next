@@ -94,18 +94,20 @@ async function assertPartyAccess({
   metadata: Awaited<ReturnType<typeof fetchPartyMetadata>> extends infer M ? M extends null ? never : M : never;
 }) {
   const isOwner = metadata.ownerId === userId;
-  if (isOwner) {
-    return { allowed: true, isOwner };
+  const currentHostId = metadata.hostId ?? metadata.ownerId;
+  const isHost = currentHostId === userId;
+  if (isOwner || isHost) {
+    return { allowed: true, isOwner, isHost };
   }
   try {
     const participant = await isUserInParty(partyId, userId);
     if (participant) {
-      return { allowed: true, isOwner: false };
+      return { allowed: true, isOwner: false, isHost: false };
     }
   } catch (error) {
     console.warn("party summary access check failed", error);
   }
-  return { allowed: false, isOwner };
+  return { allowed: false, isOwner, isHost: false };
 }
 
 function coerceVerbosity(input: unknown, fallback: SummaryLengthHint): SummaryLengthHint {
@@ -230,6 +232,14 @@ export async function PATCH(
     return returnError(403, "summary_forbidden", "You are not part of this party.");
   }
 
+  if (!access.isOwner && !access.isHost) {
+    return returnError(
+      403,
+      "summary_settings_forbidden",
+      "Only the host can change summary settings.",
+    );
+  }
+
   const patch = {
     summary: {
       ...(body.enabled !== undefined ? { enabled: body.enabled } : null),
@@ -277,6 +287,10 @@ export async function POST(
   const access = await assertPartyAccess({ partyId: normalizedPartyId, userId, metadata });
   if (!access.allowed) {
     return returnError(403, "summary_forbidden", "You are not part of this party.");
+  }
+
+  if (!access.isOwner && !access.isHost) {
+    return returnError(403, "summary_forbidden", "Only the host can generate party summaries.");
   }
 
   if (!metadata.summary?.enabled) {
@@ -331,14 +345,15 @@ export async function POST(
     participants: body.participants ?? null,
   };
 
+  const memoryOwnerId = metadata.ownerId ?? userId;
   const memoryId = await indexMemory({
-    ownerId: userId,
+    ownerId: memoryOwnerId,
     kind: "party_summary",
     mediaUrl: null,
     mediaType: "text/plain",
     title: metadata.topic
-      ? `Party summary · ${metadata.topic}`
-      : `Party summary · ${metadata.partyId}`,
+      ? `Party summary - ${metadata.topic}`
+      : `Party summary - ${metadata.partyId}`,
     description: summaryInput.summary,
     postId: null,
     metadata: memoryMeta,

@@ -43,6 +43,7 @@ import {
   StudioNotificationBanner,
   type StudioNotification,
 } from "./StudioNotificationBanner";
+import { AiStreamCapsuleGate } from "./AiStreamCapsuleGate";
 import type { StudioTab } from "./types";
 import type { StreamSimulcastDestination, StreamWebhookEndpoint } from "@/types/ai-stream";
 import {
@@ -283,6 +284,30 @@ function AiStreamStudioLayoutInner({
       refreshOverview,
     },
   } = useAiStreamStudioStore();
+
+  const [isMobileLayout, setIsMobileLayout] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 960px)");
+    const update = () => {
+      setIsMobileLayout(media.matches);
+    };
+    update();
+    const handler = () => update();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", handler);
+    } else if (typeof media.addListener === "function") {
+      media.addListener(handler);
+    }
+    return () => {
+      if (typeof media.removeEventListener === "function") {
+        media.removeEventListener("change", handler);
+      } else if (typeof media.removeListener === "function") {
+        media.removeListener(handler);
+      }
+    };
+  }, []);
 
   const initialTab = React.useMemo(
     () => normalizeTab(initialView, "studio"),
@@ -838,7 +863,220 @@ function AiStreamStudioLayoutInner({
     };
   }, [selectedCapsule]);
 
+  const renderMobileStudioContent = () => {
+    const encoderBannerClassName = styles.encoderBanner ?? "";
+    const notificationBanner = encoderNotification ? (
+      <StudioNotificationBanner
+        notification={encoderNotification}
+        className={encoderBannerClassName}
+      />
+    ) : null;
+
+    if (selectorOpen || !selectedCapsule) {
+      return (
+        <>
+          {notificationBanner}
+          <AiStreamCapsuleGate
+            capsules={capsules}
+            selectedCapsule={selectedCapsule}
+            onSelectionChange={handleCapsuleChange}
+          />
+        </>
+      );
+    }
+
+    const ingestPrimary = streamOverview?.ingest.primary ?? DEFAULT_PRIMARY_INGEST_URL;
+    const primaryStreamKey =
+      streamOverview?.ingest.streamKey ?? streamOverview?.liveStream.streamKey ?? "";
+    const isLive =
+      activeSession?.status === "active" || activeSession?.status === "connected";
+    const latencyLabel =
+      streamOverview?.health.latencyMode ?? streamOverview?.liveStream.latencyMode ?? streamPreferences.latencyMode;
+
+    return (
+      <div className={encoderStyles.encoderLayout}>
+        {notificationBanner}
+        <section className={encoderStyles.encoderSection}>
+          <div className={encoderStyles.encoderSectionTitle}>Go live from your phone</div>
+          <div className={encoderStyles.encoderSectionSubtitle}>
+            Use a mobile encoder app (like OBS or Larix) and connect it to Capsules
+            with these credentials.
+          </div>
+          <div className={encoderStyles.latencyControls}>
+            <div className={encoderStyles.latencySelectWrapper}>
+              <span>Latency profile</span>
+              <select
+                value={streamPreferences.latencyMode}
+                onChange={handleLatencyChange}
+                className={encoderStyles.latencySelect}
+              >
+                <option value="low">Ultra-low (~2s)</option>
+                <option value="reduced">Reduced (~5s)</option>
+                <option value="standard">Standard (~12s)</option>
+              </select>
+            </div>
+            <div className={encoderStyles.inlineActions}>
+              <Button
+                variant="gradient"
+                size="sm"
+                onClick={handleEnsureStream}
+                loading={actionBusy === "ensure"}
+                disabled={overviewLoading}
+              >
+                {streamOverview ? "Rebuild stream" : "Create live stream"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleTabChange("encoder")}
+              >
+                Advanced encoder settings
+              </Button>
+            </div>
+          </div>
+          <div className={encoderStyles.encoderToolStatus} style={{ marginTop: 16 }}>
+            <div className={encoderStyles.encoderToolStatusMeta}>
+              <span>Stream status</span>
+              <span className={encoderStyles.encoderToolStatusMetaLight}>
+                {streamOverview ? streamOverview.health.status : "Not yet configured"}
+              </span>
+            </div>
+            <div className={encoderStyles.encoderToolStatusMeta}>
+              <span>Latency</span>
+              <span className={encoderStyles.encoderToolStatusMetaLight}>
+                {latencyLabel ?? "low"}
+              </span>
+            </div>
+            {isLive && uptimeSeconds !== null ? (
+              <div className={encoderStyles.encoderToolStatusMeta}>
+                <span>Uptime</span>
+                <span className={encoderStyles.encoderToolStatusMetaLight}>
+                  {formatDuration(uptimeSeconds)}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className={encoderStyles.encoderSection}>
+          <div className={encoderStyles.cardSectionHeader}>
+            <h3 className={encoderStyles.cardSectionTitle}>Connect mobile encoder</h3>
+            <Badge
+              variant="soft"
+              tone={isLive ? "success" : "neutral"}
+              size="sm"
+              className={styles.shellBadge}
+            >
+              {isLive ? "Signal detected" : "Waiting for input"}
+            </Badge>
+          </div>
+          <ul className={encoderStyles.encoderList}>
+            <li className={encoderStyles.encoderRow}>
+              <div>
+                <div className={encoderStyles.encoderLabel}>RTMP ingest URL</div>
+                <div className={encoderStyles.encoderValue}>{ingestPrimary}</div>
+                <div className={encoderStyles.encoderHint}>
+                  Use this as the server URL in your mobile encoder.
+                </div>
+              </div>
+              <div className={encoderStyles.encoderRowActions}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => copy("Primary ingest URL", ingestPrimary)}
+                >
+                  {copiedField === "Primary ingest URL" ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </li>
+            <li className={encoderStyles.encoderRow}>
+              <div>
+                <div className={encoderStyles.encoderLabel}>Stream key</div>
+                <div className={encoderStyles.encoderValue}>
+                  {showPrimaryKey ? primaryStreamKey : maskSecret(primaryStreamKey)}
+                </div>
+                <div className={encoderStyles.encoderHint}>
+                  Paste this as the stream key in your encoder. Keep it secret.
+                </div>
+              </div>
+              <div className={encoderStyles.encoderRowActions}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setShowPrimaryKey((value) => !value)}
+                >
+                  {showPrimaryKey ? "Hide" : "Reveal"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => copy("Primary stream key", primaryStreamKey)}
+                >
+                  {copiedField === "Primary stream key" ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section className={encoderStyles.encoderSection}>
+          <div className={encoderStyles.cardSectionHeader}>
+            <h3 className={encoderStyles.cardSectionTitle}>Scan QR in encoder</h3>
+          </div>
+          <div className={encoderStyles.encoderGrid}>
+            <div>
+              <div className={encoderStyles.encoderHint}>
+                Many mobile encoder apps let you scan a QR code to prefill the RTMP URL and
+                stream key. Open your encoder, choose &quot;Scan QR&quot; (if available), and
+                point it at this code.
+              </div>
+              <div className={encoderStyles.encoderHint} style={{ marginTop: 8 }}>
+                Otherwise, copy the values above and paste them manually.
+              </div>
+            </div>
+            <div>
+              <div className={encoderStyles.encoderLabel}>Mobile ingest QR</div>
+              <div className={encoderStyles.encoderQr}>
+                {qrGenerating ? (
+                  <div className={encoderStyles.encoderQrPlaceholder}>Generating QR code...</div>
+                ) : qrError ? (
+                  <div className={encoderStyles.encoderQrError}>{qrError}</div>
+                ) : qrImageDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrImageDataUrl}
+                    alt="Mobile encoder ingest QR code"
+                    width={200}
+                    height={200}
+                  />
+                ) : (
+                  <div className={encoderStyles.encoderQrPlaceholder}>
+                    Create your live stream to generate a mobile ingest QR.
+                  </div>
+                )}
+              </div>
+              <div className={encoderStyles.inlineActions} style={{ marginTop: 12 }}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => copy("Mobile ingest payload", mobileIngestPayload)}
+                  disabled={!mobileIngestPayload}
+                >
+                  {copiedField === "Mobile ingest payload" ? "Copied" : "Copy payload"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
   const renderStudioContent = () => {
+    if (isMobileLayout) {
+      return renderMobileStudioContent();
+    }
+
     const studioNotification =
       encoderNotification?.title === "Configure your external encoder"
         ? null

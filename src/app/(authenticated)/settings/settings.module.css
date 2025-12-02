@@ -33,6 +33,9 @@
   top: calc(var(--header-height, 72px) + 36px);
   align-self: start;
 }
+.sideHidden {
+  display: none;
+}
 .sideInner {
   border: 1px solid var(--rail-border, rgba(255, 255, 255, 0.16));
   background: linear-gradient(
@@ -108,6 +111,106 @@
   width: 100%;
   max-width: 100%;
 }
+.mobileBar {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset, var(--space-sm)));
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+  background: color-mix(in srgb, var(--surface-overlay, #0c1024) 80%, transparent);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  border-radius: 14px;
+}
+.menuButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.16)) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    var(--glass-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--glass-bg-2, rgba(255, 255, 255, 0.04))
+  );
+  color: var(--text, #f6f8ff);
+  font-weight: 700;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.4),
+    0 12px 28px rgba(5, 10, 30, 0.32);
+}
+.menuButtonLabel {
+  font-size: 0.9rem;
+  color: var(--text-2, rgba(255, 255, 255, 0.72));
+}
+.menuButtonValue {
+  font-weight: 800;
+}
+.menuSheet {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.16)) 80%, transparent);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay, #0c1024) 94%, transparent),
+      color-mix(in srgb, var(--surface-overlay, #0c1024) 88%, transparent)
+    ),
+    var(--surface-overlay, rgba(8, 12, 26, 0.9));
+  box-shadow: var(--card-shadow, 0 16px 32px rgba(5, 10, 30, 0.35));
+}
+.menuSheetHeader {
+  font-weight: 800;
+  color: var(--text, #f6f8ff);
+  letter-spacing: 0.01em;
+}
+.menuSheetList {
+  display: grid;
+  gap: 8px;
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.16)) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-overlay, rgba(8, 12, 26, 0.85)) 90%, transparent),
+    color-mix(in srgb, var(--surface-overlay, rgba(8, 12, 26, 0.78)) 70%, transparent)
+  );
+  color: var(--text, #f6f8ff);
+  font-weight: 700;
+  text-align: left;
+}
+.menuItemActive {
+  border-color: color-mix(in srgb, var(--color-brand, #2f5fd7) 70%, transparent);
+  background: var(--brand-gradient);
+  color: var(--text-on-brand, #0e1024);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-brand, #2f5fd7) 40%, transparent),
+    0 10px 24px rgba(5, 10, 30, 0.35);
+}
+.menuItemDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.menuItemLabel {
+  flex: 1;
+}
+.menuItemCheck {
+  font-weight: 900;
+}
 .contentHead {
   display: flex;
   align-items: center;
@@ -177,5 +280,16 @@
   }
   .side {
     position: static;
+  }
+}
+
+@media (max-width: 1024px) {
+  .shell {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .content {
+    max-width: min(820px, 100%);
+    margin: 0 auto;
   }
 }

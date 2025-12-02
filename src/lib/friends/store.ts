@@ -169,7 +169,9 @@ export class FriendsStore {
       const presence = next.presence ?? prev.presence ?? emptyPresence;
       const partyInvites = next.partyInvites ?? prev.partyInvites;
       const capsuleInvites =
-        next.capsuleInvites ?? mapCapsuleInviteSummaries(graph?.capsuleInvites ?? []);
+        next.capsuleInvites ??
+        prev.capsuleInvites ??
+        mapCapsuleInviteSummaries(graph?.capsuleInvites ?? []);
       const friends = applyPresenceToSummaries(graph, presence);
       const incomingRequests = mapRequestSummaries(graph?.incomingRequests ?? [], "incoming");
       const outgoingRequests = mapRequestSummaries(graph?.outgoingRequests ?? [], "outgoing");

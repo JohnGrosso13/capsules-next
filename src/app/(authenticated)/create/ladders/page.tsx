@@ -104,12 +104,7 @@ export default async function LadderCreatePage({
       : "ladders";
 
   return (
-    <AppPage
-      activeNav="create"
-      showPrompter={false}
-      layoutVariant="capsule"
-      showDiscoveryRightRail={true}
-    >
+    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <CompetitiveStudioLayout
         capsules={dedupedCapsules}
         initialCapsuleId={initialCapsuleId}

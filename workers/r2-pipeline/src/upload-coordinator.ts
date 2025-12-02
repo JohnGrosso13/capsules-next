@@ -322,6 +322,25 @@ export class UploadCoordinator {
       if (!exists) state.derived.push(derived);
     }
 
+    if (derived?.type === "safety.scan" && derived.metadata && typeof derived.metadata === "object") {
+      const safety = derived.metadata as Record<string, unknown>;
+      const baseMeta =
+        state.metadata && typeof state.metadata === "object" && !Array.isArray(state.metadata)
+          ? { ...state.metadata }
+          : {};
+      baseMeta.safety_scan = safety;
+      const processingUpdates: Record<string, unknown> = {};
+      const decision = (safety as { decision?: unknown }).decision;
+      const scannedAt = (safety as { scanned_at?: unknown }).scanned_at;
+      if (typeof decision === "string") {
+        processingUpdates.safety_decision = decision;
+      }
+      if (typeof scannedAt === "string") {
+        processingUpdates.safety_scanned_at = scannedAt;
+      }
+      state.metadata = mergeProcessingStatus(baseMeta, processingUpdates);
+    }
+
     const now = new Date().toISOString();
     if (error) {
       state.metadata = mergeProcessingStatus(state.metadata, {

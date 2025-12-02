@@ -14,6 +14,7 @@ import { indexMemory } from "@/lib/supabase/memories";
 import { captionImage, captionVideo } from "@/lib/ai/openai";
 import { ensurePollStructure } from "@/lib/composer/draft";
 import { normalizeUuid, pruneNullish } from "./utils";
+import { moderateTextContent, ModerationError } from "@/server/moderation/text";
 import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
 import { notifyCapsulePost } from "@/server/notifications/triggers";
 
@@ -481,6 +482,54 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
 
   const tags = normalizeTags(draft.tags);
   if (tags) row.tags = tags;
+
+  try {
+    const textParts: string[] = [];
+    if (typeof row.content === "string" && row.content.trim().length) {
+      textParts.push(row.content.trim());
+    }
+    if (typeof row.media_prompt === "string" && row.media_prompt.trim().length) {
+      textParts.push(row.media_prompt.trim());
+    }
+    if (draft.poll && typeof draft.poll === "object") {
+      const pollSource = draft.poll as { question?: unknown; options?: unknown };
+      const question =
+        typeof pollSource.question === "string"
+          ? pollSource.question
+          : pollSource.question != null
+            ? String(pollSource.question)
+            : "";
+      if (question.trim().length) textParts.push(question.trim());
+      if (Array.isArray(pollSource.options)) {
+        pollSource.options.forEach((option) => {
+          const normalized =
+            typeof option === "string" ? option : option != null ? String(option) : "";
+          if (normalized.trim().length) textParts.push(normalized.trim());
+        });
+      }
+    }
+
+    const moderationInput = textParts.join("\n").slice(0, 6000);
+    const moderation = await moderateTextContent(moderationInput, { kind: "post" });
+    if (moderation.decision === "block") {
+      throw new ModerationError(
+        "content_blocked",
+        "Post was blocked by the safety policy.",
+        "block",
+        400,
+        moderation,
+      );
+    }
+    if (moderation.decision === "review") {
+      row.visibility = "review";
+      row.source = `${row.source ?? "web"}|safety_review`;
+    }
+  } catch (error) {
+    if (error instanceof ModerationError) {
+      throw error;
+    }
+    console.warn("post moderation failed", error);
+  }
 
   if (clientId) {
     try {

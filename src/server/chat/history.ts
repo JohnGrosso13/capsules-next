@@ -54,7 +54,17 @@ export async function getDirectConversationHistory(params: {
   if (isGroupConversationId(params.conversationId)) {
     return getGroupConversationHistory(params);
   }
-  const { left, right } = parseConversationId(params.conversationId);
+  let parsedConversation: { left: string; right: string };
+  try {
+    parsedConversation = parseConversationId(params.conversationId);
+  } catch {
+    throw new ChatServiceError(
+      "invalid_conversation",
+      400,
+      "That conversation could not be found.",
+    );
+  }
+  const { left, right } = parsedConversation;
   const requesterTrimmed = params.requesterId?.trim();
   if (!requesterTrimmed) {
     throw new ChatServiceError("auth_required", 401, "Sign in to view this conversation.");

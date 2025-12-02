@@ -86,6 +86,7 @@ describe("chat utils sanitization", () => {
           sessionId: null,
         },
       ],
+      task: null,
     });
   });
 
@@ -93,6 +94,7 @@ describe("chat utils sanitization", () => {
     expect(decodeMessagePayload("  just text  ")).toEqual({
       text: "just text",
       attachments: [],
+      task: null,
     });
   });
 

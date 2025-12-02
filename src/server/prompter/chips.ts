@@ -132,7 +132,7 @@ function contextualHomeChips(now: Date): ChipDefinition[] {
       handoff: {
         intent: "ai_prompt",
         prompt:
-          "You are Capsules AI. Help create a concise plan for today. Ask for top 3 priorities, owners, and blockers. Keep it tight and wait for answers before drafting.",
+          "Let's map out today's plan. What are your top priorities, who owns them, and are there any blockers?",
         options: { composeMode: "post", extras: { replyMode: "chat", chipId: "home_todays_plan" } },
       },
       source: "context",
@@ -148,7 +148,7 @@ function contextualHomeChips(now: Date): ChipDefinition[] {
       handoff: {
         intent: "ai_prompt",
         prompt:
-          "You are Capsules AI. Gather a daily recap. Ask for wins, learnings, blockers, shoutouts, and a next-step CTA. Keep the opener short; wait for inputs before drafting.",
+          "Let's recap today. What were the big wins, learnings, blockers, or shoutouts you want to capture?",
         options: { composeMode: "post", extras: { replyMode: "chat", chipId: "home_daily_recap" } },
       },
       source: "context",
@@ -163,7 +163,7 @@ function contextualHomeChips(now: Date): ChipDefinition[] {
     handoff: {
       intent: "ai_prompt",
       prompt:
-        "You are Capsules AI. Draft an event reminder. Ask for event title, time, audience, and CTA (RSVP, join live, bring questions). Keep opener short and gather details first.",
+        "Let's write a reminder for an upcoming event. What's the event, when is it, and who should it reach?",
       options: { composeMode: "post", extras: { replyMode: "chat", chipId: "home_event_reminder" } },
     },
     source: "context",
@@ -177,7 +177,7 @@ function contextualHomeChips(now: Date): ChipDefinition[] {
     handoff: {
       intent: "ai_prompt",
       prompt:
-        "You are Capsules AI. Help turn the latest stream into clips. Ask for the stream title, key moments, and desired clip count or duration. Keep opener short; wait for inputs.",
+        "Let's pull some clips from your latest stream. What was the stream about, and which moments should we turn into clips?",
       options: { composeMode: "post", extras: { replyMode: "chat", chipId: "home_clip_stream" } },
     },
     source: "context",
@@ -197,7 +197,7 @@ function aiSuggestedHomeChips(now: Date): ChipDefinition[] {
       handoff: {
         intent: "ai_prompt",
         prompt:
-          "You are Capsules AI. Brainstorm a short, contrarian take to spark replies. Ask for the topic and audience tone. Keep opener brief; wait for inputs.",
+          "Let's draft a spicy hot take to spark replies. What topic and audience do you have in mind?",
         options: { composeMode: "post", extras: { replyMode: "chat", chipId: "home_ai_hot_take" } },
       },
       source: "ai",
@@ -210,7 +210,7 @@ function aiSuggestedHomeChips(now: Date): ChipDefinition[] {
       handoff: {
         intent: "ai_prompt",
         prompt:
-          "You are Capsules AI. Build a quick FAQ for this capsule. Ask for 3-5 common questions and concise answers. Keep opener short; wait for inputs.",
+          "Let's build a quick FAQ for this capsule. What are a few common questions and answers you want included?",
         options: { composeMode: "post", extras: { replyMode: "chat", chipId: "home_ai_faq" } },
       },
       source: "ai",
@@ -223,7 +223,7 @@ function aiSuggestedHomeChips(now: Date): ChipDefinition[] {
       handoff: {
         intent: "ai_prompt",
         prompt:
-          "You are Capsules AI. Suggest a quick engagement idea (poll, QOTD, shoutout). Ask for audience and topic. Keep opener short; wait for inputs before drafting.",
+          "Let's come up with a quick engagement idea—like a poll, QOTD, or shoutout. Who's the audience, and what topic should we play with?",
         options: {
           composeMode: "post",
           extras: { replyMode: "chat", chipId: "home_ai_boost" },

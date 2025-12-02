@@ -146,6 +146,8 @@ describe("chat actions", () => {
           sessionId: null,
         },
       ],
+      taskId: null,
+      taskTitle: null,
     });
     expect(result.participants).toEqual([
       { id: "user-1", name: "User One", avatar: "https://example.com/u1.png" },

@@ -161,18 +161,13 @@ type PrivacyOption = {
   description: string;
 };
 
-const DEFAULT_PRIVACY: PartyPrivacy = "friends";
+const DEFAULT_PRIVACY: PartyPrivacy = "invite-only";
 
 const PRIVACY_OPTIONS: PrivacyOption[] = [
   {
     value: "public",
     label: "Open party",
     description: "Anyone with the link can jump in.",
-  },
-  {
-    value: "friends",
-    label: "Friends only",
-    description: "Visible to your friends on Capsules.",
   },
   {
     value: "invite-only",
@@ -233,6 +228,11 @@ type LegacyNavigator = Navigator & {
   mozGetUserMedia?: LegacyGetUserMediaFn;
   getUserMedia?: LegacyGetUserMediaFn;
 };
+
+const INPUT_DEVICE_STORAGE_KEY = "capsules:voice:input-device";
+const OUTPUT_DEVICE_STORAGE_KEY = "capsules:voice:output-device";
+const INPUT_VOLUME_STORAGE_KEY = "capsules:voice:input-volume";
+const OUTPUT_VOLUME_STORAGE_KEY = "capsules:voice:output-volume";
 
 async function requestMicrophonePermission(): Promise<void> {
   if (typeof window === "undefined") return;
@@ -875,11 +875,11 @@ export function PartyPanel({
   }, [action, isConnecting, isLoading, session, status]);
 
   const privacyStatusLabel = React.useMemo(() => {
-    return PRIVACY_OPTIONS.find((option) => option.value === privacy)?.label ?? "Friends only";
+    return PRIVACY_OPTIONS.find((option) => option.value === privacy)?.label ?? "Invite only";
   }, [privacy]);
 
   const summarySetupStatusLabel = React.useMemo(() => {
-    return createSummaryEnabled ? `On · ${SUMMARY_LABELS[createSummaryVerbosity]}` : "Off";
+    return createSummaryEnabled ? `On - ${SUMMARY_LABELS[createSummaryVerbosity]}` : "Off";
   }, [createSummaryEnabled, createSummaryVerbosity]);
 
   const panelClassName =
@@ -918,7 +918,7 @@ export function PartyPanel({
           <ExpandableSetting
             id="party-privacy"
             title="Party privacy"
-            eyebrow="Default: Friends only"
+            eyebrow="Default: Invite only"
             description="Choose who can discover and join your lobby."
             status={<span className={styles.settingStatusPill}>{privacyStatusLabel}</span>}
             open={privacyExpanded}
@@ -1086,6 +1086,7 @@ export function PartyPanel({
   );
 
   const renderActiveTile = (currentSession: PartySession) => {
+    const activeHostId = currentSession.metadata.hostId ?? currentSession.metadata.ownerId;
     const statusText = status === "connected" ? null : partyStatusLabel;
     const summaryEnabled = summarySettings.enabled;
     const summaryVerbosity = summarySettings.verbosity;
@@ -1093,17 +1094,24 @@ export function PartyPanel({
       ? formatRelativeTime(summarySettings.lastGeneratedAt)
       : null;
     const summaryMemoryId = summarySettings.memoryId ?? null;
-    const canManageSummary = currentSession.isOwner;
+    const canManageSummary = currentSession.isOwner || activeHostId === user?.id;
     const transcriptsReady = transcriptSegments.length > 0;
     const summaryButtonDisabled =
-      summaryGenerating || summaryUpdating || !summaryEnabled || !transcriptsReady;
+      summaryGenerating || summaryUpdating || !summaryEnabled || !transcriptsReady || !canManageSummary;
     const summaryGenerateLabel = summaryGenerating ? "Summarizing..." : "Generate summary";
     const summaryStatusLabel = summaryUpdating
       ? "Updating..."
       : summaryEnabled
         ? "Enabled"
         : "Disabled";
-    const hostName = currentSession.metadata.ownerDisplayName ?? "Host";
+    const hostProfile = activeHostId ? participantProfiles.get(activeHostId) ?? null : null;
+    const hostName =
+      hostProfile?.name ??
+      (activeHostId === user?.id
+        ? "You"
+        : activeHostId ??
+          currentSession.metadata.ownerDisplayName ??
+          "Host");
     const liveDurationLabel = createdAtLabel || "Just now";
 
     return (
@@ -1476,15 +1484,22 @@ function PartyStageScene({
   const room = useRoomContext();
   const participants = useParticipants();
   const chat = useChatContext();
+  const { user } = useCurrentUser();
   const transcriptBufferRef = React.useRef<Map<string, PartyTranscriptSegment>>(new Map());
   const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
   const [micBusy, setMicBusy] = React.useState(false);
   const [micNotice, setMicNotice] = React.useState<string | null>(null);
   const [isDeafened, setIsDeafened] = React.useState(false);
+  const [voiceInputDeviceId, setVoiceInputDeviceId] = React.useState<string | null>(null);
+  const [voiceOutputDeviceId, setVoiceOutputDeviceId] = React.useState<string | null>(null);
+  const [voiceInputVolume, setVoiceInputVolume] = React.useState<number>(1);
+  const [voiceOutputVolume, setVoiceOutputVolume] = React.useState<number>(1);
   const [volumeLevels, setVolumeLevels] = React.useState<Record<string, number>>({});
   const [menuState, setMenuState] = React.useState<ParticipantMenuState | null>(null);
   const [assistantNotice, setAssistantNotice] = React.useState<string | null>(null);
   const [assistantBusy, setAssistantBusy] = React.useState(false);
+  const [hostNotice, setHostNotice] = React.useState<string | null>(null);
+  const [hostBusy, setHostBusy] = React.useState(false);
   const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
     room,
     props: {
@@ -1496,6 +1511,36 @@ function PartyStageScene({
     const { style: _style, ...rest } = startAudioProps;
     return rest;
   }, [startAudioProps]);
+
+  const currentHostId = session.metadata.hostId ?? session.metadata.ownerId;
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const readString = (key: string): string | null => {
+      try {
+        const value = window.localStorage.getItem(key);
+        return value && value.trim().length ? value : null;
+      } catch {
+        return null;
+      }
+    };
+    const readNumber = (key: string, fallback: number): number => {
+      try {
+        const value = window.localStorage.getItem(key);
+        if (!value) return fallback;
+        const parsed = Number.parseInt(value, 10);
+        if (Number.isNaN(parsed)) return fallback;
+        return Math.min(Math.max(parsed, 0), 100);
+      } catch {
+        return fallback;
+      }
+    };
+
+    setVoiceInputDeviceId(readString(INPUT_DEVICE_STORAGE_KEY));
+    setVoiceOutputDeviceId(readString(OUTPUT_DEVICE_STORAGE_KEY));
+    setVoiceInputVolume(readNumber(INPUT_VOLUME_STORAGE_KEY, 80) / 100);
+    setVoiceOutputVolume(readNumber(OUTPUT_VOLUME_STORAGE_KEY, 80) / 100);
+  }, []);
 
   const getParticipantVolume = React.useCallback(
     (identity: string | null | undefined): number => {
@@ -1547,10 +1592,11 @@ function PartyStageScene({
   const applyParticipantAudioState = React.useCallback(() => {
     if (!room) return;
     room.remoteParticipants.forEach((participant, identity) => {
-      const targetVolume = isDeafened ? 0 : getParticipantVolume(identity);
+      const targetVolume =
+        (isDeafened ? 0 : getParticipantVolume(identity)) * voiceOutputVolume;
       setRemoteParticipantVolume(identity, targetVolume);
     });
-  }, [getParticipantVolume, isDeafened, room, setRemoteParticipantVolume]);
+  }, [getParticipantVolume, isDeafened, room, setRemoteParticipantVolume, voiceOutputVolume]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -1577,6 +1623,30 @@ function PartyStageScene({
       room.off(RoomEvent.Reconnected, handleRoomReconnected);
     };
   }, [onDisconnected, onReady, onReconnecting, room]);
+
+  React.useEffect(() => {
+    if (!room || !voiceInputDeviceId) return;
+    room
+      .switchActiveDevice?.("audioinput", voiceInputDeviceId)
+      .catch((error) => console.warn("Failed to switch input device", error));
+  }, [room, voiceInputDeviceId]);
+
+  React.useEffect(() => {
+    if (!room || !voiceOutputDeviceId) return;
+    room
+      .switchActiveDevice?.("audiooutput", voiceOutputDeviceId)
+      .catch((error) => console.warn("Failed to switch output device", error));
+  }, [room, voiceOutputDeviceId]);
+
+  React.useEffect(() => {
+    if (!room) return;
+    room.localParticipant?.audioTrackPublications.forEach((publication) => {
+      const track = publication.audioTrack;
+      if (track && "setVolume" in track && typeof track.setVolume === "function") {
+        track.setVolume(Math.min(Math.max(voiceInputVolume, 0), 1));
+      }
+    });
+  }, [room, voiceInputVolume]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -1691,7 +1761,8 @@ function PartyStageScene({
       if (publication.kind !== Track.Kind.Audio) return;
       const identity = participant.identity;
       if (!identity) return;
-      const targetVolume = isDeafened ? 0 : getParticipantVolume(identity);
+      const targetVolume =
+        (isDeafened ? 0 : getParticipantVolume(identity)) * voiceOutputVolume;
       const track = publication.audioTrack;
       if (track && "setVolume" in track && typeof track.setVolume === "function") {
         track.setVolume(targetVolume);
@@ -1703,7 +1774,7 @@ function PartyStageScene({
     return () => {
       room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
     };
-  }, [getParticipantVolume, isDeafened, room]);
+  }, [getParticipantVolume, isDeafened, room, voiceOutputVolume]);
 
   const handleToggleDeafen = React.useCallback(() => {
     if (!room) return;
@@ -1724,10 +1795,10 @@ function PartyStageScene({
           [identity]: normalized,
         };
       });
-      const effectiveVolume = isDeafened ? 0 : normalized;
+      const effectiveVolume = (isDeafened ? 0 : normalized) * voiceOutputVolume;
       setRemoteParticipantVolume(identity, effectiveVolume);
     },
-    [isDeafened, setRemoteParticipantVolume],
+    [isDeafened, setRemoteParticipantVolume, voiceOutputVolume],
   );
 
   const closeParticipantMenu = React.useCallback(() => {
@@ -1775,6 +1846,49 @@ function PartyStageScene({
       closeParticipantMenu();
     },
     [chat, closeParticipantMenu, friendTargets, participantProfiles, room],
+  );
+
+  const handleMakeHost = React.useCallback(
+    async (identity: string) => {
+      if (!session || !identity || hostBusy) return;
+      if (identity === currentHostId) {
+        setHostNotice("That participant is already the host.");
+        return;
+      }
+      setHostBusy(true);
+      setHostNotice(null);
+      try {
+        const res = await fetch(`/api/party/${session.partyId}/host`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ hostId: identity }),
+        });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          const message =
+            payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
+              ? (payload as { message: string }).message
+              : "Unable to hand off hosting right now.";
+          throw new Error(message);
+        }
+        const nextHost =
+          payload && typeof payload === "object" && "hostId" in payload && typeof (payload as { hostId?: unknown }).hostId === "string"
+            ? ((payload as { hostId: string }).hostId as string)
+            : identity;
+        updateMetadata((metadata) => ({
+          ...metadata,
+          hostId: nextHost,
+        }));
+        setHostNotice("Hosting handed off.");
+        closeParticipantMenu();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to hand off hosting.";
+        setHostNotice(message);
+      } finally {
+        setHostBusy(false);
+      }
+    },
+    [closeParticipantMenu, currentHostId, hostBusy, session, updateMetadata],
   );
 
   React.useEffect(() => {
@@ -1838,6 +1952,9 @@ function PartyStageScene({
   const menuVolume = menuState ? getParticipantVolume(menuState.identity) : 1;
   const canMessageSelected =
     Boolean(menuState && menuState.identity !== room?.localParticipant?.identity);
+  const canTransferHost =
+    Boolean(user?.id) &&
+    (user?.id === session.metadata.ownerId || user?.id === currentHostId);
   const assistantPresent = React.useMemo(
     () =>
       participants.some(
@@ -2088,6 +2205,11 @@ function PartyStageScene({
           {assistantNotice}
         </div>
       ) : null}
+      {hostNotice ? (
+        <div className={styles.micNotice} role="status">
+          {hostNotice}
+        </div>
+      ) : null}
       </div>
       {menuState ? (
         <ParticipantMenuPortal
@@ -2097,6 +2219,9 @@ function PartyStageScene({
           onVolumeChange={(value) => handleParticipantVolumeChange(menuState.identity, value)}
           volume={menuVolume}
           disableMessage={!canMessageSelected}
+          canMakeHost={canTransferHost && menuState.identity !== currentHostId}
+          onMakeHost={() => handleMakeHost(menuState.identity)}
+          makeHostBusy={hostBusy}
         />
       ) : null}
     </>
@@ -2227,6 +2352,9 @@ type ParticipantMenuPortalProps = {
   onVolumeChange(value: number): void;
   volume: number;
   disableMessage?: boolean;
+  canMakeHost?: boolean;
+  onMakeHost?: () => void;
+  makeHostBusy?: boolean;
 };
 
 function ParticipantMenuPortal({
@@ -2236,6 +2364,9 @@ function ParticipantMenuPortal({
   onVolumeChange,
   volume,
   disableMessage = false,
+  canMakeHost = false,
+  onMakeHost,
+  makeHostBusy = false,
 }: ParticipantMenuPortalProps) {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return null;
@@ -2277,6 +2408,19 @@ function ParticipantMenuPortal({
           <PaperPlaneTilt size={16} weight="bold" />
           Send a message
         </button>
+        {canMakeHost ? (
+          <button
+            type="button"
+            className={cm.item}
+            onClick={() => {
+              onMakeHost?.();
+            }}
+            disabled={makeHostBusy}
+          >
+            <CrownSimple size={16} weight="bold" />
+            {makeHostBusy ? "Handing off..." : "Make host"}
+          </button>
+        ) : null}
         <div className={cm.separator} aria-hidden="true" />
         <div className={styles.participantMenuSlider}>
           <div className={styles.participantMenuSliderLabel}>

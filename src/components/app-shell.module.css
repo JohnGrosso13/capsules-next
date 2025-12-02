@@ -332,7 +332,64 @@
   justify-items: stretch;
 }
 
-@media (max-width: 1000px) {
+/* Treat tablets like mobile: compact shell padding and single-column content */
+@media (max-width: 1024px) {
+  .outer {
+    --header-height: 0px;
+    padding: calc(env(safe-area-inset-top, 0px) + var(--layout-mobile-top-offset)) 0
+      calc(var(--mobile-dock-height, 0px) + var(--layout-mobile-bottom-offset));
+  }
+  .page {
+    width: 100%;
+    max-width: 100vw;
+    margin: 0;
+    --app-feed-width: 100%;
+    --app-rail-width: 100%;
+    --app-column-gap: var(--layout-mobile-section-gap);
+    padding: var(--layout-mobile-top-offset) 0 var(--layout-mobile-outer-padding-bottom);
+    padding-left: max(env(safe-area-inset-left, 0px), var(--mobile-page-gutter, 0px));
+    padding-right: max(env(safe-area-inset-right, 0px), var(--mobile-page-gutter, 0px));
+  }
+  .main {
+    gap: var(--layout-mobile-section-gap);
+  }
+  .layout {
+    gap: var(--layout-mobile-section-gap);
+  }
+  .page[data-layout="home"] {
+    --layout-prompter-margin-bottom-mobile: clamp(0px, 0.8vw, var(--space-sm));
+  }
+  .page[data-layout="home"] .main {
+    gap: clamp(var(--space-sm), 1.6vw, var(--space-md));
+  }
+  .prompterStage {
+    margin: 0 auto var(--layout-prompter-margin-bottom-mobile);
+  }
+  /* Ensure center content is never clamped on tablet/mobile */
+  .content,
+  .content[data-layout="home"] {
+    max-width: 100vw;
+    width: 100%;
+  }
+}
+
+/* On mid tablets, keep feed width closer to desktop to avoid over-large tiles */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .page {
+    --app-feed-width: clamp(640px, 92vw, 880px);
+    --app-rail-width: 100%;
+    max-width: min(980px, 100vw);
+    margin: 0 auto;
+  }
+  .content,
+  .content[data-layout="home"] {
+    max-width: var(--app-feed-width);
+    width: min(100%, var(--app-feed-width));
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 1100px) {
   .layout {
     display: flex;
     flex-direction: column;
@@ -387,7 +444,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .rail {
     display: none;
   }

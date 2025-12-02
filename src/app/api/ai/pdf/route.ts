@@ -3,6 +3,12 @@ import { z } from "zod";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { returnError } from "@/server/validation/http";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
 
 const sectionSchema = z.object({
   heading: z.string().min(1, "Section heading cannot be empty"),
@@ -23,6 +29,8 @@ const requestSchema = z.object({
   footer: z.string().optional().transform((value) => value?.trim() || null),
   downloadName: z.string().optional().transform((value) => value?.trim() || null),
 });
+
+const PDF_COMPUTE_COST = 1_000;
 
 function sanitizeFilename(value: string | null | undefined): string {
   const fallback = "composer.pdf";
@@ -52,6 +60,36 @@ export async function POST(req: Request) {
 
   const { title, summary, bullets = [], sections = [], conversation = [], footer, downloadName } =
     parsed.data;
+
+  try {
+    const walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "default",
+      featureName: "PDF export",
+    });
+    await chargeUsage({
+      wallet: walletContext.wallet,
+      balance: walletContext.balance,
+      metric: "compute",
+      amount: PDF_COMPUTE_COST,
+      reason: "ai.pdf",
+      bypass: walletContext.bypass,
+    });
+  } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message);
+    }
+    console.error("billing.ai_pdf.failed", error);
+    return returnError(500, "billing_error", "Failed to verify allowance");
+  }
 
   if (!summary && !sections.length && !bullets.length && !conversation.length) {
     return returnError(

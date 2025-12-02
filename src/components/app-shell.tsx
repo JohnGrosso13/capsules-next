@@ -10,6 +10,7 @@ import {
   AiComposerRoot,
   useComposer,
 } from "@/components/composer/ComposerProvider";
+import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import { PrimaryHeader } from "@/components/primary-header";
 import { MobileHeader } from "@/components/mobile-header";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
@@ -258,8 +259,10 @@ function AppShellContent({
 export function AppShell(props: AppShellProps) {
   return (
     <ComposerProvider>
-      <AppShellContent {...props} />
-      <AiComposerRoot />
+      <FriendsDataProvider>
+        <AppShellContent {...props} />
+        <AiComposerRoot />
+      </FriendsDataProvider>
     </ComposerProvider>
   );
 }

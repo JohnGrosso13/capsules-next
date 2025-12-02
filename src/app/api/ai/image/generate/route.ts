@@ -7,6 +7,12 @@ import {
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -25,6 +31,8 @@ const IMAGE_GENERATE_RATE_LIMIT: RateLimitDefinition = {
   limit: 12,
   window: "10 m",
 };
+
+const IMAGE_GENERATE_COMPUTE_COST = 5_000;
 
 export async function POST(req: Request) {
   // Require authentication to prevent abuse and unexpected costs
@@ -52,6 +60,36 @@ export async function POST(req: Request) {
       "You've reached the current image generation limit. Please try again shortly.",
       retryAfterSeconds === null ? undefined : { retryAfterSeconds },
     );
+  }
+
+  try {
+    const walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "default",
+      featureName: "AI image generation",
+    });
+    await chargeUsage({
+      wallet: walletContext.wallet,
+      balance: walletContext.balance,
+      metric: "compute",
+      amount: IMAGE_GENERATE_COMPUTE_COST,
+      reason: "ai.image.generate",
+      bypass: walletContext.bypass,
+    });
+  } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message);
+    }
+    console.error("billing.ai_image_generate.failed", error);
+    return returnError(500, "billing_error", "Failed to verify allowance");
   }
 
   const result = await generateImageFromPrompt(

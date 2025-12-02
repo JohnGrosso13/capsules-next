@@ -239,18 +239,23 @@
     );
     --home-card-icon-danger: var(--color-danger, #f87171);
     /* Poll UI (dark): neutral shells using card/surface tones */
-    --home-poll-card-border: color-mix(in srgb, var(--card-border) 90%, transparent);
+    --home-poll-card-border: color-mix(in srgb, var(--card-border) 96%, transparent);
     --home-poll-card-background: linear-gradient(
       180deg,
-      var(--card-bg-1),
-      var(--card-bg-2)
+      color-mix(in srgb, var(--card-bg-1) 96%, rgba(255, 255, 255, 0.015)),
+      color-mix(in srgb, var(--card-bg-2) 98%, rgba(0, 0, 0, 0.2))
     );
     --home-poll-question: var(--text);
-    --home-poll-option-border: color-mix(in srgb, var(--card-border) 82%, transparent);
+    /* Glassy, lifted tiles so options read as distinct rows */
+    --home-poll-option-border: color-mix(
+      in srgb,
+      var(--card-border) 78%,
+      rgba(255, 255, 255, 0.42)
+    );
     --home-poll-option-background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--surface-overlay) 88%, transparent),
-      color-mix(in srgb, var(--surface-muted) 80%, transparent)
+      var(--glass-bg-1, rgba(255, 255, 255, 0.06)),
+      var(--glass-bg-2, rgba(255, 255, 255, 0.03))
     );
     --home-poll-option-selected-border: color-mix(in srgb, var(--color-brand) 48%, var(--card-border));
     /* Progress fill: subtle brand-tinted band to avoid overpowering */

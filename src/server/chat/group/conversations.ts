@@ -273,7 +273,8 @@ export async function removeParticipantFromGroupConversation(params: {
     ? normalizeId(conversationRow.created_by) === requesterId
     : false;
   const removingSelf = requesterId === targetId;
-  if (!isCreator && !removingSelf && !params.allowSelf) {
+  const allowSelf = Boolean(params.allowSelf);
+  if (!isCreator && !(allowSelf && removingSelf)) {
     throw new ChatServiceError(
       "forbidden",
       403,

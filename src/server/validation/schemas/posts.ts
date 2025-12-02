@@ -27,6 +27,10 @@ const attachmentVariantsSchema = z.object({
   thumb: z.string().nullable().optional(),
   feed: z.string().nullable().optional(),
   full: z.string().nullable().optional(),
+  promo: z.string().nullable().optional(),
+  feedSrcset: z.string().nullable().optional(),
+  fullSrcset: z.string().nullable().optional(),
+  promoSrcset: z.string().nullable().optional(),
 });
 
 const attachmentSchema = z.object({

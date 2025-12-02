@@ -45,6 +45,7 @@ export function getPartyRoomName(partyId: string): string {
 type BuildPartyMetadataParams = {
   partyId: string;
   ownerId: string;
+  hostId?: string | null;
   ownerDisplayName: string | null;
   topic: string | null;
   privacy: PartyPrivacy;
@@ -243,12 +244,15 @@ async function persistPartyMetadata(metadata: PartyMetadata): Promise<void> {
 }
 
 export function buildPartyMetadata(params: BuildPartyMetadataParams): PartyMetadata {
+  const privacy: PartyPrivacy = params.privacy === "public" ? "public" : "invite-only";
+  const hostId = params.hostId ?? params.ownerId;
   return {
     partyId: params.partyId,
     ownerId: params.ownerId,
+    hostId,
     ownerDisplayName: params.ownerDisplayName,
     topic: params.topic,
-    privacy: params.privacy,
+    privacy,
     createdAt: new Date().toISOString(),
     assistant: resolveAssistantSettings(params.assistant),
     summary: resolveSummarySettings(params.summary),
@@ -279,14 +283,15 @@ function coerceMetadata(room: LivekitRoomSnapshot | null): PartyMetadata | null 
   try {
     const parsed = JSON.parse(room.metadata) as PartyMetadata;
     if (parsed && typeof parsed.partyId === "string" && typeof parsed.ownerId === "string") {
-      return {
-        partyId: parsed.partyId,
-        ownerId: parsed.ownerId,
-        ownerDisplayName: parsed.ownerDisplayName ?? null,
-        topic: parsed.topic ?? null,
-        privacy: parsed.privacy ?? "friends",
-        createdAt: parsed.createdAt ?? new Date().toISOString(),
-        assistant: coerceAssistantSettings((parsed as { assistant?: unknown }).assistant),
+        return {
+          partyId: parsed.partyId,
+          ownerId: parsed.ownerId,
+          hostId: parsed.hostId ?? parsed.ownerId,
+          ownerDisplayName: parsed.ownerDisplayName ?? null,
+          topic: parsed.topic ?? null,
+          privacy: parsed.privacy === "public" ? "public" : "invite-only",
+          createdAt: parsed.createdAt ?? new Date().toISOString(),
+          assistant: coerceAssistantSettings((parsed as { assistant?: unknown }).assistant),
         summary: coerceSummarySettings((parsed as { summary?: unknown }).summary),
       };
     }
@@ -312,6 +317,7 @@ export async function fetchPartyMetadata(partyId: string): Promise<PartyMetadata
 
 type PartyMetadataPatch = {
   ownerDisplayName?: string | null;
+  hostId?: string | null;
   topic?: string | null;
   privacy?: PartyPrivacy;
   summary?: Partial<PartySummarySettings> | null;
@@ -349,6 +355,7 @@ export async function updatePartyMetadata(
   const nextMetadata: PartyMetadata = {
     ...current,
     ...restPatch,
+    hostId: restPatch.hostId === undefined ? current.hostId ?? current.ownerId : restPatch.hostId,
     assistant: nextAssistant,
     summary: nextSummary,
     createdAt: current.createdAt ?? new Date().toISOString(),

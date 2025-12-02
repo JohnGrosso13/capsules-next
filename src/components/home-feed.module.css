@@ -1547,12 +1547,8 @@
     max-width: 100%;
     min-width: 0;
     border-radius: var(--radius-lg, 18px);
-    border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 38%, rgba(12, 16, 40, 0.48));
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(10, 14, 32, 0.9)),
-      color-mix(in srgb, var(--color-brand, #2563eb) 16%, rgba(6, 10, 26, 0.82))
-    );
+    border: var(--home-poll-card-border);
+    background: var(--home-poll-card-background);
     padding: var(--space-lg);
     display: grid;
     gap: var(--space-md);
@@ -1562,7 +1558,7 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
-    color: color-mix(in srgb, var(--color-brand, #2563eb) 36%, rgba(255, 255, 255, 0.92));
+    color: var(--home-poll-question);
   }
 
   .pollOptions {
@@ -1574,19 +1570,18 @@
   .pollOption {
     position: relative;
     border-radius: var(--radius-lg, 14px);
-    border: 1px solid color-mix(in srgb, var(--color-brand, #2563eb) 34%, rgba(12, 16, 40, 0.42));
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 18%, rgba(8, 12, 30, 0.82)),
-      color-mix(in srgb, var(--color-brand, #2563eb) 14%, rgba(6, 10, 24, 0.75))
-    );
+    border: var(--home-poll-option-border);
+    background: var(--home-poll-option-background);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 rgba(5, 10, 30, 0.4),
+      0 12px 26px rgba(2, 6, 23, 0.7);
     overflow: hidden;
     min-width: 0;
   }
 
   .pollOption[data-selected="true"] {
-    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
+    border-color: var(--home-poll-option-selected-border);
+    box-shadow: inset 0 0 0 1px var(--home-poll-option-selected-border);
   }
 
   /* Inline comments preview (first 2–3 comments under a post) */
@@ -1655,7 +1650,7 @@
     position: absolute;
     inset: 0;
     transform-origin: left;
-    background: color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent);
+    background: var(--home-poll-option-fill);
     transition: transform 200ms var(--motion-ease-standard, ease);
     pointer-events: none;
   }
@@ -1678,9 +1673,14 @@
     min-width: 0;
   }
 
+  .pollOptionButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
   .pollOptionLabel {
     font-weight: 600;
-    color: color-mix(in srgb, var(--color-brand, #2563eb) 28%, rgba(255, 255, 255, 0.9));
+    color: var(--home-poll-option-label);
     min-width: 0;
   }
 
@@ -1689,11 +1689,7 @@
     align-items: center;
     gap: var(--space-xs);
     font-size: 0.85rem;
-    color: color-mix(
-      in srgb,
-      var(--color-brand, #2563eb) 24%,
-      color-mix(in srgb, rgba(175, 195, 230, 0.72) 80%, rgba(22, 28, 50, 0.72))
-    );
+    color: var(--home-poll-option-meta);
     min-width: 0;
     flex-shrink: 0;
   }
@@ -1714,7 +1710,7 @@
 
   .pollFooter {
     font-size: 0.85rem;
-    color: color-mix(in srgb, var(--color-brand, #2563eb) 22%, rgba(184, 200, 232, 0.68));
+    color: var(--home-poll-footer);
   }
 
   .documentGrid {

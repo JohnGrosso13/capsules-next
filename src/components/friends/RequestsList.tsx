@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import styles from "@/app/(authenticated)/friends/friends.module.css";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { CapsuleInviteItem, PartyInviteItem, RequestItem } from "@/hooks/useFriendsData";
 import { MicrophoneStage } from "@phosphor-icons/react/dist/ssr";
 
@@ -18,6 +19,11 @@ type RequestsListProps = {
   capsuleInvites: CapsuleInviteItem[];
   onAcceptCapsuleInvite: (capsuleId: string, requestId: string) => void;
   onDeclineCapsuleInvite: (capsuleId: string, requestId: string) => void;
+  pendingRequests?: Set<string> | string[];
+  pendingInvites?: Set<string> | string[];
+  pendingCapsuleInvites?: Set<string> | string[];
+  errorMessage?: string | null;
+  onClearError?: () => void;
 };
 
 function renderName(item: RequestItem, fallback: string): string {
@@ -51,7 +57,17 @@ export function RequestsList({
   capsuleInvites,
   onAcceptCapsuleInvite,
   onDeclineCapsuleInvite,
+  pendingRequests,
+  pendingInvites,
+  pendingCapsuleInvites,
+  errorMessage,
+  onClearError,
 }: RequestsListProps) {
+  const isPending = (collection: Set<string> | string[] | undefined, id: string): boolean => {
+    if (!collection) return false;
+    return Array.isArray(collection) ? collection.includes(id) : collection.has(id);
+  };
+
   if (
     incoming.length === 0 &&
     outgoing.length === 0 &&
@@ -63,17 +79,31 @@ export function RequestsList({
 
   return (
     <div className={styles.requestList}>
+      {errorMessage ? (
+        <Alert tone="danger" className={styles.requestAlert} role="status">
+          <AlertTitle>Request action failed</AlertTitle>
+          <AlertDescription>
+            {errorMessage}
+            {onClearError ? (
+              <button type="button" className={styles.requestAlertDismiss} onClick={onClearError}>
+                Dismiss
+              </button>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {partyInvites.map((invite) => {
         const expiry = formatInviteExpiry(invite.expiresAt);
+        const busy = isPending(pendingInvites, invite.id);
         return (
-          <div key={`invite-${invite.id}`} className={styles.requestRow}>
+          <div key={`invite-${invite.id}`} className={styles.requestRow} data-busy={busy || undefined}>
             <div className={styles.requestMeta}>
               <span className={styles.friendName}>
                 <MicrophoneStage size={16} weight="duotone" /> {invite.hostName}
               </span>
               <span className={styles.requestLabel}>
-                Party invite{invite.topic ? ` · ${invite.topic}` : ""}{" "}
-                {expiry ? ` · ${expiry}` : ""}
+                Party invite{invite.topic ? ` | ${invite.topic}` : ""}{" "}
+                {expiry ? ` | ${expiry}` : ""}
               </span>
             </div>
             <div className={styles.requestActions}>
@@ -81,75 +111,107 @@ export function RequestsList({
                 type="button"
                 className={styles.primaryAction}
                 onClick={() => onAcceptInvite(invite.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
               >
-                Join
+                {busy ? "Joining..." : "Join"}
               </button>
-              <button type="button" onClick={() => onDeclineInvite(invite.id)}>
-                Dismiss
+              <button
+                type="button"
+                onClick={() => onDeclineInvite(invite.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? "Working..." : "Dismiss"}
               </button>
             </div>
           </div>
         );
       })}
-      {capsuleInvites.map((invite) => (
-        <div key={`capsule-invite-${invite.id}`} className={styles.requestRow}>
-          <div className={styles.requestMeta}>
-            <span className={styles.friendName}>{invite.capsuleName}</span>
-            <span className={styles.requestLabel}>
-              Capsule invite
-              {invite.inviterName ? ` · from ${invite.inviterName}` : ""}
-            </span>
+      {capsuleInvites.map((invite) => {
+        const busy = isPending(pendingCapsuleInvites, invite.id);
+        return (
+          <div key={`capsule-invite-${invite.id}`} className={styles.requestRow} data-busy={busy || undefined}>
+            <div className={styles.requestMeta}>
+              <span className={styles.friendName}>{invite.capsuleName}</span>
+              <span className={styles.requestLabel}>
+                Capsule invite
+                {invite.inviterName ? ` | from ${invite.inviterName}` : ""}
+              </span>
+            </div>
+            <div className={styles.requestActions}>
+              <button
+                type="button"
+                className={styles.primaryAction}
+                onClick={() => onAcceptCapsuleInvite(invite.capsuleId, invite.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? "Joining..." : "Join"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeclineCapsuleInvite(invite.capsuleId, invite.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? "Working..." : "Dismiss"}
+              </button>
+            </div>
           </div>
-          <div className={styles.requestActions}>
-            <button
-              type="button"
-              className={styles.primaryAction}
-              onClick={() => onAcceptCapsuleInvite(invite.capsuleId, invite.id)}
-            >
-              Join
-            </button>
-            <button
-              type="button"
-              onClick={() => onDeclineCapsuleInvite(invite.capsuleId, invite.id)}
-            >
-              Dismiss
-            </button>
+        );
+      })}
+      {incoming.map((item) => {
+        const busy = isPending(pendingRequests, item.id);
+        return (
+          <div key={`incoming-${item.id}`} className={styles.requestRow} data-busy={busy || undefined}>
+            <div className={styles.requestMeta}>
+              <span className={styles.friendName}>{renderName(item, "New friend")}</span>
+              <span className={styles.requestLabel}>Incoming request</span>
+            </div>
+            <div className={styles.requestActions}>
+              <button
+                type="button"
+                className={styles.primaryAction}
+                onClick={() => onAccept(item.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? "Accepting..." : "Accept"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDecline(item.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? "Working..." : "Decline"}
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
-      {incoming.map((item) => (
-        <div key={`incoming-${item.id}`} className={styles.requestRow}>
-          <div className={styles.requestMeta}>
-            <span className={styles.friendName}>{renderName(item, "New friend")}</span>
-            <span className={styles.requestLabel}>Incoming request</span>
+        );
+      })}
+      {outgoing.map((item) => {
+        const busy = isPending(pendingRequests, item.id);
+        return (
+          <div key={`outgoing-${item.id}`} className={styles.requestRow} data-busy={busy || undefined}>
+            <div className={styles.requestMeta}>
+              <span className={styles.friendName}>{renderName(item, "Pending friend")}</span>
+              <span className={styles.requestLabel}>Awaiting response</span>
+            </div>
+            <div className={styles.requestActions}>
+              <button
+                type="button"
+                onClick={() => onCancel(item.id)}
+                disabled={busy}
+                aria-busy={busy || undefined}
+              >
+                {busy ? "Working..." : "Cancel"}
+              </button>
+            </div>
           </div>
-          <div className={styles.requestActions}>
-            <button
-              type="button"
-              className={styles.primaryAction}
-              onClick={() => onAccept(item.id)}
-            >
-              Accept
-            </button>
-            <button type="button" onClick={() => onDecline(item.id)}>
-              Decline
-            </button>
-          </div>
-        </div>
-      ))}
-      {outgoing.map((item) => (
-        <div key={`outgoing-${item.id}`} className={styles.requestRow}>
-          <div className={styles.requestMeta}>
-            <span className={styles.friendName}>{renderName(item, "Pending friend")}</span>
-            <span className={styles.requestLabel}>Awaiting response</span>
-          </div>
-          <div className={styles.requestActions}>
-            <button type="button" onClick={() => onCancel(item.id)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

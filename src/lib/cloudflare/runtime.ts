@@ -76,9 +76,11 @@ export function buildLocalImageVariants(
   return {
     original: absoluteOriginal,
     feed: safeThumb,
+    promo: safeThumb,
     thumb: safeThumb,
     full: absoluteOriginal,
     feedSrcset: null,
+    promoSrcset: null,
     fullSrcset: null,
   };
 }

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { hasOpenAIApiKey } from "@/adapters/ai/openai/server";
 import { safeRandomUUID } from "@/lib/random";
-import { createPollDraft, type ComposeDraftOptions } from "@/lib/ai/prompter";
+import { type ComposeDraftOptions } from "@/lib/ai/prompter";
 import {
   sanitizeComposerChatAttachment,
   sanitizeComposerChatHistory,
@@ -40,6 +40,12 @@ import {
 import type { ChatMemorySnippet } from "@/server/chat/retrieval";
 import { getUserCapsules } from "@/server/capsules/service";
 import { getUserCardCached } from "@/server/chat/user-card";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -129,82 +135,8 @@ function collectRecentUserText(history: ComposerChatMessage[] | undefined, limit
   return recentUsers.join(" ");
 }
 
-function detectRecallIntent(params: {
-  message: string;
-  history: ComposerChatMessage[] | undefined;
-  rawOptions: Record<string, unknown> | null | undefined;
-  attachments: ComposerChatAttachment[];
-  capsuleId?: string | null;
-}): boolean {
-  const { message, history, rawOptions, attachments, capsuleId } = params;
-  if (rawOptions && typeof (rawOptions as { recall?: unknown }).recall === "boolean") {
-    return Boolean((rawOptions as { recall?: boolean }).recall);
-  }
-  if (capsuleId && capsuleId.trim().length) {
-    return true;
-  }
-  const text = [message, collectRecentUserText(history)].join(" ").toLowerCase();
-  const recallKeywords = [
-    "memory",
-    "memories",
-    "remember",
-    "recall",
-    "last time",
-    "previous chat",
-    "previous conversation",
-    "last post",
-    "previous post",
-    "pull up",
-    "show me my",
-    "what did we",
-    "capsule history",
-    "search the capsule",
-    "look up",
-    "find my",
-    "search web",
-    "google",
-    "search google",
-    // Capsule history / membership phrasing
-    "first member",
-    "who joined",
-    "members joined",
-    "member count",
-    "headcount",
-    "growth",
-    "since we started",
-    "since launch",
-    "since created",
-    "when did this capsule start",
-    "how long has this capsule",
-    "how long has it existed",
-    "started",
-    "created",
-    "founded",
-    "year ago",
-    "years ago",
-    "months ago",
-    "history",
-    "most liked",
-    "liked post",
-    "likes",
-    "views",
-    "uploads",
-    "media",
-    "library",
-    "headcount",
-    "membership",
-    "member history",
-    "post history",
-    "show my posts",
-    "what did i",
-    "what have i",
-    "old posts",
-  ];
-  const mentionsRecall = recallKeywords.some((keyword) => text.includes(keyword));
-  const mentionsAttachment =
-    attachments.length > 0 && /attachment|file|upload|photo|image|picture|doc|pdf|screenshot/.test(text);
-  return mentionsRecall || mentionsAttachment;
-}
+// Context was previously gated on a recall heuristic. We now keep enrichment on by default
+// (unless explicitly disabled by the client) to give the model maximum context.
 
 function normalizeSearchText(value: string | null | undefined): string | null {
   if (!value || typeof value !== "string") return null;
@@ -299,6 +231,8 @@ const PROMPT_RATE_LIMIT: RateLimitDefinition = {
   limit: 30,
   window: "5 m",
 };
+
+const PROMPT_COMPUTE_COST = 4_000;
 
 const CONTEXT_SNIPPET_LIMIT = 6;
 const CONTEXT_CHAR_BUDGET = 4000;
@@ -425,6 +359,36 @@ export async function POST(req: Request) {
     );
   }
 
+  try {
+    const walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "default",
+      featureName: "AI prompt drafting",
+    });
+    await chargeUsage({
+      wallet: walletContext.wallet,
+      balance: walletContext.balance,
+      metric: "compute",
+      amount: PROMPT_COMPUTE_COST,
+      reason: "ai.prompt",
+      bypass: walletContext.bypass,
+    });
+  } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message);
+    }
+    console.error("billing.ai_prompt.failed", error);
+    return returnError(500, "billing_error", "Failed to verify allowance");
+  }
+
   const { message } = parsed.data;
   const rawOptions = (parsed.data.options as Record<string, unknown> | undefined) ?? {};
   const incomingPost =
@@ -453,15 +417,9 @@ export async function POST(req: Request) {
     });
   }
 
-  const recallIntent = detectRecallIntent({
-    message,
-    history: previousHistory,
-    rawOptions,
-    attachments,
-    capsuleId,
-  });
+  // Default to full-context enrichment unless the client explicitly disables it.
   const contextEnabled =
-    (typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true) && recallIntent;
+    typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true;
 
   const shouldBuildAttachmentContext = contextEnabled && attachments.length > 0;
   const attachmentContexts = shouldBuildAttachmentContext
@@ -470,20 +428,6 @@ export async function POST(req: Request) {
   const formattedAttachmentContext = shouldBuildAttachmentContext
     ? formatAttachmentContextForPrompt(attachmentContexts)
     : null;
-
-  const lowerMessage = message.toLowerCase();
-  const preferRaw =
-    typeof rawOptions?.["prefer"] === "string"
-      ? String(rawOptions["prefer"]).toLowerCase()
-      : null;
-  const preferPoll =
-    preferRaw === "poll" ||
-    /\b(poll|survey|vote|choices?)\b/.test(lowerMessage);
-
-  const pollHint =
-    typeof rawOptions?.["seed"] === "object" && rawOptions?.["seed"] !== null
-      ? (rawOptions["seed"] as Record<string, unknown>)
-      : {};
 
   const sanitizedOptions =
     rawOptions && typeof rawOptions === "object" ? { ...rawOptions } : {};
@@ -701,27 +645,11 @@ export async function POST(req: Request) {
             attachments: attachments.length ? attachments : null,
           };
 
-          let payload: PromptResponse;
-
-          if (preferPoll) {
-            const pollDraft = await createPollDraft(message, pollHint, composeOptions);
-            payload = promptResponseSchema.parse({
-              action: "draft_post",
-              message: pollDraft.message,
-              post: {
-                kind: "poll",
-                content: "",
-                poll: pollDraft.poll,
-                source: "ai-prompter",
-              },
-            });
-          } else {
-            const toolRun = await runComposerToolSession(
-              { userText: message, incomingPost, context: composeOptions },
-              { onEvent: handleToolEvent },
-            );
-            payload = toolRun.response;
-          }
+          const toolRun = await runComposerToolSession(
+            { userText: message, incomingPost, context: composeOptions },
+            { onEvent: handleToolEvent },
+          );
+          const payload = toolRun.response;
 
           const validated: PromptResponse = promptResponseSchema.parse(payload);
           const adjusted = coerceDraftToChatReply(validated, replyMode);
@@ -841,28 +769,12 @@ export async function POST(req: Request) {
 
   try {
     const modelStart = Date.now();
-    let payload: PromptResponse;
-
-    if (preferPoll) {
-      const pollDraft = await createPollDraft(message, pollHint, composeOptions);
-      payload = promptResponseSchema.parse({
-        action: "draft_post",
-        message: pollDraft.message,
-        post: {
-          kind: "poll",
-          content: "",
-          poll: pollDraft.poll,
-          source: "ai-prompter",
-        },
-      });
-    } else {
-      const toolRun = await runComposerToolSession({
-        userText: message,
-        incomingPost,
-        context: composeOptions,
-      });
-      payload = toolRun.response;
-    }
+    const toolRun = await runComposerToolSession({
+      userText: message,
+      incomingPost,
+      context: composeOptions,
+    });
+    const payload: PromptResponse = toolRun.response;
 
     const userEntry: ComposerChatMessage = {
       id: safeRandomUUID(),

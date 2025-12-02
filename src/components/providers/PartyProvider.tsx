@@ -58,7 +58,7 @@ const PartyContext = React.createContext<PartyContextValue | null>(null);
 
 const PARTY_STORAGE_KEY = "capsule:party:last-session";
 const PARTY_RESUME_MAX_AGE_MS = 10 * 60 * 1000;
-const DEFAULT_PARTY_PRIVACY: PartyPrivacy = "friends";
+const DEFAULT_PARTY_PRIVACY: PartyPrivacy = "invite-only";
 
 type StoredSession = {
   partyId: string;
@@ -119,7 +119,8 @@ function getInviteUrl(session: PartySession | null): string | null {
   if (!session) return null;
   if (typeof window === "undefined") return null;
   try {
-    const url = new URL(window.location.href);
+    const base = `${window.location.origin}${window.location.pathname || "/"}`;
+    const url = new URL(base);
     url.searchParams.set("party", session.partyId);
     return url.toString();
   } catch {

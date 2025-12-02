@@ -168,6 +168,8 @@ export type CapsuleChatState = {
   onBannerSelect: (option: ChatBannerOption) => void;
   onSuggestionSelect: (value: string) => void;
   logRef: React.RefObject<HTMLDivElement | null>;
+  smartContextEnabled: boolean;
+  onToggleSmartContext: () => void;
 };
 
 export type CapsuleMemoryState = {
@@ -533,6 +535,11 @@ export function useCapsuleCustomizerState(
 
   resetSaveErrorRef.current = clearSaveError;
 
+  const [smartContextEnabled, setSmartContextEnabled] = React.useState(true);
+  const handleToggleSmartContext = React.useCallback(() => {
+    setSmartContextEnabled((prev) => !prev);
+  }, []);
+
   const {
     messages,
     chatBusy,
@@ -562,6 +569,7 @@ export function useCapsuleCustomizerState(
     seed: advancedSeed,
     guidance: advancedGuidance,
     clarifier: clarifierPreset,
+    smartContextEnabled,
   });
 
   cropUpdateRef.current = syncBannerCropToMessages;
@@ -726,6 +734,8 @@ export function useCapsuleCustomizerState(
       onBannerSelect: handleBannerOptionSelect,
       onSuggestionSelect: handleSuggestionSelect,
       logRef: chatLogRef,
+      smartContextEnabled,
+      onToggleSmartContext: handleToggleSmartContext,
     },
     memory: {
       user,

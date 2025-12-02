@@ -6,6 +6,7 @@ import { resolvePostId } from "@/server/posts/identifiers";
 import { listCommentsForPost, fetchCommentById } from "@/server/posts/repository";
 import { notifyPostComment } from "@/server/notifications/triggers";
 import { CapsuleMembershipError } from "@/server/capsules/domain/common";
+import { ModerationError } from "@/server/moderation/text";
 
 export const runtime = "edge";
 
@@ -189,6 +190,12 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, comment: responseComment });
   } catch (error) {
+    if (error instanceof ModerationError) {
+      return NextResponse.json(
+        { error: error.code, message: error.message, details: error.details },
+        { status: error.status },
+      );
+    }
     if (error instanceof CapsuleMembershipError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { DotsThree } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./chat.module.css";
 
@@ -94,11 +95,7 @@ export function ChatMenu({ onDelete, conversationId }: ChatMenuProps) {
         }}
         ref={triggerRef}
       >
-        <span className={styles.chatMenuIcon} aria-hidden>
-          <span />
-          <span />
-          <span />
-        </span>
+        <DotsThree size={16} weight="bold" aria-hidden />
       </button>
       {open
         ? createPortal(
@@ -140,3 +137,4 @@ export function ChatMenu({ onDelete, conversationId }: ChatMenuProps) {
     </div>
   );
 }
+

@@ -384,6 +384,21 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
       } else {
         delete cloned.full;
       }
+      if (Object.prototype.hasOwnProperty.call(variants, "promo")) {
+        if (variants.promo == null) {
+          cloned.promo = null;
+        } else {
+          const sanitizedPromo = resolveToAbsoluteUrl(variants.promo, originForAssets);
+          cloned.promo = sanitizedPromo ?? variants.promo;
+        }
+      } else {
+        delete cloned.promo;
+      }
+      if (Object.prototype.hasOwnProperty.call(variants, "promoSrcset")) {
+        cloned.promoSrcset = variants.promoSrcset ?? null;
+      } else {
+        delete cloned.promoSrcset;
+      }
       sanitizedVariants = cloned;
     }
 
@@ -394,6 +409,8 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
         thumb: resolvedThumb ?? resolvedUrl,
         full: resolvedUrl,
         feedSrcset: null,
+        promo: resolvedThumb ?? resolvedUrl,
+        promoSrcset: null,
         fullSrcset: null,
       };
     }
@@ -439,6 +456,13 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
       const id = record["client_id"] ?? record["id"];
       if (id) deletedIds.push(String(id));
       return false;
+    }
+    const visibilityRaw = (row as Record<string, unknown>)?.["visibility"];
+    if (typeof visibilityRaw === "string") {
+      const visibility = visibilityRaw.trim().toLowerCase();
+      if (visibility && ["blocked", "hidden", "review", "safety_review"].includes(visibility)) {
+        return false;
+      }
     }
     return true;
   });
@@ -1021,6 +1045,10 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
                   if (!variants.full) {
                     variants.full = derivedPreviewUrl;
                   }
+                  if (!variants.promo) {
+                    variants.promo = derivedPreviewUrl;
+                    variants.promoSrcset = null;
+                  }
                 }
               }
 
@@ -1057,6 +1085,12 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
                   if (fallback.full) {
                     variants.full = fallback.full;
                     variants.fullSrcset = null;
+                  }
+                  if (!variants.promo) {
+                    const promoCandidate =
+                      fallback.feed ?? fallback.full ?? variants.feed ?? variants.full ?? null;
+                    variants.promo = promoCandidate;
+                    variants.promoSrcset = promoCandidate ? null : variants.promoSrcset ?? null;
                   }
                 }
               }
@@ -1124,4 +1158,3 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
 
   return { posts, deleted: deletedIds, cursor: nextCursor };
 }
-

@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
+import { DotsThree } from "@phosphor-icons/react/dist/ssr";
 
 import { Button, ButtonLink } from "@/components/ui/button";
-
+import contextMenuStyles from "@/components/ui/context-menu.module.css";
 import cards from "@/components/cards.module.css";
 
 import layout from "./settings.module.css";
@@ -51,6 +53,14 @@ export function CapsuleSettingsSection({
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirming, setConfirming] = React.useState<CapsuleSummary | null>(null);
   const [selectedCapsule, setSelectedCapsule] = React.useState<CapsuleSummary | null>(null);
+  const [upgradeId, setUpgradeId] = React.useState<string | null>(null);
+  const [menuState, setMenuState] = React.useState<{
+    capsule: CapsuleSummary;
+    top: number;
+    left: number;
+  } | null>(null);
+  const menuRef = React.useRef<HTMLDivElement | null>(null);
+  const firstMenuItemRef = React.useRef<HTMLButtonElement | null>(null);
 
   React.useEffect(() => {
     setCapsules(initialCapsules);
@@ -121,6 +131,111 @@ export function CapsuleSettingsSection({
     [deleteCapsule],
   );
 
+  const startCapsuleUpgrade = React.useCallback(async (capsule: CapsuleSummary) => {
+    setUpgradeId(capsule.id);
+    setError(null);
+    try {
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: "capsule",
+          capsuleId: capsule.id,
+          successPath: "/settings?tab=billing",
+          cancelPath: "/settings?tab=billing",
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      const checkoutUrl = (payload as { checkoutUrl?: string }).checkoutUrl;
+      if (!response.ok || !checkoutUrl) {
+        throw new Error((payload as { message?: string })?.message ?? "Upgrade failed");
+      }
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      console.error("capsule.upgrade.failed", err);
+      setError((err as Error)?.message ?? "Unable to start upgrade");
+    } finally {
+      setUpgradeId(null);
+    }
+  }, []);
+
+  const closeMenu = React.useCallback(() => {
+    setMenuState(null);
+  }, []);
+
+  React.useEffect(() => {
+    if (!menuState) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMenu();
+      }
+    };
+
+    const handleViewportChange = () => {
+      closeMenu();
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (menuRef.current.contains(event.target as Node)) return;
+      closeMenu();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleViewportChange, true);
+    window.addEventListener("resize", handleViewportChange);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleViewportChange, true);
+      window.removeEventListener("resize", handleViewportChange);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [closeMenu, menuState]);
+
+  React.useEffect(() => {
+    if (!menuState) return;
+    const timer = window.setTimeout(() => {
+      firstMenuItemRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [menuState]);
+
+  const computeMenuPosition = React.useCallback((anchor: HTMLElement) => {
+    const rect = anchor.getBoundingClientRect();
+    const menuWidth = 240;
+    const viewportWidth = window.innerWidth;
+    const scrollX = window.scrollX ?? window.pageXOffset ?? 0;
+    const scrollY = window.scrollY ?? window.pageYOffset ?? 0;
+    const top = scrollY + rect.bottom + 8;
+    const centeredLeft = scrollX + rect.left + rect.width / 2 - menuWidth / 2;
+    const left = Math.max(
+      scrollX + 12,
+      Math.min(centeredLeft, scrollX + viewportWidth - menuWidth - 12),
+    );
+    return { top, left };
+  }, []);
+
+  const openMenuForCapsule = React.useCallback(
+    (capsule: CapsuleSummary, anchor: HTMLElement) => {
+      const position = computeMenuPosition(anchor);
+      setMenuState({ capsule, ...position });
+    },
+    [computeMenuPosition],
+  );
+
+  React.useEffect(() => {
+    if (!menuState) return;
+    const stillExists = capsules.some((capsule) => capsule.id === menuState.capsule.id);
+    if (!stillExists) {
+      setMenuState(null);
+    }
+  }, [capsules, menuState]);
+
   const ownedCount = capsules.length;
   const hasCapsules = ownedCount > 0;
   const showLoadingState = loading && !hasCapsules;
@@ -162,9 +277,9 @@ export function CapsuleSettingsSection({
             {showRefreshState ? <p className={styles.helper}>Refreshing your capsules...</p> : null}
             <div className={styles.list}>
               {capsules.map((capsule) => {
-                const deleting = deletingId === capsule.id;
                 const managing = selectedCapsule?.id === capsule.id;
                 const capsuleLink = `/capsule?capsuleId=${encodeURIComponent(capsule.id)}`;
+                const menuOpen = menuState?.capsule.id === capsule.id;
                 return (
                   <div
                     key={capsule.id}
@@ -190,24 +305,23 @@ export function CapsuleSettingsSection({
                     <div className={styles.actions}>
                       <Button
                         type="button"
-                        variant={managing ? "secondary" : "outline"}
-                        size="sm"
-                        className={managing ? layout.settingsCtaSecondary : layout.settingsCtaSecondary}
-                        onClick={() => setSelectedCapsule(capsule)}
-                        aria-pressed={managing}
-                      >
-                        {managing ? "Viewing AI Settings" : "Manage AI"}
-                      </Button>
-                      <Button
-                        type="button"
                         variant="ghost"
-                        size="sm"
-                        className={styles.deleteButton}
-                        onClick={() => handleDeleteClick(capsule)}
-                        loading={deleting}
-                      >
-                        Delete Capsule
-                      </Button>
+                        size="icon"
+                        aria-label={`Actions for ${capsule.name}`}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        className={`${styles.actionMenuButton} ${
+                          menuOpen ? styles.actionMenuButtonActive : ""
+                        }`.trim()}
+                        onClick={(event) => {
+                          if (menuOpen) {
+                            closeMenu();
+                            return;
+                          }
+                          openMenuForCapsule(capsule, event.currentTarget);
+                        }}
+                        leftIcon={<DotsThree size={18} weight="bold" />}
+                      />
                     </div>
                   </div>
                 );
@@ -251,6 +365,62 @@ export function CapsuleSettingsSection({
         }}
         onConfirm={handleConfirmDelete}
       />
+
+      {menuState && typeof document !== "undefined"
+        ? createPortal(
+            <div className={contextMenuStyles.backdrop} role="presentation" onClick={closeMenu}>
+              <div
+                ref={menuRef}
+                className={`${contextMenuStyles.menu} ${styles.actionMenuList}`.trim()}
+                style={{ top: menuState.top, left: menuState.left }}
+                role="menu"
+                aria-label={`Actions for ${menuState.capsule.name}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  ref={firstMenuItemRef}
+                  type="button"
+                  className={contextMenuStyles.item}
+                  role="menuitem"
+                  onClick={() => {
+                    setSelectedCapsule(menuState.capsule);
+                    closeMenu();
+                  }}
+                >
+                  {selectedCapsule?.id === menuState.capsule.id ? "Viewing AI Settings" : "Manage AI"}
+                </button>
+                <button
+                  type="button"
+                  className={contextMenuStyles.item}
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenu();
+                    void startCapsuleUpgrade(menuState.capsule);
+                  }}
+                  disabled={upgradeId === menuState.capsule.id}
+                  aria-disabled={upgradeId === menuState.capsule.id}
+                >
+                  {upgradeId === menuState.capsule.id ? "Starting upgrade..." : "Upgrade Capsule"}
+                </button>
+                <div className={contextMenuStyles.separator} role="separator" />
+                <button
+                  type="button"
+                  className={`${contextMenuStyles.item} ${contextMenuStyles.danger}`.trim()}
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenu();
+                    handleDeleteClick(menuState.capsule);
+                  }}
+                  disabled={deletingId === menuState.capsule.id}
+                  aria-disabled={deletingId === menuState.capsule.id}
+                >
+                  {deletingId === menuState.capsule.id ? "Deleting..." : "Delete Capsule"}
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </article>
   );
 }

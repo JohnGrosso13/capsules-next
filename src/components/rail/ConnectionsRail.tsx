@@ -152,17 +152,25 @@ function formatChatSummary(unread: number, lastReminder: number | null, now: num
   return "You're all caught up in DMs & group chats.";
 }
 
-function formatRequestsSummary(incoming: number, outgoing: number, party: number): string {
-  const total = incoming + party;
+function formatRequestsSummary(
+  incoming: number,
+  outgoing: number,
+  party: number,
+  capsules: number,
+): string {
+  const total = incoming + party + capsules;
   if (total > 0) {
     const parts: string[] = [];
     if (party > 0) {
       parts.push(`${party} party ${pluralize("invite", party)}`);
     }
+    if (capsules > 0) {
+      parts.push(`${capsules} capsule ${pluralize("invite", capsules)}`);
+    }
     if (incoming > 0) {
       parts.push(`${incoming} friend ${pluralize("request", incoming)}`);
     }
-    const joined = parts.join(" · ");
+    const joined = parts.join(" | ");
     return `${joined} waiting.`;
   }
   if (outgoing > 0) return `Waiting on ${outgoing} ${pluralize("invitation", outgoing)}.`;
@@ -254,6 +262,12 @@ export function ConnectionsRail() {
   const assistantTabActive = railMode === "connections" && activeRailTab === "assistant";
   const [cancelingTaskIds, setCancelingTaskIds] = React.useState<Set<string>>(new Set());
   const [assistantActionError, setAssistantActionError] = React.useState<string | null>(null);
+  const [requestPendingIds, setRequestPendingIds] = React.useState<Set<string>>(new Set());
+  const [invitePendingIds, setInvitePendingIds] = React.useState<Set<string>>(new Set());
+  const [capsuleInvitePendingIds, setCapsuleInvitePendingIds] = React.useState<Set<string>>(
+    new Set(),
+  );
+  const [requestError, setRequestError] = React.useState<string | null>(null);
 
   const {
     tasks: assistantTasks,
@@ -261,9 +275,9 @@ export function ConnectionsRail() {
     error: assistantTasksError,
     refresh: refreshAssistantTasks,
   } = useAssistantTasks({
-    pollIntervalMs: assistantTabActive ? 60_000 : 0,
-    idlePollIntervalMs: assistantTabActive ? 5 * 60_000 : 0,
-    enabled: assistantTabActive,
+    pollIntervalMs: assistantTabActive ? 60_000 : 5 * 60_000,
+    idlePollIntervalMs: 5 * 60_000,
+    enabled: true,
   });
   const assistantError = assistantActionError ?? assistantTasksError;
 
@@ -344,11 +358,11 @@ export function ConnectionsRail() {
 
   const partySummary = React.useMemo(() => {
     if (partyStatus === "loading") {
-      if (partyAction === "create") return "Starting your party…";
-      if (partyAction === "join") return "Joining the party…";
-      if (partyAction === "close") return "Ending the party…";
-      if (partyAction === "leave") return "Leaving the party…";
-      return "Syncing party status…";
+      if (partyAction === "create") return "Starting your party...";
+      if (partyAction === "join") return "Joining the party...";
+      if (partyAction === "close") return "Ending the party...";
+      if (partyAction === "leave") return "Leaving the party...";
+      return "Syncing party status...";
     }
     if (partySession) {
       const topic = partySession.metadata.topic?.trim();
@@ -683,7 +697,8 @@ export function ConnectionsRail() {
     [hasRealFriends, friends.length],
   );
 
-  const totalPendingRequests = incomingRequests.length + partyInvites.length;
+  const totalPendingRequests =
+    incomingRequests.length + partyInvites.length + capsuleInvites.length;
   const assistantTileSummary = React.useMemo(
     () =>
       summarizeAssistantTile({
@@ -713,6 +728,7 @@ export function ConnectionsRail() {
             incomingRequests.length,
             outgoingRequests.length,
             partyInvites.length,
+            capsuleInvites.length,
           ),
           badge: totalPendingRequests > 0 ? totalPendingRequests : null,
         },
@@ -752,6 +768,7 @@ export function ConnectionsRail() {
       totalFriendsForSummary,
       incomingRequests.length,
       partyInvites.length,
+      capsuleInvites.length,
       totalPendingRequests,
       outgoingRequests.length,
       chatUnreadCount,
@@ -836,89 +853,133 @@ export function ConnectionsRail() {
     [setActiveRailTab, setRailMode, startChatSession],
   );
 
-  const handleAccept = React.useCallback(
-    async (id: string) => {
+  const runRequestAction = React.useCallback(
+    async (
+      id: string,
+      setPending: React.Dispatch<React.SetStateAction<Set<string>>>,
+      action: () => Promise<unknown>,
+      fallbackMessage: string,
+    ) => {
+      setRequestError(null);
+      setPending((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
       try {
-        await acceptRequest(id);
+        await action();
       } catch (error) {
-        console.error("Friend request accept error", error);
+        console.error("request action failed", error);
+        const message =
+          error instanceof Error && typeof error.message === "string" && error.message.trim().length
+            ? error.message
+            : fallbackMessage;
+        setRequestError(message);
+      } finally {
+        setPending((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
       }
     },
-    [acceptRequest],
+    [],
+  );
+
+  const handleAccept = React.useCallback(
+    async (id: string) => {
+      await runRequestAction(
+        id,
+        setRequestPendingIds,
+        () => acceptRequest(id),
+        "Couldn't accept that request.",
+      );
+    },
+    [acceptRequest, runRequestAction],
   );
 
   const handleDecline = React.useCallback(
     async (id: string) => {
-      try {
-        await declineRequest(id);
-      } catch (error) {
-        console.error("Friend request decline error", error);
-      }
+      await runRequestAction(
+        id,
+        setRequestPendingIds,
+        () => declineRequest(id),
+        "Couldn't decline that request.",
+      );
     },
-    [declineRequest],
+    [declineRequest, runRequestAction],
   );
 
   const handleCancel = React.useCallback(
     async (id: string) => {
-      try {
-        await cancelRequest(id);
-      } catch (error) {
-        console.error("Friend request cancel error", error);
-      }
+      await runRequestAction(
+        id,
+        setRequestPendingIds,
+        () => cancelRequest(id),
+        "Couldn't cancel that request.",
+      );
     },
-    [cancelRequest],
+    [cancelRequest, runRequestAction],
   );
 
   const handleAcceptInvite = React.useCallback(
     async (inviteId: string) => {
-      try {
-        const invite = await acceptPartyInvite(inviteId);
-        if (!invite?.partyId) {
-          throw new Error("Party invite did not include a party id.");
-        }
-        await joinParty(invite.partyId, { displayName: null });
-        setRailMode("connections");
-        setActiveRailTab("party");
-      } catch (error) {
-        console.error("Party invite accept error", error);
-      }
+      await runRequestAction(
+        inviteId,
+        setInvitePendingIds,
+        async () => {
+          const invite = await acceptPartyInvite(inviteId);
+          if (!invite?.partyId) {
+            throw new Error("Party invite did not include a party id.");
+          }
+          await joinParty(invite.partyId, { displayName: null });
+          setRailMode("connections");
+          setActiveRailTab("party");
+        },
+        "Couldn't accept that party invite.",
+      );
     },
-    [acceptPartyInvite, joinParty],
+    [acceptPartyInvite, joinParty, runRequestAction],
   );
 
   const handleDeclineInvite = React.useCallback(
     async (inviteId: string) => {
-      try {
-        await declinePartyInvite(inviteId);
-      } catch (error) {
-        console.error("Party invite decline error", error);
-      }
+      await runRequestAction(
+        inviteId,
+        setInvitePendingIds,
+        () => declinePartyInvite(inviteId),
+        "Couldn't decline that party invite.",
+      );
     },
-    [declinePartyInvite],
+    [declinePartyInvite, runRequestAction],
   );
 
   const handleAcceptCapsuleInvite = React.useCallback(
     async (capsuleId: string, requestId: string) => {
-      try {
-        await acceptCapsuleInvite(capsuleId, requestId);
-        setRailMode("connections");
-        setActiveRailTab("friends");
-      } catch (error) {
-        console.error("Capsule invite accept error", error);
-      }
+      await runRequestAction(
+        requestId,
+        setCapsuleInvitePendingIds,
+        async () => {
+          await acceptCapsuleInvite(capsuleId, requestId);
+          setRailMode("connections");
+          setActiveRailTab("friends");
+        },
+        "Couldn't accept that capsule invite.",
+      );
     },
-    [acceptCapsuleInvite],
+    [acceptCapsuleInvite, runRequestAction],
   );
 
   const handleDeclineCapsuleInvite = React.useCallback(
     async (capsuleId: string, requestId: string) => {
-      try {
-        await declineCapsuleInvite(capsuleId, requestId);
-      } catch (error) {
-        console.error("Capsule invite decline error", error);
-      }
+      await runRequestAction(
+        requestId,
+        setCapsuleInvitePendingIds,
+        () => declineCapsuleInvite(capsuleId, requestId),
+        "Couldn't decline that capsule invite.",
+      );
     },
-    [declineCapsuleInvite],
+    [declineCapsuleInvite, runRequestAction],
   );
 
   React.useEffect(() => {
@@ -1004,48 +1065,52 @@ export function ConnectionsRail() {
       {railMode === "tiles" ? (
         <div className={styles.connectionTilesShell}>
           <div className={styles.connectionTiles}>
-            {connectionTiles.map((tile) => (
-              <button
-                key={tile.key}
-                type="button"
-                data-tile={tile.key}
-                className={styles.connectionTile}
-                onClick={() => {
-                  setActiveRailTab(tile.key);
-                  setRailMode("connections");
-                }}
-              >
-                <div className={styles.connectionTileHeader}>
-                  <div className={styles.connectionTileMeta}>
-                    <span className={styles.connectionTileIcon} aria-hidden>
-                      {tile.icon}
-                    </span>
-                    <span className={styles.connectionTileTitle}>{tile.title}</span>
+            {connectionTiles.map((tile) => {
+              const isLiveParty = tile.key === "party" && Boolean(partySession);
+              return (
+                <button
+                  key={tile.key}
+                  type="button"
+                  data-tile={tile.key}
+                  data-live={isLiveParty ? "true" : undefined}
+                  className={styles.connectionTile}
+                  onClick={() => {
+                    setActiveRailTab(tile.key);
+                    setRailMode("connections");
+                  }}
+                >
+                  <div className={styles.connectionTileHeader}>
+                    <div className={styles.connectionTileMeta}>
+                      <span className={styles.connectionTileIcon} aria-hidden>
+                        {tile.icon}
+                      </span>
+                      <span className={styles.connectionTileTitle}>{tile.title}</span>
+                    </div>
+                    {tile.badge !== null ? (
+                      <span
+                        className={`${styles.connectionTileBadge} ${
+                          tile.badgeIcon ? styles.connectionTileBadgeToken : ""
+                        }`.trim()}
+                      >
+                        {tile.badgeIcon ? (
+                          <span className={styles.connectionTileBadgeIcon} aria-hidden>
+                            {React.cloneElement(tile.badgeIcon, {
+                              className: `${styles.connectionTileBadgeGlyph} ${
+                                tile.badgeIcon.props.className ?? ""
+                              }`.trim(),
+                              focusable: "false",
+                              "aria-hidden": true,
+                            })}
+                          </span>
+                        ) : null}
+                        <span className={styles.connectionTileBadgeCount}>{tile.badge}</span>
+                      </span>
+                    ) : null}
                   </div>
-                  {tile.badge !== null ? (
-                    <span
-                      className={`${styles.connectionTileBadge} ${
-                        tile.badgeIcon ? styles.connectionTileBadgeToken : ""
-                      }`.trim()}
-                    >
-                      {tile.badgeIcon ? (
-                        <span className={styles.connectionTileBadgeIcon} aria-hidden>
-                          {React.cloneElement(tile.badgeIcon, {
-                            className: `${styles.connectionTileBadgeGlyph} ${
-                              tile.badgeIcon.props.className ?? ""
-                            }`.trim(),
-                            focusable: "false",
-                            "aria-hidden": true,
-                          })}
-                        </span>
-                      ) : null}
-                      <span className={styles.connectionTileBadgeCount}>{tile.badge}</span>
-                    </span>
-                  ) : null}
-                </div>
-                <p className={styles.connectionTileDescription}>{tile.description}</p>
-              </button>
-            ))}
+                  <p className={styles.connectionTileDescription}>{tile.description}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -1231,6 +1296,11 @@ export function ConnectionsRail() {
             onDeclineInvite={handleDeclineInvite}
             onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
             onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
+            pendingRequests={requestPendingIds}
+            pendingInvites={invitePendingIds}
+            pendingCapsuleInvites={capsuleInvitePendingIds}
+            errorMessage={requestError}
+            onClearError={() => setRequestError(null)}
           />
         </div>
         <div

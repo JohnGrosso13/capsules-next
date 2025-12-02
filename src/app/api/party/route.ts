@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
   const displayName = parsed.data.displayName?.trim() || null;
   const topic = parsed.data.topic?.trim() || null;
-  const privacy: PartyPrivacy = parsed.data.privacy ?? "friends";
+  const privacy: PartyPrivacy = parsed.data.privacy ?? "invite-only";
   const summaryInput = parsed.data.summary ?? null;
 
   const coerceVerbosity = (value: unknown): SummaryLengthHint | undefined => {

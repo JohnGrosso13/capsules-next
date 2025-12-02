@@ -10,6 +10,7 @@ import { createUploadSessionRecord } from "@/server/memories/uploads";
 import { putUploadSessionKv } from "@/lib/cloudflare/client";
 import type { StorageMetadataValue } from "@/ports/storage";
 import { deriveUploadMetadata, mergeUploadMetadata } from "@/lib/uploads/metadata";
+import { resolveWalletContext, EntitlementError } from "@/server/billing/entitlements";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,37 @@ export async function POST(req: Request) {
     (userProvidedMetadata as Record<string, unknown> | null) ?? null,
     derivedMetadata.metadata,
   );
+
+  try {
+    const wallet = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+
+    const requestedBytes = Math.max(0, params.contentLength ?? 0);
+    if (!wallet.bypass && requestedBytes > 0) {
+      const available = wallet.balance.storageGranted - wallet.balance.storageUsed;
+      if (available < requestedBytes) {
+        return returnError(
+          402,
+          "storage_limit",
+          "Not enough storage available for this upload.",
+          { available },
+        );
+      }
+    }
+
+    sessionMetadata.billing_wallet_id = wallet.wallet.id;
+  } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message);
+    }
+    console.error("billing.upload.precheck_failed", error);
+    return returnError(500, "billing_error", "Failed to check storage allowance");
+  }
 
   let upload;
   try {

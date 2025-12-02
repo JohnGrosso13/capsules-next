@@ -3,6 +3,7 @@ import { safeRandomUUID } from "@/lib/random";
 import { upsertCommentRow } from "./repository";
 import { resolvePostId } from "./identifiers";
 import { normalizeUuid, pruneNullish } from "./utils";
+import { moderateTextContent, ModerationError } from "@/server/moderation/text";
 import { requireCapsuleContentAccess } from "@/server/capsules/permissions";
 import { fetchPostViewRowByIdentifier } from "./repository";
 
@@ -48,6 +49,20 @@ export async function persistCommentToDB(comment: Record<string, unknown>, userI
       ? (comment as { attachments?: unknown[] }).attachments
       : null,
   );
+
+  const content = typeof comment.content === "string" ? comment.content : "";
+  const moderation = await moderateTextContent(content, { kind: "comment" });
+  if (moderation.decision === "block" || moderation.decision === "review") {
+    throw new ModerationError(
+      "comment_blocked",
+      moderation.decision === "block"
+        ? "Comment was blocked by the safety policy."
+        : "Comment requires moderator review before publishing.",
+      moderation.decision,
+      moderation.decision === "block" ? 400 : 409,
+      moderation,
+    );
+  }
 
   const row = {
     client_id: String(comment.id ?? ""),

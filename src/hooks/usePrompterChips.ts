@@ -14,7 +14,9 @@ export function usePrompterChips(
   surface: string | null | undefined,
   fallback?: PrompterChipOption[],
 ): UsePrompterChipsResult {
-  const seedRef = React.useRef<number>(Math.floor(Date.now() / 1000));
+  // Use a deterministic seed to keep SSR/CSR chip ordering stable and avoid hydration mismatches.
+  const seedRef = React.useRef<number>(0);
+  const [hydrated, setHydrated] = React.useState(false);
   const cacheKey = surface ? `prompter_chips:${surface}` : null;
 
   const pickInitialChips = React.useCallback(
@@ -57,21 +59,32 @@ export function usePrompterChips(
   }, [cacheKey, pickInitialChips]);
 
   const seedChips = React.useMemo(
-    () => readCachedChips() ?? pickInitialChips(fallback),
-    [fallback, pickInitialChips, readCachedChips],
+    () => pickInitialChips(fallback),
+    [fallback, pickInitialChips],
   );
 
   const [chips, setChips] = React.useState<PrompterChipOption[] | undefined>(seedChips);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Track client hydration to avoid reading sessionStorage during SSR render.
+  React.useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   // Keep state aligned when surface changes before the fetch resolves.
   React.useEffect(() => {
-    setChips(readCachedChips() ?? pickInitialChips(fallback));
-  }, [cacheKey, fallback, pickInitialChips, readCachedChips]);
+    setChips((prev) => {
+      if (!hydrated) return pickInitialChips(fallback);
+      const cached = readCachedChips();
+      if (cached) return cached;
+      // Preserve previous chips when already set and no cache is available to reduce flicker.
+      return prev ?? pickInitialChips(fallback);
+    });
+  }, [cacheKey, fallback, hydrated, pickInitialChips, readCachedChips]);
 
   React.useEffect(() => {
-    if (!surface) return;
+    if (!surface || !hydrated) return;
     let cancelled = false;
     const controller = new AbortController();
     const load = async () => {
@@ -110,7 +123,7 @@ export function usePrompterChips(
       cancelled = true;
       controller.abort();
     };
-  }, [cacheKey, surface]);
+  }, [cacheKey, surface, hydrated]);
 
   return { chips, loading, error };
 }

@@ -1,5 +1,6 @@
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { fetchPartyMetadata, issuePartyToken } from "@/server/livekit/party";
+import { isUserInvitedToParty } from "@/server/party/invites/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
   partyTokenRequestSchema,
@@ -28,6 +29,17 @@ export async function POST(req: Request) {
 
     const displayName = parsed.data.displayName?.trim() || null;
     const isOwner = metadata.ownerId === userId;
+
+    if (metadata.privacy === "invite-only" && !isOwner) {
+      const invited = await isUserInvitedToParty(partyId, userId);
+      if (!invited) {
+        return returnError(
+          403,
+          "party_invite_required",
+          "You need an invitation from the host to join this party.",
+        );
+      }
+    }
 
     const issued = await issuePartyToken({
       identity: userId,

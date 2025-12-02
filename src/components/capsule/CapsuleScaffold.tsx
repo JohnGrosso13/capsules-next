@@ -21,6 +21,7 @@ import {
   TShirt,
   UsersThree,
   WarningCircle,
+  Sparkle,
 } from "@phosphor-icons/react/dist/ssr";
 import MuxPlayer from "@mux/mux-player-react";
 import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
@@ -1409,6 +1410,46 @@ function CapsuleStorePlaceholder({
             </div>
           </div>
         </section>
+
+        <div className={capTheme.storeSupportRow}>
+          <section
+            className={`${capTheme.storePanel} ${capTheme.storePanelHighlight} ${capTheme.storeSupportCard}`}
+          >
+            <header className={capTheme.storePanelHeader}>
+              <Sparkle size={18} weight="bold" />
+              <div>
+                <h3>Fuel this capsule</h3>
+                <p>Donate tokens or storage so everyone can create more together.</p>
+              </div>
+            </header>
+            <div className={capTheme.storeSupportActions}>
+              <button type="button" className={capTheme.storePrimaryButton}>
+                Donate tokens
+              </button>
+              <button type="button" className={capTheme.storeActionButton}>
+                Share support link
+              </button>
+            </div>
+          </section>
+
+          <section className={`${capTheme.storePanel} ${capTheme.storeSupportCard}`}>
+            <header className={capTheme.storePanelHeader}>
+              <Storefront size={18} weight="bold" />
+              <div>
+                <h3>Upgrade capsule tier</h3>
+                <p>Unlock higher-quality models, more memory, and priority jobs.</p>
+              </div>
+            </header>
+            <div className={capTheme.storeSupportActions}>
+              <button type="button" className={capTheme.storeActionButton}>
+                View capsule plans
+              </button>
+              <button type="button" className={capTheme.storeGhostButton}>
+                What’s included?
+              </button>
+            </div>
+          </section>
+        </div>
 
         <div className={`${capTheme.storePrompterWrap} ${capTheme.prompterTop}`}>
           <AiPrompterStage chips={prompterChips} onAction={onPrompterAction} />

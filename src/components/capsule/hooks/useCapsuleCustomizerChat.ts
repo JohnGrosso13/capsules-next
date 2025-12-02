@@ -21,6 +21,7 @@ import { buildPromptEnvelope } from "./capsulePromptUtils";
 import { base64ToFile } from "./capsuleImageUtils";
 import { callAiPrompt } from "@/services/composer/ai";
 import { customizerDraftSchema, type CustomizerDraft } from "@/shared/schemas/customizer";
+import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 
 const MAX_PROMPT_REFINEMENTS = 4;
 const ASPECT_TOLERANCE = 0.0025;
@@ -62,6 +63,7 @@ type UseCustomizerChatOptions = {
   stylePersonaId?: string | null;
   seed?: number | null;
   guidance?: number | null;
+  smartContextEnabled: boolean;
 };
 
 function randomId(): string {
@@ -96,6 +98,15 @@ function shouldUseChatMode(prompt: string): boolean {
   if (questionLike && !mentionsAsset) return true;
   if (advisoryKeywords.some((token) => lc.includes(token)) && !mentionsAsset) return true;
   return false;
+}
+
+function mapMessagesToComposerHistory(entries: ChatMessage[]): ComposerChatMessage[] {
+  return entries.map((entry, index) => ({
+    id: entry.id,
+    role: entry.role,
+    content: entry.content,
+    createdAt: new Date(Date.now() - (entries.length - index) * 1000).toISOString(),
+  }));
 }
 
 function sanitizeServerMessage(message?: string | null): string {
@@ -271,6 +282,7 @@ export function useCapsuleCustomizerChat({
   stylePersonaId,
   seed,
   guidance,
+  smartContextEnabled,
 }: UseCustomizerChatOptions) {
   const [messages, setMessages] = React.useState<ChatMessage[]>(() =>
     buildIntroMessages(assistantIntro, clarifier),
@@ -285,6 +297,11 @@ export function useCapsuleCustomizerChat({
     sourceKey: null,
   });
   const customizerDraftRef = React.useRef<CustomizerDraft | null>(null);
+  const messagesRef = React.useRef<ChatMessage[]>([]);
+
+  React.useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const resetPromptHistory = React.useCallback(() => {
     promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
@@ -628,6 +645,7 @@ export function useCapsuleCustomizerChat({
       if (chatBusy) return;
 
       const firstAttachment = action.attachments?.[0] ?? null;
+      const actionAttachments = action.attachments ?? null;
       let attachmentBanner: SelectedBanner | null = null;
       if (firstAttachment?.url) {
         attachmentBanner = {
@@ -669,6 +687,7 @@ export function useCapsuleCustomizerChat({
 
       const userMessage: ChatMessage = { id: randomId(), role: "user", content: trimmed };
       const assistantId = randomId();
+      const historyPayload = mapMessagesToComposerHistory([...messagesRef.current, userMessage]);
       setMessages((prev) => [
         ...prev,
         userMessage,
@@ -712,6 +731,9 @@ export function useCapsuleCustomizerChat({
               message: trimmed,
               options: customizerPayload,
               capsuleId: capsuleId ?? null,
+              attachments: actionAttachments ?? null,
+              history: historyPayload,
+              useContext: smartContextEnabled,
               stream: true,
               endpoint: "/api/ai/customize",
               onStreamMessage(content) {
@@ -805,6 +827,9 @@ export function useCapsuleCustomizerChat({
             options: customizerPayload,
             ...(previousDraftPayload ? { post: previousDraftPayload } : {}),
             capsuleId: capsuleId ?? null,
+            attachments: actionAttachments ?? null,
+            history: historyPayload,
+            useContext: smartContextEnabled,
             stream: true,
             endpoint: "/api/ai/customize",
             onStreamMessage(content) {
@@ -973,6 +998,7 @@ export function useCapsuleCustomizerChat({
       onVariantRefreshRequested,
       capsuleId,
       seed,
+      smartContextEnabled,
       stylePersonaId,
     ],
   );

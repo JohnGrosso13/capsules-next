@@ -97,6 +97,7 @@ const serverEnvSchema = z.object({
   OPENAI_MODEL_NANO: optionalString,
   OPENAI_EMBED_MODEL: optionalString,
   OPENAI_EMBED_DIM: optionalPositiveInteger,
+  OPENAI_MODERATION_MODEL: optionalString,
   OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1"),
   OPENAI_IMAGE_MODEL_MINI: z.string().default("gpt-image-1-mini"),
   OPENAI_TRANSCRIBE_MODEL: z.string().default("gpt-4o-mini-transcribe"),
@@ -170,6 +171,10 @@ const serverEnvSchema = z.object({
   ASSISTANT_REMINDER_SECRET: optionalString,
   ASSISTANT_REMINDER_THRESHOLD_HOURS: optionalPositiveInteger,
   WEB_SEARCH_ENABLED: optionalBooleanFlag,
+  STRIPE_SECRET_KEY: optionalString,
+  STRIPE_WEBHOOK_SECRET: optionalString,
+  STRIPE_PRICE_PERSONAL: optionalString,
+  STRIPE_PRICE_CAPSULE: optionalString,
 });
 
 const rawServerEnv = {
@@ -193,6 +198,7 @@ const rawServerEnv = {
   OPENAI_MODEL_NANO: readEnv("OPENAI_MODEL_NANO"),
   OPENAI_EMBED_MODEL: readEnv("OPENAI_EMBED_MODEL", ["OPENAI_EMBEDDING_MODEL"]),
   OPENAI_EMBED_DIM: readEnv("OPENAI_EMBED_DIM", ["OPENAI_EMBED_DIMENSIONS"]),
+  OPENAI_MODERATION_MODEL: readEnv("OPENAI_MODERATION_MODEL", ["AI_MODERATION_MODEL"]),
   OPENAI_IMAGE_MODEL: readEnv("OPENAI_IMAGE_MODEL", ["AI_IMAGE_MODEL", "IMAGE_MODEL"]),
   OPENAI_IMAGE_MODEL_MINI: readEnv("OPENAI_IMAGE_MODEL_MINI"),
   OPENAI_TRANSCRIBE_MODEL: readEnv("OPENAI_TRANSCRIBE_MODEL", [
@@ -275,6 +281,10 @@ const rawServerEnv = {
   ASSISTANT_REMINDER_SECRET: readEnv("ASSISTANT_REMINDER_SECRET", ["INTERNAL_CRON_SECRET"]),
   ASSISTANT_REMINDER_THRESHOLD_HOURS: readEnv("ASSISTANT_REMINDER_THRESHOLD_HOURS"),
   WEB_SEARCH_ENABLED: readEnv("WEB_SEARCH_ENABLED", ["ENABLE_WEB_SEARCH"]),
+  STRIPE_SECRET_KEY: readEnv("STRIPE_SECRET_KEY", ["STRIPE_API_KEY"]),
+  STRIPE_WEBHOOK_SECRET: readEnv("STRIPE_WEBHOOK_SECRET", ["STRIPE_SIGNING_SECRET"]),
+  STRIPE_PRICE_PERSONAL: readEnv("STRIPE_PRICE_PERSONAL"),
+  STRIPE_PRICE_CAPSULE: readEnv("STRIPE_PRICE_CAPSULE"),
 } satisfies Record<string, string | undefined>;
 
 const parsedServerEnv = serverEnvSchema.safeParse(rawServerEnv);

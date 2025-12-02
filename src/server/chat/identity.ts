@@ -1,6 +1,6 @@
 import { findUserIdentity } from "./repository";
 import type { ChatParticipantRow } from "./repository";
-import { UUID_PATTERN, normalizeId, type ResolvedIdentity } from "./utils";
+import { normalizeId, type ResolvedIdentity } from "./utils";
 
 export async function resolveIdentity(
   cache: Map<string, ResolvedIdentity | null>,
@@ -11,11 +11,6 @@ export async function resolveIdentity(
   if (!normalized) return null;
   if (cache.has(normalized)) {
     return cache.get(normalized) ?? null;
-  }
-  if (UUID_PATTERN.test(normalized)) {
-    const resolved: ResolvedIdentity = { canonicalId: normalized, profile: null };
-    cache.set(normalized, resolved);
-    return resolved;
   }
 
   const probes = new Set<string>();

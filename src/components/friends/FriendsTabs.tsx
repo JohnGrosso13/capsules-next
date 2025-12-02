@@ -7,7 +7,7 @@ type Tab = "Assistant" | "Friends" | "Party" | "Chats" | "Requests";
 
 type FriendsTabsProps = {
   active: Tab;
-  counters: Record<Tab, number>;
+  counters: Record<Tab, number | string>;
   onSelect(tab: Tab): void;
 };
 
@@ -36,7 +36,13 @@ export function FriendsTabs({ active, counters, onSelect }: FriendsTabsProps) {
     <div className={styles.tabsSticky}>
       <div className={styles.tabs} role="tablist" aria-label="Friends" onKeyDown={handleKey}>
         {order.map((tab) => {
-          const badge = counters[tab] ?? 0;
+          const badge = counters[tab];
+          const badgeText =
+            typeof badge === "string" ? badge : typeof badge === "number" ? badge.toString() : "";
+          const showBadge =
+            typeof badge === "string"
+              ? badge.trim().length > 0
+              : typeof badge === "number" && badge > 0;
           const isActive = active === tab;
           return (
             <button
@@ -51,7 +57,7 @@ export function FriendsTabs({ active, counters, onSelect }: FriendsTabsProps) {
               onClick={() => onSelect(tab)}
             >
               <span className={styles.tabLabel}>{tab}</span>
-              {badge > 0 ? <span className={styles.badge}>{badge}</span> : null}
+              {showBadge ? <span className={styles.badge}>{badgeText}</span> : null}
             </button>
           );
         })}

@@ -928,6 +928,24 @@
 .storePrompterWrap > * {
   width: 100%;
 }
+
+.storeSupportRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 14px 0 10px;
+}
+
+.storeSupportCard {
+  gap: 10px;
+}
+
+.storeSupportActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .storeGhostButton {
   display: inline-flex;
   align-items: center;
@@ -1354,27 +1372,19 @@
 .storeMediaAmber {
   background: linear-gradient(
     135deg,
-    color-mix(
-      in srgb,
-      var(--color-warning, #fbbf24) 66%,
-      var(--surface-overlay, rgba(10, 14, 30, 0.72)) 34%
-    ),
-    color-mix(
-      in srgb,
-      var(--color-warning, #fbbf24) 32%,
-      var(--surface-muted, rgba(17, 22, 45, 0.8)) 68%
-    )
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 62%, var(--surface-overlay) 38%),
+    color-mix(in srgb, var(--color-brand, #2563eb) 36%, var(--surface-muted, rgba(17, 22, 45, 0.8)) 64%)
   );
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-warning, #fbbf24) 32%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand-strong, #2563eb) 30%, transparent);
   color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeMediaTeal {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-success, #34d399) 72%, transparent),
-    color-mix(in srgb, var(--color-accent, #22d3ee) 40%, transparent)
+    color-mix(in srgb, var(--color-accent, #22d3ee) 65%, var(--color-brand) 35%),
+    color-mix(in srgb, var(--color-brand, #2563eb) 48%, var(--color-accent, #22d3ee) 52%)
   );
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-success, #34d399) 32%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
   color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeProductMeta {

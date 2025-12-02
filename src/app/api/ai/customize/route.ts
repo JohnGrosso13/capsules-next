@@ -11,6 +11,18 @@ import { parseJsonBody, returnError, validatedJson } from "@/server/validation/h
 import { runCustomizerToolSession, type CustomizerComposeContext } from "@/server/customizer/run";
 import { deriveRequestOrigin } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
+import {
+  buildAttachmentContext,
+  formatAttachmentContextForPrompt,
+} from "@/server/composer/attachment-context";
+import {
+  buildContextMetadata,
+  formatContextForPrompt,
+  getCapsuleHistorySnippets,
+  getChatContext,
+  type ChatMemorySnippet,
+} from "@/server/chat/retrieval";
+import { getUserCardCached } from "@/server/chat/user-card";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -41,6 +53,7 @@ const requestSchema = z.object({
   attachments: z.array(attachmentSchema).optional(),
   history: z.array(historyMessageSchema).optional(),
   capsuleId: z.string().uuid().optional().nullable(),
+  useContext: z.boolean().optional(),
   stream: z.boolean().optional(),
 });
 
@@ -103,6 +116,37 @@ function buildComposeContext(options: Record<string, unknown> | undefined): Cust
   };
 }
 
+type ContextRecord = {
+  id: string;
+  title: string | null;
+  snippet: string;
+  source: string | null;
+  url: string | null;
+  kind: string | null;
+  tags: string[];
+  highlightHtml: string | null;
+};
+
+const CONTEXT_SNIPPET_LIMIT = 6;
+const CONTEXT_CHAR_BUDGET = 4000;
+
+function trimContextSnippets(
+  snippets: ChatMemorySnippet[],
+  limit: number = CONTEXT_SNIPPET_LIMIT,
+  charBudget: number = CONTEXT_CHAR_BUDGET,
+): ChatMemorySnippet[] {
+  const trimmed: ChatMemorySnippet[] = [];
+  let used = 0;
+  for (const snippet of snippets) {
+    if (trimmed.length >= limit) break;
+    const cost = snippet.snippet.length + (snippet.title?.length ?? 0);
+    if (used + cost > charBudget && trimmed.length > 0) break;
+    trimmed.push(snippet);
+    used += cost;
+  }
+  return trimmed;
+}
+
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -136,6 +180,161 @@ export async function POST(req: Request) {
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
   const historySanitized = history ? sanitizeComposerChatHistory(history) : [];
   const attachmentList = sanitizeAttachments(attachments);
+  const contextEnabled = typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true;
+
+  const contextPrompts: string[] = [];
+  let resolvedContextRecords: ContextRecord[] = [];
+  let contextMetadata: Record<string, unknown> | null = null;
+  let responseContext: {
+    enabled: boolean;
+    query?: string | null;
+    memoryIds?: string[];
+    snippets?: ContextRecord[];
+    userCard?: string | null;
+    attachments?: ContextRecord[];
+  } = { enabled: contextEnabled };
+
+  const shouldBuildAttachmentContext = contextEnabled && attachmentList.length > 0;
+  const attachmentContexts = shouldBuildAttachmentContext
+    ? await buildAttachmentContext(attachmentList)
+    : [];
+  const formattedAttachmentContext = shouldBuildAttachmentContext
+    ? formatAttachmentContextForPrompt(attachmentContexts)
+    : null;
+  const attachmentContextPrompt = formattedAttachmentContext?.prompt ?? null;
+  const attachmentContextRecords: ContextRecord[] =
+    formattedAttachmentContext?.records.map((entry) => ({
+      id: `attachment:${entry.id}`,
+      title: entry.name ?? null,
+      snippet: entry.snippet,
+      source: entry.source ?? "attachment",
+      url: null,
+      kind: entry.mimeType || "attachment",
+      tags: ["attachment"],
+      highlightHtml: null,
+    })) ?? [];
+
+  if (attachmentContextPrompt) {
+    contextPrompts.push(attachmentContextPrompt);
+  }
+
+  const requestContextRecords: ContextRecord[] = [...attachmentContextRecords];
+
+  if (contextEnabled) {
+    const capsuleHistoryPromise: Promise<ChatMemorySnippet[]> =
+      contextEnabled && capsuleId
+        ? getCapsuleHistorySnippets({ capsuleId, viewerId: ownerId, query: message })
+        : Promise.resolve<ChatMemorySnippet[]>([]);
+
+    const [contextResult, userCardResult, capsuleHistorySnippets] = await Promise.all([
+      getChatContext({
+        ownerId,
+        message,
+        history: historySanitized,
+        origin: requestOrigin ?? null,
+        capsuleId: capsuleId ?? null,
+      }),
+      getUserCardCached(ownerId),
+      capsuleHistoryPromise,
+    ]);
+
+    const memorySnippets = contextResult?.snippets ?? [];
+    const combinedSnippets = trimContextSnippets(
+      [...memorySnippets, ...capsuleHistorySnippets],
+      CONTEXT_SNIPPET_LIMIT,
+      CONTEXT_CHAR_BUDGET,
+    );
+    const combinedContext =
+      combinedSnippets.length > 0
+        ? {
+            query: contextResult?.query ?? message,
+            snippets: combinedSnippets,
+            usedIds: combinedSnippets.map((snippet) => snippet.id),
+          }
+        : contextResult;
+
+    const contextPrompt = formatContextForPrompt(combinedContext);
+    const contextForMetadata =
+      combinedSnippets.length > 0
+        ? {
+            query: contextResult?.query ?? message,
+            snippets: combinedSnippets,
+            usedIds: combinedSnippets.map((snippet) => snippet.id),
+          }
+        : contextResult;
+
+    contextMetadata = {
+      ...(contextMetadata ?? {}),
+      ...(buildContextMetadata(contextForMetadata) ?? {}),
+    };
+    if (capsuleHistorySnippets.length) {
+      contextMetadata = {
+        ...(contextMetadata ?? {}),
+        capsuleHistorySections: capsuleHistorySnippets.map((snippet) => snippet.id),
+      };
+    }
+
+    const memoryContextRecords: ContextRecord[] = combinedSnippets.length
+      ? combinedSnippets.map((snippet) => ({
+          id: snippet.id,
+          title: snippet.title ?? null,
+          snippet: snippet.snippet,
+          source: snippet.source ?? null,
+          url: snippet.url ?? null,
+          kind: snippet.kind ?? null,
+          tags: snippet.tags ?? [],
+          highlightHtml: snippet.highlightHtml ?? null,
+        }))
+      : [];
+
+    resolvedContextRecords = memoryContextRecords.length
+      ? [...requestContextRecords, ...memoryContextRecords]
+      : requestContextRecords;
+    if (contextPrompt) {
+      contextPrompts.push(contextPrompt);
+    }
+
+    responseContext = {
+      enabled: true,
+      query: contextResult?.query ?? null,
+      memoryIds: combinedSnippets.map((snippet) => snippet.id),
+      snippets: resolvedContextRecords.map((snippet) => ({
+        id: snippet.id,
+        title: snippet.title,
+        snippet: snippet.snippet,
+        source: snippet.source ?? null,
+        kind: snippet.kind ?? null,
+        url: snippet.url ?? null,
+        highlightHtml: snippet.highlightHtml ?? null,
+        tags: snippet.tags,
+      })),
+      userCard: userCardResult?.text ?? null,
+      attachments: attachmentContextRecords,
+    };
+  } else {
+    const userCardResult = await getUserCardCached(ownerId);
+    responseContext = {
+      enabled: false,
+      attachments: attachmentContextRecords,
+      userCard: userCardResult?.text ?? null,
+    };
+  }
+
+  const mergedContextPrompt = contextPrompts.filter(Boolean).join("\n\n");
+  const contextOptions =
+    mergedContextPrompt.length || resolvedContextRecords.length || contextMetadata
+      ? {
+          userCard: responseContext.userCard ?? null,
+          contextPrompt: mergedContextPrompt.length ? mergedContextPrompt : null,
+          contextRecords: resolvedContextRecords,
+          contextMetadata,
+        }
+      : {
+          userCard: responseContext.userCard ?? null,
+          contextPrompt: null,
+          contextRecords: resolvedContextRecords,
+          contextMetadata,
+        };
 
   if (stream) {
     const encoder = new TextEncoder();
@@ -155,13 +354,15 @@ export async function POST(req: Request) {
             context: composeContext,
             requestOrigin,
             replyMode,
+            contextOptions,
+            contextEnabled,
             callbacks: {
               onEvent: (event) => {
                 send({ event: event.type, ...event });
               },
             },
           });
-          send({ event: "done", payload: run.response });
+          send({ event: "done", payload: { ...run.response, context: responseContext } });
           controller.close();
         } catch (error) {
           console.error("customizer_stream_failed", error);
@@ -194,8 +395,10 @@ export async function POST(req: Request) {
       context: composeContext,
       requestOrigin,
       replyMode,
+      contextOptions,
+      contextEnabled,
     });
-    return validatedJson(promptResponseSchema, run.response);
+    return validatedJson(promptResponseSchema, { ...run.response, context: responseContext });
   } catch (error) {
     console.error("customizer_prompt_failed", error);
     return returnError(502, "ai_error", "Capsule AI ran into an error customizing that.");

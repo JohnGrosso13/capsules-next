@@ -8,6 +8,12 @@ import {
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
 
 export const runtime = "nodejs";
 
@@ -16,6 +22,8 @@ const TRANSCRIBE_RATE_LIMIT: RateLimitDefinition = {
   limit: 20,
   window: "10 m",
 };
+
+const TRANSCRIBE_COMPUTE_COST = 2_000;
 
 export async function POST(req: Request) {
   try {
@@ -28,13 +36,43 @@ export async function POST(req: Request) {
     const rateLimitResult = await checkRateLimit(TRANSCRIBE_RATE_LIMIT, ownerId);
     if (rateLimitResult && !rateLimitResult.success) {
       const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
-    return returnError(
-      429,
-      "rate_limited",
-      "Hold on - too many transcription requests in a short time.",
-      retryAfterSeconds === null ? undefined : { retryAfterSeconds },
-    );
-  }
+      return returnError(
+        429,
+        "rate_limited",
+        "Hold on - too many transcription requests in a short time.",
+        retryAfterSeconds === null ? undefined : { retryAfterSeconds },
+      );
+    }
+
+    try {
+      const walletContext = await resolveWalletContext({
+        ownerType: "user",
+        ownerId,
+        supabaseUserId: ownerId,
+        req,
+        ensureDevCredits: true,
+      });
+      ensureFeatureAccess({
+        balance: walletContext.balance,
+        bypass: walletContext.bypass,
+        requiredTier: "default",
+        featureName: "AI transcription",
+      });
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "compute",
+        amount: TRANSCRIBE_COMPUTE_COST,
+        reason: "ai.transcribe",
+        bypass: walletContext.bypass,
+      });
+    } catch (error) {
+      if (error instanceof EntitlementError) {
+        return returnError(error.status, error.code, error.message);
+      }
+      console.error("billing.ai_transcribe.failed", error);
+      return returnError(500, "billing_error", "Failed to verify allowance");
+    }
 
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const audioBase64Raw =

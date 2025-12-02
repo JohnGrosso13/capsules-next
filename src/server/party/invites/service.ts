@@ -8,6 +8,7 @@ import {
   getInviteById,
   updateInviteStatus,
   upsertPendingInvite,
+  hasActiveInviteForParty,
 } from "./repository";
 import type { PartyInviteSummary, PartyInviteStatus, RawInviteRow } from "./types";
 import { PartyInviteError } from "./types";
@@ -161,6 +162,17 @@ export async function listSentPartyInvites(userId: string): Promise<PartyInviteS
   const nowIso = new Date().toISOString();
   const rows = await fetchSentPendingInvites(normalizedUserId, nowIso);
   return rows.map((row) => mapInviteRow(row)).filter((invite) => invite.status === "pending");
+}
+
+export async function isUserInvitedToParty(
+  partyId: string,
+  userId: string,
+): Promise<boolean> {
+  const normalizedPartyId = partyId.trim().toLowerCase();
+  const normalizedUserId = userId.trim();
+  if (!normalizedPartyId || !normalizedUserId) return false;
+  const nowIso = new Date().toISOString();
+  return hasActiveInviteForParty(normalizedPartyId, normalizedUserId, nowIso);
 }
 
 async function requireInvite(inviteId: string): Promise<PartyInviteSummary> {

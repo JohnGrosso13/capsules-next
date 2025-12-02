@@ -1,0 +1,233 @@
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.panel {
+  border-radius: 18px;
+  padding: 16px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.12))) 90%, transparent);
+  background:
+    radial-gradient(
+      140% 120% at 14% 0%,
+      color-mix(in srgb, var(--color-brand, #6366f1) 16%, transparent),
+      transparent 64%
+    ),
+    radial-gradient(
+      140% 120% at 86% 0%,
+      color-mix(in srgb, var(--color-accent, #22d3ee) 14%, transparent),
+      transparent 66%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%, transparent),
+      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 86%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.94)) 6%, transparent),
+    var(--shadow-md, 0 12px 26px rgba(5, 10, 30, 0.28));
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.label {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  margin: 0 0 6px;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.subtle {
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.72)) 92%, transparent);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.balanceRow {
+  margin: 2px 0;
+  font-size: 0.95rem;
+  color: var(--text-2, rgba(255, 255, 255, 0.78));
+}
+
+.balanceRow strong {
+  color: color-mix(
+    in srgb,
+    var(--color-brand, #6366f1) 70%,
+    var(--text, rgba(255, 255, 255, 0.94))
+  );
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.formLabel {
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.92));
+}
+
+.input,
+.select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.12))) 82%, transparent);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  background:
+    radial-gradient(
+      120% 120% at 12% 0%,
+      color-mix(in srgb, var(--color-brand, #6366f1) 12%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--glass-bg-1, rgba(255, 255, 255, 0.12)) 78%, transparent),
+      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.06)) 88%, transparent)
+    );
+  color: var(--text, rgba(255, 255, 255, 0.92));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.94)) 8%, transparent),
+    0 12px 26px color-mix(in srgb, rgba(5, 10, 30, 0.42) 65%, transparent);
+  transition:
+    border-color var(--motion-duration-medium, 160ms) var(--motion-ease-standard, ease),
+    box-shadow var(--motion-duration-medium, 160ms) var(--motion-ease-standard, ease),
+    background var(--motion-duration-medium, 160ms) var(--motion-ease-standard, ease);
+}
+
+.input::placeholder {
+  color: color-mix(in srgb, var(--text-3, rgba(255, 255, 255, 0.56)) 92%, transparent);
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
+  outline-offset: 2px;
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.94)) 12%, transparent),
+    0 14px 32px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 80%, transparent);
+}
+
+.toggleRow {
+  display: flex;
+  gap: 8px;
+}
+
+.helper {
+  margin: 0;
+  color: color-mix(in srgb, var(--text-3, rgba(255, 255, 255, 0.56)) 92%, transparent);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.status {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, var(--text-2, rgba(255, 255, 255, 0.72)));
+}
+
+.capsuleList {
+  border-top: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.12))) 78%, transparent);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.listHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.capsuleCard {
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.12))) 86%, transparent);
+  background:
+    radial-gradient(
+      160% 120% at 12% 0%,
+      color-mix(in srgb, var(--color-brand, #6366f1) 14%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 88%, transparent),
+      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 84%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.94)) 6%, transparent),
+    var(--shadow-sm, 0 10px 22px rgba(5, 10, 30, 0.26));
+}
+
+.capsuleName {
+  font-weight: 750;
+  margin: 0 0 4px;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.capsuleSlug {
+  margin: 0 0 10px;
+  color: color-mix(in srgb, var(--text-3, rgba(255, 255, 255, 0.56)) 92%, transparent);
+  font-size: 0.88rem;
+}
+
+.listActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.error {
+  color: color-mix(in srgb, var(--color-danger, #f87171) 88%, #fff3f5);
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .panelHeader,
+  .actions,
+  .listActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

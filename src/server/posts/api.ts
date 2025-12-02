@@ -5,6 +5,7 @@ import type { CreatePostInput } from "@/server/posts/types";
 import { createPostResponseSchema } from "@/server/validation/schemas/posts";
 import { errorResponseSchema, type ErrorResponse } from "@/server/validation/http";
 import { normalizeId, CapsuleMembershipError } from "@/server/capsules/domain/common";
+import { ModerationError } from "@/server/moderation/text";
 import { requireCapsuleContentAccess } from "@/server/capsules/permissions";
 
 type CreatePostResponse = z.infer<typeof createPostResponseSchema>;
@@ -52,6 +53,9 @@ export async function createPostSlim(
     const id = await createPost({ post: options.post, ownerId: options.ownerId });
     return slimSuccess(createPostResponseSchema, { success: true, id });
   } catch (error) {
+    if (error instanceof ModerationError) {
+      return slimError(error.status, error.code, error.message, error.details);
+    }
     if (error instanceof CapsuleMembershipError) {
       return slimError(error.status, "forbidden", error.message);
     }

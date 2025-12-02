@@ -106,7 +106,17 @@ export async function sendDirectMessage(params: {
     throw new ChatServiceError("invalid_conversation", 400, "A conversation id is required.");
   }
 
-  const { left, right } = parseConversationId(params.conversationId);
+  let parsedConversation: { left: string; right: string };
+  try {
+    parsedConversation = parseConversationId(params.conversationId);
+  } catch {
+    throw new ChatServiceError(
+      "invalid_conversation",
+      400,
+      "That conversation could not be found.",
+    );
+  }
+  const { left, right } = parsedConversation;
   const senderIdTrimmed = params.senderId?.trim();
   if (!senderIdTrimmed) {
     throw new ChatServiceError("auth_required", 401, "Sign in to send a message.");
@@ -305,7 +315,17 @@ export async function updateDirectMessageAttachments(params: {
   requesterId: string;
   removeSet: Set<string>;
 }): Promise<{ message: ChatMessageRecord; participants: ChatParticipantSummary[] }> {
-  const { left, right } = parseConversationId(params.conversationId);
+  let parsedConversation: { left: string; right: string };
+  try {
+    parsedConversation = parseConversationId(params.conversationId);
+  } catch {
+    throw new ChatServiceError(
+      "invalid_conversation",
+      400,
+      "That conversation could not be found.",
+    );
+  }
+  const { left, right } = parsedConversation;
   const identityCache = new Map<string, ResolvedIdentity | null>();
   const leftResolved = await resolveIdentity(identityCache, left, left);
   const rightResolved = await resolveIdentity(identityCache, right, right);
@@ -399,7 +419,17 @@ export async function deleteDirectMessage(params: {
   messageId: string;
   requesterId: string;
 }): Promise<{ conversationId: string; messageId: string; participants: ChatParticipantSummary[] }> {
-  const { left, right } = parseConversationId(params.conversationId);
+  let parsedConversation: { left: string; right: string };
+  try {
+    parsedConversation = parseConversationId(params.conversationId);
+  } catch {
+    throw new ChatServiceError(
+      "invalid_conversation",
+      400,
+      "That conversation could not be found.",
+    );
+  }
+  const { left, right } = parsedConversation;
   const identityCache = new Map<string, ResolvedIdentity | null>();
   const leftResolved = await resolveIdentity(identityCache, left, left);
   const rightResolved = await resolveIdentity(identityCache, right, right);

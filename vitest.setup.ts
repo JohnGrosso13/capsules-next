@@ -4,6 +4,31 @@ vi.mock("server-only", () => ({}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+if (!("ResizeObserver" in globalThis)) {
+  // Minimal ResizeObserver polyfill for jsdom-based tests
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver = ResizeObserver;
+}
+
+if (typeof globalThis.matchMedia !== "function") {
+  // Basic matchMedia stub for components expecting browser APIs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  globalThis.matchMedia = ((query: string): any => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof globalThis.matchMedia;
+}
+
 const defaultEnv: Record<string, string> = {
   SUPABASE_URL: "https://example.supabase.co",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key",

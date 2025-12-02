@@ -318,6 +318,41 @@ export function AccountSettingsSection({
             ) : null}
           </div>
 
+          <div className={styles.upgradeGrid}>
+            <div className={styles.upgradeCard}>
+              <p className={styles.upgradeEyebrow}>Personal plan</p>
+              <h4 className={styles.upgradeTitle}>Unlock higher-quality models</h4>
+              <p className={styles.upgradeCopy}>
+                Keep generation snappy, unlock premium image/video models, and reserve extra
+                compute for your own prompts.
+              </p>
+              <div className={styles.upgradeActions}>
+                <Button type="button" variant="primary" className={layout.settingsCtaPrimary}>
+                  View personal plans
+                </Button>
+                <Button type="button" variant="ghost" className={layout.settingsCtaSecondary}>
+                  Compare tiers
+                </Button>
+              </div>
+            </div>
+            <div className={styles.upgradeCard}>
+              <p className={styles.upgradeEyebrow}>Personal memory</p>
+              <h4 className={styles.upgradeTitle}>Give your uploads more breathing room</h4>
+              <p className={styles.upgradeCopy}>
+                Add storage for documents, images, and clips so Capsule AI can recall more of your
+                personal context.
+              </p>
+              <div className={styles.upgradeActions}>
+                <Button type="button" variant="secondary" className={layout.settingsCtaSecondary}>
+                  Increase memory
+                </Button>
+                <Button type="button" variant="ghost">
+                  How it works
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <div className={styles.profileLinkCard}>
             <div>
               <h4>Profile page</h4>

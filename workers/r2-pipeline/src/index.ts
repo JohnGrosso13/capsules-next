@@ -19,6 +19,35 @@ const PLACEHOLDER_POSTER_BASE64 =
   "2Q==";
 
 const MAX_DOCUMENT_TEXT_CHARS = 20_000;
+const MAX_IMAGE_BYTES = 4_500_000;
+const MAX_TEXT_BYTES = 500_000;
+const MAX_AUDIO_BYTES = 25_000_000;
+const SAFETY_JSON_INDENT = 2;
+
+type SafetyDecision = "allow" | "review" | "block";
+type SafetySeverity = "none" | "low" | "medium" | "high";
+type SafetyLabelScore = { score: number; severity: SafetySeverity; rationale?: string | null };
+type SafetyPayload = {
+  status: "succeeded" | "error";
+  decision: SafetyDecision;
+  kind: "image" | "video" | "audio" | "text" | "document" | "unknown";
+  model: string | null;
+  labels: Record<string, SafetyLabelScore>;
+  scanned_at: string;
+  source: "openai";
+  notes?: string[];
+  reason?: string | null;
+  raw_id?: string | null;
+  input_bytes?: number | null;
+  truncated?: boolean;
+};
+
+const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
+
+const IMAGE_SAFETY_SYSTEM_PROMPT =
+  "You are a strict content safety classifier. Return JSON only. Evaluate the attached image for these categories: " +
+  "sexual, sexual/minors, violence, violence/graphic, hate, hate/threatening, harassment, harassment/threatening, self-harm, self-harm/intent, self-harm/instructions, weapons, drugs. " +
+  "Return {\"labels\": {<category>: <0-1 float>}, \"notes\": [\"...optional notes...\"]}. Do not include any other text.";
 
 function readProcessingMetadata(
   metadata: Record<string, unknown> | null | undefined,
@@ -33,6 +62,362 @@ function isProcessingTextLike(metadata: Record<string, unknown> | null | undefin
   const processing = readProcessingMetadata(metadata);
   const value = processing?.text_like;
   return typeof value === "boolean" ? value : false;
+}
+
+function resolveOpenAIBaseUrl(env: Env): string {
+  const raw = (env.OPENAI_BASE_URL ?? "").trim();
+  const base = raw.length ? raw : OPENAI_DEFAULT_BASE_URL;
+  return base.replace(/\/+$/, "");
+}
+
+function requireOpenAIKey(env: Env): string {
+  const key = (env.OPENAI_API_KEY ?? "").trim();
+  if (!key) {
+    throw new Error("OPENAI_API_KEY not configured for safety scanning");
+  }
+  return key;
+}
+
+async function postOpenAIJson<T>(
+  env: Env,
+  path: string,
+  body: unknown,
+  init: RequestInit = {},
+): Promise<{ response: Response; data: T | null; rawBody: string }> {
+  const apiKey = requireOpenAIKey(env);
+  const url = path.startsWith("http") ? path : `${resolveOpenAIBaseUrl(env).replace(/\/+$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+  const payload = typeof body === "string" ? body : JSON.stringify(body);
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Authorization", `Bearer ${apiKey}`);
+  if (env.OPENAI_ORGANIZATION && !headers.has("OpenAI-Organization")) {
+    headers.set("OpenAI-Organization", env.OPENAI_ORGANIZATION);
+  }
+  if (env.OPENAI_PROJECT && !headers.has("OpenAI-Project")) {
+    headers.set("OpenAI-Project", env.OPENAI_PROJECT);
+  }
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    ...init,
+    headers,
+    body: payload,
+  });
+  const rawBody = await response.text();
+  let data: T | null = null;
+  try {
+    data = rawBody ? (JSON.parse(rawBody) as T) : null;
+  } catch {
+    data = null;
+  }
+  return { response, data, rawBody };
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i += 1) {
+    binary += String.fromCharCode(bytes[i] ?? 0);
+  }
+  // btoa is available in Workers runtime
+  return btoa(binary);
+}
+
+function scoreToSeverity(score: number): SafetySeverity {
+  if (!Number.isFinite(score) || score <= 0.05) return "none";
+  if (score >= 0.85) return "high";
+  if (score >= 0.6) return "medium";
+  if (score >= 0.25) return "low";
+  return "none";
+}
+
+function decideFromLabels(labels: Record<string, SafetyLabelScore>): SafetyDecision {
+  const score = (key: string) => labels[key]?.score ?? 0;
+  if (score("sexual/minors") >= 0.2) return "block";
+  if (score("violence/graphic") >= 0.6) return "block";
+  if (score("hate/threatening") >= 0.6 || score("harassment/threatening") >= 0.6) return "block";
+  if (score("self-harm/instructions") >= 0.5) return "block";
+
+  if (
+    score("sexual") >= 0.85 ||
+    score("violence") >= 0.7 ||
+    score("hate") >= 0.5 ||
+    score("harassment") >= 0.5 ||
+    score("self-harm") >= 0.5 ||
+    score("self-harm/intent") >= 0.5 ||
+    score("weapons") >= 0.7 ||
+    score("drugs") >= 0.7
+  ) {
+    return "review";
+  }
+
+  const anyMedium = Object.values(labels).some((entry) => {
+    const severity = entry?.severity ?? "none";
+    return severity === "medium" || severity === "high";
+  });
+  if (anyMedium) return "review";
+  return "allow";
+}
+
+async function readR2Object(
+  env: Env,
+  key: string,
+  maxBytes: number,
+): Promise<{ buffer: ArrayBuffer; contentType: string | null; truncated: boolean }> {
+  const object = await env.R2_BUCKET.get(key, { range: { offset: 0, length: maxBytes } });
+  if (!object) {
+    throw new Error("Source object missing for safety scan");
+  }
+  const buffer = await object.arrayBuffer();
+  const contentType =
+    normalizeContentType(object.httpMetadata?.contentType ?? null) ?? guessMimeFromKey(key);
+  const truncated = typeof object.size === "number" ? object.size > buffer.byteLength : false;
+  return { buffer, contentType, truncated };
+}
+
+function buildSafetyPayloadBase(
+  kind: SafetyPayload["kind"],
+  model: string | null,
+  labels: Record<string, SafetyLabelScore>,
+  notes: string[],
+  metadata?: Partial<SafetyPayload>,
+): SafetyPayload {
+  const decision = decideFromLabels(labels);
+  const payload: SafetyPayload = {
+    status: "succeeded",
+    decision,
+    kind,
+    model,
+    labels,
+    scanned_at: new Date().toISOString(),
+    source: "openai",
+    ...metadata,
+  };
+  if (notes.length) {
+    payload.notes = notes;
+  }
+  return payload;
+}
+
+async function runTextModeration(
+  env: Env,
+  text: string,
+  kind: SafetyPayload["kind"],
+): Promise<SafetyPayload> {
+  const input = text.trim().slice(0, MAX_DOCUMENT_TEXT_CHARS);
+  const { data } = await postOpenAIJson<{
+    id?: string;
+    model?: string;
+    results?: Array<{
+      category_scores: Record<string, number>;
+    }>;
+  }>(env, "/moderations", {
+    model: "omni-moderation-latest",
+    input,
+  });
+
+  const scores = data?.results?.[0]?.category_scores ?? {};
+  const labels: Record<string, SafetyLabelScore> = {};
+  Object.entries(scores).forEach(([key, value]) => {
+    const numeric = Number(value ?? 0);
+    labels[key] = { score: numeric, severity: scoreToSeverity(numeric) };
+  });
+  const notes: string[] = [];
+  if (input.length < text.length) notes.push("text truncated for moderation");
+
+  return buildSafetyPayloadBase(kind, data?.model ?? "omni-moderation-latest", labels, notes, {
+    raw_id: data?.id ?? null,
+    truncated: input.length < text.length,
+    input_bytes: input.length,
+  });
+}
+
+async function runImageModeration(
+  env: Env,
+  buffer: ArrayBuffer,
+  contentType: string,
+  metadata: { truncated: boolean },
+): Promise<SafetyPayload> {
+  const model = "gpt-4o-mini";
+  const base64 = arrayBufferToBase64(buffer);
+  const { data } = await postOpenAIJson<{
+    id?: string;
+    model?: string;
+    choices?: Array<{ message?: { content?: string } }>;
+  }>(env, "/chat/completions", {
+    model,
+    temperature: 0,
+    max_tokens: 200,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: IMAGE_SAFETY_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Classify this image for safety risks. Return JSON only." },
+          { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } },
+        ],
+      },
+    ],
+  });
+
+  const rawContent = data?.choices?.[0]?.message?.content ?? "{}";
+  let parsed: { labels?: Record<string, number>; notes?: string[] } = {};
+  try {
+    parsed = JSON.parse(rawContent);
+  } catch {
+    parsed = {};
+  }
+  const labels: Record<string, SafetyLabelScore> = {};
+  Object.entries(parsed.labels ?? {}).forEach(([key, value]) => {
+    const numeric = Number(value ?? 0);
+    labels[key] = { score: numeric, severity: scoreToSeverity(numeric) };
+  });
+  const notes = Array.isArray(parsed.notes)
+    ? parsed.notes.filter((n): n is string => typeof n === "string" && n.trim().length > 0)
+    : [];
+  if (metadata.truncated) notes.push("image truncated for moderation (byte cap)");
+  return buildSafetyPayloadBase("image", data?.model ?? model, labels, notes, {
+    raw_id: data?.id ?? null,
+    input_bytes: buffer.byteLength,
+    truncated: metadata.truncated,
+  });
+}
+
+async function transcribeForModeration(
+  env: Env,
+  buffer: ArrayBuffer,
+  contentType: string | null,
+  filename: string,
+): Promise<string> {
+  const form = new FormData();
+  const file = new File([buffer], filename || "clip", { type: contentType ?? "application/octet-stream" });
+  form.append("file", file);
+  form.append("model", "whisper-1");
+  form.append("temperature", "0");
+
+  const apiKey = requireOpenAIKey(env);
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${apiKey}`);
+  if (env.OPENAI_ORGANIZATION) headers.set("OpenAI-Organization", env.OPENAI_ORGANIZATION);
+  if (env.OPENAI_PROJECT) headers.set("OpenAI-Project", env.OPENAI_PROJECT);
+
+  const response = await fetch(`${resolveOpenAIBaseUrl(env)}/audio/transcriptions`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  const rawBody = await response.text();
+  if (!response.ok) {
+    throw new Error(`Transcription failed (${response.status}): ${rawBody.slice(0, 200)}`);
+  }
+  try {
+    const parsed = JSON.parse(rawBody) as { text?: string };
+    return typeof parsed.text === "string" ? parsed.text : "";
+  } catch {
+    return "";
+  }
+}
+
+async function runAudioModeration(
+  env: Env,
+  buffer: ArrayBuffer,
+  contentType: string | null,
+  kind: SafetyPayload["kind"],
+  truncated: boolean,
+  filename: string,
+): Promise<SafetyPayload> {
+  const transcript = await transcribeForModeration(env, buffer, contentType, filename);
+  if (!transcript.trim().length) {
+    return {
+      status: "error",
+      decision: "review",
+      kind,
+      model: null,
+      labels: {},
+      scanned_at: new Date().toISOString(),
+      source: "openai",
+      notes: ["Audio transcription empty; manual review"],
+      truncated,
+      input_bytes: buffer.byteLength,
+    };
+  }
+  const textResult = await runTextModeration(env, transcript, kind);
+  textResult.notes = [...(textResult.notes ?? []), "Transcribed audio used for safety"];
+  textResult.truncated = truncated || Boolean(textResult.truncated);
+  textResult.input_bytes = buffer.byteLength;
+  return textResult;
+}
+
+async function classifyUploadSafety(
+  env: Env,
+  message: ProcessingTaskMessage,
+): Promise<SafetyPayload> {
+  const contentType = resolveOriginalContentType(message);
+  const normalizedKind = (() => {
+    if (contentType?.startsWith("image/")) return "image";
+    if (contentType?.startsWith("video/")) return "video";
+    if (contentType?.startsWith("audio/")) return "audio";
+    if (contentType?.startsWith("text/")) return "text";
+    if (contentType?.includes("json") || contentType?.includes("xml")) return "text";
+    if (contentType?.includes("pdf") || contentType?.includes("document") || contentType?.includes("msword")) {
+      return "document";
+    }
+    if (isProcessingTextLike(message.metadata as Record<string, unknown> | null)) return "text";
+    return "unknown";
+  })() as SafetyPayload["kind"];
+
+  switch (normalizedKind) {
+    case "image": {
+      const { buffer, contentType: detectedContentType, truncated } = await readR2Object(
+        env,
+        message.key,
+        MAX_IMAGE_BYTES,
+      );
+      const effectiveType = detectedContentType ?? contentType ?? "image/jpeg";
+      return runImageModeration(env, buffer, effectiveType, { truncated });
+    }
+    case "text":
+    case "document": {
+      const { buffer, truncated } = await readR2Object(env, message.key, MAX_TEXT_BYTES);
+      const text = new TextDecoder("utf-8").decode(buffer);
+      const result = await runTextModeration(env, text, normalizedKind);
+      result.truncated = truncated || Boolean(result.truncated);
+      result.input_bytes = buffer.byteLength;
+      return result;
+    }
+    case "audio":
+    case "video": {
+      const { buffer, contentType: detectedContentType, truncated } = await readR2Object(
+        env,
+        message.key,
+        MAX_AUDIO_BYTES,
+      );
+      return runAudioModeration(
+        env,
+        buffer,
+        detectedContentType ?? contentType ?? null,
+        normalizedKind,
+        truncated,
+        message.key.split("/").pop() ?? "clip",
+      );
+    }
+    default: {
+      return {
+        status: "error",
+        decision: "review",
+        kind: "unknown",
+        model: null,
+        labels: {},
+        scanned_at: new Date().toISOString(),
+        source: "openai",
+        notes: ["Unsupported content type for safety scan"],
+        input_bytes: null,
+      };
+    }
+  }
 }
 
 const worker = {
@@ -937,11 +1322,23 @@ async function processSafetyScan(
   message: ProcessingTaskMessage,
 ): Promise<DerivedAssetRecord> {
   const derivedKey = `${stripExtension(message.key)}__safety.json`;
-  const payload = {
-    status: "pending",
-    note: "Safety scan placeholder. Integrate with Cloudflare AI or third-party scanner.",
-  };
-  await env.R2_BUCKET.put(derivedKey, JSON.stringify(payload, null, 2), {
+  let payload: SafetyPayload;
+  try {
+    payload = await classifyUploadSafety(env, message);
+  } catch (error) {
+    payload = {
+      status: "error",
+      decision: "review",
+      kind: "unknown",
+      model: null,
+      labels: {},
+      scanned_at: new Date().toISOString(),
+      source: "openai",
+      reason: error instanceof Error ? error.message : String(error),
+      notes: ["Safety scan failed; defaulting to review"],
+    };
+  }
+  await env.R2_BUCKET.put(derivedKey, JSON.stringify(payload, null, SAFETY_JSON_INDENT), {
     httpMetadata: { contentType: "application/json" },
   });
   return {

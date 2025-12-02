@@ -7,7 +7,21 @@ import {
   type ChatMessage,
   type ToolCallDefinition,
 } from "@/lib/ai/prompter/core";
+import {
+  buildContextMessages,
+  mapConversationToMessages,
+  selectHistoryLimit,
+  type ComposeDraftOptions,
+} from "@/lib/ai/prompter";
 import { promptResponseSchema, type PromptResponse } from "@/shared/schemas/ai";
+import {
+  buildContextMetadata,
+  formatContextForPrompt,
+  getCapsuleHistorySnippets,
+  getChatContext,
+  type ChatMemorySnippet,
+} from "@/server/chat/retrieval";
+import { isWebSearchConfigured, searchWeb } from "@/server/search/web-search";
 
 import {
   generateBannerAsset,
@@ -67,6 +81,11 @@ export type CustomizerToolSessionOptions = {
   replyMode?: "chat" | "draft" | null;
   maxIterations?: number;
   callbacks?: CustomizerToolCallbacks;
+  contextOptions?: Pick<
+    ComposeDraftOptions,
+    "userCard" | "contextPrompt" | "contextRecords" | "contextMetadata"
+  > | null;
+  contextEnabled?: boolean;
 };
 
 type RuntimeContext = {
@@ -75,6 +94,9 @@ type RuntimeContext = {
   requestOrigin?: string | null;
   compose: CustomizerComposeContext;
   setLatestAsset(asset: AssetResponse | null): void;
+  latestUserText: string;
+  history: ComposerChatMessage[];
+  contextEnabled: boolean;
 };
 
 type ToolHandler = (
@@ -136,6 +158,44 @@ const TOOL_DEFINITIONS: ToolCallDefinition[] = [
           type: "string",
           enum: ["banner", "logo", "avatar"],
           description: "The asset kind to edit.",
+        },
+      },
+    },
+  },
+  {
+    name: "fetch_context",
+    description:
+      "Search Capsule memories and capsule history to ground your response. Use this when the user references prior work or you need more background.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        query: {
+          type: "string",
+          description: "Search terms or recap of what you need (defaults to the latest user ask).",
+        },
+        include_capsule_history: {
+          type: "boolean",
+          description: "Set true to also fetch capsule history snippets.",
+        },
+      },
+    },
+  },
+  {
+    name: "search_web",
+    description:
+      "Look up real-world information on the internet. Use when you need fresh facts or details not in memory/context.",
+    parameters: {
+      type: "object",
+      required: ["query"],
+      additionalProperties: false,
+      properties: {
+        query: { type: "string", description: "What to search for on the web." },
+        limit: {
+          type: "integer",
+          description: "How many results to fetch (1-6).",
+          minimum: 1,
+          maximum: 6,
         },
       },
     },
@@ -272,16 +332,75 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     const response = await editAvatarAsset(options);
     return { status: "ok", asset: response };
   },
+  async fetch_context(input, runtime) {
+    if (!runtime.contextEnabled) {
+      return { status: "disabled", message: "Context is disabled for this request." };
+    }
+    const rawQuery = typeof input.query === "string" ? input.query.trim() : "";
+    const query = rawQuery.length ? rawQuery : runtime.latestUserText;
+    const includeCapsuleHistory =
+      input.include_capsule_history === true || input.include_capsule_history === "true";
+
+    const contextResult = await getChatContext({
+      ownerId: runtime.ownerId,
+      message: query,
+      history: runtime.history,
+      capsuleId: runtime.capsuleId ?? null,
+    });
+    const formatted = formatContextForPrompt(contextResult);
+    const metadata = buildContextMetadata(contextResult);
+    let capsuleSnippets: ChatMemorySnippet[] = [];
+    if (includeCapsuleHistory && runtime.capsuleId) {
+      capsuleSnippets = await getCapsuleHistorySnippets({
+        capsuleId: runtime.capsuleId,
+        limit: 4,
+        query,
+      });
+    }
+    return {
+      status: "succeeded",
+      query,
+      metadata,
+      prompt: formatted,
+      snippets: contextResult?.snippets ?? [],
+      capsuleSnippets,
+    };
+  },
+  async search_web(input, runtime) {
+    const rawQuery = typeof input.query === "string" ? input.query.trim() : "";
+    const query = rawQuery.length ? rawQuery : runtime.latestUserText;
+    const limitRaw = typeof input.limit === "number" ? input.limit : undefined;
+    const limit = limitRaw && Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 6)) : 4;
+
+    if (!query.trim().length) {
+      throw new Error("search_web requires a query.");
+    }
+    if (!isWebSearchConfigured()) {
+      return { status: "error", message: "Web search is not configured." };
+    }
+
+    const results = await searchWeb(query, { limit });
+    if (!results.length) {
+      return { status: "empty", query };
+    }
+
+    const [primary] = results;
+    return {
+      status: "succeeded",
+      kind: "web",
+      query,
+      title: primary?.title ?? null,
+      snippet: primary?.snippet ?? null,
+      url: primary?.url ?? null,
+      results,
+    };
+  },
 };
 
-function mapHistoryToMessages(history: ComposerChatMessage[] | undefined): ChatMessage[] {
-  if (!history || !history.length) return [];
-  return history
-    .filter((entry) => entry.role === "assistant" || entry.role === "user")
-    .map((entry) => ({
-      role: entry.role,
-      content: entry.content,
-    }));
+function mapHistoryToMessages(history: ComposerChatMessage[], latestUserText: string): ChatMessage[] {
+  if (!history.length) return [];
+  const limit = selectHistoryLimit(latestUserText);
+  return mapConversationToMessages(history, limit);
 }
 
 function buildSystemPrompt(context: CustomizerComposeContext, replyMode: "chat" | "draft" | null): string {
@@ -293,13 +412,14 @@ function buildSystemPrompt(context: CustomizerComposeContext, replyMode: "chat" 
         : context.mode === "tile"
           ? "promo tile"
           : context.mode === "storeBanner"
-            ? "store hero"
-            : "banner";
+          ? "store hero"
+          : "banner";
   const base = [
-    "You are Capsule's Customizer assistant.",
-    `Your job is to collaborate with the user to design their ${assetLabel} via a conversational loop.`,
-    "Use the provided tools to generate or edit visuals; never fabricate URLs-only return the actual URLs that the tools give you.",
-    "When you have enough to respond, output strictly the JSON object required by the schema: { action: \"draft_post\", message, post }.",
+    "You are Capsule's Customizer assistant with the full power of Capsules AI.",
+    `Default to being a helpful ChatGPT: answer any question, use fetch_context to pull memories, and search_web for live facts when needed.`,
+    `When the user wants visuals, collaborate to design their ${assetLabel} via render_banner / render_logo / render_avatar / edit_asset. Never fabricate URLs—only return those provided by tools.`,
+    "When you are just replying in chat, output strict JSON: { action: \"chat_reply\", message }.",
+    "When you generate or edit an asset, output strict JSON: { action: \"draft_post\", message, post }.",
     "Set post.kind to \"customizer\" and post.content to a short summary of the update.",
     "Inside post.customizerDraft include: { mode, assetUrl, assetKind, variantId, mimeType, message, suggestions }.",
     "Do not mention tool execution details in the final JSON message.",
@@ -308,7 +428,7 @@ function buildSystemPrompt(context: CustomizerComposeContext, replyMode: "chat" 
 
   if (replyMode === "chat") {
     base.push(
-      "User replyMode is chat-only: if you are just advising or asking questions, return { action: 'chat_reply', message } with no post or customizerDraft. Only return draft_post when you actually generated/edited an asset this turn."
+      "User replyMode is chat-only: return { action: 'chat_reply', message } with no post or customizerDraft unless you actually generated/edited an asset this turn."
     );
   } else if (replyMode === "draft") {
     base.push(
@@ -372,6 +492,8 @@ export async function runCustomizerToolSession(
     replyMode = null,
     maxIterations = 6,
     callbacks,
+    contextOptions = null,
+    contextEnabled = true,
   } = options;
   let latestAsset: AssetResponse | null = null;
   const runtime: RuntimeContext = {
@@ -382,10 +504,22 @@ export async function runCustomizerToolSession(
     setLatestAsset(asset: AssetResponse | null) {
       latestAsset = asset;
     },
+    latestUserText: userText,
+    history: history ?? [],
+    contextEnabled,
   };
+  const contextMessages = contextEnabled
+    ? buildContextMessages({
+        userCard: contextOptions?.userCard ?? null,
+        contextPrompt: contextOptions?.contextPrompt ?? null,
+        contextRecords: contextOptions?.contextRecords ?? [],
+        contextMetadata: contextOptions?.contextMetadata ?? null,
+      })
+    : [];
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt(context, replyMode) },
-    ...mapHistoryToMessages(history),
+    ...contextMessages,
+    ...mapHistoryToMessages(history ?? [], userText),
     {
       role: "user",
       content: JSON.stringify({

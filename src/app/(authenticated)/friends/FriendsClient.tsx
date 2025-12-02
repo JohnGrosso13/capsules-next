@@ -3,7 +3,16 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { ChatsCircle, MicrophoneStage, Brain } from "@phosphor-icons/react/dist/ssr";
+import {
+  Brain,
+  ChatsCircle,
+  Handshake,
+  MagicWand,
+  MicrophoneStage,
+  Plus,
+  UserPlus,
+  UsersThree,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { type FriendItem } from "@/hooks/useFriendsData";
 import { FriendsTabs } from "@/components/friends/FriendsTabs";
@@ -21,12 +30,14 @@ import {
 } from "@/components/providers/ChatProvider";
 import { PartyPanel } from "@/components/party/PartyPanel";
 import { ConnectionsQuickActions, type QuickAction } from "@/components/rail/ConnectionsQuickActions";
+import railStyles from "@/components/rail/connections-rail.module.css";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
 import { buildProfileHref } from "@/lib/profile/routes";
 import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { useAssistantTasks } from "@/hooks/useAssistantTasks";
+import type { GlobalSearchSection, UserSearchResult } from "@/types/search";
 
 import styles from "./friends.module.css";
 
@@ -36,6 +47,15 @@ type Tab = (typeof tabs)[number];
 type TabStateHook = [Tab, (tab: Tab) => void];
 
 type GroupFlowState = { mode: "create" } | { mode: "invite"; sessionId: string };
+
+const mobileTabOrder: Tab[] = ["Friends", "Party", "Chats", "Requests", "Assistant"];
+const tabIconMap: Record<Tab, React.ReactNode> = {
+  Assistant: <MagicWand size={18} weight="duotone" />,
+  Friends: <UsersThree size={18} weight="duotone" />,
+  Party: <MicrophoneStage size={18} weight="duotone" />,
+  Chats: <ChatsCircle size={18} weight="duotone" />,
+  Requests: <Handshake size={18} weight="duotone" />,
+};
 
 function useTabFromSearch(): TabStateHook {
   const searchParams = useSearchParams();
@@ -74,18 +94,18 @@ function useTabFromSearch(): TabStateHook {
 
 function mergeCounters(
   assistant: number,
-  friends: number,
+  friends: number | string,
   party: number,
   chats: number,
   requests: number,
-): Record<Tab, number> {
+): Record<Tab, number | string> {
   return {
     Assistant: assistant,
     Friends: friends,
     Party: party,
     Chats: chats,
     Requests: requests,
-  } satisfies Record<Tab, number>;
+  };
 }
 
 export function FriendsClient() {
@@ -149,6 +169,16 @@ export function FriendsClient() {
   const searchParams = useSearchParams();
   const focusParam = searchParams.get("focus");
   const lastFocusRef = React.useRef<string | null>(null);
+  const [showFriendDiscover, setShowFriendDiscover] = React.useState(false);
+  const [friendSearch, setFriendSearch] = React.useState("");
+  const friendSearchInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [friendSearchResults, setFriendSearchResults] = React.useState<UserSearchResult[]>([]);
+  const [friendSearchLoading, setFriendSearchLoading] = React.useState(false);
+  const [friendSearchError, setFriendSearchError] = React.useState<string | null>(null);
+  const [addedSuggestionIds, setAddedSuggestionIds] = React.useState<Set<string>>(
+    () => new Set<string>(),
+  );
+  const friendSearchAbortRef = React.useRef<AbortController | null>(null);
 
   const normalizeIdentifiers = React.useCallback((friend: FriendItem) => {
     const ids = new Set<string>();
@@ -255,10 +285,71 @@ export function FriendsClient() {
     }
   }, [activeTab, focusParam, friends, highlightId, loading, selectTab, setNotice]);
 
+  React.useEffect(() => {
+    if (!showFriendDiscover) return;
+    const term = friendSearch.trim();
+    if (term.length < 2) {
+      friendSearchAbortRef.current?.abort();
+      friendSearchAbortRef.current = null;
+      setFriendSearchResults([]);
+      setFriendSearchLoading(false);
+      setFriendSearchError(null);
+      return;
+    }
+    setFriendSearchLoading(true);
+    setFriendSearchError(null);
+    const controller = new AbortController();
+    friendSearchAbortRef.current?.abort();
+    friendSearchAbortRef.current = controller;
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: term, limit: 10 }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          setFriendSearchResults([]);
+          setFriendSearchError(response.status === 401 ? "Sign in to search." : "Search failed.");
+        } else {
+          const data = (await response.json()) as { sections?: GlobalSearchSection[] };
+          const users =
+            data.sections?.find((section) => section.type === "users")?.items ??
+            ([] as UserSearchResult[]);
+          setFriendSearchResults(users);
+        }
+      } catch (error) {
+        if ((error as Error)?.name !== "AbortError") {
+          setFriendSearchResults([]);
+          setFriendSearchError("Search interrupted. Try again.");
+        }
+      } finally {
+        setFriendSearchLoading(false);
+      }
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [friendSearch, showFriendDiscover]);
+
   const hasEligibleFriends = React.useMemo(
     () => friends.some((friend) => Boolean(friend.userId)),
     [friends],
   );
+
+  React.useEffect(() => {
+    if (activeTab === "Friends") return;
+    setShowFriendDiscover(false);
+    setFriendSearch("");
+    setFriendSearchResults([]);
+    setFriendSearchError(null);
+    setFriendSearchLoading(false);
+    friendSearchAbortRef.current?.abort();
+    friendSearchAbortRef.current = null;
+    setAddedSuggestionIds(new Set());
+  }, [activeTab]);
 
   const friendTargetMap = React.useMemo(() => {
     const map = new Map<string, ChatFriendTarget>();
@@ -272,6 +363,28 @@ export function FriendsClient() {
     });
     return map;
   }, [friends]);
+
+  const handleToggleFriendDiscover = React.useCallback(() => {
+    setShowFriendDiscover((prev) => {
+      const next = !prev;
+      if (next) {
+        window.setTimeout(() => friendSearchInputRef.current?.focus(), 0);
+      } else {
+        friendSearchAbortRef.current?.abort();
+        friendSearchAbortRef.current = null;
+        setFriendSearchLoading(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleAddSuggestedFriend = React.useCallback((id: string) => {
+    setAddedSuggestionIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
 
   const closeGroupFlow = React.useCallback(() => {
     setGroupFlow(null);
@@ -605,6 +718,16 @@ export function FriendsClient() {
     () => friends.filter((friend) => friend.userId === ASSISTANT_USER_ID),
     [friends],
   );
+  const realFriends = React.useMemo(
+    () => friends.filter((friend) => friend.userId && friend.userId !== ASSISTANT_USER_ID),
+    [friends],
+  );
+  const onlineFriendsCount = React.useMemo(
+    () => realFriends.reduce((total, friend) => (friend.status !== "offline" ? total + 1 : total), 0),
+    [realFriends],
+  );
+  const friendsBadge =
+    counters.friends > 0 ? `${onlineFriendsCount}/${counters.friends}` : counters.friends;
 
   React.useEffect(() => {
     if (groupFlow?.mode === "invite" && !inviteSession) {
@@ -618,12 +741,18 @@ export function FriendsClient() {
     () =>
       mergeCounters(
         assistantFriends.length,
-        counters.friends,
+        friendsBadge,
         partyBadgeCount,
         chatUnreadCount,
         counters.requests,
       ),
-    [assistantFriends.length, counters.friends, chatUnreadCount, counters.requests, partyBadgeCount],
+    [
+      assistantFriends.length,
+      friendsBadge,
+      chatUnreadCount,
+      counters.requests,
+      partyBadgeCount,
+    ],
   );
 
   const isPartyActive = activeTab === "Party";
@@ -671,9 +800,12 @@ export function FriendsClient() {
     partyButtonLabel,
     selectTab,
   ]);
-
-
-
+ 
+  const mobileTabs = React.useMemo(
+    () => mobileTabOrder.map((key) => ({ key, icon: tabIconMap[key] })),
+    [],
+  );
+ 
   if (loading && friends.length === 0) {
     return <div className={styles.empty}>Loading friends...</div>;
   }
@@ -708,6 +840,74 @@ export function FriendsClient() {
   return (
     <>
       <section className={styles.friendsSection}>
+        <div className={`${styles.tabsSticky} ${styles.mobileRailShell}`.trim()}>
+          <div
+            className={`${railStyles.railIconTabs} ${styles.mobileRailTabs}`.trim()}
+            role="tablist"
+            aria-label="Connections"
+          >
+            {mobileTabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`panel-${tab.key.toLowerCase()}`}
+                  tabIndex={isActive ? 0 : -1}
+                  className={`${railStyles.railIconTab} ${isActive ? railStyles.railIconTabActive : ""}`.trim()}
+                  onClick={() => selectTab(tab.key)}
+                  title={tab.key}
+                >
+                  <span className={styles.mobileRailTabIcon} aria-hidden>
+                    {tab.icon}
+                  </span>
+                  <span className={railStyles.railIconTabLabel}>{tab.key}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className={`${railStyles.railPanelHeader} ${styles.mobilePanelHeader}`.trim()}>
+            <div className={railStyles.railPanelHeading}>
+              <div className={railStyles.railPanelTitleRow}>
+                <span className={railStyles.railPanelTitleIcon} aria-hidden>
+                  {tabIconMap[activeTab]}
+                </span>
+                <h2 className={`${railStyles.railPanelTitle} ${styles.mobilePanelTitle}`.trim()}>
+                  {activeTab}
+                </h2>
+              </div>
+            </div>
+            <div className={railStyles.railPanelActions}>
+              {activeTab === "Friends" ? (
+                <button
+                  type="button"
+                  className={railStyles.railPanelActionButton}
+                  aria-pressed={showFriendDiscover}
+                  aria-label={showFriendDiscover ? "Hide add friends" : "Add friends"}
+                  title={showFriendDiscover ? "Hide add friends" : "Add friends"}
+                  onClick={handleToggleFriendDiscover}
+                >
+                  <UserPlus size={16} weight="bold" />
+                </button>
+              ) : null}
+              {activeTab === "Chats" ? (
+                <button
+                  type="button"
+                  className={railStyles.railPanelActionButton}
+                  aria-label="Start a new chat"
+                  title={hasEligibleFriends ? "Start a new chat" : "Add friends to start a chat"}
+                  onClick={handleOpenGroupCreator}
+                  disabled={!hasEligibleFriends}
+                >
+                  <Plus size={16} weight="bold" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
         <div className={styles.tabsHeader}>
           <div className={styles.tabsHeaderTabs}>
             <FriendsTabs active={activeTab} counters={tabCounters} onSelect={selectTab} />
@@ -718,12 +918,13 @@ export function FriendsClient() {
         </div>
 
         <div
-        id="panel-assistant"
-        role="tabpanel"
-        aria-labelledby="tab-assistant"
-        hidden={activeTab !== "Assistant"}
-        className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
-      >
+          id="panel-assistant"
+          role="tabpanel"
+          aria-labelledby="tab-assistant"
+          aria-label="Assistant"
+          hidden={activeTab !== "Assistant"}
+          className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
+        >
           <AssistantPanel
             tasks={assistantTasks}
             loading={loadingAssistantTasks}
@@ -739,9 +940,65 @@ export function FriendsClient() {
           id="panel-friends"
           role="tabpanel"
           aria-labelledby="tab-friends"
+          aria-label="Friends"
           hidden={activeTab !== "Friends"}
           className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
         >
+          <div className={styles.mobileOnly}>
+            {showFriendDiscover ? (
+              <div className={`${railStyles.friendDiscover} ${styles.mobileFriendDiscover}`.trim()}>
+                <div className={railStyles.friendDiscoverControls}>
+                  <input
+                    id="friend-discover-mobile-search"
+                    ref={friendSearchInputRef}
+                    type="search"
+                    value={friendSearch}
+                    onChange={(event) => setFriendSearch(event.target.value)}
+                    placeholder="Search friends by name"
+                    className={railStyles.friendDiscoverInput}
+                    aria-label="Search friends"
+                  />
+                </div>
+                <div className={railStyles.friendSuggestions}>
+                  {friendSearchLoading ? (
+                    <div className={railStyles.friendSuggestionEmpty}>Searching...</div>
+                  ) : friendSearchError ? (
+                    <div className={railStyles.friendSuggestionEmpty}>{friendSearchError}</div>
+                  ) : friendSearchResults.length > 0 ? (
+                    friendSearchResults.map((entry) => {
+                      const added = addedSuggestionIds.has(entry.id);
+                      const subtitle = entry.subtitle ?? "";
+                      return (
+                        <div key={entry.id} className={railStyles.friendSuggestion}>
+                          <div className={railStyles.friendSuggestionMeta}>
+                            <span className={railStyles.friendSuggestionName}>{entry.name}</span>
+                            {subtitle ? (
+                              <span className={railStyles.friendSuggestionStatus}>{subtitle}</span>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            className={`${railStyles.friendSuggestionAdd} ${added ? railStyles.friendSuggestionAdded : ""}`.trim()}
+                            onClick={() => handleAddSuggestedFriend(entry.id)}
+                            disabled={added}
+                          >
+                            {added ? "Added" : "Add"}
+                          </button>
+                        </div>
+                      );
+                    })
+                  ) : friendSearch.trim().length >= 2 ? (
+                    <div className={railStyles.friendSuggestionEmpty}>No people found.</div>
+                  ) : (
+                    <div className={railStyles.friendSuggestionEmpty}>
+                      Start typing to search people across Capsules.
+                    </div>
+                  )}
+                </div>
+                <div className={railStyles.friendSuggestionHint}>No suggested friends right now.</div>
+              </div>
+            ) : null}
+          </div>
           <FriendsList
             items={friends}
             pendingId={pendingId}
@@ -770,6 +1027,7 @@ export function FriendsClient() {
           id="panel-party"
           role="tabpanel"
           aria-labelledby="tab-party"
+          aria-label="Party"
           hidden={activeTab !== "Party"}
           className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
         >
@@ -784,6 +1042,7 @@ export function FriendsClient() {
           id="panel-chats"
           role="tabpanel"
           aria-labelledby="tab-chats"
+          aria-label="Chats"
           hidden={activeTab !== "Chats"}
           className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
         >
@@ -800,6 +1059,7 @@ export function FriendsClient() {
           id="panel-requests"
           role="tabpanel"
           aria-labelledby="tab-requests"
+          aria-label="Requests"
           hidden={activeTab !== "Requests"}
           className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
         >
