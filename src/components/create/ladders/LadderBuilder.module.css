@@ -36,11 +36,14 @@
   --ladder-surface-rail: var(--ai-studio-surface-muted, var(--studio-surface-muted));
   --ladder-border-strong: var(--studio-border-soft, rgba(255, 255, 255, 0.14));
   --ladder-border-soft: color-mix(in srgb, var(--studio-border-soft, rgba(255, 255, 255, 0.12)) 80%, transparent);
-  --ladder-accent-1: #76b2ff;
-  --ladder-accent-2: #6de2ff;
-  --ladder-accent-3: #9fc4ff;
-  --ladder-accent-glow: 0 10px 20px rgba(118, 178, 255, 0.16);
-  --ladder-spine-glow: 0 0 28px 12px rgba(118, 178, 255, 0.18);
+  /* Accent palette: stay in the blue family but softly tied to the app brand. */
+  --ladder-accent-1: color-mix(in srgb, var(--color-brand, #1d4ed8) 80%, #60a5fa 20%);
+  --ladder-accent-2: color-mix(in srgb, var(--color-brand, #1d4ed8) 55%, #0ea5e9 45%);
+  --ladder-accent-3: color-mix(in srgb, var(--color-brand, #1d4ed8) 25%, #bfdbfe 75%);
+  --ladder-accent-glow: 0 10px 22px
+    color-mix(in srgb, var(--ladder-accent-2) 35%, rgba(4, 6, 24, 0.85));
+  --ladder-spine-glow: 0 0 28px 12px
+    color-mix(in srgb, var(--ladder-accent-2) 46%, rgba(4, 6, 24, 0.9));
 }
 
 .wizardPanel {
@@ -244,6 +247,22 @@
   gap: 8px;
 }
 
+.fieldGroup:has(input:focus-visible),
+.fieldGroup:has(textarea:focus-visible),
+.fieldGroup:has(select:focus-visible) {
+  outline: 1px solid color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 46%, transparent);
+  outline-offset: 2px;
+  border-radius: 12px;
+  background: radial-gradient(
+      160% 220% at 0% 0%,
+      color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 16%, transparent),
+      transparent 68%
+    );
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  padding: 4px 6px;
+  margin: -4px -6px 0;
+}
+
 .fieldRow {
   display: grid;
   gap: 16px;
@@ -336,6 +355,13 @@
   width: 100%;
   border-collapse: collapse;
   min-width: 680px;
+  border-radius: 16px;
+  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--studio-surface-glass, rgba(14, 18, 30, 0.5)) 96%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 16px 34px rgba(5, 8, 22, 0.5);
+  overflow: hidden;
 }
 
 .membersTable th,
@@ -349,6 +375,10 @@
   font-size: 12px;
   text-transform: uppercase;
   opacity: 0.6;
+}
+
+.membersTable tr:hover td {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.03) 90%, transparent);
 }
 
 .memberField {
@@ -457,6 +487,13 @@
     border-radius: 14px;
     border: 1px solid var(--ladder-border-soft);
     background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(10, 14, 28, 0.6));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 12px 26px rgba(5, 8, 22, 0.42);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.25s ease,
+      background 0.25s ease;
   }
 
   .memberAdvancedFields {
@@ -502,16 +539,27 @@
 
   .scoringModeTile:hover,
   .scoringModeTile:focus-visible {
-    border-color: color-mix(in srgb, var(--ladder-accent-3) 70%, rgba(118, 166, 255, 0.6));
-    box-shadow: 0 16px 30px rgba(8, 10, 28, 0.35);
+    border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 70%, transparent);
+    box-shadow:
+      0 16px 30px rgba(8, 10, 28, 0.35),
+      0 0 18px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 68%, transparent);
     transform: translateY(-1px);
     outline: none;
   }
 
   .scoringModeTileActive {
-    border-color: var(--ladder-accent-2);
-    box-shadow: 0 14px 32px rgba(10, 18, 40, 0.45);
-    background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(70, 120, 255, 0.08));
+    border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 78%, transparent);
+    box-shadow:
+      0 18px 40px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 86%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 52%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(
+        circle at 0% 0%,
+        color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 26%, transparent),
+        transparent 65%
+      ),
+      color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(12, 18, 32, 0.7));
   }
 
   .matchFormatRow {
@@ -538,16 +586,26 @@
 
   .formatOption:hover,
   .formatOption:focus-visible {
-    border-color: color-mix(in srgb, var(--ladder-accent-3) 60%, rgba(118, 166, 255, 0.5));
-    box-shadow: 0 10px 24px rgba(8, 10, 28, 0.3);
+    border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 68%, transparent);
+    box-shadow:
+      0 10px 24px rgba(8, 10, 28, 0.3),
+      0 0 16px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 70%, transparent);
     transform: translateY(-1px);
     outline: none;
   }
 
   .formatOptionActive {
-    border-color: var(--ladder-accent-2);
-    background: color-mix(in srgb, var(--ladder-surface-strong) 90%, rgba(70, 120, 255, 0.08));
-    box-shadow: 0 10px 24px rgba(10, 18, 40, 0.38);
+    border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 82%, transparent);
+    background:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 26%, transparent),
+        color-mix(in srgb, var(--composer-accent-soft, rgba(37, 99, 235, 0.22)) 40%, transparent)
+      ),
+      color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(12, 18, 32, 0.6));
+    box-shadow:
+      0 14px 30px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 82%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .formatOptionLabel {
@@ -595,7 +653,7 @@
     gap: 6px;
     padding: 4px 10px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ladder-accent-1) 22%, rgba(255, 255, 255, 0.04));
+    background: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 32%, rgba(255, 255, 255, 0.04));
     font-size: 0.82rem;
     font-weight: 600;
   }
@@ -804,12 +862,9 @@
     minmax(0, 1fr);
 }
 
-.gridNoStepper {
-  grid-template-columns: minmax(0, 1fr) minmax(var(--ladder-preview-basis, 260px), var(--ladder-preview-fr, 0.32fr));
-}
-
-.gridSoloForm {
-  grid-template-columns: minmax(0, 1fr);
+.gridCollapsed {
+  grid-template-columns: minmax(32px, 64px) minmax(0, 1fr);
+  gap: 4px;
 }
 
 @media (max-width: 1180px) {
@@ -844,6 +899,10 @@
 }
 
 @media (max-width: 780px) {
+  .stepperCollapsedNotice {
+    display: none;
+  }
+
   .pageGrid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1121,6 +1180,8 @@
 }
 
 .registrationContent {
+  display: flex;
+  flex-direction: column;
   gap: 18px;
 }
 
@@ -1131,30 +1192,56 @@
 }
 
 .registrationBlock {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
-    background: rgba(14, 18, 34, 0.55);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  }
-  .registrationFieldBlock {
-    display: grid;
-    grid-template-rows: auto auto 1fr;
-    gap: 12px;
-  }
-  .registrationBlockHeader {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .registrationFieldRow {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  border: 1px solid var(--ladder-border-soft);
+  background: color-mix(in srgb, var(--ladder-surface-strong) 90%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(5, 8, 22, 0.45);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    transform 0.15s ease;
+}
+
+.registrationBlock:hover,
+.registrationBlock:focus-within {
+  border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 70%, transparent);
+  background:
+    radial-gradient(
+      120% 160% at 0% 0%,
+      color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 22%, transparent),
+      transparent 65%
+    ),
+    color-mix(in srgb, var(--ladder-surface-strong) 94%, rgba(12, 18, 32, 0.8));
+  box-shadow:
+    0 18px 40px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 82%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.registrationFieldBlock {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 12px;
+}
+
+.registrationBlockHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.registrationFieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 .registrationEyebrow {
   margin: 0;
@@ -1188,8 +1275,8 @@
   line-height: 1.5;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px dashed var(--studio-border-soft, rgba(255, 255, 255, 0.1));
-  background: rgba(12, 16, 28, 0.65);
+  border: 1px dashed color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 42%, var(--ladder-border-soft));
+  background: color-mix(in srgb, var(--ladder-surface-soft) 92%, rgba(15, 22, 50, 0.6));
   color: rgba(255, 255, 255, 0.74);
 }
 
@@ -1197,8 +1284,33 @@
   grid-column: 1 / -1;
   gap: 12px;
   padding: 16px 16px 14px;
-  background: rgba(16, 20, 40, 0.75);
-  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.12));
+  background: color-mix(in srgb, var(--ladder-surface-strong) 92%, transparent);
+  border: 1px solid var(--ladder-border-soft);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(5, 8, 22, 0.45);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    transform 0.15s ease;
+}
+
+.requirementsBlock:hover,
+.requirementsBlock:focus-within {
+  border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 70%, transparent);
+  background:
+    radial-gradient(
+      120% 180% at 0% 0%,
+      color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 20%, transparent),
+      transparent 70%
+    ),
+    color-mix(in srgb, var(--ladder-surface-strong) 94%, rgba(12, 18, 36, 0.82));
+  box-shadow:
+    0 18px 40px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 78%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
 }
 
 .requirementsHeader {
@@ -1246,22 +1358,34 @@
   padding: 6px 12px;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .requirementChip:hover,
 .requirementChip:focus-visible {
-  border-color: var(--studio-border-focus, rgba(118, 166, 255, 0.6));
-  background: rgba(118, 166, 255, 0.12);
+  border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 72%, transparent);
+  background: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 24%, rgba(255, 255, 255, 0.04));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 70%, transparent);
   transform: translateY(-1px);
   outline: none;
 }
 
 .requirementsListShell {
   border-radius: 14px;
-  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
-  background: rgba(10, 14, 28, 0.55);
+  border: 1px solid var(--ladder-border-soft);
+  background: color-mix(in srgb, var(--ladder-surface-soft, rgba(10, 14, 28, 0.55)) 92%, transparent);
   padding: 10px 10px 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 24px rgba(5, 8, 22, 0.4);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.25s ease;
 }
 
 .requirementsList {
@@ -1282,13 +1406,27 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+.requirementItem:hover {
+  border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 55%, rgba(255, 255, 255, 0.12));
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.04) 80%, transparent);
+  transform: translateY(-0.5px);
 }
 
 .requirementBullet {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(118, 166, 255, 0.9), rgba(118, 166, 255, 0.35));
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 80%, #a855f7),
+    color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 42%, rgba(99, 102, 241, 0.32))
+  );
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
@@ -1305,13 +1443,19 @@
   padding: 6px 10px;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
 }
 
 .requirementAction:hover,
 .requirementAction:focus-visible {
-  border-color: var(--studio-border-focus, rgba(118, 166, 255, 0.6));
-  background: rgba(118, 166, 255, 0.14);
+  border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 70%, transparent);
+  background: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 26%, rgba(255, 255, 255, 0.06));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 70%, transparent);
+  transform: translateY(-0.5px);
   outline: none;
 }
 
@@ -1398,7 +1542,7 @@
   background: linear-gradient(140deg, var(--ladder-accent-1) 0%, var(--ladder-accent-2) 100%);
   color: #ffffff;
   box-shadow:
-    0 14px 32px rgba(19, 76, 182, 0.35),
+    0 14px 32px color-mix(in srgb, var(--ladder-accent-2) 42%, rgba(4, 6, 24, 0.85)),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   padding: 10px 18px;
 }
@@ -1408,7 +1552,7 @@
   outline: none;
   transform: translateY(-1px);
   box-shadow:
-    0 18px 38px rgba(19, 76, 182, 0.48),
+    0 18px 38px color-mix(in srgb, var(--ladder-accent-2) 52%, rgba(4, 6, 24, 0.9)),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
@@ -1470,6 +1614,29 @@
   border-radius: 10px;
   border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
   background: rgba(30, 36, 66, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 14px 30px rgba(5, 8, 22, 0.45);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    transform 0.15s ease;
+}
+
+.reviewRow:hover {
+  border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 68%, transparent);
+  background:
+    radial-gradient(
+      140% 220% at 0% 0%,
+      color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 18%, transparent),
+      transparent 70%
+    ),
+    rgba(30, 36, 80, 0.46);
+  box-shadow:
+    0 18px 38px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 80%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
 }
 
 .reviewRow dt {
@@ -1485,7 +1652,7 @@
 
 .stepperShell {
   position: sticky;
-  top: 24px;
+  top: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1570,6 +1737,12 @@
   margin: 12px 0 0;
 }
 
+.stepRailList {
+  align-items: center;
+  margin-top: 4px;
+  gap: 8px;
+}
+
 .stepItem {
   width: 100%;
   display: grid;
@@ -1591,8 +1764,22 @@
     transform 0.2s ease;
 }
 
+.stepItemCollapsed {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 6px 0;
+  min-height: 32px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stepItemCollapsed .stepCopy {
+  display: none;
+}
+
 .stepItem:hover {
-  border-color: rgba(148, 178, 255, 0.4);
+  border-color: color-mix(in srgb, var(--ladder-accent-3) 72%, rgba(255, 255, 255, 0.3));
   transform: translateX(1px);
 }
 
@@ -1603,9 +1790,16 @@
   border-color: color-mix(in srgb, var(--ladder-accent-3) 72%, rgba(255, 255, 255, 0.4));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 10px 22px rgba(34, 52, 140, 0.45),
+    0 10px 22px color-mix(in srgb, var(--ladder-accent-2) 40%, rgba(4, 6, 24, 0.85)),
     var(--ladder-accent-glow);
   color: var(--ladder-step-active-text);
+}
+
+.stepperRail .stepItem[data-state="active"],
+.stepperRail .stepItem[data-state="complete"] {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .stepBullet {
@@ -1623,13 +1817,13 @@
 .stepItem[data-state="active"] .stepBullet {
   background: linear-gradient(135deg, var(--ladder-accent-1), var(--ladder-accent-2));
   border-color: color-mix(in srgb, var(--ladder-accent-3) 80%, #ffffff);
-  box-shadow: 0 0 10px rgba(174, 201, 255, 0.9);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ladder-accent-2) 80%, transparent);
 }
 
 .stepItem[data-state="complete"] .stepBullet {
   background: linear-gradient(145deg, color-mix(in srgb, var(--ladder-accent-1) 60%, transparent), color-mix(in srgb, var(--ladder-accent-2) 52%, transparent));
-  border-color: rgba(108, 206, 255, 0.9);
-  box-shadow: 0 0 8px rgba(108, 206, 255, 0.65);
+  border-color: color-mix(in srgb, var(--ladder-accent-2) 80%, rgba(255, 255, 255, 0.24));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--ladder-accent-2) 68%, transparent);
 }
 
 .stepCopy {
@@ -1649,6 +1843,61 @@
 .previewCol {
   min-width: 0;
 }
+
+.stepperRail {
+  max-width: 56px;
+}
+
+.stepperRail .stepperShell {
+  display: none;
+}
+
+.stepperRailBar {
+  position: sticky;
+  top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border-radius: 16px;
+  border: 1px solid var(--ladder-border-soft);
+  background: color-mix(in srgb, var(--ladder-surface-rail) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 24px rgba(4, 6, 18, 0.48);
+}
+
+.stepperExpand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--ladder-border-soft);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--ladder-accent-1) 62%, var(--ladder-accent-2) 38%)),
+    color-mix(in srgb, var(--ladder-surface-rail) 94%, transparent);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 24px rgba(4, 6, 18, 0.48),
+    var(--ladder-accent-glow);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.stepperExpand:hover,
+.stepperExpand:focus-visible {
+  outline: none;
+  border-color: var(--studio-border-focus, rgba(118, 166, 255, 0.7));
+  transform: translateY(-1px);
+}
+
 
 .previewShell {
   position: sticky;

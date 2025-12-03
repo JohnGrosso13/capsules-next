@@ -4,8 +4,11 @@ export const MIN_NAME_QUERY = 2;
 export const SUGGESTION_LIMIT = 6;
 
 export const TOURNAMENT_STEPS: TournamentStepDefinition[] = [
-  { id: "blueprint", title: "Blueprint", subtitle: "AI draft + structure" },
-  { id: "details", title: "Details", subtitle: "Name, summary, visibility" },
+  { id: "blueprint", title: "Blueprint", subtitle: "Describe your tournament" },
+  { id: "title", title: "Title", subtitle: "Name your tournament" },
+  { id: "summary", title: "Summary", subtitle: "Set the hook and vibe" },
+  { id: "signups", title: "Sign-Ups", subtitle: "How players join" },
+  { id: "details", title: "Details", subtitle: "Visibility & publish" },
   { id: "format", title: "Format", subtitle: "Bracket, registration, timing" },
   { id: "content", title: "Content", subtitle: "Sections & production notes" },
   { id: "participants", title: "Seeds", subtitle: "Entrants and seeds" },

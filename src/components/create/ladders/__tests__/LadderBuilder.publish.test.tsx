@@ -125,6 +125,9 @@ describe("LadderBuilder publish flow", () => {
     await act(async () => {
       root.render(<LadderBuilder capsules={capsules} initialCapsuleId="capsule-1" />);
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const setInputValue = async (
       input: HTMLInputElement | HTMLTextAreaElement | null | undefined,
@@ -140,44 +143,46 @@ describe("LadderBuilder publish flow", () => {
       });
     };
 
-    const clickNext = async () => {
-      const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((entry) =>
-        entry.textContent?.trim().startsWith("Next"),
-      );
-      expect(button).toBeTruthy();
-      await act(async () => button?.click());
-      await act(async () => Promise.resolve());
-    };
+  const clickNext = async () => {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((entry) =>
+      entry.textContent?.trim().startsWith("Next"),
+    );
+    expect(button).toBeTruthy();
+    await act(async () => button?.click());
+    await act(async () => Promise.resolve());
+  };
+
+  const goToStep = async (title: string) => {
+    const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((entry) => {
+      const text = entry.textContent?.trim() ?? "";
+      return text === title;
+    });
+    expect(button).toBeTruthy();
+    await act(async () => button?.click());
+    await act(async () => Promise.resolve());
+  };
 
     await clickNext(); // Blueprint -> Title
-    await setInputValue(container.querySelector<HTMLInputElement>("#guided-name"), "Launch Ladder");
-
-    await clickNext(); // Title -> Summary
     await setInputValue(
-      container.querySelector<HTMLInputElement>("#guided-summary") as HTMLInputElement | null,
+      container.querySelector<HTMLTextAreaElement>("#guided-name") ??
+        container.querySelector<HTMLInputElement>("#guided-name"),
+      "Launch Ladder",
+    );
+
+    await goToStep("Summary");
+    await setInputValue(
+      container.querySelector<HTMLTextAreaElement>("#guided-summary") ??
+        container.querySelector<HTMLInputElement>("#guided-summary"),
       "Weekly competitive ladder",
     );
 
-    await clickNext(); // Summary -> Registration
-    await clickNext(); // Registration -> Basics
+    await goToStep("Basics");
     await setInputValue(container.querySelector<HTMLInputElement>("#guided-game-title"), "VALORANT");
 
-    await clickNext(); // Basics -> Format
-    const formatButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
-      button.textContent?.includes("1v1 (player vs player)"),
-    );
-    expect(formatButton).toBeTruthy();
-    await act(async () => formatButton?.click());
-
-    await clickNext(); // Format -> Overview
-    await clickNext(); // Overview -> Rules
-    await clickNext(); // Rules -> Shoutouts
-    await clickNext(); // Shoutouts -> Timeline
-    await clickNext(); // Timeline -> Roster
+    await goToStep("Roster");
     await setInputValue(container.querySelector<HTMLInputElement>("#member-name-0"), "Player One");
 
-    await clickNext(); // Roster -> Rewards
-    await clickNext(); // Rewards -> Review
+    await goToStep("Review");
     const saveButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
       button.textContent?.includes("Save ladder draft"),
     );

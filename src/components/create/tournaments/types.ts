@@ -2,7 +2,16 @@ import type { WizardLayoutStep } from "../ladders/components/WizardLayout";
 
 export type FormatOption = "single_elimination" | "double_elimination" | "round_robin";
 export type RegistrationType = "open" | "invite" | "waitlist" | "mixed";
-export type TournamentStepId = "blueprint" | "details" | "format" | "content" | "participants" | "review";
+export type TournamentStepId =
+  | "blueprint"
+  | "title"
+  | "summary"
+  | "signups"
+  | "details"
+  | "format"
+  | "content"
+  | "participants"
+  | "review";
 export type ParticipantEntityType = "custom" | "user" | "capsule";
 
 export type TournamentFormState = {
@@ -16,6 +25,7 @@ export type TournamentFormState = {
   timezone: string;
   registrationType: RegistrationType;
   maxEntrants: string;
+  registrationRequirements: string;
   overview: string;
   rules: string;
   broadcast: string;

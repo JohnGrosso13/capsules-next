@@ -229,6 +229,29 @@ describe("notification settings + creation", () => {
     vi.clearAllMocks();
   });
 
+  it("updates email channel toggles and digest frequency", async () => {
+    tables.user_notification_settings = [
+      {
+        user_id: "u-email",
+        comment_on_post: true,
+        comment_on_post_email: true,
+        email_digest_frequency: "instant",
+      },
+    ];
+
+    const result = await updateNotificationSettings("u-email", {
+      commentOnPostEmail: false,
+      emailDigestFrequency: "daily",
+    });
+
+    expect(result.commentOnPostEmail).toBe(false);
+    expect(result.emailDigestFrequency).toBe("daily");
+
+    const stored = tables.user_notification_settings.find((row) => row.user_id === "u-email")!;
+    expect(stored.comment_on_post_email).toBe(false);
+    expect(stored.email_digest_frequency).toBe("daily");
+  });
+
   it("merges updates without resetting other toggles", async () => {
     tables.user_notification_settings = [
       {

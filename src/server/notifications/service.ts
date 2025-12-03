@@ -12,31 +12,58 @@ const NOTIFICATION_MAX_PER_USER = 300;
 type SettingsRow = {
   user_id: string;
   comment_on_post: boolean | null;
+  comment_on_post_email: boolean | null;
   comment_reply: boolean | null;
+  comment_reply_email: boolean | null;
   mention: boolean | null;
+  mention_email: boolean | null;
   post_like: boolean | null;
+  post_like_email: boolean | null;
   capsule_new_post: boolean | null;
+  capsule_new_post_email: boolean | null;
   friend_request: boolean | null;
+  friend_request_email: boolean | null;
   friend_request_accepted: boolean | null;
+  friend_request_accepted_email: boolean | null;
   capsule_invite: boolean | null;
+  capsule_invite_email: boolean | null;
   capsule_invite_accepted: boolean | null;
+  capsule_invite_accepted_email: boolean | null;
   capsule_invite_declined: boolean | null;
+  capsule_invite_declined_email: boolean | null;
   capsule_request_pending: boolean | null;
+  capsule_request_pending_email: boolean | null;
   capsule_request_approved: boolean | null;
+  capsule_request_approved_email: boolean | null;
   capsule_request_declined: boolean | null;
+  capsule_request_declined_email: boolean | null;
   capsule_role_changed: boolean | null;
+  capsule_role_changed_email: boolean | null;
   ladder_challenge: boolean | null;
+  ladder_challenge_email: boolean | null;
   ladder_challenge_resolved: boolean | null;
+  ladder_challenge_resolved_email: boolean | null;
   direct_message: boolean | null;
+  direct_message_email: boolean | null;
   group_message: boolean | null;
+  group_message_email: boolean | null;
   follow_new: boolean | null;
+  follow_new_email: boolean | null;
   ladder_match_scheduled: boolean | null;
+  ladder_match_scheduled_email: boolean | null;
   ladder_invited_to_join: boolean | null;
+  ladder_invited_to_join_email: boolean | null;
   party_invite: boolean | null;
+  party_invite_email: boolean | null;
   party_invite_accepted: boolean | null;
+  party_invite_accepted_email: boolean | null;
   mention_in_chat: boolean | null;
+  mention_in_chat_email: boolean | null;
   live_event_starting: boolean | null;
+  live_event_starting_email: boolean | null;
   stream_status: boolean | null;
+  stream_status_email: boolean | null;
+  email_digest_frequency: string | null;
 };
 
 function normalizeUserId(value: unknown): string | null {
@@ -49,43 +76,94 @@ function mapSettingsRow(row: SettingsRow | null): NotificationSettings {
   if (!row) return { ...DEFAULT_NOTIFICATION_SETTINGS };
   return {
     commentOnPost: row.comment_on_post ?? DEFAULT_NOTIFICATION_SETTINGS.commentOnPost,
+    commentOnPostEmail:
+      row.comment_on_post_email ?? DEFAULT_NOTIFICATION_SETTINGS.commentOnPostEmail,
     commentReply: row.comment_reply ?? DEFAULT_NOTIFICATION_SETTINGS.commentReply,
+    commentReplyEmail:
+      row.comment_reply_email ?? DEFAULT_NOTIFICATION_SETTINGS.commentReplyEmail,
     mention: row.mention ?? DEFAULT_NOTIFICATION_SETTINGS.mention,
+    mentionEmail: row.mention_email ?? DEFAULT_NOTIFICATION_SETTINGS.mentionEmail,
     postLike: row.post_like ?? DEFAULT_NOTIFICATION_SETTINGS.postLike,
+    postLikeEmail: row.post_like_email ?? DEFAULT_NOTIFICATION_SETTINGS.postLikeEmail,
     capsuleNewPost: row.capsule_new_post ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleNewPost,
+    capsuleNewPostEmail:
+      row.capsule_new_post_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleNewPostEmail,
     friendRequest: row.friend_request ?? DEFAULT_NOTIFICATION_SETTINGS.friendRequest,
+    friendRequestEmail:
+      row.friend_request_email ?? DEFAULT_NOTIFICATION_SETTINGS.friendRequestEmail,
     friendRequestAccepted:
       row.friend_request_accepted ?? DEFAULT_NOTIFICATION_SETTINGS.friendRequestAccepted,
+    friendRequestAcceptedEmail:
+      row.friend_request_accepted_email ?? DEFAULT_NOTIFICATION_SETTINGS.friendRequestAcceptedEmail,
     capsuleInvite: row.capsule_invite ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleInvite,
+    capsuleInviteEmail:
+      row.capsule_invite_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleInviteEmail,
     capsuleInviteAccepted:
       row.capsule_invite_accepted ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleInviteAccepted,
+    capsuleInviteAcceptedEmail:
+      row.capsule_invite_accepted_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleInviteAcceptedEmail,
     capsuleInviteDeclined:
       row.capsule_invite_declined ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleInviteDeclined,
+    capsuleInviteDeclinedEmail:
+      row.capsule_invite_declined_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleInviteDeclinedEmail,
     capsuleRequestPending:
       row.capsule_request_pending ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRequestPending,
+    capsuleRequestPendingEmail:
+      row.capsule_request_pending_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRequestPendingEmail,
     capsuleRequestApproved:
       row.capsule_request_approved ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRequestApproved,
+    capsuleRequestApprovedEmail:
+      row.capsule_request_approved_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRequestApprovedEmail,
     capsuleRequestDeclined:
       row.capsule_request_declined ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRequestDeclined,
+    capsuleRequestDeclinedEmail:
+      row.capsule_request_declined_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRequestDeclinedEmail,
     capsuleRoleChanged:
       row.capsule_role_changed ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRoleChanged,
+    capsuleRoleChangedEmail:
+      row.capsule_role_changed_email ?? DEFAULT_NOTIFICATION_SETTINGS.capsuleRoleChangedEmail,
     ladderChallenge: row.ladder_challenge ?? DEFAULT_NOTIFICATION_SETTINGS.ladderChallenge,
+    ladderChallengeEmail:
+      row.ladder_challenge_email ?? DEFAULT_NOTIFICATION_SETTINGS.ladderChallengeEmail,
     ladderChallengeResolved:
       row.ladder_challenge_resolved ?? DEFAULT_NOTIFICATION_SETTINGS.ladderChallengeResolved,
+    ladderChallengeResolvedEmail:
+      row.ladder_challenge_resolved_email ?? DEFAULT_NOTIFICATION_SETTINGS.ladderChallengeResolvedEmail,
     directMessage: row.direct_message ?? DEFAULT_NOTIFICATION_SETTINGS.directMessage,
+    directMessageEmail:
+      row.direct_message_email ?? DEFAULT_NOTIFICATION_SETTINGS.directMessageEmail,
     groupMessage: row.group_message ?? DEFAULT_NOTIFICATION_SETTINGS.groupMessage,
+    groupMessageEmail:
+      row.group_message_email ?? DEFAULT_NOTIFICATION_SETTINGS.groupMessageEmail,
     followNew: row.follow_new ?? DEFAULT_NOTIFICATION_SETTINGS.followNew,
+    followNewEmail: row.follow_new_email ?? DEFAULT_NOTIFICATION_SETTINGS.followNewEmail,
     ladderMatchScheduled:
       row.ladder_match_scheduled ?? DEFAULT_NOTIFICATION_SETTINGS.ladderMatchScheduled,
+    ladderMatchScheduledEmail:
+      row.ladder_match_scheduled_email ?? DEFAULT_NOTIFICATION_SETTINGS.ladderMatchScheduledEmail,
     ladderInvitedToJoin:
       row.ladder_invited_to_join ?? DEFAULT_NOTIFICATION_SETTINGS.ladderInvitedToJoin,
+    ladderInvitedToJoinEmail:
+      row.ladder_invited_to_join_email ?? DEFAULT_NOTIFICATION_SETTINGS.ladderInvitedToJoinEmail,
     partyInvite: row.party_invite ?? DEFAULT_NOTIFICATION_SETTINGS.partyInvite,
+    partyInviteEmail: row.party_invite_email ?? DEFAULT_NOTIFICATION_SETTINGS.partyInviteEmail,
     partyInviteAccepted:
       row.party_invite_accepted ?? DEFAULT_NOTIFICATION_SETTINGS.partyInviteAccepted,
+    partyInviteAcceptedEmail:
+      row.party_invite_accepted_email ?? DEFAULT_NOTIFICATION_SETTINGS.partyInviteAcceptedEmail,
     mentionInChat: row.mention_in_chat ?? DEFAULT_NOTIFICATION_SETTINGS.mentionInChat,
+    mentionInChatEmail:
+      row.mention_in_chat_email ?? DEFAULT_NOTIFICATION_SETTINGS.mentionInChatEmail,
     liveEventStarting:
       row.live_event_starting ?? DEFAULT_NOTIFICATION_SETTINGS.liveEventStarting,
+    liveEventStartingEmail:
+      row.live_event_starting_email ?? DEFAULT_NOTIFICATION_SETTINGS.liveEventStartingEmail,
     streamStatus: row.stream_status ?? DEFAULT_NOTIFICATION_SETTINGS.streamStatus,
+    streamStatusEmail: row.stream_status_email ?? DEFAULT_NOTIFICATION_SETTINGS.streamStatusEmail,
+    emailDigestFrequency:
+      typeof row.email_digest_frequency === "string"
+        ? (row.email_digest_frequency as NotificationSettings["emailDigestFrequency"])
+        : DEFAULT_NOTIFICATION_SETTINGS.emailDigestFrequency,
   };
 }
 
@@ -155,6 +233,68 @@ export function isNotificationEnabled(
   }
 }
 
+export function isEmailNotificationEnabled(
+  type: NotificationType,
+  settings: NotificationSettings,
+): boolean {
+  switch (type) {
+    case "comment_on_post":
+      return settings.commentOnPostEmail;
+    case "comment_reply":
+      return settings.commentReplyEmail;
+    case "mention":
+      return settings.mentionEmail;
+    case "post_like":
+      return settings.postLikeEmail;
+    case "capsule_new_post":
+      return settings.capsuleNewPostEmail;
+    case "friend_request":
+      return settings.friendRequestEmail;
+    case "friend_request_accepted":
+      return settings.friendRequestAcceptedEmail;
+    case "capsule_invite":
+      return settings.capsuleInviteEmail;
+    case "capsule_invite_accepted":
+      return settings.capsuleInviteAcceptedEmail;
+    case "capsule_invite_declined":
+      return settings.capsuleInviteDeclinedEmail;
+    case "capsule_request_pending":
+      return settings.capsuleRequestPendingEmail;
+    case "capsule_request_approved":
+      return settings.capsuleRequestApprovedEmail;
+    case "capsule_request_declined":
+      return settings.capsuleRequestDeclinedEmail;
+    case "capsule_role_changed":
+      return settings.capsuleRoleChangedEmail;
+    case "ladder_challenge":
+      return settings.ladderChallengeEmail;
+    case "ladder_challenge_resolved":
+      return settings.ladderChallengeResolvedEmail;
+    case "direct_message":
+      return settings.directMessageEmail;
+    case "group_message":
+      return settings.groupMessageEmail;
+    case "live_event_starting":
+      return settings.liveEventStartingEmail;
+    case "stream_status":
+      return settings.streamStatusEmail;
+    case "follow_new":
+      return settings.followNewEmail;
+    case "ladder_match_scheduled":
+      return settings.ladderMatchScheduledEmail;
+    case "ladder_invited_to_join":
+      return settings.ladderInvitedToJoinEmail;
+    case "party_invite":
+      return settings.partyInviteEmail;
+    case "party_invite_accepted":
+      return settings.partyInviteAcceptedEmail;
+    case "mention_in_chat":
+      return settings.mentionInChatEmail;
+    default:
+      return true;
+  }
+}
+
 export async function getNotificationSettings(userId: string): Promise<NotificationSettings> {
   const normalizedId = normalizeUserId(userId);
   if (!normalizedId) return { ...DEFAULT_NOTIFICATION_SETTINGS };
@@ -163,7 +303,7 @@ export async function getNotificationSettings(userId: string): Promise<Notificat
   const result = await db
     .from("user_notification_settings")
     .select<SettingsRow>(
-      "user_id, comment_on_post, comment_reply, mention, post_like, capsule_new_post, friend_request, friend_request_accepted, capsule_invite, capsule_invite_accepted, capsule_invite_declined, capsule_request_pending, capsule_request_approved, capsule_request_declined, capsule_role_changed, ladder_challenge, ladder_challenge_resolved, direct_message, group_message, follow_new, ladder_match_scheduled, ladder_invited_to_join, party_invite, party_invite_accepted, mention_in_chat, live_event_starting, stream_status",
+      "user_id, comment_on_post, comment_on_post_email, comment_reply, comment_reply_email, mention, mention_email, post_like, post_like_email, capsule_new_post, capsule_new_post_email, friend_request, friend_request_email, friend_request_accepted, friend_request_accepted_email, capsule_invite, capsule_invite_email, capsule_invite_accepted, capsule_invite_accepted_email, capsule_invite_declined, capsule_invite_declined_email, capsule_request_pending, capsule_request_pending_email, capsule_request_approved, capsule_request_approved_email, capsule_request_declined, capsule_request_declined_email, capsule_role_changed, capsule_role_changed_email, ladder_challenge, ladder_challenge_email, ladder_challenge_resolved, ladder_challenge_resolved_email, direct_message, direct_message_email, group_message, group_message_email, follow_new, follow_new_email, ladder_match_scheduled, ladder_match_scheduled_email, ladder_invited_to_join, ladder_invited_to_join_email, party_invite, party_invite_email, party_invite_accepted, party_invite_accepted_email, mention_in_chat, mention_in_chat_email, live_event_starting, live_event_starting_email, stream_status, stream_status_email, email_digest_frequency",
     )
     .eq("user_id", normalizedId)
     .maybeSingle();
@@ -187,38 +327,80 @@ export async function updateNotificationSettings(
 
   (Object.keys(updates) as Array<keyof NotificationSettings>).forEach((key) => {
     if (typeof updates[key] !== "undefined") {
-      next[key] = Boolean(updates[key]);
+      if (key === "emailDigestFrequency") {
+        const value = updates[key];
+        if (
+          value === "instant" ||
+          value === "daily" ||
+          value === "weekly" ||
+          value === "off"
+        ) {
+          next.emailDigestFrequency = value;
+        }
+      } else {
+        next[key] = Boolean(updates[key]) as NotificationSettings[Exclude<
+          keyof NotificationSettings,
+          "emailDigestFrequency"
+        >];
+      }
     }
   });
 
   const payload: Record<string, unknown> = {
     user_id: normalizedId,
     comment_on_post: next.commentOnPost,
+    comment_on_post_email: next.commentOnPostEmail,
     comment_reply: next.commentReply,
+    comment_reply_email: next.commentReplyEmail,
     mention: next.mention,
+    mention_email: next.mentionEmail,
     post_like: next.postLike,
+    post_like_email: next.postLikeEmail,
     capsule_new_post: next.capsuleNewPost,
+    capsule_new_post_email: next.capsuleNewPostEmail,
     friend_request: next.friendRequest,
+    friend_request_email: next.friendRequestEmail,
     friend_request_accepted: next.friendRequestAccepted,
+    friend_request_accepted_email: next.friendRequestAcceptedEmail,
     capsule_invite: next.capsuleInvite,
+    capsule_invite_email: next.capsuleInviteEmail,
     capsule_invite_accepted: next.capsuleInviteAccepted,
+    capsule_invite_accepted_email: next.capsuleInviteAcceptedEmail,
     capsule_invite_declined: next.capsuleInviteDeclined,
+    capsule_invite_declined_email: next.capsuleInviteDeclinedEmail,
     capsule_request_pending: next.capsuleRequestPending,
+    capsule_request_pending_email: next.capsuleRequestPendingEmail,
     capsule_request_approved: next.capsuleRequestApproved,
+    capsule_request_approved_email: next.capsuleRequestApprovedEmail,
     capsule_request_declined: next.capsuleRequestDeclined,
+    capsule_request_declined_email: next.capsuleRequestDeclinedEmail,
     capsule_role_changed: next.capsuleRoleChanged,
+    capsule_role_changed_email: next.capsuleRoleChangedEmail,
     ladder_challenge: next.ladderChallenge,
+    ladder_challenge_email: next.ladderChallengeEmail,
     ladder_challenge_resolved: next.ladderChallengeResolved,
+    ladder_challenge_resolved_email: next.ladderChallengeResolvedEmail,
     direct_message: next.directMessage,
+    direct_message_email: next.directMessageEmail,
     group_message: next.groupMessage,
+    group_message_email: next.groupMessageEmail,
     follow_new: next.followNew,
+    follow_new_email: next.followNewEmail,
     ladder_match_scheduled: next.ladderMatchScheduled,
+    ladder_match_scheduled_email: next.ladderMatchScheduledEmail,
     ladder_invited_to_join: next.ladderInvitedToJoin,
+    ladder_invited_to_join_email: next.ladderInvitedToJoinEmail,
     party_invite: next.partyInvite,
+    party_invite_email: next.partyInviteEmail,
     party_invite_accepted: next.partyInviteAccepted,
+    party_invite_accepted_email: next.partyInviteAcceptedEmail,
     mention_in_chat: next.mentionInChat,
+    mention_in_chat_email: next.mentionInChatEmail,
     live_event_starting: next.liveEventStarting,
+    live_event_starting_email: next.liveEventStartingEmail,
     stream_status: next.streamStatus,
+    stream_status_email: next.streamStatusEmail,
+    email_digest_frequency: next.emailDigestFrequency,
   };
 
   const db = getDatabaseAdminClient();
@@ -226,7 +408,7 @@ export async function updateNotificationSettings(
     .from("user_notification_settings")
     .upsert(payload, { onConflict: "user_id" })
     .select<SettingsRow>(
-      "user_id, comment_on_post, comment_reply, mention, post_like, capsule_new_post, friend_request, friend_request_accepted, capsule_invite, capsule_invite_accepted, capsule_invite_declined, capsule_request_pending, capsule_request_approved, capsule_request_declined, capsule_role_changed, ladder_challenge, ladder_challenge_resolved, direct_message, group_message, follow_new, ladder_match_scheduled, ladder_invited_to_join, party_invite, party_invite_accepted, mention_in_chat, live_event_starting, stream_status",
+      "user_id, comment_on_post, comment_on_post_email, comment_reply, comment_reply_email, mention, mention_email, post_like, post_like_email, capsule_new_post, capsule_new_post_email, friend_request, friend_request_email, friend_request_accepted, friend_request_accepted_email, capsule_invite, capsule_invite_email, capsule_invite_accepted, capsule_invite_accepted_email, capsule_invite_declined, capsule_invite_declined_email, capsule_request_pending, capsule_request_pending_email, capsule_request_approved, capsule_request_approved_email, capsule_request_declined, capsule_request_declined_email, capsule_role_changed, capsule_role_changed_email, ladder_challenge, ladder_challenge_email, ladder_challenge_resolved, ladder_challenge_resolved_email, direct_message, direct_message_email, group_message, group_message_email, follow_new, follow_new_email, ladder_match_scheduled, ladder_match_scheduled_email, ladder_invited_to_join, ladder_invited_to_join_email, party_invite, party_invite_email, party_invite_accepted, party_invite_accepted_email, mention_in_chat, mention_in_chat_email, live_event_starting, live_event_starting_email, stream_status, stream_status_email, email_digest_frequency",
     )
     .eq("user_id", normalizedId)
     .maybeSingle();

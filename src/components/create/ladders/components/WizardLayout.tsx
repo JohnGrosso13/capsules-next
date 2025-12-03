@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CaretLeft } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../LadderBuilder.module.css";
 
@@ -47,8 +47,8 @@ export function WizardLayout<StepId extends string>({
     () => steps.find((step) => step.id === activeStepId),
     [activeStepId, steps],
   );
-  const renderStepList = (onSelect?: (stepId: StepId) => void) => (
-    <ol className={styles.stepList} role="list">
+  const renderStepList = (onSelect?: (stepId: StepId) => void, collapsed = false) => (
+    <ol className={`${styles.stepList} ${collapsed ? styles.stepRailList : ""}`.trim()} role="list">
       {steps.map((step, index) => {
         const isActive = step.id === activeStepId;
         const isComplete = Boolean(completionMap[step.id]);
@@ -62,7 +62,7 @@ export function WizardLayout<StepId extends string>({
                 onStepSelect?.(step.id);
                 onSelect?.(step.id);
               }}
-              className={styles.stepItem}
+              className={`${styles.stepItem} ${collapsed ? styles.stepItemCollapsed : ""}`.trim()}
               data-state={state}
               aria-current={isActive ? "step" : undefined}
               aria-label={`Step ${index + 1}: ${step.title}${statusLabel}`}
@@ -92,8 +92,10 @@ export function WizardLayout<StepId extends string>({
     gridClassNames.push(styles.gridNoPreview);
   }
   if (stepperCollapsed) {
-    gridClassNames.push(styles.gridSoloForm);
+    gridClassNames.push(styles.gridCollapsed);
   }
+
+  const hasStepControls = Boolean(_controlsStart || _controlsEnd);
 
   return (
     <>
@@ -123,19 +125,33 @@ export function WizardLayout<StepId extends string>({
             <div className={styles.stepperShell}>
               <div className={styles.stepperHeading}>
                 <span className={styles.stepperLabel}>{stepperLabel}</span>
-                 <button
-                   type="button"
-                   className={styles.stepperCollapse}
-                   onClick={() => setStepperCollapsed(true)}
-                   aria-label="Collapse guided steps"
-                 >
+                <button
+                  type="button"
+                  className={styles.stepperCollapse}
+                  onClick={() => setStepperCollapsed(true)}
+                  aria-label="Collapse guided steps"
+                >
                   <CaretLeft size={16} weight="bold" aria-hidden="true" />
-                 </button>
+                </button>
               </div>
               {renderStepList()}
             </div>
           </aside>
-        ) : null}
+        ) : (
+          <aside className={`${styles.stepperCol} ${styles.stepperRail}`}>
+            <div className={styles.stepperRailBar}>
+              <button
+                type="button"
+                className={styles.stepperExpand}
+                onClick={() => setStepperCollapsed(false)}
+                aria-label={`Expand ${stepperLabel} steps`}
+              >
+                <CaretRight size={16} weight="bold" aria-hidden="true" />
+              </button>
+              {renderStepList(undefined, true)}
+            </div>
+          </aside>
+        )}
         <div className={styles.formCol}>
           {toastStack}
           {showPreview ? (
@@ -155,6 +171,12 @@ export function WizardLayout<StepId extends string>({
               </div>
             </div>
           )}
+          {hasStepControls ? (
+            <div className={styles.stepControls} aria-label="Step controls">
+              <div className={styles.stepControlsStart}>{_controlsStart}</div>
+              <div className={styles.stepControlsEnd}>{_controlsEnd}</div>
+            </div>
+          ) : null}
         </div>
       </div>
       {showMobileStepper ? (

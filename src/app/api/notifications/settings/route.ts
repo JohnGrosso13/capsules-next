@@ -35,12 +35,19 @@ export async function PATCH(req: Request) {
     return parsed.response;
   }
 
-  const payload = Object.entries(parsed.data).reduce<Partial<NotificationSettings>>((acc, [key, value]) => {
-    if (typeof value !== "undefined") {
-      acc[key as keyof NotificationSettings] = Boolean(value);
+  const payload: Partial<NotificationSettings> = {};
+
+  (Object.keys(parsed.data) as Array<keyof NotificationSettings>).forEach((key) => {
+    const value = parsed.data[key];
+    if (typeof value === "undefined") return;
+    if (key === "emailDigestFrequency") {
+      if (value === "instant" || value === "daily" || value === "weekly" || value === "off") {
+        payload.emailDigestFrequency = value;
+      }
+      return;
     }
-    return acc;
-  }, {});
+    payload[key] = Boolean(value) as NotificationSettings[typeof key];
+  });
 
   try {
     const settings = await updateNotificationSettings(ownerId, payload);

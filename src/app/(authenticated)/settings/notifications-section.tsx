@@ -17,136 +17,163 @@ type NotificationsSettingsSectionProps = {
 
 const OPTIONS: Array<{
   key: ToggleKey;
+  emailKey: ToggleKey;
   title: string;
   description: string;
 }> = [
   {
     key: "commentOnPost",
+    emailKey: "commentOnPostEmail",
     title: "Comments on my posts",
     description: "Get notified when someone comments on something you've shared.",
   },
   {
     key: "commentReply",
+    emailKey: "commentReplyEmail",
     title: "Replies to my comments",
     description: "Pings when someone responds to your comment threads.",
   },
   {
     key: "mention",
+    emailKey: "mentionEmail",
     title: "Mentions",
     description: "Alerts when someone @mentions you in posts or comments.",
   },
   {
     key: "postLike",
+    emailKey: "postLikeEmail",
     title: "Likes on my posts",
     description: "Heads-up when someone likes your post.",
   },
   {
     key: "capsuleNewPost",
+    emailKey: "capsuleNewPostEmail",
     title: "New posts in my capsules",
     description: "Alerts when collaborators publish new posts in capsules you belong to.",
   },
   {
     key: "friendRequest",
+    emailKey: "friendRequestEmail",
     title: "Friend requests",
     description: "Pings when another member sends you a friend request.",
   },
   {
     key: "friendRequestAccepted",
+    emailKey: "friendRequestAcceptedEmail",
     title: "Friend request accepted",
     description: "Confirmation when someone accepts your friend request.",
   },
   {
     key: "capsuleInvite",
+    emailKey: "capsuleInviteEmail",
     title: "Capsule invites",
     description: "Invitations to join a capsule or collaborate on new drops.",
   },
   {
     key: "capsuleInviteAccepted",
+    emailKey: "capsuleInviteAcceptedEmail",
     title: "Capsule invite accepted",
     description: "Updates when someone accepts your capsule invite.",
   },
   {
     key: "capsuleInviteDeclined",
+    emailKey: "capsuleInviteDeclinedEmail",
     title: "Capsule invite declined",
-    description: "Letdowns happen—get notified if an invite is declined.",
+    description: "Letdowns happen-get notified if an invite is declined.",
   },
   {
     key: "capsuleRequestPending",
+    emailKey: "capsuleRequestPendingEmail",
     title: "Capsule join requests",
     description: "Alerts owners when a viewer requests to join a capsule.",
   },
   {
     key: "capsuleRequestApproved",
+    emailKey: "capsuleRequestApprovedEmail",
     title: "Join request approved",
     description: "Know when your request to join a capsule is approved.",
   },
   {
     key: "capsuleRequestDeclined",
+    emailKey: "capsuleRequestDeclinedEmail",
     title: "Join request declined",
     description: "Find out if your capsule join request is declined.",
   },
   {
     key: "capsuleRoleChanged",
+    emailKey: "capsuleRoleChangedEmail",
     title: "Role changes",
     description: "Notifications for promotions or role updates inside capsules.",
   },
   {
     key: "ladderChallenge",
+    emailKey: "ladderChallengeEmail",
     title: "Ladder challenges",
     description: "Heads-ups when someone challenges you on a capsule ladder.",
   },
   {
     key: "ladderChallengeResolved",
+    emailKey: "ladderChallengeResolvedEmail",
     title: "Challenge results",
     description: "Match outcomes or resolution updates for your ladder challenges.",
   },
   {
     key: "directMessage",
+    emailKey: "directMessageEmail",
     title: "Direct messages",
     description: "New DMs from other members.",
   },
   {
     key: "groupMessage",
+    emailKey: "groupMessageEmail",
     title: "Group chat messages",
     description: "New messages in group or party chats you're in.",
   },
   {
     key: "mentionInChat",
+    emailKey: "mentionInChatEmail",
     title: "Mentions in chat",
     description: "Alerts when someone @mentions you inside chats.",
   },
   {
     key: "followNew",
+    emailKey: "followNewEmail",
     title: "New followers",
     description: "Updates when someone new follows you.",
   },
   {
     key: "ladderMatchScheduled",
+    emailKey: "ladderMatchScheduledEmail",
     title: "Ladder matches scheduled",
     description: "Scheduling updates or match slots on ladders.",
   },
   {
     key: "ladderInvitedToJoin",
+    emailKey: "ladderInvitedToJoinEmail",
     title: "Invited to a ladder",
     description: "Invitations to participate in a ladder.",
   },
   {
     key: "partyInvite",
+    emailKey: "partyInviteEmail",
     title: "Party invites",
     description: "Invitations to join a party or group session.",
   },
   {
     key: "partyInviteAccepted",
+    emailKey: "partyInviteAcceptedEmail",
     title: "Party invite accepted",
     description: "Notifications when someone accepts your party invite.",
   },
   {
     key: "liveEventStarting",
+    emailKey: "liveEventStartingEmail",
     title: "Live sessions starting",
     description: "Alerts when a live event or stream is kicking off.",
   },
   {
     key: "streamStatus",
+    emailKey: "streamStatusEmail",
     title: "Stream health/status",
     description: "Issues or updates about your live streams or recordings.",
   },
@@ -171,48 +198,45 @@ export function NotificationsSettingsSection({
   const [savingKey, setSavingKey] = React.useState<ToggleKey | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const handleToggle = React.useCallback(
-    async (key: ToggleKey) => {
-      const nextValue = !settings[key];
-      setSettings((prev) => ({ ...prev, [key]: nextValue }));
-      setSavingKey(key);
-      setError(null);
+  const handleToggle = React.useCallback(async (key: ToggleKey) => {
+    const nextValue = !settings[key];
+    setSettings((prev) => ({ ...prev, [key]: nextValue }));
+    setSavingKey(key);
+    setError(null);
 
-      try {
-        const response = await fetch("/api/notifications/settings", {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [key]: nextValue }),
-        });
-        const payload = (await response.json().catch(() => null)) as
-          | Partial<NotificationSettings>
-          | { error?: string }
-          | null;
+    try {
+      const response = await fetch("/api/notifications/settings", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: nextValue }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | Partial<NotificationSettings>
+        | { error?: string }
+        | null;
 
-        if (!response.ok) {
-          const message =
-            payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-              ? payload.error
-              : "Unable to save your preference right now.";
-          throw new Error(message);
-        }
-
-        setSettings((prev) => coerceSettings(prev, payload as Partial<NotificationSettings>));
-      } catch (err) {
-        console.error("notifications settings update error", err);
-        setSettings((prev) => ({ ...prev, [key]: !nextValue }));
+      if (!response.ok) {
         const message =
-          err instanceof Error && err.message
-            ? err.message
-            : "We couldn't save that change. Please try again.";
-        setError(message);
-      } finally {
-        setSavingKey(null);
+          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "Unable to save your preference right now.";
+        throw new Error(message);
       }
-    },
-    [settings],
-  );
+
+      setSettings((prev) => coerceSettings(prev, payload as Partial<NotificationSettings>));
+    } catch (err) {
+      console.error("notifications settings update error", err);
+      setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "We couldn't save that change. Please try again.";
+      setError(message);
+    } finally {
+      setSavingKey(null);
+    }
+  }, [settings]);
 
   React.useEffect(() => {
     if (!error) return;
@@ -237,26 +261,43 @@ export function NotificationsSettingsSection({
         <div className={styles.options}>
           {OPTIONS.map((option) => {
             const enabled = Boolean(settings[option.key]);
+            const emailEnabled = Boolean(settings[option.emailKey]);
             const isSaving = savingKey === option.key;
+            const isEmailSaving = savingKey === option.emailKey;
             return (
               <div key={option.key} className={styles.option}>
                 <div className={styles.optionText}>
                   <div className={styles.optionTitle}>{option.title}</div>
                   <p className={styles.optionDescription}>{option.description}</p>
                 </div>
-                <button
-                  type="button"
-                  className={`${styles.toggle} ${enabled ? styles.toggleOn : ""} ${
-                    isSaving ? styles.toggleBusy : ""
-                  }`.trim()}
-                  role="switch"
-                  aria-checked={enabled}
-                  aria-label={option.title}
-                  disabled={isSaving}
-                  onClick={() => handleToggle(option.key)}
-                >
-                  <span className={styles.toggleThumb} />
-                </button>
+                <div className={styles.optionToggles}>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${enabled ? styles.toggleOn : ""} ${
+                      isSaving ? styles.toggleBusy : ""
+                    }`.trim()}
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label={`${option.title} (in-app)`}
+                    disabled={isSaving}
+                    onClick={() => handleToggle(option.key)}
+                  >
+                    <span className={styles.toggleThumb} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.toggle} ${emailEnabled ? styles.toggleOn : ""} ${
+                      isEmailSaving ? styles.toggleBusy : ""
+                    }`.trim()}
+                    role="switch"
+                    aria-checked={emailEnabled}
+                    aria-label={`${option.title} (email)`}
+                    disabled={isEmailSaving}
+                    onClick={() => handleToggle(option.emailKey)}
+                  >
+                    <span className={styles.toggleThumb} />
+                  </button>
+                </div>
               </div>
             );
           })}

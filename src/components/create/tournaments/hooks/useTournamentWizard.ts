@@ -17,6 +17,9 @@ import type {
 
 const defaultVisitedState: Record<TournamentStepId, boolean> = {
   blueprint: true,
+  title: false,
+  summary: false,
+  signups: false,
   details: false,
   format: false,
   content: false,
@@ -53,6 +56,7 @@ export const createDefaultForm = (): TournamentFormState => ({
   timezone: "",
   registrationType: "open",
   maxEntrants: "16",
+  registrationRequirements: "",
   overview: "",
   rules: "",
   broadcast: "",
@@ -308,7 +312,14 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
   }, [form.aiNotes, form.broadcast, form.overview, form.rules, form.updates]);
 
   const convertConfigToPayload = React.useCallback(() => {
-    const maxEntrants = parseInteger(form.maxEntrants, 16, { min: 2, max: 128 });
+    const maxEntrantsInput = form.maxEntrants.trim();
+    const maxEntrants = maxEntrantsInput.length
+      ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
+      : null;
+    const requirements = (form.registrationRequirements ?? "")
+      .split("\n")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length);
     const schedule: Record<string, unknown> = {};
     if (form.start.trim().length) schedule.kickoff = form.start.trim();
     if (form.timezone.trim().length) schedule.timezone = form.timezone.trim();
@@ -318,7 +329,8 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       schedule,
       registration: {
         type: form.registrationType,
-        maxTeams: maxEntrants,
+        maxTeams: maxEntrants ?? null,
+        ...(requirements.length ? { requirements } : {}),
       },
       metadata: {
         tournament: {
@@ -327,7 +339,7 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
         },
       },
     } as Record<string, unknown>;
-  }, [form.bestOf, form.format, form.maxEntrants, form.registrationType, form.start, form.timezone]);
+  }, [form.bestOf, form.format, form.maxEntrants, form.registrationRequirements, form.registrationType, form.start, form.timezone]);
 
   const convertParticipantsToPayload = React.useCallback(() => {
     return normalizeParticipants(participants)
@@ -357,6 +369,10 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
   }, [participants]);
 
   const buildMetaPayload = React.useCallback(() => {
+    const maxEntrantsInput = form.maxEntrants.trim();
+    const maxEntrants = maxEntrantsInput.length
+      ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
+      : null;
     return {
       variant: "tournament",
       format: form.format,
@@ -374,7 +390,7 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       settings: {
         bestOf: form.bestOf,
         registrationType: form.registrationType,
-        maxEntrants: parseInteger(form.maxEntrants, 16, { min: 2, max: 128 }),
+        maxEntrants,
       },
       notes: form.aiNotes.trim().length ? form.aiNotes.trim() : null,
     } as Record<string, unknown>;
@@ -451,7 +467,12 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       if (mappedMembers.length) {
         setParticipants(normalizeParticipants(mappedMembers));
       }
-      setVisitedSteps((prev) => ({ ...prev, blueprint: true, content: true, participants: true }));
+      setVisitedSteps((prev) => ({
+        ...prev,
+        blueprint: true,
+        content: true,
+        participants: true,
+      }));
     },
     [],
   );
@@ -489,7 +510,7 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       applyBlueprint(blueprint);
       setStatusMessage("Draft created. Review your sections and seeds before publishing.");
       setVisitedSteps((prev) => ({ ...prev, blueprint: true }));
-      handleStepSelect("details");
+      handleStepSelect("title");
     } catch (error) {
       setErrorMessage((error as Error).message);
     } finally {
@@ -564,8 +585,17 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
 
   const completionMap = React.useMemo(
     () => ({
-      blueprint: visitedSteps.blueprint && Boolean(form.overview.trim() || form.rules.trim() || form.broadcast.trim()),
-      details: visitedSteps.details && Boolean(form.name.trim()),
+      blueprint: visitedSteps.blueprint,
+      title: visitedSteps.title && Boolean(form.name.trim()),
+      summary: visitedSteps.summary && Boolean(form.summary.trim()),
+      signups:
+        visitedSteps.signups &&
+        Boolean(
+          form.registrationType ||
+            form.maxEntrants.trim() ||
+            form.registrationRequirements.trim(),
+        ),
+      details: visitedSteps.details,
       format: visitedSteps.format,
       content:
         visitedSteps.content &&
@@ -579,7 +609,20 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       participants: visitedSteps.participants && participants.some((participant) => participant.displayName.trim().length),
       review: visitedSteps.review,
     }),
-    [form.aiNotes, form.broadcast, form.name, form.overview, form.rules, form.updates, participants, visitedSteps],
+    [
+      form.aiNotes,
+      form.broadcast,
+      form.name,
+      form.overview,
+      form.rules,
+      form.summary,
+      form.updates,
+      form.maxEntrants,
+      form.registrationRequirements,
+      form.registrationType,
+      participants,
+      visitedSteps,
+    ],
   );
 
   const previewModel = React.useMemo<TournamentPreviewModel>(() => {
@@ -589,7 +632,10 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
         : form.format === "double_elimination"
           ? "Double elimination"
           : "Round robin";
-    const maxEntrants = parseInteger(form.maxEntrants, 16, { min: 2, max: 128 });
+    const maxEntrantsInput = form.maxEntrants.trim();
+    const maxEntrants = maxEntrantsInput.length
+      ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
+      : null;
     const kickoffParts = [form.start.trim(), form.timezone.trim()].filter(Boolean);
     const trimmedParticipants = normalizeParticipants(participants).filter((participant) =>
       participant.displayName.trim().length,
@@ -618,7 +664,9 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       summary: form.summary.trim(),
       capsuleName: selectedCapsule?.name ?? "Capsule",
       format: formatLabel,
-      registration: `${form.registrationType} · cap ${maxEntrants}`,
+      registration: maxEntrants
+        ? `${form.registrationType} • cap ${maxEntrants}`
+        : form.registrationType,
       kickoff: kickoffParts.length ? kickoffParts.join(" | ") : "Kickoff time TBD",
       sections,
       participants: trimmedParticipants.map((participant, index) => ({

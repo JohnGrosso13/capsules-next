@@ -50,13 +50,6 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
 
   const formContent = (
     <>
-      <header className={styles.stepHero}>
-        <h1 className={styles.stepHeroTitle}>Design your bracket plan</h1>
-        <p className={styles.stepHeroSubtitle}>
-          Guided steps, blueprint, preview, and controls now mirror the ladder builder so tokens stay cohesive.
-        </p>
-      </header>
-
       <TournamentStatus error={wizard.errorMessage} status={wizard.statusMessage} />
       <TournamentStepContent
         activeStep={wizard.activeStep}
@@ -65,7 +58,6 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
         generating={wizard.generating}
         onFormChange={wizard.handleFormChange}
         onGenerateDraft={wizard.handleGenerateDraft}
-        onSkipBlueprint={() => wizard.handleStepSelect("details")}
         onParticipantChange={wizard.handleParticipantChange}
         onParticipantEntityType={wizard.handleParticipantEntityType}
         onParticipantEntityId={wizard.handleParticipantEntityId}

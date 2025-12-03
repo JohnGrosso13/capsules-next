@@ -57,6 +57,12 @@
   font-size: 0.95rem;
 }
 
+.optionToggles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .toggle {
   position: relative;
   min-width: 56px;

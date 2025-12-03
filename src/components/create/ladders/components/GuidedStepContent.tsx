@@ -230,14 +230,14 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
       );
     case "registration":
       return (
-        <Card className={styles.formCard} variant="ghost">
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Sign-Ups</CardTitle>
+        <Card className={styles.namingPanel} variant="ghost">
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Sign-Ups</CardTitle>
             <CardDescription className={styles.formCardDescription}>
               Choose how teams join. You can optionally add a soft cap and launch requirements, and change these later.
             </CardDescription>
           </CardHeader>
-          <CardContent className={`${styles.formCardContent} ${styles.registrationContent}`}>
+          <CardContent className={`${styles.namingBody} ${styles.registrationContent}`}>
             <div className={styles.registrationGrid}>
               <section className={`${styles.registrationBlock} ${styles.registrationFieldBlock}`}>
                 <div className={styles.registrationBlockHeader}>
@@ -354,20 +354,20 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
                 )}
               </div>
             </section>
+            {props.stepControls}
           </CardContent>
-          {props.stepControls}
         </Card>
       );
     case "type":
       return (
-        <Card className={styles.formCard} variant="ghost">
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Basics</CardTitle>
+        <Card className={styles.namingPanel} variant="ghost">
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Basics</CardTitle>
             <CardDescription className={styles.formCardDescription}>
               Capsule AI uses this to suggest rules, playlists, stats, and the timeline, but you can keep it lightweight to start.
             </CardDescription>
           </CardHeader>
-          <CardContent className={styles.formCardContent}>
+          <CardContent className={styles.namingBody}>
             <div className={styles.fieldGroup}>
               <label className={styles.label} htmlFor="guided-game-title">
                 Game or title (optional)
@@ -462,20 +462,20 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
                 />
               </div>
             </div>
+            {props.stepControls}
           </CardContent>
-          {props.stepControls}
         </Card>
       );
     case "format":
       return (
-        <Card className={styles.formCard} variant="ghost">
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Format</CardTitle>
+        <Card className={styles.namingPanel} variant="ghost">
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Format</CardTitle>
             <CardDescription className={styles.formCardDescription}>
               Pick a scoring style and match format. Elo exposes rating controls; Simple hides them.
             </CardDescription>
           </CardHeader>
-          <CardContent className={styles.formCardContent}>
+          <CardContent className={styles.namingBody}>
             <div className={styles.scoringModes}>
                   {[
                     {
@@ -607,7 +607,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
                   </p>
                 </>
               ) : null}
-            {props.stepControls}
+              {props.stepControls}
           </CardContent>
         </Card>
       );
@@ -715,17 +715,22 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
       );
     case "roster":
       return (
-        <>
-          <RosterStep
-            capsuleId={props.capsuleId}
-            members={props.members}
-            onMemberField={props.onMemberField}
-            onAddMember={props.onAddMember}
-            onAddMemberWithUser={props.onAddMemberWithUser}
-            onRemoveMember={props.onRemoveMember}
-          />
-          {props.stepControls}
-        </>
+        <Card className={styles.namingPanel} variant="ghost">
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Roster</CardTitle>
+          </CardHeader>
+          <CardContent className={styles.namingBody}>
+            <RosterStep
+              capsuleId={props.capsuleId}
+              members={props.members}
+              onMemberField={props.onMemberField}
+              onAddMember={props.onAddMember}
+              onAddMemberWithUser={props.onAddMemberWithUser}
+              onRemoveMember={props.onRemoveMember}
+            />
+            {props.stepControls}
+          </CardContent>
+        </Card>
       );
     case "rewards":
       return (
@@ -763,50 +768,57 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
     case "review":
     default:
       return (
-        <>
-          <div className={styles.guidedReviewStack}>
-            {props.reviewOverview}
-            <Card className={styles.formCard} variant="ghost">
-              <CardHeader className={styles.formCardHeader}>
-                <CardTitle className={styles.formCardTitle}>Visibility & publish</CardTitle>
-                <CardDescription className={styles.formCardDescription}>
-                  Flip to public whenever you&apos;re ready.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className={styles.formCardContent}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-visibility">
-                    Visibility
-                  </label>
-                  <select
-                    id="guided-visibility"
-                    className={styles.select}
-                    value={props.form.visibility}
-                    onChange={(event) =>
-                      props.onFormField("visibility", event.target.value as "private" | "capsule" | "public")
-                    }
-                  >
-                    <option value="capsule">Capsule members</option>
-                    <option value="private">Managers only</option>
-                    <option value="public">Public showcase</option>
-                  </select>
-                </div>
-                <div className={styles.checkboxRow}>
-                  <input
-                    id="guided-publish"
-                    type="checkbox"
-                    checked={props.form.publish}
-                    onChange={(event) => props.onFormField("publish", event.target.checked)}
-                  />
-                  <label htmlFor="guided-publish">Publish immediately after saving</label>
-                </div>
-                <p className={styles.fieldHint}>Leave unchecked to save a draft. Capsule will keep everything private.</p>
-              </CardContent>
-            </Card>
-            {props.reviewAiPlan}
-          </div>
-          {props.stepControls}
-        </>
+        <Card className={styles.namingPanel} variant="ghost">
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Review & publish</CardTitle>
+          </CardHeader>
+          <CardContent className={styles.namingBody}>
+            <div className={styles.guidedReviewStack}>
+              {props.reviewOverview}
+              <Card className={styles.formCard} variant="ghost">
+                <CardHeader className={styles.formCardHeader}>
+                  <CardTitle className={styles.formCardTitle}>Visibility & publish</CardTitle>
+                  <CardDescription className={styles.formCardDescription}>
+                    Flip to public whenever you&apos;re ready.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className={styles.formCardContent}>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label} htmlFor="guided-visibility">
+                      Visibility
+                    </label>
+                    <select
+                      id="guided-visibility"
+                      className={styles.select}
+                      value={props.form.visibility}
+                      onChange={(event) =>
+                        props.onFormField("visibility", event.target.value as "private" | "capsule" | "public")
+                      }
+                    >
+                      <option value="capsule">Capsule members</option>
+                      <option value="private">Managers only</option>
+                      <option value="public">Public showcase</option>
+                    </select>
+                  </div>
+                  <div className={styles.checkboxRow}>
+                    <input
+                      id="guided-publish"
+                      type="checkbox"
+                      checked={props.form.publish}
+                      onChange={(event) => props.onFormField("publish", event.target.checked)}
+                    />
+                    <label htmlFor="guided-publish">Publish immediately after saving</label>
+                  </div>
+                  <p className={styles.fieldHint}>
+                    Leave unchecked to save a draft. Capsule will keep everything private.
+                  </p>
+                </CardContent>
+              </Card>
+              {props.reviewAiPlan}
+            </div>
+            {props.stepControls}
+          </CardContent>
+        </Card>
       );
   }
 }

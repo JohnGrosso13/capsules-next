@@ -1,4 +1,5 @@
 import { createNotifications } from "@/server/notifications/service";
+import { sendNotificationEmails } from "@/server/notifications/email";
 import { fetchPostCoreById } from "@/server/posts/repository";
 import { listCapsuleFollowers, listCapsuleMembers, getCapsuleSummaryForViewer } from "@/server/capsules/repository";
 import type { FriendRequestSummary } from "@/server/friends/types";
@@ -80,6 +81,11 @@ export async function notifyPostComment(options: {
   const body = truncate(options.commentContent, 180);
 
   try {
+    const data = {
+      postId: postClientId ?? resolvedPostId,
+      capsuleId: postCapsuleId,
+      actorName,
+    };
     await createNotifications(
       [recipientId],
       {
@@ -87,12 +93,20 @@ export async function notifyPostComment(options: {
         title: `${actorName} commented on your post`,
         body,
         href,
-        data: {
-          postId: postClientId ?? resolvedPostId,
-          capsuleId: postCapsuleId,
-          actorName,
-        },
+        data,
         actorId: authorId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      [recipientId],
+      {
+        type: "comment_on_post",
+        title: `${actorName} commented on your post`,
+        body,
+        href,
+        data,
+        actorName,
       },
       { respectPreferences: true },
     );
@@ -145,6 +159,12 @@ export async function notifyCapsulePost(options: {
     : `${actorName} shared a new post`;
 
   try {
+    const data = {
+      postId,
+      capsuleId,
+      actorName,
+      capsuleName,
+    };
     await createNotifications(
       recipients,
       {
@@ -152,13 +172,20 @@ export async function notifyCapsulePost(options: {
         title,
         body,
         href,
-        data: {
-          postId,
-          capsuleId,
-          actorName,
-          capsuleName,
-        },
+        data,
         actorId: authorId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      recipients,
+      {
+        type: "capsule_new_post",
+        title,
+        body,
+        href,
+        data,
+        actorName,
       },
       { respectPreferences: true },
     );
@@ -177,6 +204,10 @@ export async function notifyFriendRequest(request: FriendRequestSummary): Promis
   const body = truncate(request.message, 180);
 
   try {
+    const data = {
+      requestId: request.id,
+      requesterId,
+    };
     await createNotifications(
       [recipientId],
       {
@@ -184,11 +215,20 @@ export async function notifyFriendRequest(request: FriendRequestSummary): Promis
         title: `New friend request from ${requesterName}`,
         body: body ?? "Review the request on your Friends tab.",
         href,
-        data: {
-          requestId: request.id,
-          requesterId,
-        },
+        data,
         actorId: requesterId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      [recipientId],
+      {
+        type: "friend_request",
+        title: `New friend request from ${requesterName}`,
+        body: body ?? "Review the request on your Friends tab.",
+        href,
+        data,
+        actorName: requesterName,
       },
       { respectPreferences: true },
     );
@@ -206,6 +246,10 @@ export async function notifyFriendRequestAccepted(request: FriendRequestSummary)
   const href = "/friends";
 
   try {
+    const data = {
+      requestId: request.id,
+      userId: recipientId,
+    };
     await createNotifications(
       [requesterId],
       {
@@ -213,11 +257,20 @@ export async function notifyFriendRequestAccepted(request: FriendRequestSummary)
         title: `${recipientName} accepted your friend request`,
         body: "You can start a chat or follow their updates.",
         href,
-        data: {
-          requestId: request.id,
-          userId: recipientId,
-        },
+        data,
         actorId: recipientId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      [requesterId],
+      {
+        type: "friend_request_accepted",
+        title: `${recipientName} accepted your friend request`,
+        body: "You can start a chat or follow their updates.",
+        href,
+        data,
+        actorName: recipientName,
       },
       { respectPreferences: true },
     );
@@ -239,6 +292,10 @@ export async function notifyCapsuleInvite(invite: CapsuleMemberRequestSummary): 
   const href = "/friends?tab=requests";
 
   try {
+    const data = {
+      requestId: invite.id,
+      capsuleId: invite.capsuleId,
+    };
     await createNotifications(
       [targetUserId],
       {
@@ -246,11 +303,20 @@ export async function notifyCapsuleInvite(invite: CapsuleMemberRequestSummary): 
         title: `You're invited to join ${capsuleName}`,
         body: `${inviterName} wants you to collaborate in ${capsuleName}.`,
         href,
-        data: {
-          requestId: invite.id,
-          capsuleId: invite.capsuleId,
-        },
+        data,
         actorId: initiatorId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      [targetUserId],
+      {
+        type: "capsule_invite",
+        title: `You're invited to join ${capsuleName}`,
+        body: `${inviterName} wants you to collaborate in ${capsuleName}.`,
+        href,
+        data,
+        actorName: inviterName,
       },
       { respectPreferences: true },
     );
@@ -276,6 +342,10 @@ export async function notifyLadderChallenge(options: {
   const href = `/create/ladders?ladderId=${encodeURIComponent(options.ladder.id)}`;
 
   try {
+    const data = {
+      ladderId: options.ladder.id,
+      challengeId: options.challenge.id,
+    };
     await createNotifications(
       [opponentUserId],
       {
@@ -283,11 +353,20 @@ export async function notifyLadderChallenge(options: {
         title: `${challengerName} challenged you on ${ladderName}`,
         body: truncate(options.challenge.note, 160) ?? "Review and respond to the challenge.",
         href,
-        data: {
-          ladderId: options.ladder.id,
-          challengeId: options.challenge.id,
-        },
+        data,
         actorId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      [opponentUserId],
+      {
+        type: "ladder_challenge",
+        title: `${challengerName} challenged you on ${ladderName}`,
+        body: truncate(options.challenge.note, 160) ?? "Review and respond to the challenge.",
+        href,
+        data,
+        actorName: challengerName,
       },
       { respectPreferences: true },
     );
@@ -324,6 +403,10 @@ export async function notifyLadderChallengeResolved(options: {
       : `${options.history.outcome === "challenger" ? "Challenger" : "Opponent"} reported a win.`;
 
   try {
+    const data = {
+      ladderId: options.ladder.id,
+      challengeId: options.challenge.id,
+    };
     await createNotifications(
       recipients,
       {
@@ -331,11 +414,19 @@ export async function notifyLadderChallengeResolved(options: {
         title,
         body,
         href,
-        data: {
-          ladderId: options.ladder.id,
-          challengeId: options.challenge.id,
-        },
+        data,
         actorId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      recipients,
+      {
+        type: "ladder_challenge_resolved",
+        title,
+        body,
+        href,
+        data,
       },
       { respectPreferences: true },
     );
