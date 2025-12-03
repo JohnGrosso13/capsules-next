@@ -8,18 +8,22 @@ import { AiComposerDrawer } from "@/components/ai-composer";
 import type { ComposerChoice } from "@/components/composer/ComposerForm";
 import type { PrompterAction, PrompterAttachment } from "@/components/ai-prompter-stage";
 import type { PrompterHandoff } from "@/components/composer/prompter-handoff";
-import { applyThemeVars, endPreviewThemeVars, startPreviewThemeVars } from "@/lib/theme";
-import { normalizeThemeVariantsInput, type ThemeVariants } from "@/lib/theme/variants";
+import { normalizeThemeVariantsInput } from "@/lib/theme/variants";
 import { resolveStylerHeuristicPlan } from "@/lib/theme/styler-heuristics";
 import { safeRandomUUID } from "@/lib/random";
 import { ensurePollStructure, type ComposerDraft } from "@/lib/composer/draft";
-import { useComposerCore } from "@/components/composer/state/useComposerCore";
 import { cloneComposerData } from "@/components/composer/state/utils";
 import { appendCapsuleContext } from "@/components/composer/state/ai-shared";
 import { ComposerSidebarProvider, useComposerSidebarStore } from "./context/SidebarProvider";
 import { ComposerSmartContextProvider, useComposerSmartContext } from "./context/SmartContextProvider";
+import { ComposerThemeProvider, useComposerTheme, type ThemePreviewState } from "./context/ThemePreviewProvider";
 import { useComposerImageSettings } from "@/components/composer/state/useComposerImageSettings";
 import { useComposerAi } from "@/components/composer/state/useComposerAi";
+import {
+  createSelectorStore,
+  useSelectorStore,
+  type SelectorStore,
+} from "@/components/composer/state/composerStore";
 import {
   type ComposerChatAttachment,
   type ComposerChatMessage,
@@ -316,7 +320,6 @@ export type ComposerState = {
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
   contextSnapshot: ComposerContextSnapshot | null;
-  themePreview: ThemePreviewState | null;
   lastPrompt: {
     prompt: string;
     attachments: PrompterAttachment[] | null;
@@ -324,24 +327,20 @@ export type ComposerState = {
   } | null;
 };
 
-type ThemePreviewState = {
-  summary: string;
-  details?: string | null;
-  source: "heuristic" | "ai";
-  variants: ThemeVariants;
-};
-
 type AiPromptHandoff = Extract<PrompterHandoff, { intent: "ai_prompt" }>;
 type ImageLogoHandoff = Extract<PrompterHandoff, { intent: "image_logo" }>;
 type ImageEditHandoff = Extract<PrompterHandoff, { intent: "image_edit" }>;
 
-type ComposerContextValue = {
-  state: ComposerState;
+type ComposerRuntimeValue = {
   feedTarget: FeedTarget;
   activeCapsuleId: string | null;
   smartContextEnabled: boolean;
+  setSmartContextEnabled(enabled: boolean): void;
   imageSettings: ComposerImageSettings;
   updateImageSettings(patch: Partial<ComposerImageSettings>): void;
+};
+
+type ComposerActionsValue = {
   handlePrompterAction(action: PrompterAction): void;
   handlePrompterHandoff(handoff: PrompterHandoff): void;
   close(): void;
@@ -356,9 +355,8 @@ type ComposerContextValue = {
     options: SummaryPresentationOptions,
     extras?: SummaryConversationExtras,
   ): void;
-  forceChoice?(key: string): Promise<void>;
+  forceChoice?: ((key: string) => Promise<void>) | undefined;
   updateDraft(draft: ComposerDraft): void;
-  sidebar: ComposerSidebarData;
   selectRecentChat(id: string): void;
   selectDraft(id: string): void;
   createProject(name: string): void;
@@ -366,11 +364,23 @@ type ComposerContextValue = {
   saveDraft(projectId?: string | null): void;
   retryVideo(): void;
   saveCreation(request: ComposerSaveRequest): Promise<string | null>;
-  setSmartContextEnabled(enabled: boolean): void;
-  applyThemePreview(): void;
-  cancelThemePreview(): void;
   retryLastPrompt(): void;
 };
+
+type ComposerProviderValue = {
+  store: SelectorStore<ComposerState>;
+  runtime: ComposerRuntimeValue;
+  actions: ComposerActionsValue;
+};
+
+export type ComposerContextValue = ComposerActionsValue &
+  ComposerRuntimeValue & {
+    state: ComposerState;
+    sidebar: ComposerSidebarData;
+    themePreview: ThemePreviewState | null;
+    applyThemePreview(): void;
+    cancelThemePreview(): void;
+  };
 
 const initialState: ComposerState = {
   open: false,
@@ -390,7 +400,6 @@ const initialState: ComposerState = {
   videoStatus: createIdleVideoStatus(),
   saveStatus: createIdleSaveStatus(),
   contextSnapshot: null,
-  themePreview: null,
   lastPrompt: null,
 };
 
@@ -472,12 +481,105 @@ function createIdleSaveStatus(): ComposerSaveStatus {
 type FeedTarget = { scope: "home" } | { scope: "capsule"; capsuleId: string | null };
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
 
-const ComposerContext = React.createContext<ComposerContextValue | null>(null);
+const ComposerContext = React.createContext<ComposerProviderValue | null>(null);
 
-export function useComposer() {
+function useComposerContext(): ComposerProviderValue {
   const ctx = React.useContext(ComposerContext);
   if (!ctx) throw new Error("useComposer must be used within ComposerProvider");
   return ctx;
+}
+
+function useComposerRuntime(): ComposerRuntimeValue {
+  const ctx = useComposerContext();
+  return ctx.runtime;
+}
+
+export function useComposerActions(): ComposerActionsValue {
+  const ctx = useComposerContext();
+  return ctx.actions;
+}
+
+export function useComposerSelector<Slice>(
+  selector: (state: ComposerState) => Slice,
+  equality?: (a: Slice, b: Slice) => boolean,
+): Slice {
+  const ctx = useComposerContext();
+  return useSelectorStore(ctx.store, selector, equality ?? Object.is);
+}
+
+export function useComposer(): ComposerContextValue {
+  const state = useComposerSelector((value) => value);
+  const runtime = useComposerRuntime();
+  const actions = useComposerActions();
+  const { sidebarStore } = useComposerSidebarStore();
+  const { themePreview, applyThemePreview, cancelThemePreview } = useComposerTheme();
+
+  const sidebar = React.useMemo<ComposerSidebarData>(() => {
+    const recentChats = sidebarStore.recentChats.map((entry) => {
+      const caption = describeRecentCaption(entry);
+      const snippet = describeRecentSnippet(entry);
+      const combined = snippet ? `${caption} - ${snippet}` : caption;
+      return {
+        id: entry.id,
+        title: describeRecentTitle(entry),
+        caption: truncateLabel(combined, 120),
+      };
+    });
+
+    const savedDraftItems: SidebarDraftListItem[] = sidebarStore.drafts.map((entry) => ({
+      kind: "draft",
+      id: entry.id,
+      title: describeDraftTitle(entry),
+      caption: describeDraftCaption(entry.updatedAt),
+      projectId: entry.projectId ?? null,
+    }));
+
+    const choiceItems: SidebarDraftListItem[] = (state.choices ?? []).map((choice) => ({
+      kind: "choice",
+      key: choice.key,
+      title: truncateLabel(choice.label, 70),
+      caption: "Blueprint suggestion",
+    }));
+
+    const projects = sidebarStore.projects.map((project) => ({
+      id: project.id,
+      name: truncateLabel(project.name, 60),
+      caption: describeProjectCaption(project),
+      draftCount: project.draftIds.length,
+    }));
+
+    return {
+      recentChats,
+      drafts: [...choiceItems, ...savedDraftItems],
+      projects,
+      selectedProjectId: sidebarStore.selectedProjectId,
+    };
+  }, [sidebarStore, state.choices]);
+
+  const forceChoice = state.choices ? actions.forceChoice : undefined;
+
+  return React.useMemo<ComposerContextValue>(
+    () => ({
+      state,
+      sidebar,
+      themePreview,
+      applyThemePreview,
+      cancelThemePreview,
+      ...runtime,
+      ...actions,
+      forceChoice,
+    }),
+    [
+      applyThemePreview,
+      cancelThemePreview,
+      forceChoice,
+      actions,
+      runtime,
+      sidebar,
+      state,
+      themePreview,
+    ],
+  );
 }
 
 function formatAuthor(user: AuthClientUser | null, name: string | null, avatar: string | null) {
@@ -505,12 +607,15 @@ type ComposerSessionProviderProps = {
 };
 
 function ComposerSessionProvider({ children, user }: ComposerSessionProviderProps) {
-  const { state, setState } = useComposerCore(initialState);
+  const store = React.useMemo(() => createSelectorStore(initialState), []);
+  const setState = store.setState;
+  const getState = store.getState;
   const [feedTarget, setFeedTarget] = React.useState<FeedTarget>({ scope: "home" });
   const { settings: imageSettings, updateSettings: updateImageSettings } = useComposerImageSettings();
   const { sidebarStore, updateSidebarStore } = useComposerSidebarStore();
   const { smartContextEnabled, setSmartContextEnabled: setSmartContextEnabledContext } =
     useComposerSmartContext();
+  const { previewTheme, resetThemePreview } = useComposerTheme();
   const saveResetTimeout = React.useRef<number | null>(null);
   const requestTokenRef = React.useRef<string | null>(null);
   const requestAbortRef = React.useRef<AbortController | null>(null);
@@ -1145,13 +1250,17 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       };
 
       try {
+        const stateSnapshot = getState();
+        const rawPostForRequest = stateSnapshot.rawPost;
+        const threadIdSnapshot = stateSnapshot.threadId;
         const payload = await callAiPrompt({
           message: trimmedPrompt,
           ...(resolvedOptions ? { options: resolvedOptions } : {}),
-          ...(state.rawPost && replyMode !== "chat" ? { post: state.rawPost } : {}),
+          ...(rawPostForRequest && replyMode !== "chat" ? { post: rawPostForRequest } : {}),
           ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
           history: baseHistory,
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
+          ...(threadIdSnapshot && !threadIdForRequest ? { threadId: threadIdSnapshot } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
           stream: true,
@@ -1199,13 +1308,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     beginRequestToken,
     clearRequestToken,
     clearRequestController,
+    getState,
     handleAiResponse,
     imageSettings,
     isRequestActive,
     pushAssistantError,
     setState,
     smartContextEnabled,
-    state.rawPost,
     startRequestController,
   ],
 );
@@ -1370,50 +1479,25 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     [runAiPromptHandoff, runLogoHandoff, runImageEditHandoff],
   );
 
+  const resetComposerState = React.useCallback(
+    (overrides?: Partial<ComposerState>) => {
+      resetThemePreview();
+      setState((prev) => resetStateWithPreference(prev, overrides ?? {}));
+    },
+    [resetThemePreview, setState],
+  );
+
   const close = React.useCallback(
     () => {
-      endPreviewThemeVars();
       if (requestAbortRef.current) {
         requestAbortRef.current.abort("composer_closed");
       }
       clearRequestToken();
       clearRequestController(requestAbortRef.current);
-      setState((prev) => resetStateWithPreference(prev));
+      resetComposerState();
     },
-    [clearRequestController, clearRequestToken, setState],
+    [clearRequestController, clearRequestToken, resetComposerState],
   );
-
-  const previewThemePlan = React.useCallback(
-    (plan: { summary: string; details?: string | null; source: "heuristic" | "ai"; variants: ThemeVariants }) => {
-      endPreviewThemeVars();
-      startPreviewThemeVars(plan.variants);
-      setState((prev) => ({
-        ...prev,
-        themePreview: {
-          summary: plan.summary,
-          details: plan.details ?? null,
-          source: plan.source,
-          variants: plan.variants,
-        },
-      }));
-    },
-    [setState],
-  );
-
-  const applyThemePreview = React.useCallback(() => {
-    setState((prev) => {
-      const current = prev.themePreview;
-      if (!current) return prev;
-      applyThemeVars(current.variants);
-      endPreviewThemeVars();
-      return { ...prev, themePreview: null };
-    });
-  }, [setState]);
-
-  const cancelThemePreview = React.useCallback(() => {
-    endPreviewThemeVars();
-    setState((prev) => ({ ...prev, themePreview: null }));
-  }, [setState]);
 
   const handlePrompterAction = React.useCallback(
     async (action: PrompterAction) => {
@@ -1446,7 +1530,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           }
           const manualPayload = appendCapsuleContext(postPayload, activeCapsuleId);
           await persistPost(manualPayload, envelopePayload);
-          setState((prev) => resetStateWithPreference(prev));
+          resetComposerState();
           window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
         } catch (error) {
           console.error("Manual post failed", error);
@@ -1457,7 +1541,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (action.kind === "style") {
         const heuristicPlan = resolveStylerHeuristicPlan(action.prompt);
         if (heuristicPlan) {
-          previewThemePlan({
+          previewTheme({
             summary: heuristicPlan.summary,
             details: heuristicPlan.details ?? null,
             source: "heuristic",
@@ -1469,7 +1553,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         try {
           const response = await callStyler(action.prompt, envelopePayload);
           const normalized = normalizeThemeVariantsInput(response.variants);
-          previewThemePlan({
+          previewTheme({
             summary: response.summary,
             details: response.details ?? null,
             source: response.source,
@@ -1520,20 +1604,21 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         return;
       }
     },
-    [activeCapsuleId, envelopePayload, handlePrompterHandoff, previewThemePlan, setState],
+    [activeCapsuleId, envelopePayload, handlePrompterHandoff, previewTheme, resetComposerState, setState],
   );
 
   const post = React.useCallback(async () => {
-    if (!state.draft) return;
+    const current = getState();
+    if (!current.draft) return;
     setState((prev) => ({ ...prev, loading: true }));
     try {
-      const postPayload = buildPostPayload(state.draft, state.rawPost, {
+      const postPayload = buildPostPayload(current.draft, current.rawPost, {
         name: author.name,
         avatar: author.avatar,
       });
       const payloadWithContext = appendCapsuleContext(postPayload, activeCapsuleId);
       await persistPost(payloadWithContext, envelopePayload);
-      setState((prev) => resetStateWithPreference(prev));
+      resetComposerState();
       window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "composer" } }));
     } catch (error) {
       console.error("Composer post failed", error);
@@ -1554,12 +1639,12 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       }));
     }
   }, [
-    state.draft,
-    state.rawPost,
     author.name,
     author.avatar,
     activeCapsuleId,
     envelopePayload,
+    getState,
+    resetComposerState,
     setState,
   ]);
 
@@ -1627,10 +1712,11 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       }
       const requestToken = beginRequestToken();
       const controller = startRequestController();
+      const snapshot = getState();
       const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
       const expectImage =
-        !expectVideo && (state.draft?.kind ?? "").toLowerCase() === "image";
-      const preserveSummary = options?.preserveSummary ?? Boolean(state.summaryResult);
+        !expectVideo && (snapshot.draft?.kind ?? "").toLowerCase() === "image";
+      const preserveSummary = options?.preserveSummary ?? Boolean(snapshot.summaryResult);
       const chatAttachments =
         attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
@@ -1701,7 +1787,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         const payload = await callAiPrompt({
           message: trimmed,
           ...(Object.keys(requestOptions).length ? { options: requestOptions } : {}),
-          ...(state.rawPost && options?.mode !== "chatOnly" ? { post: state.rawPost } : {}),
+          ...(snapshot.rawPost && options?.mode !== "chatOnly" ? { post: snapshot.rawPost } : {}),
           ...(attachmentList ? { attachments: attachmentList } : {}),
           history: previousHistory,
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
@@ -1763,49 +1849,48 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       beginRequestToken,
       clearRequestToken,
       clearRequestController,
+      getState,
       handleAiResponse,
       imageSettings,
       isRequestActive,
       setState,
-      state.rawPost,
-      state.draft?.kind,
       smartContextEnabled,
-      state.summaryResult,
       startRequestController,
     ],
   );
 
   const retryVideo = React.useCallback(() => {
-    const status = state.videoStatus;
+    const status = getState().videoStatus;
     if (status.state !== "failed" || !status.prompt) return;
     void submitPrompt(status.prompt, status.attachments ?? undefined);
-  }, [state.videoStatus, submitPrompt]);
+  }, [getState, submitPrompt]);
 
   const retryLastPrompt = React.useCallback(() => {
-    const last = state.lastPrompt;
+    const last = getState().lastPrompt;
     if (!last) return;
     void submitPrompt(last.prompt, last.attachments ?? undefined, { mode: last.mode });
-  }, [state.lastPrompt, submitPrompt]);
+  }, [getState, submitPrompt]);
 
   const forceChoiceInternal = React.useCallback(
     async (key: string) => {
-      if (!state.prompt) return;
+      const snapshot = getState();
+      if (!snapshot.prompt) return;
       setState((prev) => ({ ...prev, loading: true }));
       const requestToken = beginRequestToken();
       const controller = startRequestController();
       try {
         const payload = await callAiPrompt({
-          message: state.prompt,
+          message: snapshot.prompt,
           options: { force: key },
-          ...(state.rawPost ? { post: state.rawPost } : {}),
-          history: state.history,
-          ...(state.threadId ? { threadId: state.threadId } : {}),
+          ...(snapshot.rawPost ? { post: snapshot.rawPost } : {}),
+          history: snapshot.history,
+          ...(snapshot.threadId ? { threadId: snapshot.threadId } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
           signal: controller.signal,
         });
         if (!isRequestActive(requestToken)) return;
-        handleAiResponse(state.prompt, payload);
+        handleAiResponse(snapshot.prompt, payload);
         clearRequestToken(requestToken);
         clearRequestController(controller);
       } catch (error) {
@@ -1820,13 +1905,10 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       beginRequestToken,
       clearRequestController,
       clearRequestToken,
+      getState,
       handleAiResponse,
       isRequestActive,
       setState,
-      state.history,
-      state.prompt,
-      state.rawPost,
-      state.threadId,
       smartContextEnabled,
       startRequestController,
     ],
@@ -1836,66 +1918,16 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     setState((prev) => ({ ...prev, draft }));
   }, [setState]);
 
-  const sidebarData = React.useMemo<ComposerSidebarData>(() => {
-    const recentChats = sidebarStore.recentChats.map((entry) => {
-      const caption = describeRecentCaption(entry);
-      const snippet = describeRecentSnippet(entry);
-      const combined = snippet ? `${caption} - ${snippet}` : caption;
-      return {
-        id: entry.id,
-        title: describeRecentTitle(entry),
-        caption: truncateLabel(combined, 120),
-      };
-    });
-
-    const savedDraftItems: SidebarDraftListItem[] = sidebarStore.drafts.map((entry) => ({
-      kind: "draft",
-      id: entry.id,
-      title: describeDraftTitle(entry),
-      caption: describeDraftCaption(entry.updatedAt),
-      projectId: entry.projectId ?? null,
-    }));
-
-    const choiceItems: SidebarDraftListItem[] = (state.choices ?? []).map((choice) => ({
-      kind: "choice",
-      key: choice.key,
-      title: truncateLabel(choice.label, 70),
-      caption: "Blueprint suggestion",
-    }));
-
-    const projects = sidebarStore.projects.map((project) => ({
-      id: project.id,
-      name: truncateLabel(project.name, 60),
-      caption: describeProjectCaption(project),
-      draftCount: project.draftIds.length,
-    }));
-
-    return {
-      recentChats,
-      drafts: [...choiceItems, ...savedDraftItems],
-      projects,
-      selectedProjectId: sidebarStore.selectedProjectId,
-    };
-  }, [sidebarStore, state.choices]);
-
-  const forceChoice = state.choices ? forceChoiceInternal : undefined;
-
-  const contextValue = React.useMemo<ComposerContextValue>(() => {
-    const base: ComposerContextValue = {
-      state,
-      feedTarget,
-      activeCapsuleId,
-      smartContextEnabled,
-      imageSettings,
-      updateImageSettings,
+  const actions = React.useMemo<ComposerActionsValue>(
+    () => ({
       handlePrompterAction,
       handlePrompterHandoff,
       close,
       post,
       submitPrompt,
       showSummary,
+      forceChoice: forceChoiceInternal,
       updateDraft,
-      sidebar: sidebarData,
       selectRecentChat,
       selectDraft: selectSavedDraft,
       createProject,
@@ -1903,45 +1935,50 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       saveDraft,
       retryVideo,
       saveCreation,
-      setSmartContextEnabled,
-      applyThemePreview,
-      cancelThemePreview,
       retryLastPrompt,
-    };
-    if (forceChoice) {
-      base.forceChoice = forceChoice;
-    }
-    return base;
-  }, [
-    state,
-    feedTarget,
-    activeCapsuleId,
-    handlePrompterAction,
-    handlePrompterHandoff,
-    close,
-    post,
-    submitPrompt,
-    showSummary,
-    forceChoice,
-    updateDraft,
-    sidebarData,
-    selectRecentChat,
-    selectSavedDraft,
-    createProject,
-    selectProject,
-    saveDraft,
-    retryVideo,
-    saveCreation,
-    setSmartContextEnabled,
-    smartContextEnabled,
-    imageSettings,
-    updateImageSettings,
-    applyThemePreview,
-    cancelThemePreview,
-    retryLastPrompt,
-  ]);
+    }),
+    [
+      close,
+      createProject,
+      forceChoiceInternal,
+      handlePrompterAction,
+      handlePrompterHandoff,
+      post,
+      retryLastPrompt,
+      retryVideo,
+      saveCreation,
+      saveDraft,
+      selectProject,
+      selectRecentChat,
+      selectSavedDraft,
+      showSummary,
+      submitPrompt,
+      updateDraft,
+    ],
+  );
 
-  return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
+  const runtime = React.useMemo<ComposerRuntimeValue>(
+    () => ({
+      feedTarget,
+      activeCapsuleId,
+      smartContextEnabled,
+      setSmartContextEnabled,
+      imageSettings,
+      updateImageSettings,
+    }),
+    [feedTarget, activeCapsuleId, smartContextEnabled, setSmartContextEnabled, imageSettings, updateImageSettings],
+  );
+
+  const providerValue = React.useMemo<ComposerProviderValue>(
+    () => ({
+      store,
+      runtime,
+      actions,
+    }),
+    [store, runtime, actions],
+  );
+
+  return <ComposerContext.Provider value={providerValue}>{children}</ComposerContext.Provider>;
 }
 
 export function ComposerProvider({ children }: { children: React.ReactNode }) {
@@ -1949,7 +1986,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   return (
     <ComposerSidebarProvider userId={user?.id ?? null}>
       <ComposerSmartContextProvider>
-        <ComposerSessionProvider user={user}>{children}</ComposerSessionProvider>
+        <ComposerThemeProvider>
+          <ComposerSessionProvider user={user}>{children}</ComposerSessionProvider>
+        </ComposerThemeProvider>
       </ComposerSmartContextProvider>
     </ComposerSidebarProvider>
   );
@@ -1958,6 +1997,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
 export function AiComposerRoot() {
   const {
     state,
+    themePreview,
     smartContextEnabled,
     close,
     updateDraft,
@@ -2005,11 +2045,11 @@ export function AiComposerRoot() {
       smartContextEnabled={smartContextEnabled}
       contextSnapshot={state.contextSnapshot}
       themePreview={
-        state.themePreview
+        themePreview
           ? {
-              summary: state.themePreview.summary,
-              details: state.themePreview.details ?? null,
-              source: state.themePreview.source,
+              summary: themePreview.summary,
+              details: themePreview.details ?? null,
+              source: themePreview.source,
             }
           : null
       }

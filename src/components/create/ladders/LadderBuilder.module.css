@@ -12,7 +12,7 @@
   padding: clamp(8px, 2vw, 18px) clamp(10px, 2.2vw, 22px) 38px;
   /* Keep the canvas flat and aligned with the studio shell. */
   isolation: isolate;
-  background: var(--studio-surface-panel, rgba(7, 11, 24, 0.96));
+  background: transparent;
   /* Local tokens so prompts/steps can inherit theme without changing visuals */
   --ladder-step-active-text: var(--text-on-brand, #ffffff);
   --ladder-prompter-send-text: var(--text-on-brand, #090d1c);
@@ -86,6 +86,14 @@
   display: grid;
   gap: 12px;
 }
+.namingPrimary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Shared vertical slot used by Blueprint + Title so they
+     occupy the same visual height regardless of content. */
+  min-height: 56px;
+}
 
 .namingOr {
   display: grid;
@@ -105,6 +113,19 @@
 
 .namingOr::after {
   background: linear-gradient(90deg, var(--composer-rail-tab-border), transparent);
+}
+
+.namingTextArea {
+  width: 100%;
+  min-height: 72px;
+  border-radius: 12px;
+  border: 1px solid var(--composer-rail-tab-border, var(--composer-border, rgba(255, 255, 255, 0.12)));
+  background: color-mix(in srgb, var(--composer-panel-background, rgba(14, 18, 30, 0.6)) 92%, transparent);
+  padding: 12px 14px;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 .namingDivider {
@@ -242,7 +263,7 @@
 }
 
 .textarea {
-  min-height: 72px;
+  min-height: 60px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(14, 18, 30, 0.6);
@@ -1049,15 +1070,13 @@
   /* Let the form stretch with the page grid while keeping outer padding. */
   max-width: 100%;
   margin: 0 auto;
-  border-radius: 26px;
+  border-radius: 0;
   padding: clamp(14px, 1.8vw, 22px);
-  border: 1px solid var(--ladder-border-soft);
-  /* Flat glass surface so the wizard reads as a single sheet. */
-  background: var(--ladder-surface-glass);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 18px 40px rgba(5, 8, 24, 0.55);
-  backdrop-filter: blur(14px);
+  padding-top: 4px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .stepStack {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 import { WizardLayout, type WizardLayoutStep } from "../ladders/components/WizardLayout";
 import styles from "../ladders/LadderBuilder.module.css";
-import type { TournamentStepId } from "./TournamentBuilder";
+import type { TournamentStepId } from "./types";
 
 type TournamentWizardViewProps = {
   steps: WizardLayoutStep<TournamentStepId>[];

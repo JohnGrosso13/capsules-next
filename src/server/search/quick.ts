@@ -4,6 +4,7 @@ import { listCapsulesForUser } from "@/server/capsules/repository";
 import type { GlobalSearchResponse, GlobalSearchSection, UserSearchResult, CapsuleSearchResult } from "@/types/search";
 
 const QUICK_LIMIT = 12;
+const CACHE_TTL_MS = 30_000;
 
 type QuickSearchParams = {
   ownerId: string;
@@ -11,6 +12,8 @@ type QuickSearchParams = {
   limit?: number;
   origin?: string | null;
 };
+
+type CapsuleSummaries = Awaited<ReturnType<typeof listCapsulesForUser>>;
 
 type FriendRow = {
   friend_user_id: string | null;
@@ -23,8 +26,72 @@ type FriendRow = {
   } | null;
 };
 
+type CacheEntry<T> = {
+  expiresAt: number;
+  value: Promise<T>;
+};
+
+const friendCache = new Map<string, CacheEntry<FriendRow[]>>();
+const capsuleCache = new Map<string, CacheEntry<CapsuleSummaries>>();
+
 function normalizeQuery(value: string): string {
   return value.trim();
+}
+
+function getCachedValue<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  loader: () => Promise<T>,
+): Promise<T> {
+  const now = Date.now();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+  const value = loader().catch((error) => {
+    cache.delete(key);
+    throw error;
+  });
+  cache.set(key, { expiresAt: now + CACHE_TTL_MS, value });
+  return value;
+}
+
+async function fetchFriendRows(ownerId: string): Promise<FriendRow[]> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from("friendships")
+    .select<FriendRow>(
+      "friend_user_id, created_at, users:friend_user_id(id, full_name, avatar_url, user_key)",
+    )
+    .eq("user_id", ownerId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(200)
+    .fetch();
+
+  if (result.error) {
+    console.error("quick search friends error", result.error);
+    return [];
+  }
+  return Array.isArray(result.data) ? (result.data as FriendRow[]) : [];
+}
+
+function getFriendRows(ownerId: string): Promise<FriendRow[]> {
+  return getCachedValue(friendCache, ownerId, () => fetchFriendRows(ownerId));
+}
+
+function getCapsuleSummaries(ownerId: string): Promise<CapsuleSummaries> {
+  return getCachedValue(capsuleCache, ownerId, () => listCapsulesForUser(ownerId));
+}
+
+export function invalidateQuickSearchCache(ownerIds: string | string[]): void {
+  const ids = Array.isArray(ownerIds) ? ownerIds : [ownerIds];
+  ids.forEach((id) => {
+    const key = typeof id === "string" ? id.trim() : "";
+    if (!key) return;
+    friendCache.delete(key);
+    capsuleCache.delete(key);
+  });
 }
 
 function buildUserResult(
@@ -84,32 +151,13 @@ export async function quickSearch({
 }: QuickSearchParams): Promise<GlobalSearchResponse> {
   const trimmed = normalizeQuery(query);
   const effectiveLimit = Math.max(1, Math.min(limit, QUICK_LIMIT));
-  const db = getDatabaseAdminClient();
 
-  let friendQuery = db
-    .from("friendships")
-    .select<FriendRow>("friend_user_id, created_at, users:friend_user_id(id, full_name, avatar_url, user_key)")
-    .eq("user_id", ownerId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (trimmed) {
-    const pattern = `%${trimmed}%`;
-    friendQuery = friendQuery.or(
-      `users.full_name.ilike.${pattern},users.user_key.ilike.${pattern}`,
-    );
-  }
-
-  const friendPromise = friendQuery.fetch();
-
-  const [friendsResult, capsuleSummaries] = await Promise.all([
-    friendPromise,
-    listCapsulesForUser(ownerId),
+  const [friendRows, capsuleSummaries] = await Promise.all([
+    getFriendRows(ownerId),
+    getCapsuleSummaries(ownerId),
   ]);
 
-  const rows = Array.isArray(friendsResult.data) ? (friendsResult.data as FriendRow[]) : [];
-  const userResults = rows
+  const userResults = friendRows
     .map((row) => buildUserResult(row, origin, trimmed))
     .filter((item): item is UserSearchResult => item !== null)
     .filter((item) => {

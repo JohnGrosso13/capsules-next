@@ -11,7 +11,7 @@ import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizeMediaUrl } from "@/lib/media";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import { buildViewerEnvelope } from "@/lib/feed/viewer-envelope";
-import { useComposer } from "@/components/composer/ComposerProvider";
+import { useComposerActions } from "@/components/composer/ComposerProvider";
 import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { useSupabaseUserId } from "@/components/providers/SupabaseSessionProvider";
 import { buildPrompterAttachment, type DocumentCardData } from "@/components/documents/document-card";
@@ -191,7 +191,7 @@ export function HomeFeedList({
   onCommentClickOverride,
 }: HomeFeedListProps) {
 
-  const composer = useComposer();
+  const composer = useComposerActions();
 
   const { user: currentUser } = useCurrentUser();
 

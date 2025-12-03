@@ -35,6 +35,30 @@ type AuthenticatedAppProps = {
 };
 
 export function AuthenticatedApp({ children, supabaseUserId = null }: AuthenticatedAppProps) {
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const controller = new AbortController();
+    const warm = () => {
+      fetch("/api/search/quick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ q: "", limit: 1 }),
+        signal: controller.signal,
+      }).catch(() => undefined);
+    };
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (cb: IdleRequestCallback, opts?: IdleRequestOptions) => number;
+    };
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      idleWindow.requestIdleCallback(warm, { timeout: 1000 });
+    } else {
+      globalThis.setTimeout(warm, 150);
+    }
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
   return (
     <SupabaseSessionProvider supabaseUserId={supabaseUserId}>
       {children}

@@ -1,7 +1,9 @@
 import { MAX_RATING, MIN_RATING } from "./scoring";
 import { randomSlugSuffix, slugify } from "./utils";
+import { CapsuleLadderAccessError } from "./errors";
 import type {
   CapsuleLadderMemberInput,
+  CapsuleLadderMemberUpdateInput,
   LadderChallenge,
   LadderChallengeOutcome,
   LadderMatchRecord,
@@ -193,6 +195,62 @@ export function sanitizeMembers(raw: unknown): CapsuleLadderMemberInput[] {
     out.push(memberInput);
   });
   return out;
+}
+
+export function sanitizeMemberCreateInput(member: CapsuleLadderMemberInput): CapsuleLadderMemberInput {
+  const displayName = member.displayName?.trim();
+  if (!displayName) {
+    throw new CapsuleLadderAccessError("invalid", "Each member must include a display name.", 400);
+  }
+
+  const sanitized: CapsuleLadderMemberInput = {
+    displayName,
+  };
+  if (member.userId !== undefined) {
+    sanitized.userId = normalizeId(member.userId);
+  }
+  if (member.handle !== undefined) {
+    const handle = member.handle?.trim();
+    sanitized.handle = handle?.length ? handle : null;
+  }
+  if (member.seed !== undefined) sanitized.seed = member.seed;
+  if (member.rank !== undefined) sanitized.rank = member.rank;
+  if (member.rating !== undefined) sanitized.rating = member.rating;
+  if (member.wins !== undefined) sanitized.wins = member.wins;
+  if (member.losses !== undefined) sanitized.losses = member.losses;
+  if (member.draws !== undefined) sanitized.draws = member.draws;
+  if (member.streak !== undefined) sanitized.streak = member.streak;
+  if (member.metadata !== undefined) sanitized.metadata = member.metadata ?? null;
+  return sanitized;
+}
+
+export function sanitizeMemberUpdateInput(
+  patch: CapsuleLadderMemberUpdateInput,
+): CapsuleLadderMemberUpdateInput {
+  const sanitized: CapsuleLadderMemberUpdateInput = {};
+  if (patch.userId !== undefined) {
+    sanitized.userId = normalizeId(patch.userId);
+  }
+  if (patch.displayName !== undefined) {
+    const name = patch.displayName.trim();
+    if (!name.length) {
+      throw new CapsuleLadderAccessError("invalid", "Display name cannot be empty.", 400);
+    }
+    sanitized.displayName = name;
+  }
+  if (patch.handle !== undefined) {
+    const handle = patch.handle?.trim();
+    sanitized.handle = handle?.length ? handle : null;
+  }
+  if (patch.seed !== undefined) sanitized.seed = patch.seed;
+  if (patch.rank !== undefined) sanitized.rank = patch.rank;
+  if (patch.rating !== undefined) sanitized.rating = patch.rating;
+  if (patch.wins !== undefined) sanitized.wins = patch.wins;
+  if (patch.losses !== undefined) sanitized.losses = patch.losses;
+  if (patch.draws !== undefined) sanitized.draws = patch.draws;
+  if (patch.streak !== undefined) sanitized.streak = patch.streak;
+  if (patch.metadata !== undefined) sanitized.metadata = patch.metadata ?? null;
+  return sanitized;
 }
 
 export function sanitizeRankChanges(value: unknown): Array<{ memberId: string; from: number; to: number }> {

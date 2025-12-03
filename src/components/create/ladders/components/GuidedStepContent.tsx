@@ -33,6 +33,7 @@ import styles from "../LadderBuilder.module.css";
 
 type GuidedStepContentProps = {
   step: GuidedStepId;
+  stepControls?: React.ReactNode;
   capsuleId: string | null;
   form: LadderBuilderFormState;
   members: LadderMemberFormValues[];
@@ -70,7 +71,7 @@ const REQUIREMENT_SUGGESTIONS = [
   "Screenshots required for score disputes",
 ];
 
-export function GuidedStepContent(props: GuidedStepContentProps) {
+function GuidedStepContentBase(props: GuidedStepContentProps) {
   const [requirementDraft, setRequirementDraft] = React.useState("");
   const onRegistrationChange = props.onRegistrationChange;
   const requirementItems = React.useMemo(() => {
@@ -142,11 +143,12 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
         <Card className={styles.namingPanel} variant="ghost">
           <CardHeader className={styles.namingHeader}>
             <CardTitle className={styles.namingTitle}>Describe your ladder</CardTitle>
-            <CardDescription>
-              Share the vibe, game, format, sign-ups, rules, cadence, and rewards. Your assistant will draft the steps for you.
-            </CardDescription>
           </CardHeader>
           <CardContent className={styles.namingBody}>
+            <div className={styles.namingPrimary} aria-hidden="true" />
+            <div className={styles.namingOr}>
+              <span>or chat with Capsule AI</span>
+            </div>
             <AssistantPrompter
               placeholder="Example: Weekly 3v3 Overwatch ladder, open sign-ups, NA/EU, best-of-three, weekly MVP shoutouts..."
               conversation={props.assistantConversation}
@@ -156,6 +158,7 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
               onKeyDown={props.onAssistantKeyDown}
               onSend={props.onAssistantSend}
             />
+            {props.stepControls}
           </CardContent>
         </Card>
       );
@@ -168,10 +171,12 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
             </CardHeader>
             <CardContent className={styles.namingBody}>
               <div className={styles.fieldGroup}>
-                <Input
+                <textarea
                   id="guided-name"
+                  className={styles.namingTextArea}
                   value={props.form.name}
                   onChange={(event) => props.onFormField("name", event.target.value)}
+                  rows={2}
                   placeholder="Type a title..."
                 />
               </div>
@@ -185,6 +190,7 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
                 onKeyDown={props.onAssistantKeyDown}
                 onSend={props.onAssistantSend}
               />
+              {props.stepControls}
             </CardContent>
           </Card>
         </>
@@ -194,13 +200,12 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
         <Card className={styles.namingPanel}>
           <CardHeader className={styles.namingHeader}>
             <CardTitle className={styles.namingTitle}>Summary</CardTitle>
-            <CardDescription>Explain why this ladder matters in a single sentence.</CardDescription>
           </CardHeader>
           <CardContent className={styles.namingBody}>
             <div className={styles.fieldGroup}>
               <textarea
                 id="guided-summary"
-                className={styles.textarea}
+                className={styles.namingTextArea}
                 value={props.form.summary}
                 onChange={(event) => props.onFormField("summary", event.target.value)}
                 rows={3}
@@ -219,6 +224,7 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
                 onKeyDown={props.onAssistantKeyDown}
                 onSend={props.onAssistantSend}
               />
+            {props.stepControls}
           </CardContent>
         </Card>
       );
@@ -349,76 +355,128 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
               </div>
             </section>
           </CardContent>
+          {props.stepControls}
         </Card>
       );
     case "type":
       return (
         <Card className={styles.formCard} variant="ghost">
-            <CardHeader className={styles.formCardHeader}>
-              <CardTitle className={styles.formCardTitle}>Basics</CardTitle>
-              <CardDescription className={styles.formCardDescription}>
-                Capsule AI uses this to suggest rules, playlists, and stats, but you can keep it lightweight to start.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className={styles.formCardContent}>
+          <CardHeader className={styles.formCardHeader}>
+            <CardTitle className={styles.formCardTitle}>Basics</CardTitle>
+            <CardDescription className={styles.formCardDescription}>
+              Capsule AI uses this to suggest rules, playlists, stats, and the timeline, but you can keep it lightweight to start.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={styles.formCardContent}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label} htmlFor="guided-game-title">
+                Game or title (optional)
+              </label>
+              <Input
+                id="guided-game-title"
+                value={props.form.game.title}
+                onChange={(event) => props.onGameChange("title", event.target.value)}
+                placeholder="Rocket League"
+              />
+              <p className={styles.fieldHint}>
+                Name the main game or series you&apos;re featuring, or leave this blank and Capsule will fall back to a generic title.
+              </p>
+            </div>
+            <div className={styles.fieldRow}>
               <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="guided-game-title">
-                  Game or title (optional)
+                <label className={styles.label} htmlFor="guided-platform">
+                  Platform (optional)
                 </label>
                 <Input
-                  id="guided-game-title"
-                  value={props.form.game.title}
-                  onChange={(event) => props.onGameChange("title", event.target.value)}
-                  placeholder="Rocket League"
+                  id="guided-platform"
+                  value={props.form.game.platform ?? ""}
+                  onChange={(event) => props.onGameChange("platform", event.target.value)}
+                  placeholder="Cross-play"
                 />
                 <p className={styles.fieldHint}>
-                  Name the main game or series you&apos;re featuring, or leave this blank and Capsule will fall back to a generic title.
+                  Call out console, PC, or cross-play so challengers know where they&apos;ll be playing.
                 </p>
               </div>
-              <div className={styles.fieldRow}>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-platform">
-                    Platform (optional)
-                  </label>
-                  <Input
-                    id="guided-platform"
-                    value={props.form.game.platform ?? ""}
-                    onChange={(event) => props.onGameChange("platform", event.target.value)}
-                    placeholder="Cross-play"
-                  />
-                  <p className={styles.fieldHint}>
-                    Call out console, PC, or cross-play so challengers know where they&apos;ll be playing.
-                  </p>
-                </div>
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor="guided-region">
-                    Region (optional)
-                  </label>
-                  <Input
-                    id="guided-region"
-                    value={props.form.game.region ?? ""}
-                    onChange={(event) => props.onGameChange("region", event.target.value)}
-                    placeholder="NA / EU"
-                  />
-                  <p className={styles.fieldHint}>
-                    Note primary regions or servers (e.g. NA, EU, Asia) to help set expectations around ping and timing.
-                  </p>
-                </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="guided-region">
+                  Region (optional)
+                </label>
+                <Input
+                  id="guided-region"
+                  value={props.form.game.region ?? ""}
+                  onChange={(event) => props.onGameChange("region", event.target.value)}
+                  placeholder="NA / EU"
+                />
+                <p className={styles.fieldHint}>
+                  Note primary regions or servers (e.g. NA, EU, Asia) to help set expectations around ping and timing.
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        );
+            </div>
+            <div className={styles.namingDivider} />
+            <p className={styles.fieldHint}>Timeline & cadence</p>
+            <div className={styles.fieldRow}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="guided-season-length">
+                  Season length or arc
+                </label>
+                <Input
+                  id="guided-season-length"
+                  value={props.form.schedule.cadence ?? ""}
+                  onChange={(event) => props.onScheduleChange("cadence", event.target.value)}
+                  placeholder="8 weeks of weekly duels"
+                />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="guided-cadence">
+                  Match cadence
+                </label>
+                <Input
+                  id="guided-cadence"
+                  value={props.form.schedule.kickoff ?? ""}
+                  onChange={(event) => props.onScheduleChange("kickoff", event.target.value)}
+                  placeholder="Thursdays 7 PM local"
+                />
+              </div>
+            </div>
+            <div className={styles.fieldRow}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="guided-kickoff">
+                  Kickoff notes
+                </label>
+                <Input
+                  id="guided-kickoff"
+                  value={props.form.schedule.kickoff ?? ""}
+                  onChange={(event) => props.onScheduleChange("kickoff", event.target.value)}
+                  placeholder="Season kickoff stream + Capsule shoutouts"
+                />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="guided-timezone">
+                  Timezone
+                </label>
+                <Input
+                  id="guided-timezone"
+                  value={props.form.schedule.timezone ?? ""}
+                  onChange={(event) => props.onScheduleChange("timezone", event.target.value)}
+                  placeholder="NA / CET"
+                />
+              </div>
+            </div>
+          </CardContent>
+          {props.stepControls}
+        </Card>
+      );
     case "format":
       return (
-          <Card className={styles.formCard} variant="ghost">
-            <CardHeader className={styles.formCardHeader}>
-              <CardTitle className={styles.formCardTitle}>Format</CardTitle>
-              <CardDescription className={styles.formCardDescription}>
-                Pick a scoring style and match format. Elo exposes rating controls; Simple hides them.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className={styles.formCardContent}>
-                <div className={styles.scoringModes}>
+        <Card className={styles.formCard} variant="ghost">
+          <CardHeader className={styles.formCardHeader}>
+            <CardTitle className={styles.formCardTitle}>Format</CardTitle>
+            <CardDescription className={styles.formCardDescription}>
+              Pick a scoring style and match format. Elo exposes rating controls; Simple hides them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={styles.formCardContent}>
+            <div className={styles.scoringModes}>
                   {[
                     {
                       id: "simple",
@@ -549,30 +607,30 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
                   </p>
                 </>
               ) : null}
+            {props.stepControls}
           </CardContent>
         </Card>
       );
     case "overview":
       return (
-        <Card className={styles.formCard} variant="ghost">
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Overview</CardTitle>
-            <CardDescription className={styles.formCardDescription}>
-              This copy appears at the top of your ladder and in invites.
-            </CardDescription>
+        <Card className={styles.namingPanel}>
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Overview</CardTitle>
           </CardHeader>
-          <CardContent className={styles.formCardContent}>
-            <textarea
-              id="guided-overview"
-              className={styles.textarea}
-              value={props.form.sections.overview.body ?? ""}
-              onChange={(event) => props.onSectionChange("overview", "body", event.target.value)}
-              rows={5}
-              placeholder="Set the stakes, cadence, rewards, and why challengers should care."
-            />
-            <p className={styles.fieldHint}>
-              Mention cadence, platform, or spotlight moments so Capsule can reuse the story across surfaces.
-            </p>
+          <CardContent className={styles.namingBody}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label} htmlFor="guided-overview">
+                Overview copy
+              </label>
+              <textarea
+                id="guided-overview"
+                className={styles.namingTextArea}
+                value={props.form.sections.overview.body ?? ""}
+                onChange={(event) => props.onSectionChange("overview", "body", event.target.value)}
+                rows={3}
+                placeholder="Set the stakes, cadence, rewards, and why challengers should care."
+              />
+            </div>
             <div className={styles.namingOr}>
               <span>or chat with Capsule AI</span>
             </div>
@@ -585,27 +643,27 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
               onKeyDown={props.onAssistantKeyDown}
               onSend={props.onAssistantSend}
             />
+            {props.stepControls}
           </CardContent>
         </Card>
       );
     case "rules":
       return (
-        <Card className={styles.formCard} variant="ghost">
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Rules</CardTitle>
-            <CardDescription className={styles.formCardDescription}>
-              We surface these in every post-match recap.
-            </CardDescription>
+        <Card className={styles.namingPanel}>
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Rules</CardTitle>
           </CardHeader>
-          <CardContent className={styles.formCardContent}>
-            <textarea
-              id="guided-rules"
-              className={styles.textarea}
-              value={props.form.sections.rules.body ?? ""}
-              onChange={(event) => props.onSectionChange("rules", "body", event.target.value)}
-              rows={4}
-              placeholder="Matches are best-of-three. Report scores within 2 hours with screenshots."
-            />
+          <CardContent className={styles.namingBody}>
+            <div className={styles.fieldGroup}>
+              <textarea
+                id="guided-rules"
+                className={styles.namingTextArea}
+                value={props.form.sections.rules.body ?? ""}
+                onChange={(event) => props.onSectionChange("rules", "body", event.target.value)}
+                rows={3}
+                placeholder="Matches are best-of-three. Report scores within 2 hours with screenshots."
+              />
+            </div>
             <div className={styles.namingOr}>
               <span>or chat with Capsule AI</span>
             </div>
@@ -618,45 +676,27 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
               onKeyDown={props.onAssistantKeyDown}
               onSend={props.onAssistantSend}
             />
+            {props.stepControls}
           </CardContent>
         </Card>
       );
     case "shoutouts":
       return (
-        <Card className={styles.formCard} variant="ghost">
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Shoutouts</CardTitle>
-            <CardDescription className={styles.formCardDescription}>
-              Feed Capsule AI the themes you want to spotlight every week.
-            </CardDescription>
+        <Card className={styles.namingPanel}>
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Shoutouts</CardTitle>
           </CardHeader>
-          <CardContent className={styles.formCardContent}>
+          <CardContent className={styles.namingBody}>
             <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="guided-shoutouts-body">
-                Story beats
-              </label>
               <textarea
                 id="guided-shoutouts-body"
-                className={styles.textarea}
+                className={styles.namingTextArea}
                 value={props.form.sections.shoutouts.body ?? ""}
                 onChange={(event) => props.onSectionChange("shoutouts", "body", event.target.value)}
-              rows={4}
-              placeholder="Call out rivalries, MVP awards, clutch moments, or rookie spotlights."
-            />
-          </div>
-          <div className={styles.fieldGroup}>
-            <label className={styles.label} htmlFor="guided-shoutouts-bullets">
-              Highlight bullets (one per line)
-            </label>
-            <textarea
-              id="guided-shoutouts-bullets"
-              className={styles.textarea}
-              value={props.form.sections.shoutouts.bulletsText ?? ""}
-              onChange={(event) => props.onSectionChange("shoutouts", "bulletsText", event.target.value)}
-              rows={3}
-              placeholder={"Most electrifying play\nFan favorite team\nUnderdog to watch"}
-            />
-          </div>
+                rows={3}
+                placeholder="Call out rivalries, MVP awards, clutch moments, or rookie spotlights."
+              />
+            </div>
           <div className={styles.namingOr}>
             <span>or chat with Capsule AI</span>
           </div>
@@ -669,99 +709,41 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
             onKeyDown={props.onAssistantKeyDown}
             onSend={props.onAssistantSend}
           />
-          </CardContent>
-        </Card>
-      );
-    case "timeline":
-        return (
-          <Card className={styles.formCard}>
-            <CardHeader className={styles.formCardHeader}>
-              <CardTitle className={styles.formCardTitle}>Timeline</CardTitle>
-              <CardDescription className={styles.formCardDescription}>
-                You can always return to this step to tweak the cadence.
-              </CardDescription>
-            </CardHeader>
-          <CardContent className={styles.formCardContent}>
-            <div className={styles.fieldRow}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="guided-season-length">
-                  Season length or arc
-                </label>
-                <Input
-                  id="guided-season-length"
-                  value={props.form.schedule.cadence ?? ""}
-                  onChange={(event) => props.onScheduleChange("cadence", event.target.value)}
-                  placeholder="8 weeks of weekly duels"
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="guided-cadence">
-                  Match cadence
-                </label>
-                <Input
-                  id="guided-cadence"
-                  value={props.form.schedule.kickoff ?? ""}
-                  onChange={(event) => props.onScheduleChange("kickoff", event.target.value)}
-                  placeholder="Thursdays 7 PM local"
-                />
-              </div>
-            </div>
-            <div className={styles.fieldRow}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="guided-kickoff">
-                  Kickoff notes
-                </label>
-                <Input
-                  id="guided-kickoff"
-                  value={props.form.schedule.kickoff ?? ""}
-                  onChange={(event) => props.onScheduleChange("kickoff", event.target.value)}
-                  placeholder="Season kickoff stream + Capsule shoutouts"
-                />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor="guided-timezone">
-                  Timezone
-                </label>
-                <Input
-                  id="guided-timezone"
-                  value={props.form.schedule.timezone ?? ""}
-                  onChange={(event) => props.onScheduleChange("timezone", event.target.value)}
-                  placeholder="NA / CET"
-                />
-              </div>
-            </div>
+          {props.stepControls}
           </CardContent>
         </Card>
       );
     case "roster":
       return (
-        <RosterStep
-          capsuleId={props.capsuleId}
-          members={props.members}
-          onMemberField={props.onMemberField}
-          onAddMember={props.onAddMember}
-          onAddMemberWithUser={props.onAddMemberWithUser}
-          onRemoveMember={props.onRemoveMember}
-        />
+        <>
+          <RosterStep
+            capsuleId={props.capsuleId}
+            members={props.members}
+            onMemberField={props.onMemberField}
+            onAddMember={props.onAddMember}
+            onAddMemberWithUser={props.onAddMemberWithUser}
+            onRemoveMember={props.onRemoveMember}
+          />
+          {props.stepControls}
+        </>
       );
     case "rewards":
       return (
-        <Card className={styles.formCard}>
-          <CardHeader className={styles.formCardHeader}>
-            <CardTitle className={styles.formCardTitle}>Rewards</CardTitle>
-            <CardDescription className={styles.formCardDescription}>
-              Shared in every recap, stream script, and reminder.
-            </CardDescription>
+        <Card className={styles.namingPanel}>
+          <CardHeader className={styles.namingHeader}>
+            <CardTitle className={styles.namingTitle}>Rewards</CardTitle>
           </CardHeader>
-          <CardContent className={styles.formCardContent}>
-            <textarea
-              id="guided-rewards"
-              className={styles.textarea}
-              value={props.form.sections.results.body ?? ""}
-              onChange={(event) => props.onSectionChange("results", "body", event.target.value)}
-              rows={4}
-              placeholder="Top 3 earn featured posts, MVP gets a custom Capsule portrait."
-            />
+          <CardContent className={styles.namingBody}>
+            <div className={styles.fieldGroup}>
+              <textarea
+                id="guided-rewards"
+                className={styles.namingTextArea}
+                value={props.form.sections.results.body ?? ""}
+                onChange={(event) => props.onSectionChange("results", "body", event.target.value)}
+                rows={3}
+                placeholder="Top 3 earn featured posts, MVP gets a custom Capsule portrait."
+              />
+            </div>
             <div className={styles.namingOr}>
               <span>or chat with Capsule AI</span>
             </div>
@@ -774,6 +756,7 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
               onKeyDown={props.onAssistantKeyDown}
               onSend={props.onAssistantSend}
             />
+            {props.stepControls}
           </CardContent>
         </Card>
       );
@@ -822,7 +805,10 @@ export function GuidedStepContent(props: GuidedStepContentProps) {
             </Card>
             {props.reviewAiPlan}
           </div>
+          {props.stepControls}
         </>
       );
   }
 }
+
+export const GuidedStepContent = React.memo(GuidedStepContentBase);

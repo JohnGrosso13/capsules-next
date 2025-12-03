@@ -6,6 +6,9 @@ import {
   type NotificationType,
 } from "@/shared/notifications";
 
+const NOTIFICATION_RETENTION_DAYS = 180;
+const NOTIFICATION_MAX_PER_USER = 300;
+
 type SettingsRow = {
   user_id: string;
   comment_on_post: boolean | null;
@@ -179,154 +182,44 @@ export async function updateNotificationSettings(
   const normalizedId = normalizeUserId(userId);
   if (!normalizedId) throw new Error("notifications.settings.update_failed: invalid user id");
 
+  const current = await getNotificationSettings(normalizedId);
+  const next: NotificationSettings = { ...current };
+
+  (Object.keys(updates) as Array<keyof NotificationSettings>).forEach((key) => {
+    if (typeof updates[key] !== "undefined") {
+      next[key] = Boolean(updates[key]);
+    }
+  });
+
   const payload: Record<string, unknown> = {
     user_id: normalizedId,
+    comment_on_post: next.commentOnPost,
+    comment_reply: next.commentReply,
+    mention: next.mention,
+    post_like: next.postLike,
+    capsule_new_post: next.capsuleNewPost,
+    friend_request: next.friendRequest,
+    friend_request_accepted: next.friendRequestAccepted,
+    capsule_invite: next.capsuleInvite,
+    capsule_invite_accepted: next.capsuleInviteAccepted,
+    capsule_invite_declined: next.capsuleInviteDeclined,
+    capsule_request_pending: next.capsuleRequestPending,
+    capsule_request_approved: next.capsuleRequestApproved,
+    capsule_request_declined: next.capsuleRequestDeclined,
+    capsule_role_changed: next.capsuleRoleChanged,
+    ladder_challenge: next.ladderChallenge,
+    ladder_challenge_resolved: next.ladderChallengeResolved,
+    direct_message: next.directMessage,
+    group_message: next.groupMessage,
+    follow_new: next.followNew,
+    ladder_match_scheduled: next.ladderMatchScheduled,
+    ladder_invited_to_join: next.ladderInvitedToJoin,
+    party_invite: next.partyInvite,
+    party_invite_accepted: next.partyInviteAccepted,
+    mention_in_chat: next.mentionInChat,
+    live_event_starting: next.liveEventStarting,
+    stream_status: next.streamStatus,
   };
-
-  if (Object.prototype.hasOwnProperty.call(updates, "commentOnPost") && updates.commentOnPost !== undefined) {
-    payload.comment_on_post = Boolean(updates.commentOnPost);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "commentReply") &&
-    updates.commentReply !== undefined
-  ) {
-    payload.comment_reply = Boolean(updates.commentReply);
-  }
-  if (Object.prototype.hasOwnProperty.call(updates, "mention") && updates.mention !== undefined) {
-    payload.mention = Boolean(updates.mention);
-  }
-  if (Object.prototype.hasOwnProperty.call(updates, "postLike") && updates.postLike !== undefined) {
-    payload.post_like = Boolean(updates.postLike);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleNewPost") &&
-    updates.capsuleNewPost !== undefined
-  ) {
-    payload.capsule_new_post = Boolean(updates.capsuleNewPost);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "friendRequest") &&
-    updates.friendRequest !== undefined
-  ) {
-    payload.friend_request = Boolean(updates.friendRequest);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "friendRequestAccepted") &&
-    updates.friendRequestAccepted !== undefined
-  ) {
-    payload.friend_request_accepted = Boolean(updates.friendRequestAccepted);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleInvite") &&
-    updates.capsuleInvite !== undefined
-  ) {
-    payload.capsule_invite = Boolean(updates.capsuleInvite);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleInviteAccepted") &&
-    updates.capsuleInviteAccepted !== undefined
-  ) {
-    payload.capsule_invite_accepted = Boolean(updates.capsuleInviteAccepted);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleInviteDeclined") &&
-    updates.capsuleInviteDeclined !== undefined
-  ) {
-    payload.capsule_invite_declined = Boolean(updates.capsuleInviteDeclined);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleRequestPending") &&
-    updates.capsuleRequestPending !== undefined
-  ) {
-    payload.capsule_request_pending = Boolean(updates.capsuleRequestPending);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleRequestApproved") &&
-    updates.capsuleRequestApproved !== undefined
-  ) {
-    payload.capsule_request_approved = Boolean(updates.capsuleRequestApproved);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleRequestDeclined") &&
-    updates.capsuleRequestDeclined !== undefined
-  ) {
-    payload.capsule_request_declined = Boolean(updates.capsuleRequestDeclined);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "capsuleRoleChanged") &&
-    updates.capsuleRoleChanged !== undefined
-  ) {
-    payload.capsule_role_changed = Boolean(updates.capsuleRoleChanged);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "ladderChallenge") &&
-    updates.ladderChallenge !== undefined
-  ) {
-    payload.ladder_challenge = Boolean(updates.ladderChallenge);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "ladderChallengeResolved") &&
-    updates.ladderChallengeResolved !== undefined
-  ) {
-    payload.ladder_challenge_resolved = Boolean(updates.ladderChallengeResolved);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "directMessage") &&
-    updates.directMessage !== undefined
-  ) {
-    payload.direct_message = Boolean(updates.directMessage);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "groupMessage") &&
-    updates.groupMessage !== undefined
-  ) {
-    payload.group_message = Boolean(updates.groupMessage);
-  }
-  if (Object.prototype.hasOwnProperty.call(updates, "followNew") && updates.followNew !== undefined) {
-    payload.follow_new = Boolean(updates.followNew);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "ladderMatchScheduled") &&
-    updates.ladderMatchScheduled !== undefined
-  ) {
-    payload.ladder_match_scheduled = Boolean(updates.ladderMatchScheduled);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "ladderInvitedToJoin") &&
-    updates.ladderInvitedToJoin !== undefined
-  ) {
-    payload.ladder_invited_to_join = Boolean(updates.ladderInvitedToJoin);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "partyInvite") &&
-    updates.partyInvite !== undefined
-  ) {
-    payload.party_invite = Boolean(updates.partyInvite);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "partyInviteAccepted") &&
-    updates.partyInviteAccepted !== undefined
-  ) {
-    payload.party_invite_accepted = Boolean(updates.partyInviteAccepted);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "mentionInChat") &&
-    updates.mentionInChat !== undefined
-  ) {
-    payload.mention_in_chat = Boolean(updates.mentionInChat);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "liveEventStarting") &&
-    updates.liveEventStarting !== undefined
-  ) {
-    payload.live_event_starting = Boolean(updates.liveEventStarting);
-  }
-  if (
-    Object.prototype.hasOwnProperty.call(updates, "streamStatus") &&
-    updates.streamStatus !== undefined
-  ) {
-    payload.stream_status = Boolean(updates.streamStatus);
-  }
 
   const db = getDatabaseAdminClient();
   const result = await db
@@ -373,7 +266,7 @@ function limitText(value: string | null | undefined, max = 360): string | null {
   const trimmed = value.trim();
   if (!trimmed.length) return null;
   if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max - 1).trimEnd()}…`;
+  return `${trimmed.slice(0, max - 1).trimEnd()}.`;
 }
 
 function mapNotificationRow(row: NotificationRow | null): NotificationRecord | null {
@@ -407,6 +300,51 @@ export type CreateNotificationInput = {
   respectPreferences?: boolean;
   settingsCache?: Map<string, NotificationSettings>;
 };
+
+async function pruneUserNotifications(userId: string): Promise<void> {
+  const db = getDatabaseAdminClient();
+  const cutoff = new Date(Date.now() - NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  const staleResult = await db
+    .from("user_notifications")
+    .delete()
+    .eq("user_id", userId)
+    .lt("created_at", cutoff)
+    .select("id")
+    .fetch();
+  if (staleResult.error) {
+    console.warn("notifications.prune.time_failed", staleResult.error);
+  }
+
+  const extraResult = await db
+    .from("user_notifications")
+    .select<Pick<NotificationRow, "id">>("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .range(NOTIFICATION_MAX_PER_USER, NOTIFICATION_MAX_PER_USER + 400)
+    .fetch();
+
+  if (extraResult.error) {
+    console.warn("notifications.prune.list_failed", extraResult.error);
+    return;
+  }
+
+  const extraIds = (extraResult.data ?? [])
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+
+  if (!extraIds.length) return;
+
+  const deleteResult = await db
+    .from("user_notifications")
+    .delete()
+    .in("id", extraIds)
+    .select("id")
+    .fetch();
+  if (deleteResult.error) {
+    console.warn("notifications.prune.delete_failed", deleteResult.error);
+  }
+}
 
 export async function createNotification(
   input: CreateNotificationInput,
@@ -458,7 +396,14 @@ export async function createNotification(
     throw new Error(`notifications.create_failed: ${result.error.message}`);
   }
 
-  return mapNotificationRow(result.data ?? null);
+  const mapped = mapNotificationRow(result.data ?? null);
+
+  // Best-effort pruning to keep per-user notification storage bounded.
+  void pruneUserNotifications(normalizedUserId).catch((error: unknown) => {
+    console.warn("notifications.prune.error", error);
+  });
+
+  return mapped;
 }
 
 export async function createNotifications(

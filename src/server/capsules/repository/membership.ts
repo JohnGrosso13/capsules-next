@@ -4,6 +4,7 @@ import type {
   CapsuleMemberRequestSummary,
   CapsuleMemberSummary,
 } from "@/types/capsules";
+import { invalidateQuickSearchCache } from "@/server/search/quick";
 import {
   db,
   mapFollowerRow,
@@ -337,7 +338,11 @@ export async function deleteCapsuleMember(
     throw decorateDatabaseError("capsules.members.delete", result.error);
   }
 
-  return (result.data ?? []).length > 0;
+  const removed = (result.data ?? []).length > 0;
+  if (removed) {
+    invalidateQuickSearchCache(normalizedMemberId);
+  }
+  return removed;
 }
 
 export async function listCapsuleFollowers(
@@ -413,6 +418,8 @@ export async function upsertCapsuleFollower(params: {
   if (result?.error) {
     throw decorateDatabaseError("capsules.followers.upsert", result.error);
   }
+
+  invalidateQuickSearchCache(normalizedUserId);
 }
 
 export async function deleteCapsuleFollower(
@@ -434,7 +441,11 @@ export async function deleteCapsuleFollower(
   if (result.error) {
     throw decorateDatabaseError("capsules.followers.delete", result.error);
   }
-  return (result.data ?? []).length > 0;
+  const removed = (result.data ?? []).length > 0;
+  if (removed) {
+    invalidateQuickSearchCache(normalizedUserId);
+  }
+  return removed;
 }
 
 export async function upsertCapsuleMember(params: {
@@ -463,6 +474,8 @@ export async function upsertCapsuleMember(params: {
   if (result.error) {
     throw decorateDatabaseError("capsules.members.upsert", result.error);
   }
+
+  invalidateQuickSearchCache(normalizedUserId);
 }
 
 export async function updateCapsuleMemberRole(params: {
@@ -490,5 +503,9 @@ export async function updateCapsuleMemberRole(params: {
     throw decorateDatabaseError("capsules.members.updateRole", result.error);
   }
 
-  return Boolean(result.data?.user_id);
+  const updated = Boolean(result.data?.user_id);
+  if (updated) {
+    invalidateQuickSearchCache(normalizedMemberId);
+  }
+  return updated;
 }

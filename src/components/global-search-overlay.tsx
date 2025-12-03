@@ -20,8 +20,8 @@ import styles from "./global-search.module.css";
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
 const LIGHTBOX_EVENT_NAME = "capsules:lightbox:open";
-const DEBOUNCE_DELAY_MS = 140;
-const MIN_QUERY_LENGTH = 2;
+const DEBOUNCE_DELAY_MS = 60;
+const MIN_QUERY_LENGTH = 1;
 const MIN_MEMORY_QUERY = 5;
 const FAST_SCOPES: Array<"users" | "capsules"> = ["users", "capsules"];
 const FULL_SCOPES: Array<"users" | "capsules" | "memories" | "capsule_records"> = [
@@ -114,7 +114,7 @@ function resolveIntent(query: string): SearchIntent {
 
   const allowFull = hasMemoryKeyword && query.length >= MIN_MEMORY_QUERY;
   const fullScopes = allowFull ? FULL_SCOPES : FAST_SCOPES;
-  const fullDelayMs = memoryLikely ? 260 : 420;
+  const fullDelayMs = memoryLikely ? 120 : 180;
 
   return { allowFull, fullScopes, fullDelayMs, memoryLikely };
 }
@@ -912,7 +912,7 @@ export function GlobalSearchOverlay() {
           ) : null}
           {!loading && !error && trimmedQuery.length < MIN_QUERY_LENGTH ? (
             <span className={styles.statusText}>
-              Enter at least {MIN_QUERY_LENGTH} characters to search.
+              Enter at least {MIN_QUERY_LENGTH} character to search.
             </span>
           ) : null}
         </div>

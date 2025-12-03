@@ -8,7 +8,6 @@ export type GuidedStepId =
   | "overview"
   | "rules"
   | "shoutouts"
-  | "timeline"
   | "roster"
   | "rewards"
   | "review";
@@ -48,8 +47,8 @@ export const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
   {
     id: "type",
     title: "Basics",
-    subtitle: "Choose the game and match style.",
-    helper: "We'll use this to pre-fill scoring and format details.",
+    subtitle: "Choose the game, match style, and timing.",
+    helper: "We'll use this to pre-fill scoring, cadence, and format details.",
   },
   {
     id: "format",
@@ -62,12 +61,6 @@ export const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
     title: "Overview",
     subtitle: "Describe the story, vibe, or stakes.",
     helper: "This becomes the hero copy on Capsules and invites, so keep it vivid and specific.",
-  },
-  {
-    id: "timeline",
-    title: "Timeline",
-    subtitle: "When the season runs and how often you play.",
-    helper: "Capsule uses this for reminders, recap pacing, and calendar tooling.",
   },
   {
     id: "rules",

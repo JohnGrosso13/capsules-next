@@ -1,5 +1,6 @@
 import { getDatabaseAdminClient } from "@/config/database";
 import type { DatabaseError, DatabaseResult } from "@/ports/database";
+import { invalidateQuickSearchCache } from "@/server/search/quick";
 
 import {
   BLOCK_SELECT,
@@ -264,6 +265,7 @@ export async function ensureFriendshipEdge(
     .is("deleted_at", null)
     .single();
 
+  invalidateQuickSearchCache([userId, friendId]);
   return assertSuccess(refreshed, "friends.ensureFriendshipEdge.refresh") as RawRow;
 }
 
@@ -281,6 +283,7 @@ export async function softDeleteFriendshipEdge(
     .is("deleted_at", null)
     .fetch();
   ensureSuccess(result, "friends.softDeleteFriendshipEdge");
+  invalidateQuickSearchCache([userId, friendId]);
 }
 
 export async function softDeleteFollowEdge(

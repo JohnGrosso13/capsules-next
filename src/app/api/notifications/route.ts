@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 const markRequestSchema = z.object({
   ids: z.array(z.string().min(1)).optional(),
-  all: z.boolean().optional(),
+  all: z.literal(true).optional(),
 });
 
 const markResponseSchema = notificationListResponseSchema.extend({
@@ -62,10 +62,15 @@ export async function PATCH(req: Request) {
     return parsed.response;
   }
 
-  const ids = parsed.data.all ? [] : parsed.data.ids ?? [];
+  const ids = parsed.data.ids ?? [];
+  const markAll = parsed.data.all === true;
+
+  if (!markAll && (!Array.isArray(ids) || ids.length === 0)) {
+    return returnError(400, "invalid_request", "Provide notification ids or set all=true.");
+  }
 
   try {
-    const updated = await markNotificationsRead(ownerId, { ids });
+    const updated = await markNotificationsRead(ownerId, { ids: markAll ? null : ids });
     const { notifications, unreadCount } = await listNotificationsForUser(ownerId, { limit: 30 });
     return validatedJson(markResponseSchema, { updated, notifications, unreadCount });
   } catch (error) {

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   }
 
   const trimmed = query.trim();
-  if (trimmed.length < 2) {
+  if (trimmed.length < 1) {
     return NextResponse.json({ query: trimmed, sections: [] });
   }
 

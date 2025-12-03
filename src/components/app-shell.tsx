@@ -8,7 +8,7 @@ import { AiPrompterStage } from "@/components/ai-prompter-stage";
 import {
   ComposerProvider,
   AiComposerRoot,
-  useComposer,
+  useComposerActions,
 } from "@/components/composer/ComposerProvider";
 import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import { PrimaryHeader } from "@/components/primary-header";
@@ -59,7 +59,7 @@ function AppShellContent({
   layoutVariant = "default",
 }: AppShellProps) {
   const pathname = usePathname();
-  const composer = useComposer();
+  const composer = useComposerActions();
   const { user } = useCurrentUser();
 
   const derivedActive: NavKey = React.useMemo(() => {

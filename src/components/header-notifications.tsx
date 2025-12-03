@@ -65,7 +65,6 @@ export function HeaderNotifications({
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [initialized, setInitialized] = React.useState(false);
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
@@ -99,7 +98,6 @@ export function HeaderNotifications({
         throw new Error("Unable to load notifications.");
       }
       applyPayload(payload);
-      setInitialized(true);
     } catch (err) {
       console.error("header notifications fetch error", err);
       setError("Notifications unavailable");
@@ -132,10 +130,7 @@ export function HeaderNotifications({
 
   const handleToggle = React.useCallback(() => {
     setOpen((prev) => !prev);
-    if (!initialized) {
-      void fetchNotifications();
-    }
-  }, [initialized, fetchNotifications]);
+  }, []);
 
   const handleItemClick = React.useCallback(
     (item: NotificationItem) => {
@@ -149,6 +144,12 @@ export function HeaderNotifications({
     },
     [markRead, router],
   );
+
+  React.useEffect(() => {
+    if (open) {
+      void fetchNotifications();
+    }
+  }, [open, fetchNotifications]);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

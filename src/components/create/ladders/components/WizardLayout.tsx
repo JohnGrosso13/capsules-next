@@ -35,8 +35,8 @@ export function WizardLayout<StepId extends string>({
   formContentRef,
   stepStackClassName = "",
   formContent,
-  controlsStart,
-  controlsEnd,
+  controlsStart: _controlsStart,
+  controlsEnd: _controlsEnd,
   previewPanel,
   showPreview = false,
 }: WizardLayoutProps<StepId>) {
@@ -152,10 +152,6 @@ export function WizardLayout<StepId extends string>({
                 tabIndex={-1}
               >
                 {formContent}
-              </div>
-              <div className={styles.stepControls} aria-label="Step controls">
-                <div className={styles.stepControlsStart}>{controlsStart}</div>
-                <div className={styles.stepControlsEnd}>{controlsEnd}</div>
               </div>
             </div>
           )}

@@ -12,7 +12,7 @@ import { WizardLayout } from "./components/WizardLayout";
 import type { GuidedStepId } from "./guidedConfig";
 import { GUIDED_STEP_DEFINITIONS, GUIDED_STEP_MAP, GUIDED_STEP_ORDER } from "./guidedConfig";
 import type { LadderBuilderFormState } from "./builderState";
-import type { LadderPreviewSnapshot } from "./LadderBuilder";
+import type { LadderPreviewSnapshot } from "./builderPreview";
 import type {
   LadderGameFormValues,
   LadderMemberFormValues,
@@ -163,6 +163,97 @@ const LadderWizardView = React.memo(function LadderWizardView({
     </div>
   );
 
+  const stepControls = (
+    <div className={styles.stepControls} aria-label="Step controls">
+      <div className={styles.stepControlsStart}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            if (!guidedPreviousStepId) return;
+            onStepSelect(guidedPreviousStepId);
+          }}
+          disabled={!guidedPreviousStepId}
+        >
+          Back
+        </Button>
+        <div className={styles.moreActions}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setShowMoreActions((prev) => !prev)}
+            aria-expanded={showMoreActions}
+          >
+            Options
+          </Button>
+          {showMoreActions ? (
+            <div className={styles.moreMenu} role="menu">
+              {canDiscardDraft ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={onDiscardDraft}
+                  disabled={isSaving}
+                >
+                  Discard draft
+                </button>
+              ) : null}
+              {selectedCapsuleId ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    onCapsuleChange(null);
+                    setShowMoreActions(false);
+                  }}
+                  disabled={isSaving}
+                >
+                  Switch capsule
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div className={styles.stepControlsEnd}>
+        {guidedStep !== "review" ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className={styles.previewButton}
+              onClick={() => setShowPreviewOverlay(true)}
+            >
+              Preview
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className={styles.stepperNextButton}
+              onClick={() => {
+                if (!guidedNextStepId) return;
+                onStepSelect(guidedNextStepId);
+              }}
+              disabled={!guidedNextStepId}
+            >
+              {guidedNextStep ? `Next: ${guidedNextStep.title}` : "Next"}
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            className={styles.stepperNextButton}
+            onClick={onCreateLadder}
+            disabled={isSaving || !isOnline}
+          >
+            {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <WizardLayout
@@ -180,6 +271,7 @@ const LadderWizardView = React.memo(function LadderWizardView({
             capsuleId={selectedCapsuleId}
             form={form}
             members={members}
+            stepControls={stepControls}
             guidedSummaryIdeas={guidedSummaryIdeas}
             assistantConversation={assistantConversation}
             assistantDraft={assistantDraft}
@@ -200,94 +292,6 @@ const LadderWizardView = React.memo(function LadderWizardView({
             reviewOverview={reviewOverview}
             reviewAiPlan={<AiPlanCard plan={aiPlan} />}
           />
-        }
-        controlsStart={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                if (!guidedPreviousStepId) return;
-                onStepSelect(guidedPreviousStepId);
-              }}
-              disabled={!guidedPreviousStepId}
-            >
-              Back
-            </Button>
-            <div className={styles.moreActions}>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowMoreActions((prev) => !prev)}
-                aria-expanded={showMoreActions}
-              >
-                Options
-              </Button>
-              {showMoreActions ? (
-                <div className={styles.moreMenu} role="menu">
-                  {canDiscardDraft ? (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={onDiscardDraft}
-                      disabled={isSaving}
-                    >
-                      Discard draft
-                    </button>
-                  ) : null}
-                  {selectedCapsuleId ? (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        onCapsuleChange(null);
-                        setShowMoreActions(false);
-                      }}
-                      disabled={isSaving}
-                    >
-                      Switch capsule
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </>
-        }
-        controlsEnd={
-          guidedStep !== "review" ? (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                className={styles.previewButton}
-                onClick={() => setShowPreviewOverlay(true)}
-              >
-                Preview
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className={styles.stepperNextButton}
-                onClick={() => {
-                  if (!guidedNextStepId) return;
-                  onStepSelect(guidedNextStepId);
-                }}
-                disabled={!guidedNextStepId}
-              >
-                {guidedNextStep ? `Next: ${guidedNextStep.title}` : "Next"}
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              variant="secondary"
-              className={styles.stepperNextButton}
-              onClick={onCreateLadder}
-              disabled={isSaving || !isOnline}
-            >
-              {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
-            </Button>
-          )
         }
         previewPanel={previewPanel}
         showPreview={previewMode}

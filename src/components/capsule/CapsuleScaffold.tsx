@@ -27,7 +27,7 @@ import MuxPlayer from "@mux/mux-player-react";
 import { AiPrompterStage, type PrompterAction } from "@/components/ai-prompter-stage";
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
 import { CapsuleEventsSection } from "@/components/capsule/CapsuleEventsSection";
-import { useComposer } from "@/components/composer/ComposerProvider";
+import { useComposerActions } from "@/components/composer/ComposerProvider";
 import { Button } from "@/components/ui/button";
 import { HomeFeedList } from "@/components/home-feed-list";
 import { FeedSurface } from "@/components/feed-surface";
@@ -76,7 +76,7 @@ export function CapsuleContent({
   capsuleId: capsuleIdProp,
   capsuleName: capsuleNameProp,
 }: CapsuleContentProps = {}) {
-  const composer = useComposer();
+  const composer = useComposerActions();
   const [tab, setTab] = React.useState<CapsuleTab>("feed");
   const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
   const [capsuleName, setCapsuleName] = React.useState<string | null>(
