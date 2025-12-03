@@ -34,7 +34,12 @@ export function useFriendsRealtime(
   }, [presence]);
 
   React.useEffect(() => {
-    if (!channels || !channels.events || !channels.presence) {
+    if (
+      !channels ||
+      !channels.events ||
+      !Array.isArray(channels.presence) ||
+      channels.presence.length === 0
+    ) {
       return;
     }
 

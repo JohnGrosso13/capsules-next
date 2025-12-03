@@ -40,4 +40,32 @@ describe("callAiPrompt", () => {
     const fetchSpy = vi.mocked(globalThis.fetch);
     expect(fetchSpy.mock.calls[0]?.[0]).toBe("/api/ai/customize");
   });
+
+  it("aborts when the provided signal is cancelled", async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve, reject) => {
+          controller.signal.addEventListener("abort", () => {
+            reject(new Error("AbortError"));
+          });
+          setTimeout(() => {
+            resolve(
+              new Response(JSON.stringify(draftResponse), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }, 10);
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { callAiPrompt } = await import("./ai");
+    const promise = callAiPrompt({ message: "test", signal: controller.signal });
+    controller.abort();
+
+    await expect(promise).rejects.toThrow(/abort/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

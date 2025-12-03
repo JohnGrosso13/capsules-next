@@ -73,6 +73,10 @@ const POLL_QUESTION_PATTERNS = [
   /question is/,
 ];
 
+const MAX_PROMPT_LENGTH = 4000;
+const MAX_ATTACHMENTS = 6;
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB
+
 const EMPTY_RECENT_DRAFT: ComposerDraft = {
   kind: "text",
   title: null,
@@ -313,6 +317,11 @@ export type ComposerState = {
   saveStatus: ComposerSaveStatus;
   contextSnapshot: ComposerContextSnapshot | null;
   themePreview: ThemePreviewState | null;
+  lastPrompt: {
+    prompt: string;
+    attachments: PrompterAttachment[] | null;
+    mode: PromptRunMode;
+  } | null;
 };
 
 type ThemePreviewState = {
@@ -360,6 +369,7 @@ type ComposerContextValue = {
   setSmartContextEnabled(enabled: boolean): void;
   applyThemePreview(): void;
   cancelThemePreview(): void;
+  retryLastPrompt(): void;
 };
 
 const initialState: ComposerState = {
@@ -381,6 +391,7 @@ const initialState: ComposerState = {
   saveStatus: createIdleSaveStatus(),
   contextSnapshot: null,
   themePreview: null,
+  lastPrompt: null,
 };
 
 function resetStateWithPreference(
@@ -416,6 +427,27 @@ function shouldExpectVideoResponse(
 ): boolean {
   if (hasVideoAttachment(attachments)) return true;
   return detectVideoIntent(prompt);
+}
+
+function validatePromptAndAttachments(
+  prompt: string,
+  attachments?: PrompterAttachment[] | null,
+): string | null {
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return `Your prompt is too long (${prompt.length} characters). Please keep it under ${MAX_PROMPT_LENGTH}.`;
+  }
+  if (attachments && attachments.length > MAX_ATTACHMENTS) {
+    return `Too many attachments. Limit is ${MAX_ATTACHMENTS}.`;
+  }
+  if (attachments) {
+    const oversized = attachments.find(
+      (attachment) => typeof attachment.size === "number" && attachment.size > MAX_ATTACHMENT_BYTES,
+    );
+    if (oversized) {
+      return `Attachment "${oversized.name}" is larger than ${Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))}MB. Please choose a smaller file.`;
+    }
+  }
+  return null;
 }
 
 function createIdleVideoStatus(): ComposerVideoStatus {
@@ -480,6 +512,8 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const { smartContextEnabled, setSmartContextEnabled: setSmartContextEnabledContext } =
     useComposerSmartContext();
   const saveResetTimeout = React.useRef<number | null>(null);
+  const requestTokenRef = React.useRef<string | null>(null);
+  const requestAbortRef = React.useRef<AbortController | null>(null);
 
   const setSmartContextEnabled = React.useCallback(
     (enabled: boolean) => {
@@ -499,6 +533,59 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       quality: imageSettings.quality,
     }),
     [imageSettings],
+  );
+
+  const beginRequestToken = React.useCallback(() => {
+    const token = safeRandomUUID();
+    requestTokenRef.current = token;
+    return token;
+  }, []);
+
+  const isRequestActive = React.useCallback(
+    (token: string) => requestTokenRef.current === token,
+    [],
+  );
+
+  const clearRequestToken = React.useCallback((token?: string) => {
+    if (!token || requestTokenRef.current === token) {
+      requestTokenRef.current = null;
+    }
+  }, []);
+
+  const startRequestController = React.useCallback(() => {
+    if (requestAbortRef.current) {
+      requestAbortRef.current.abort("composer_request_replaced");
+    }
+    const controller = new AbortController();
+    requestAbortRef.current = controller;
+    return controller;
+  }, []);
+
+  const clearRequestController = React.useCallback((controller?: AbortController | null) => {
+    if (controller && requestAbortRef.current === controller) {
+      requestAbortRef.current = null;
+    }
+  }, []);
+
+  const pushAssistantError = React.useCallback(
+    (content: string, history: ComposerChatMessage[] = []) => {
+      const assistantError: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content,
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+      setState((prev) => ({
+        ...prev,
+        open: true,
+        loading: false,
+        loadingKind: null,
+        message: content,
+        history: history.length ? history.concat(assistantError) : (prev.history ?? []).concat(assistantError),
+      }));
+    },
+    [setState],
   );
 
   const recordRecentChat = React.useCallback(
@@ -760,6 +847,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       if (typeof window !== "undefined" && saveResetTimeout.current) {
         window.clearTimeout(saveResetTimeout.current);
       }
+      if (requestAbortRef.current) {
+        requestAbortRef.current.abort("composer_unmounted");
+      }
     },
     [],
   );
@@ -917,7 +1007,14 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     async ({ prompt, attachments, options }: AiPromptHandoff) => {
       const trimmedPrompt = prompt.trim();
       if (!trimmedPrompt.length) return;
+      const validationError = validatePromptAndAttachments(trimmedPrompt, attachments ?? null);
+      if (validationError) {
+        pushAssistantError(validationError);
+        return;
+      }
+      const controller = startRequestController();
       const normalizedAttachments = attachments && attachments.length ? attachments : undefined;
+      const requestToken = beginRequestToken();
       const prefillOnly =
         typeof (options?.extras as { prefillOnly?: unknown } | undefined)?.prefillOnly === "boolean"
           ? Boolean((options!.extras as { prefillOnly: boolean }).prefillOnly)
@@ -991,6 +1088,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       };
       let baseHistory: ComposerChatMessage[] = [];
       let threadIdForRequest: string | null = null;
+      let pendingHistory: ComposerChatMessage[] = [];
       setState((prev) => {
         const existingHistory = prev.history ?? [];
         baseHistory = existingHistory.slice();
@@ -1010,6 +1108,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           createdAt,
           attachments: null,
         };
+        pendingHistory = [...nextHistory, workingAssistant];
         return {
           ...prev,
           open: true,
@@ -1024,10 +1123,16 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           summaryResult: null,
           summaryOptions: null,
           summaryMessageId: null,
+          lastPrompt: {
+            prompt: trimmedPrompt,
+            attachments: normalizedAttachments ?? null,
+            mode: replyMode === "chat" ? "chatOnly" : "default",
+          },
         };
       });
 
       const updateWorking = (content: string) => {
+        if (!isRequestActive(requestToken)) return;
         setState((prev) => {
           const history = (prev.history ?? []).map((entry) =>
             entry.id === workingMessageId ? { ...entry, content } : entry,
@@ -1040,31 +1145,70 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       };
 
       try {
-          const payload = await callAiPrompt({
-            message: trimmedPrompt,
-            ...(resolvedOptions ? { options: resolvedOptions } : {}),
-            ...(state.rawPost && replyMode !== "chat" ? { post: state.rawPost } : {}),
-            ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
-            history: baseHistory,
-            ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
-            ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
+        const payload = await callAiPrompt({
+          message: trimmedPrompt,
+          ...(resolvedOptions ? { options: resolvedOptions } : {}),
+          ...(state.rawPost && replyMode !== "chat" ? { post: state.rawPost } : {}),
+          ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
+          history: baseHistory,
+          ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
+          ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
           stream: true,
           onStreamMessage: updateWorking,
+          signal: controller.signal,
         });
+        if (!isRequestActive(requestToken)) return;
         setState((prev) => ({
           ...prev,
           history: (prev.history ?? []).filter((entry) => entry.id !== workingMessageId),
           loadingKind: null,
         }));
         handleAiResponse(trimmedPrompt, payload);
+        clearRequestToken(requestToken);
+        clearRequestController(controller);
       } catch (error) {
         console.error("AI prompt failed", error);
-        setState((prev) => resetStateWithPreference(prev));
+        if (!isRequestActive(requestToken)) return;
+        const errorMessage =
+          error instanceof Error && error.message
+            ? error.message.trim()
+            : "Capsule AI ran into an unexpected error.";
+        const assistantError: ComposerChatMessage = {
+          id: safeRandomUUID(),
+          role: "assistant",
+          content: errorMessage,
+          createdAt: new Date().toISOString(),
+          attachments: null,
+        };
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          loadingKind: null,
+          history: pendingHistory.length
+            ? pendingHistory.filter((entry) => entry.id !== workingMessageId).concat(assistantError)
+            : prev.history.filter((entry) => entry.id !== workingMessageId).concat(assistantError),
+          message: errorMessage,
+        }));
+        clearRequestToken(requestToken);
+        clearRequestController(controller);
       }
     },
-    [activeCapsuleId, handleAiResponse, imageSettings, setState, smartContextEnabled, state.rawPost],
-  );
+  [
+    activeCapsuleId,
+    beginRequestToken,
+    clearRequestToken,
+    clearRequestController,
+    handleAiResponse,
+    imageSettings,
+    isRequestActive,
+    pushAssistantError,
+    setState,
+    smartContextEnabled,
+    state.rawPost,
+    startRequestController,
+  ],
+);
 
   const runLogoHandoff = React.useCallback(
     async ({ prompt }: ImageLogoHandoff) => {
@@ -1229,9 +1373,14 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const close = React.useCallback(
     () => {
       endPreviewThemeVars();
+      if (requestAbortRef.current) {
+        requestAbortRef.current.abort("composer_closed");
+      }
+      clearRequestToken();
+      clearRequestController(requestAbortRef.current);
       setState((prev) => resetStateWithPreference(prev));
     },
-    [setState],
+    [clearRequestController, clearRequestToken, setState],
   );
 
   const previewThemePlan = React.useCallback(
@@ -1388,7 +1537,21 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "composer" } }));
     } catch (error) {
       console.error("Composer post failed", error);
-      setState((prev) => ({ ...prev, loading: false }));
+      const errorMessage =
+        error instanceof Error && error.message ? error.message : "Posting failed. Please try again.";
+      const assistantError: ComposerChatMessage = {
+        id: safeRandomUUID(),
+        role: "assistant",
+        content: errorMessage,
+        createdAt: new Date().toISOString(),
+        attachments: null,
+      };
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        message: errorMessage,
+        history: (prev.history ?? []).concat(assistantError),
+      }));
     }
   }, [
     state.draft,
@@ -1443,6 +1606,27 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       const trimmed = promptText.trim();
       if (!trimmed) return;
       const attachmentList = attachments && attachments.length ? attachments : undefined;
+      const validationError = validatePromptAndAttachments(trimmed, attachmentList ?? null);
+      if (validationError) {
+        const assistantError: ComposerChatMessage = {
+          id: safeRandomUUID(),
+          role: "assistant",
+          content: validationError,
+          createdAt: new Date().toISOString(),
+          attachments: null,
+        };
+        setState((prev) => ({
+          ...prev,
+          open: true,
+          loading: false,
+          loadingKind: null,
+          message: validationError,
+          history: [...(prev.history ?? []), assistantError],
+        }));
+        return;
+      }
+      const requestToken = beginRequestToken();
+      const controller = startRequestController();
       const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
       const expectImage =
         !expectVideo && (state.draft?.kind ?? "").toLowerCase() === "image";
@@ -1458,6 +1642,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       };
       let previousHistory: ComposerChatMessage[] = [];
       let threadIdForRequest: string | null = null;
+      let pendingHistory: ComposerChatMessage[] = [];
       setState((prev) => {
         const existingHistory = prev.history ?? [];
         previousHistory = existingHistory.slice();
@@ -1484,6 +1669,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         } else if (prev.videoStatus.state !== "idle") {
           nextVideoStatus = createIdleVideoStatus();
         }
+        pendingHistory = nextHistory;
         return {
           ...prev,
           loading: true,
@@ -1498,6 +1684,11 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           summaryOptions: preserveSummary ? prev.summaryOptions : null,
           summaryMessageId: preserveSummary ? prev.summaryMessageId : null,
           videoStatus: nextVideoStatus,
+          lastPrompt: {
+            prompt: trimmed,
+            attachments: attachmentList ?? null,
+            mode: options?.mode ?? "default",
+          },
         };
       });
       try {
@@ -1516,10 +1707,15 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
+          signal: controller.signal,
         });
+        if (!isRequestActive(requestToken)) return;
         handleAiResponse(trimmed, payload, options?.mode ?? "default");
+        clearRequestToken(requestToken);
+        clearRequestController(controller);
       } catch (error) {
         console.error("Composer prompt submit failed", error);
+        if (!isRequestActive(requestToken)) return;
         const errorMessage =
           error instanceof Error && error.message ? error.message.trim() : "Capsule AI ran into an unexpected error.";
         setState((prev) => {
@@ -1536,25 +1732,46 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             : prev.videoStatus.state !== "idle"
               ? createIdleVideoStatus()
               : prev.videoStatus;
+          const assistantError: ComposerChatMessage = {
+            id: safeRandomUUID(),
+            role: "assistant",
+            content: errorMessage,
+            createdAt: new Date().toISOString(),
+            attachments: null,
+          };
+          const safeHistory =
+            pendingHistory.length && pendingHistory[pendingHistory.length - 1]?.id === pendingMessage.id
+              ? pendingHistory
+              : pendingHistory.length
+                ? pendingHistory
+                : [...previousHistory, pendingMessage];
           return {
             ...prev,
             loading: false,
             loadingKind: null,
-            history: previousHistory,
+            history: safeHistory.concat(assistantError),
+            message: errorMessage,
             videoStatus: fallbackVideoStatus,
           };
         });
+        clearRequestToken(requestToken);
+        clearRequestController(controller);
       }
     },
     [
       activeCapsuleId,
+      beginRequestToken,
+      clearRequestToken,
+      clearRequestController,
       handleAiResponse,
       imageSettings,
+      isRequestActive,
       setState,
       state.rawPost,
       state.draft?.kind,
       smartContextEnabled,
       state.summaryResult,
+      startRequestController,
     ],
   );
 
@@ -1564,10 +1781,18 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     void submitPrompt(status.prompt, status.attachments ?? undefined);
   }, [state.videoStatus, submitPrompt]);
 
+  const retryLastPrompt = React.useCallback(() => {
+    const last = state.lastPrompt;
+    if (!last) return;
+    void submitPrompt(last.prompt, last.attachments ?? undefined, { mode: last.mode });
+  }, [state.lastPrompt, submitPrompt]);
+
   const forceChoiceInternal = React.useCallback(
     async (key: string) => {
       if (!state.prompt) return;
       setState((prev) => ({ ...prev, loading: true }));
+      const requestToken = beginRequestToken();
+      const controller = startRequestController();
       try {
         const payload = await callAiPrompt({
           message: state.prompt,
@@ -1577,22 +1802,33 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           ...(state.threadId ? { threadId: state.threadId } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
+          signal: controller.signal,
         });
+        if (!isRequestActive(requestToken)) return;
         handleAiResponse(state.prompt, payload);
+        clearRequestToken(requestToken);
+        clearRequestController(controller);
       } catch (error) {
         console.error("Composer force choice failed", error);
         setState((prev) => ({ ...prev, loading: false }));
+        clearRequestToken(requestToken);
+        clearRequestController(controller);
       }
     },
     [
       activeCapsuleId,
+      beginRequestToken,
+      clearRequestController,
+      clearRequestToken,
       handleAiResponse,
+      isRequestActive,
       setState,
       state.history,
       state.prompt,
       state.rawPost,
       state.threadId,
       smartContextEnabled,
+      startRequestController,
     ],
   );
 
@@ -1670,6 +1906,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       setSmartContextEnabled,
       applyThemePreview,
       cancelThemePreview,
+      retryLastPrompt,
     };
     if (forceChoice) {
       base.forceChoice = forceChoice;
@@ -1701,6 +1938,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     updateImageSettings,
     applyThemePreview,
     cancelThemePreview,
+    retryLastPrompt,
   ]);
 
   return <ComposerContext.Provider value={contextValue}>{children}</ComposerContext.Provider>;
@@ -1737,6 +1975,7 @@ export function AiComposerRoot() {
     setSmartContextEnabled,
     applyThemePreview,
     cancelThemePreview,
+    retryLastPrompt,
   } = useComposer();
 
   const forceHandlers = forceChoice
@@ -1789,6 +2028,8 @@ export function AiComposerRoot() {
       onSave={saveDraft}
       onRetryVideo={retryVideo}
       onSaveCreation={saveCreation}
+      onRetryLastPrompt={retryLastPrompt}
+      canRetryLastPrompt={Boolean(state.lastPrompt) && !state.loading}
       {...forceHandlers}
     />
   );

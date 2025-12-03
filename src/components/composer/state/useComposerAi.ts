@@ -1,6 +1,11 @@
 import * as React from "react";
 
-import { sanitizeComposerChatHistory, type ComposerChatMessage } from "@/lib/composer/chat-types";
+import {
+  sanitizeComposerChatAttachment,
+  sanitizeComposerChatHistory,
+  type ComposerChatAttachment,
+  type ComposerChatMessage,
+} from "@/lib/composer/chat-types";
 import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { PromptResponse } from "@/shared/schemas/ai";
@@ -36,6 +41,12 @@ export function useComposerAi({
       payload: PromptResponse,
       mode: PromptRunMode = "default",
     ): ComposerAiApplyResult | null => {
+      const replyAttachments: ComposerChatAttachment[] | null =
+        payload.action === "chat_reply" && Array.isArray(payload.replyAttachments)
+          ? payload.replyAttachments
+              .map((attachment) => sanitizeComposerChatAttachment(attachment))
+              .filter((attachment): attachment is ComposerChatAttachment => Boolean(attachment))
+          : null;
       const isDraftResponse = payload.action === "draft_post";
       const rawSource =
         isDraftResponse && payload.post && typeof payload.post === "object"
@@ -79,10 +90,16 @@ export function useComposerAi({
           const safeMessageText = messageText;
           const lastIndex = historyForState.length - 1;
           const lastEntry = lastIndex >= 0 ? historyForState[lastIndex] : null;
+          const attachmentsForMessage =
+            replyAttachments && replyAttachments.length
+              ? replyAttachments
+              : (lastEntry?.attachments as ComposerChatAttachment[] | null) ?? null;
           if (lastEntry && lastEntry.role === "assistant") {
             const updatedHistory = historyForState.map(
               (entry: ComposerChatMessage, index: number) =>
-                index === lastIndex ? { ...entry, content: safeMessageText } : entry,
+                index === lastIndex
+                  ? { ...entry, content: safeMessageText, attachments: attachmentsForMessage }
+                  : entry,
             );
             historyForState = updatedHistory;
           } else {
@@ -93,7 +110,7 @@ export function useComposerAi({
                 role: "assistant",
                 content: safeMessageText,
                 createdAt: new Date().toISOString(),
-                attachments: null,
+                attachments: attachmentsForMessage && attachmentsForMessage.length ? attachmentsForMessage : null,
               },
             ];
           }

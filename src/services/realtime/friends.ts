@@ -7,11 +7,17 @@ import { getChatDirectChannel, CHAT_CONSTANTS } from "@/lib/chat/channels";
 import { getAiImageChannel } from "@/lib/ai/channels";
 import { listFriendUserIds } from "@/server/friends/repository";
 import { getRedis } from "@/server/redis/client";
+import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 import type { RealtimeAuthPayload, RealtimeCapabilities } from "@/ports/realtime";
 
 export const FRIEND_CHANNEL_PREFIX = "user";
 export const FRIEND_EVENTS_NAMESPACE = "friends";
-export const FRIEND_PRESENCE_CHANNEL = "presence:friends";
+export const FRIEND_PRESENCE_CHANNEL_PREFIX = "presence:friends";
+
+export function friendPresenceChannel(userId: string): string {
+  const trimmed = userId.trim();
+  return `${FRIEND_PRESENCE_CHANNEL_PREFIX}:${trimmed}`;
+}
 
 const CAPABILITY_DEBUG_CACHE_LIMIT = 32;
 const capabilityLogCache = new Map<string, number>();
@@ -72,6 +78,18 @@ export type FriendRealtimeEvent = {
   type: string;
   payload: Record<string, unknown>;
 };
+
+export function buildPresenceChannelList(userId: string, friendIds: string[]): string[] {
+  const unique = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    if (!value) return;
+    const trimmed = value.trim();
+    if (trimmed) unique.add(friendPresenceChannel(trimmed));
+  };
+  add(userId);
+  friendIds.forEach(add);
+  return Array.from(unique);
+}
 
 type FriendIdCacheEntry = {
   value: string[];
@@ -193,6 +211,17 @@ function setMemoryCacheEntry(userId: string, ids: string[], ttlMs: number): void
   });
 }
 
+async function deleteFriendIdCache(userId: string): Promise<void> {
+  memoryFriendIdCache.delete(userId);
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.del(buildFriendIdsCacheKey(userId));
+  } catch (error) {
+    console.warn("Friend realtime cache delete failed", { userId, error });
+  }
+}
+
 async function getFriendIdsFromMemory(userId: string): Promise<string[]> {
   const cacheEntry = getMemoryCacheEntry(userId);
   if (isMemoryCacheFresh(cacheEntry) && cacheEntry) {
@@ -305,6 +334,11 @@ export async function publishFriendEvents(
   );
 }
 
+export async function invalidateFriendIdCache(userIds: string[]): Promise<void> {
+  const unique = Array.from(new Set(userIds.map((id) => id?.trim()).filter(Boolean) as string[]));
+  await Promise.all(unique.map((id) => deleteFriendIdCache(id)));
+}
+
 export async function createFriendRealtimeAuth(
   userId: string,
 ): Promise<RealtimeAuthPayload | null> {
@@ -312,7 +346,7 @@ export async function createFriendRealtimeAuth(
   if (!authProvider) return null;
   const capabilities: RealtimeCapabilities = {
     [friendEventsChannel(userId)]: ["subscribe"],
-    [FRIEND_PRESENCE_CHANNEL]: ["subscribe", "publish", "presence"],
+    [friendPresenceChannel(userId)]: ["subscribe", "publish", "presence"],
   };
 
   try {
@@ -334,14 +368,16 @@ export async function createFriendRealtimeAuth(
 
   try {
     const friendIds = await getCachedFriendIds(userId);
-    friendIds.forEach((friendId) => {
+    const authorizedFriendIds = sanitizeFriendIds([...friendIds, ASSISTANT_USER_ID]);
+    authorizedFriendIds.forEach((friendId) => {
       try {
         grantCapability(capabilities, getChatDirectChannel(friendId), ["publish"]);
+        grantCapability(capabilities, friendPresenceChannel(friendId), ["subscribe"]);
       } catch (friendError) {
         console.error("Friend realtime friend channel error", friendError);
       }
     });
-    logRealtimeCapabilitiesOnce(userId, friendIds, capabilities);
+    logRealtimeCapabilitiesOnce(userId, authorizedFriendIds, capabilities);
   } catch (listError) {
     console.error("Friend realtime friend list error", listError);
   }

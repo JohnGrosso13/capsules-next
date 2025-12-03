@@ -26,7 +26,7 @@ const DEFAULT_COPY: CapsuleCopy = {
   prompterPlaceholder: "Describe your banner or a vibe to try...",
   aiWorkingMessage: "Generating your banner...",
   assistantIntro:
-    "Tell me what you want in the banner and I'll make a few options.",
+    "You're customizing your capsule. I'm a general AI, so ask anything—even off topic—and I'll help with visuals when you want.",
   footerDefaultHint: "",
   stageAriaLabel: "Capsule banner preview",
   recentDescription: "Quickly reuse what you or Capsule AI picked last.",
@@ -34,11 +34,9 @@ const DEFAULT_COPY: CapsuleCopy = {
 
 export function useCapsuleCustomizerCopy(
   mode: CapsuleCustomizerMode,
-  normalizedName: string,
+  _normalizedName: string,
 ): CapsuleCopy {
   return React.useMemo<CapsuleCopy>(() => {
-    const safeName = normalizedName;
-
     switch (mode) {
       case "storeBanner":
         return {
@@ -49,7 +47,8 @@ export function useCapsuleCustomizerCopy(
             "Chat with Capsule AI, pick from memories, or upload visuals to set your storefront hero image.",
           prompterPlaceholder: "Describe your store hero or a vibe to try...",
           aiWorkingMessage: "Generating your store banner...",
-          assistantIntro: `Describe your store hero and I'll generate options for ${safeName}.`,
+          assistantIntro:
+            "You're customizing your capsule. I'm a general AI, so ask anything—even off topic—and I'll help with visuals when you want.",
           footerDefaultHint: "",
           stageAriaLabel: "Capsule store banner preview",
           recentDescription: "Reuse the hero art you or Capsule AI used in your storefront recently.",
@@ -63,7 +62,8 @@ export function useCapsuleCustomizerCopy(
             "Chat with Capsule AI, pick from memories, or upload brand visuals to set your vertical tile.",
           prompterPlaceholder: "Describe your tile or a vibe to try...",
           aiWorkingMessage: "Generating your tile...",
-          assistantIntro: `Describe your promo tile and I'll generate options for ${safeName}.`,
+          assistantIntro:
+            "You're customizing your capsule. I'm a general AI, so ask anything—even off topic—and I'll help with visuals when you want.",
           footerDefaultHint: "",
           stageAriaLabel: "Capsule promo tile preview",
           recentDescription: "Quickly reuse the vertical art you or Capsule AI picked last.",
@@ -77,7 +77,8 @@ export function useCapsuleCustomizerCopy(
             "Upload a mark, pick a memory, or ask Capsule AI for a square logo that feels on brand everywhere it appears.",
           prompterPlaceholder: "Describe your logo idea or style...",
           aiWorkingMessage: "Sketching a logo...",
-          assistantIntro: `Describe your logo idea and I'll mock up options for ${safeName}.`,
+          assistantIntro:
+            "You're customizing your capsule. I'm a general AI, so ask anything—even off topic—and I'll help with visuals when you want.",
           footerDefaultHint: "",
           stageAriaLabel: "Capsule logo preview",
           recentDescription: "Reuse logo artwork you or Capsule AI created recently.",
@@ -91,7 +92,8 @@ export function useCapsuleCustomizerCopy(
             "Upload a portrait, pick from memories, or ask Capsule AI for a circular avatar that looks great across the app.",
           prompterPlaceholder: "Describe your avatar idea or vibe...",
           aiWorkingMessage: "Creating your avatar...",
-          assistantIntro: `Describe your avatar and I'll generate options for ${safeName}.`,
+          assistantIntro:
+            "You're customizing your capsule. I'm a general AI, so ask anything—even off topic—and I'll help with visuals when you want.",
           footerDefaultHint: "",
           stageAriaLabel: "Profile avatar preview",
           recentDescription: "Reuse avatar imagery you or Capsule AI created recently.",
@@ -99,8 +101,9 @@ export function useCapsuleCustomizerCopy(
       default:
         return {
           ...DEFAULT_COPY,
-          assistantIntro: `Tell me what you want in the banner for ${safeName} and I’ll make a few options.`,
+          assistantIntro:
+            "You're customizing your capsule. I'm a general AI, so ask anything—even off topic—and I'll help with visuals when you want.",
         };
     }
-  }, [mode, normalizedName]);
+  }, [mode]);
 }

@@ -9,6 +9,7 @@ type UseAssistantTasksOptions = {
   pollIntervalMs?: number;
   idlePollIntervalMs?: number;
   enabled?: boolean;
+  limit?: number;
 };
 
 type FetchOptions = {
@@ -22,6 +23,7 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
     pollIntervalMs = 0,
     idlePollIntervalMs = 0,
     enabled = true,
+    limit,
   } = options;
   const [tasks, setTasks] = React.useState<AssistantTaskSummary[] | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -42,6 +44,10 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
       }
       const params = new URLSearchParams();
       if (includeCompleted) params.set("includeCompleted", "true");
+      if (typeof limit === "number" && Number.isFinite(limit)) {
+        const safeLimit = Math.max(1, Math.min(100, Math.round(limit)));
+        params.set("limit", String(safeLimit));
+      }
       try {
         const init: RequestInit = {};
         if (signal) {
@@ -66,7 +72,7 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
         }
       }
     },
-    [includeCompleted],
+    [includeCompleted, limit],
   );
 
   React.useEffect(() => {

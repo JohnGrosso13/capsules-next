@@ -1,90 +1,45 @@
 "use client";
 
 import * as React from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 
 import {
   CopySimple,
   CrownSimple,
   Clock,
   LinkSimple,
-  Microphone,
-  MicrophoneSlash,
   MicrophoneStage,
   PaperPlaneTilt,
-  SignOut,
-  SpeakerSimpleHigh,
-  SpeakerSimpleSlash,
-  Sparkle,
   UsersThree,
   XCircle,
   CaretDown,
 } from "@phosphor-icons/react/dist/ssr";
-import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  useParticipants,
-  useRoomContext,
-  useStartAudio,
-} from "@livekit/components-react";
-import {
-  RoomEvent,
-  Track,
-  type Participant,
-  type RemoteTrackPublication,
-  type Room,
-  type TrackPublication,
-  type TranscriptionSegment,
-} from "livekit-client";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
-import { useChatContext, type ChatFriendTarget } from "@/components/providers/ChatProvider";
+import { type ChatFriendTarget } from "@/components/providers/ChatProvider";
 import {
   usePartyContext,
   type PartyPrivacy,
   type PartySession,
 } from "@/components/providers/PartyProvider";
 import { useCurrentUser } from "@/services/auth/client";
-import { sendPartyInviteRequest } from "@/services/party-invite/client";
 import type { SummaryLengthHint, SummaryResult } from "@/types/summary";
-import { partySummarySettingsSchema, type PartySummarySettings } from "@/server/validation/schemas/party";
 
-import cm from "@/components/ui/context-menu.module.css";
+import { usePartyInvites } from "./hooks/usePartyInvites";
+import { usePartySummary } from "./hooks/usePartySummary";
+import {
+  formatRelativeTime,
+  type PartyPanelVariant,
+  type ParticipantProfile,
+} from "./partyTypes";
 import styles from "./party-panel.module.css";
-
-type PartyPanelVariant = "default" | "compact";
-
-type ParticipantProfile = {
-  name: string | null;
-  avatar: string | null;
-};
-
-type NavigatorUserMediaSuccessCallback = (stream: MediaStream) => void;
-type NavigatorUserMediaErrorCallback = (error: DOMException) => void;
 
 type PartyPanelProps = {
   friends: FriendItem[];
   friendTargets: Map<string, ChatFriendTarget>;
   onShowFriends(): void;
   variant?: PartyPanelVariant;
-};
-
-type PartyStageProps = {
-  session: PartySession;
-  canClose: boolean;
-  status: string;
-  participantProfiles: Map<string, ParticipantProfile>;
-  friendTargets: Map<string, ChatFriendTarget>;
-  onLeave(): Promise<void> | void;
-  onClose(): Promise<void> | void;
-  onReconnecting(): void;
-  onReady(room: Room): void;
-  onDisconnected(): void;
-  summaryEnabled: boolean;
-  onTranscriptsChange(segments: PartyTranscriptSegment[]): void;
 };
 
 type ExpandableSettingProps = {
@@ -97,6 +52,8 @@ type ExpandableSettingProps = {
   onToggle(next: boolean): void;
   children: React.ReactNode;
 };
+
+const PartyStage = React.lazy(() => import("./PartyStage"));
 
 function ExpandableSetting({
   id,
@@ -150,10 +107,222 @@ function ExpandableSetting({
   );
 }
 
-type InviteStatus = {
-  message: string;
-  tone: "success" | "warning" | "info";
+type JoinSectionProps = {
+  joinCode: string;
+  loading: boolean;
+  action: string | null;
+  onChange(value: string): void;
+  onSubmit(): void;
 };
+
+const JoinSection = React.memo(function JoinSection({
+  joinCode,
+  loading,
+  action,
+  onChange,
+  onSubmit,
+}: JoinSectionProps) {
+  const ariaLabel = loading
+    ? action === "join"
+      ? "Connecting to party"
+      : action === "resume"
+        ? "Reconnecting to party"
+        : "Connecting"
+    : "Join party with this code";
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeaderRow}>
+        <LinkSimple size={18} weight="duotone" />
+        <span>Have a code? Jump into a party</span>
+      </div>
+      <div className={styles.inlineJoin}>
+        <div className={styles.inlineJoinField}>
+          <input
+            className={styles.inlineJoinInput}
+            placeholder="Enter your party code"
+            value={joinCode}
+            onChange={(event) => onChange(event.target.value)}
+            disabled={loading}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (!loading && joinCode.trim()) {
+                  onSubmit();
+                }
+              }
+            }}
+          />
+          <button
+            type="button"
+            className={styles.inlineJoinButton}
+            onClick={onSubmit}
+            disabled={loading || !joinCode.trim()}
+            aria-label={ariaLabel}
+          >
+            <PaperPlaneTilt size={16} weight="bold" />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+});
+
+type SummaryPanelProps = {
+  summaryEnabled: boolean;
+  canManageSummary: boolean;
+  summaryStatusLabel: string;
+  summaryVerbosity: SummaryLengthHint;
+  summaryUpdating: boolean;
+  summaryGenerating: boolean;
+  summaryButtonDisabled: boolean;
+  summaryGenerateLabel: string;
+  summaryResult: SummaryResult | null;
+  summaryError: string | null;
+  transcriptsReady: boolean;
+  summaryLastSavedLabel: string | null;
+  summaryMemoryId: string | null;
+  onToggle(): void;
+  onVerbosityChange(value: SummaryLengthHint): void;
+  onGenerate(): void;
+  onReset(): void;
+};
+
+const SummaryPanel = React.memo(function SummaryPanel({
+  summaryEnabled,
+  canManageSummary,
+  summaryStatusLabel,
+  summaryVerbosity,
+  summaryUpdating,
+  summaryGenerating,
+  summaryButtonDisabled,
+  summaryGenerateLabel,
+  summaryResult,
+  summaryError,
+  transcriptsReady,
+  summaryLastSavedLabel,
+  summaryMemoryId,
+  onToggle,
+  onVerbosityChange,
+  onGenerate,
+  onReset,
+}: SummaryPanelProps) {
+  return (
+    <div className={styles.summaryPanel}>
+      <div className={styles.summaryHeaderRow}>
+        <div className={styles.summaryHeaderText}>
+          <span className={styles.label}>Conversation summary</span>
+          <p className={styles.summaryDescription}>
+            {summaryEnabled
+              ? "Generate a recap and Capsule will file it under Memory."
+              : "Enable summaries to capture a recap of this voice party."}
+          </p>
+        </div>
+        {canManageSummary ? (
+          <button
+            type="button"
+            className={`${styles.summaryToggle} ${summaryEnabled ? styles.summaryToggleActive : ""}`.trim()}
+            onClick={onToggle}
+            disabled={summaryUpdating}
+            aria-pressed={summaryEnabled}
+          >
+            {summaryStatusLabel}
+          </button>
+        ) : (
+          <span
+            className={`${styles.summaryStatusBadge} ${summaryEnabled ? styles.summaryStatusBadgeActive : ""}`.trim()}
+          >
+            {summaryEnabled ? "Enabled" : "Disabled"}
+          </span>
+        )}
+      </div>
+      <div className={styles.summaryControls}>
+        <div className={styles.summaryVerbosityRow}>
+          {SUMMARY_VERBOSITY_OPTIONS.map((option) => {
+            const active = summaryVerbosity === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                className={`${styles.summaryVerbosityButton} ${active ? styles.summaryVerbosityButtonActive : ""}`.trim()}
+                onClick={() => onVerbosityChange(option)}
+                disabled={!canManageSummary || summaryUpdating || !summaryEnabled}
+                aria-pressed={active}
+              >
+                <span>{SUMMARY_LABELS[option]}</span>
+                <small>{SUMMARY_DESCRIPTIONS[option]}</small>
+              </button>
+            );
+          })}
+        </div>
+        <div className={styles.summaryActionRow}>
+          <button
+            type="button"
+            className={styles.summaryPrimaryButton}
+            onClick={onGenerate}
+            disabled={summaryButtonDisabled}
+          >
+            {summaryGenerateLabel}
+          </button>
+          {canManageSummary && summaryLastSavedLabel ? (
+            <button
+              type="button"
+              className={styles.summaryResetButton}
+              onClick={onReset}
+              disabled={summaryUpdating || summaryGenerating}
+            >
+              Reset summary
+            </button>
+          ) : null}
+        </div>
+        <div className={styles.summaryMetaRow}>
+          <span>
+            {summaryEnabled
+              ? transcriptsReady
+                ? "Live captions are rolling."
+                : "Listening for voices."
+              : "Summaries are off for this party."}
+          </span>
+          {summaryLastSavedLabel ? (
+            <span>
+              Last saved {summaryLastSavedLabel}
+              {summaryMemoryId ? (
+                <span className={styles.summaryMemoryTag}>Memory #{summaryMemoryId.slice(0, 8)}</span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+        {summaryError ? (
+          <div className={styles.summaryError} role="status">
+            {summaryError}
+          </div>
+        ) : null}
+      </div>
+      {summaryResult ? (
+        <div className={styles.summaryResultCard}>
+          <p className={styles.summaryResultText}>{summaryResult.summary}</p>
+          {summaryResult.highlights.length ? (
+            <ul className={styles.summaryHighlights}>
+              {summaryResult.highlights.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : null}
+          {summaryResult.nextActions.length ? (
+            <div className={styles.summaryNextActions}>
+              <span>Next steps</span>
+              <ul>
+                {summaryResult.nextActions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+});
 
 type PrivacyOption = {
   value: PartyPrivacy;
@@ -187,150 +356,6 @@ const SUMMARY_DESCRIPTIONS: Record<SummaryLengthHint, string> = {
   medium: "Every key moment",
   detailed: "Rich context",
 };
-const MAX_TRANSCRIPT_SEGMENTS = 240;
-
-type PartyTranscriptSegment = {
-  id: string;
-  text: string;
-  speakerId: string | null;
-  speakerName: string | null;
-  startTime?: number;
-  endTime?: number;
-  language?: string | null;
-  final?: boolean;
-};
-
-type PartySummaryResponse = {
-  status: "ok";
-  summary: string;
-  highlights: string[];
-  nextActions: string[];
-  insights: string[];
-  hashtags: string[];
-  tone: string | null;
-  sentiment: string | null;
-  wordCount: number | null;
-  model: string | null;
-  memoryId: string;
-  metadata: {
-    summary: PartySummarySettings;
-  };
-};
-
-type LegacyGetUserMediaFn = (
-  constraints: MediaStreamConstraints,
-  successCallback: NavigatorUserMediaSuccessCallback,
-  errorCallback?: NavigatorUserMediaErrorCallback,
-) => void;
-
-type LegacyNavigator = Navigator & {
-  webkitGetUserMedia?: LegacyGetUserMediaFn;
-  mozGetUserMedia?: LegacyGetUserMediaFn;
-  getUserMedia?: LegacyGetUserMediaFn;
-};
-
-const INPUT_DEVICE_STORAGE_KEY = "capsules:voice:input-device";
-const OUTPUT_DEVICE_STORAGE_KEY = "capsules:voice:output-device";
-const INPUT_VOLUME_STORAGE_KEY = "capsules:voice:input-volume";
-const OUTPUT_VOLUME_STORAGE_KEY = "capsules:voice:output-volume";
-
-async function requestMicrophonePermission(): Promise<void> {
-  if (typeof window === "undefined") return;
-  if (!window.isSecureContext) {
-    throw new Error(
-      "Microphone access requires a secure connection. Reopen Capsules over HTTPS or use a trusted tunnel when testing on mobile.",
-    );
-  }
-  const nav = window.navigator as LegacyNavigator;
-
-  const modernGetUserMedia = nav.mediaDevices?.getUserMedia?.bind(nav.mediaDevices);
-  const legacyGetUserMedia =
-    nav.getUserMedia?.bind(nav) ??
-    nav.webkitGetUserMedia?.bind(nav) ??
-    nav.mozGetUserMedia?.bind(nav) ??
-    null;
-
-  if (!modernGetUserMedia && !legacyGetUserMedia) {
-    throw new Error("Microphone access is not supported in this browser.");
-  }
-
-  let stream: MediaStream | null = null;
-
-  try {
-    if (modernGetUserMedia) {
-      stream = await modernGetUserMedia({ audio: true });
-    } else if (legacyGetUserMedia) {
-      stream = await new Promise<MediaStream>((resolve, reject) => {
-        legacyGetUserMedia(
-          { audio: true },
-          (legacyStream: MediaStream) => resolve(legacyStream),
-          (error: DOMException) => reject(error),
-        );
-      });
-    }
-  } catch (permissionError) {
-    throw normalizeMicrophoneError(permissionError);
-  } finally {
-    stream?.getTracks().forEach((track) => track.stop());
-  }
-}
-
-function normalizeMicrophoneError(error: unknown): Error {
-  if (typeof window !== "undefined" && !window.isSecureContext) {
-    return new Error(
-      "Microphone access requires HTTPS. Reopen Capsules using https:// or a secure tunnel when testing on mobile.",
-    );
-  }
-  if (error instanceof DOMException) {
-    switch (error.name) {
-      case "NotAllowedError":
-      case "PermissionDeniedError":
-        return new Error("Capsules does not have permission to use your microphone. Enable it in your browser settings and try again.");
-      case "NotReadableError":
-      case "AbortError":
-        return new Error("Your microphone is busy with another app. Close other apps using the mic and try again.");
-      case "SecurityError":
-        return new Error(
-          "Microphone access is blocked in this context. Use HTTPS or adjust your browser privacy settings.",
-        );
-      case "NotFoundError":
-      case "DevicesNotFoundError":
-        return new Error("We couldn't find an available microphone. Connect one and try again.");
-      default:
-        break;
-    }
-  }
-  if (error instanceof Error) {
-    return error;
-  }
-  return new Error("We couldn't access your microphone. Please try again.");
-}
-
-
-function formatRelativeTime(value: string | null | undefined): string {
-  if (!value) return "";
-  const timestamp = new Date(value).getTime();
-  if (Number.isNaN(timestamp)) return "";
-  const diffMs = Date.now() - timestamp;
-  if (diffMs < 0) return "Just now";
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-}
-
-function initialsFromName(name: string | null | undefined): string {
-  if (!name) return "★";
-  const trimmed = name.trim();
-  if (!trimmed) return "★";
-  const parts = trimmed.split(" ").filter(Boolean);
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]!.charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase();
-}
-
 export function PartyPanel({
   friends,
   friendTargets,
@@ -362,19 +387,7 @@ export function PartyPanel({
     React.useState<SummaryLengthHint>("medium");
   const [privacyExpanded, setPrivacyExpanded] = React.useState(true);
   const [summaryExpanded, setSummaryExpanded] = React.useState(false);
-  const [summaryError, setSummaryError] = React.useState<string | null>(null);
-  const [summaryUpdating, setSummaryUpdating] = React.useState(false);
-  const [summaryGenerating, setSummaryGenerating] = React.useState(false);
-  const [summaryResult, setSummaryResult] = React.useState<SummaryResult | null>(null);
-  const [transcriptSegments, setTranscriptSegments] = React.useState<PartyTranscriptSegment[]>([]);
   const [joinCode, setJoinCode] = React.useState("");
-  const [inviteFeedback, setInviteFeedback] = React.useState<InviteStatus | null>(null);
-  const [inviteSending, setInviteSending] = React.useState(false);
-  const [inviteError, setInviteError] = React.useState<string | null>(null);
-  const [copyState, setCopyState] = React.useState<"idle" | "copied">("idle");
-  const [showInviteDetails, setShowInviteDetails] = React.useState(false);
-  const [invitePickerOpen, setInvitePickerOpen] = React.useState(false);
-  const inviteRevealTimer = React.useRef<number | null>(null);
 
   const participantProfiles = React.useMemo(() => {
     const map = new Map<string, ParticipantProfile>();
@@ -419,37 +432,6 @@ export function PartyPanel({
     }
   }, [createSummaryEnabled]);
 
-  React.useEffect(() => {
-    if (copyState !== "copied") return;
-    const timer = window.setTimeout(() => setCopyState("idle"), 2400);
-    return () => window.clearTimeout(timer);
-  }, [copyState]);
-
-  React.useEffect(() => {
-    if (!inviteFeedback) return;
-    const timer = window.setTimeout(() => setInviteFeedback(null), 3800);
-    return () => window.clearTimeout(timer);
-  }, [inviteFeedback]);
-
-  React.useEffect(() => {
-    return () => {
-      if (inviteRevealTimer.current !== null) {
-        window.clearTimeout(inviteRevealTimer.current);
-        inviteRevealTimer.current = null;
-      }
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (!session) {
-      setShowInviteDetails(false);
-      if (inviteRevealTimer.current !== null) {
-        window.clearTimeout(inviteRevealTimer.current);
-        inviteRevealTimer.current = null;
-      }
-    }
-  }, [session?.partyId, session]);
-
   const isLoading = status === "loading";
   const isConnecting = status === "connecting";
   const loading = isLoading || isConnecting;
@@ -473,40 +455,36 @@ export function PartyPanel({
     });
     return map;
   }, [inviteableFriends]);
-  const summarySettings = React.useMemo<PartySummarySettings>(() => {
-    const raw = session?.metadata.summary;
-    const enabled = typeof raw?.enabled === "boolean" ? raw.enabled : false;
-    const verbosity: SummaryLengthHint =
-      raw?.verbosity === "brief" || raw?.verbosity === "detailed" || raw?.verbosity === "medium"
-        ? raw.verbosity
-        : "medium";
-    const lastGeneratedAt =
-      typeof raw?.lastGeneratedAt === "string" ? raw.lastGeneratedAt : undefined;
-    const memoryId = typeof raw?.memoryId === "string" ? raw.memoryId : undefined;
-    const lastGeneratedBy =
-      typeof raw?.lastGeneratedBy === "string" ? raw.lastGeneratedBy : undefined;
-    return {
-      enabled,
-      verbosity,
-      lastGeneratedAt,
-      memoryId,
-      lastGeneratedBy,
-    };
-  }, [session?.metadata.summary]);
-
-  React.useEffect(() => {
-    if (!session) {
-      setSummaryResult(null);
-      setSummaryError(null);
-      setTranscriptSegments([]);
-    }
-  }, [session?.partyId, session]);
-
-  React.useEffect(() => {
-    if (!summarySettings.enabled) {
-      setSummaryResult(null);
-    }
-  }, [summarySettings.enabled]);
+  const {
+    summarySettings,
+    summaryResult,
+    summaryError,
+    summaryUpdating,
+    summaryGenerating,
+    transcriptSegments,
+    handleSummaryToggle,
+    handleSummaryVerbosityChange,
+    handleSummaryReset,
+    handleTranscriptsChange,
+    handleGenerateSummary,
+  } = usePartySummary({ session, updateMetadata });
+  const {
+    copyState,
+    inviteFeedback,
+    inviteSending,
+    inviteError,
+    invitePickerOpen,
+    showInviteDetails,
+    handleOpenInvitePicker,
+    handleCloseInvitePicker,
+    handleInviteFriends,
+    handleGenerateInvite,
+  } = usePartyInvites({
+    session,
+    inviteUrl,
+    friendTargets,
+    inviteableFriendsByUserId,
+  });
 
   const handlePrivacyKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, optionIndex: number) => {
@@ -557,291 +535,6 @@ export function PartyPanel({
       displayName: displayName.trim() || null,
     });
   }, [joinParty, joinCode, displayName]);
-
-  const handleCopyInvite = React.useCallback(async () => {
-    if (!session) return;
-    const content = inviteUrl ?? session.partyId;
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopyState("copied");
-      setInviteFeedback({
-        message: "Invite link copied to your clipboard.",
-        tone: "success",
-      });
-    } catch (err) {
-      console.error("Copy failed", err);
-      setCopyState("idle");
-      setInviteFeedback({
-        message: "We couldn't copy the invite link. Copy it manually.",
-        tone: "warning",
-      });
-    }
-  }, [inviteUrl, session]);
-
-  const handleGenerateInvite = React.useCallback(async () => {
-    await handleCopyInvite();
-    setShowInviteDetails(true);
-    if (inviteRevealTimer.current !== null) {
-      window.clearTimeout(inviteRevealTimer.current);
-      inviteRevealTimer.current = null;
-    }
-    inviteRevealTimer.current = window.setTimeout(() => {
-      setShowInviteDetails(false);
-      setCopyState("idle");
-    }, 10000);
-  }, [handleCopyInvite]);
-
-  const handleOpenInvitePicker = React.useCallback(() => {
-    setInviteError(null);
-    setInvitePickerOpen(true);
-  }, []);
-
-  const handleCloseInvitePicker = React.useCallback(() => {
-    setInviteError(null);
-    setInvitePickerOpen(false);
-  }, []);
-
-  const handleInviteFriends = React.useCallback(
-    async (userIds: string[]) => {
-      if (!session) {
-        setInviteError("Start a party first, then invite your friends.");
-        setInviteFeedback({
-          message: "Start a party first, then invite your friends.",
-          tone: "warning",
-        });
-        return;
-      }
-      const unique = Array.from(new Set(userIds));
-      if (!unique.length) {
-        setInviteError("Pick at least one friend to invite.");
-        return;
-      }
-      const validIds = unique.filter((userId) => friendTargets.has(userId));
-      if (!validIds.length) {
-        setInviteError("Those friends cannot be invited right now.");
-        return;
-      }
-      setInviteSending(true);
-      setInviteError(null);
-      try {
-        for (const userId of validIds) {
-          await sendPartyInviteRequest({
-            partyId: session.partyId,
-            recipientId: userId,
-          });
-        }
-        const namedTargets = validIds
-          .map((id) => inviteableFriendsByUserId.get(id)?.name)
-          .filter(Boolean);
-        const successMessage =
-          namedTargets.length === 1
-            ? `Invite sent to ${namedTargets[0]}.`
-            : `Invites sent to ${namedTargets.length} friends.`;
-        setInviteFeedback({
-          message: successMessage,
-          tone: "success",
-        });
-        setInvitePickerOpen(false);
-      } catch (err) {
-        console.error("Party invite error", err);
-        const message =
-          err instanceof Error
-            ? err.message
-            : "We couldn't deliver those invites. Try again soon.";
-        setInviteError(message);
-        setInviteFeedback({
-          message: "We couldn't deliver one or more invites. Try again soon.",
-          tone: "warning",
-        });
-      } finally {
-        setInviteSending(false);
-      }
-    },
-    [friendTargets, inviteableFriendsByUserId, session],
-  );
-
-  const applySummarySettings = React.useCallback(
-    async (patch: { enabled?: boolean; verbosity?: SummaryLengthHint; reset?: boolean }) => {
-      if (!session) {
-        setSummaryError("Start a party to configure summaries.");
-        return;
-      }
-      setSummaryUpdating(true);
-      setSummaryError(null);
-      try {
-        const response = await fetch(`/api/party/${session.partyId}/summary`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(patch),
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          const message =
-            (payload &&
-              typeof payload === "object" &&
-              "message" in payload &&
-              typeof (payload as { message?: unknown }).message === "string"
-              ? (payload as { message?: string }).message
-              : null) ?? "Unable to update summary settings.";
-          throw new Error(message);
-        }
-        const parsed = partySummarySettingsSchema.safeParse(payload);
-        const nextSummary = parsed.success ? parsed.data : summarySettings;
-        updateMetadata((metadata) => ({
-          ...metadata,
-          summary: nextSummary,
-        }));
-        if (patch.enabled === false || patch.reset) {
-          setTranscriptSegments([]);
-          setSummaryResult(null);
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unable to update summary settings.";
-        setSummaryError(message);
-      } finally {
-        setSummaryUpdating(false);
-      }
-    },
-    [session, summarySettings, updateMetadata],
-  );
-
-  const handleSummaryToggle = React.useCallback(() => {
-    void applySummarySettings({ enabled: !summarySettings.enabled });
-  }, [applySummarySettings, summarySettings.enabled]);
-
-  const handleSummaryVerbosityChange = React.useCallback(
-    (value: SummaryLengthHint) => {
-      if (value === summarySettings.verbosity) return;
-      void applySummarySettings({ verbosity: value });
-    },
-    [applySummarySettings, summarySettings.verbosity],
-  );
-
-  const handleSummaryReset = React.useCallback(() => {
-    void applySummarySettings({ reset: true });
-  }, [applySummarySettings]);
-
-  const handleTranscriptsChange = React.useCallback(
-    (segments: PartyTranscriptSegment[]) => {
-      setTranscriptSegments(segments);
-    },
-    [],
-  );
-
-  const handleGenerateSummary = React.useCallback(async () => {
-    if (!session) {
-      setSummaryError("Start a party to generate a summary.");
-      return;
-    }
-    if (!summarySettings.enabled) {
-      setSummaryError("Turn on summaries before generating a recap.");
-      return;
-    }
-    if (!transcriptSegments.length) {
-      setSummaryError("We're still capturing the conversation. Try again in a moment.");
-      return;
-    }
-    setSummaryGenerating(true);
-    setSummaryError(null);
-    try {
-      const recentSegments = transcriptSegments.slice(-160);
-      const segmentsPayload = recentSegments.map((segment) => {
-        const payload: {
-          id: string;
-          text: string;
-          speakerId: string | null;
-          speakerName: string | null;
-          startTime?: number;
-          endTime?: number;
-          language?: string | null;
-          final?: boolean;
-        } = {
-          id: segment.id,
-          text: segment.text,
-          speakerId: segment.speakerId,
-          speakerName: segment.speakerName,
-        };
-        if (typeof segment.startTime === "number") {
-          payload.startTime = segment.startTime;
-        }
-        if (typeof segment.endTime === "number") {
-          payload.endTime = segment.endTime;
-        }
-        if (segment.language !== undefined) {
-          payload.language = segment.language ?? null;
-        }
-        if (typeof segment.final === "boolean") {
-          payload.final = segment.final;
-        }
-        return payload;
-      });
-      const participantMap = new Map<string, string | null>();
-      for (const segment of recentSegments) {
-        if (segment.speakerId && !participantMap.has(segment.speakerId)) {
-          participantMap.set(segment.speakerId, segment.speakerName ?? null);
-        }
-      }
-      const participants =
-        participantMap.size > 0
-          ? Array.from(participantMap.entries()).map(([id, name]) => ({
-              id,
-              name,
-            }))
-          : undefined;
-
-      const response = await fetch(`/api/party/${session.partyId}/summary`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          verbosity: summarySettings.verbosity,
-          segments: segmentsPayload,
-          participants,
-        }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (
-        !response.ok ||
-        !payload ||
-        typeof payload !== "object" ||
-        (payload as PartySummaryResponse).status !== "ok"
-      ) {
-        const message =
-          payload &&
-          typeof payload === "object" &&
-          "message" in payload &&
-          typeof (payload as { message?: unknown }).message === "string"
-            ? (payload as { message?: string }).message
-            : "Unable to generate a party summary.";
-        throw new Error(message);
-      }
-      const summaryPayload = payload as PartySummaryResponse;
-      updateMetadata((metadata) => ({
-        ...metadata,
-        summary: summaryPayload.metadata.summary,
-      }));
-      setSummaryResult({
-        summary: summaryPayload.summary,
-        highlights: summaryPayload.highlights,
-        nextActions: summaryPayload.nextActions,
-        insights: summaryPayload.insights,
-        hashtags: summaryPayload.hashtags,
-        tone: summaryPayload.tone,
-        sentiment: summaryPayload.sentiment,
-        postTitle: null,
-        postPrompt: null,
-        wordCount: summaryPayload.wordCount,
-        model: summaryPayload.model,
-        source: "party",
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to generate a party summary.";
-      setSummaryError(message);
-    } finally {
-      setSummaryGenerating(false);
-    }
-  }, [session, summarySettings, transcriptSegments, updateMetadata]);
 
   const handleResetAndLeave = React.useCallback(async () => {
     await leaveParty();
@@ -1038,50 +731,15 @@ export function PartyPanel({
           </button>
         </div>
       </section>
-      <section className={styles.section}>
-        <div className={styles.sectionHeaderRow}>
-          <LinkSimple size={18} weight="duotone" />
-          <span>Have a code? Jump into a party</span>
-        </div>
-        <div className={styles.inlineJoin}>
-          <div className={styles.inlineJoinField}>
-            <input
-              className={styles.inlineJoinInput}
-              placeholder="Enter your party code"
-              value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value)}
-              disabled={loading}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  if (!loading && joinCode.trim()) {
-                    void handleJoinParty();
-                  }
-                }
-              }}
-            />
-            <button
-              type="button"
-              className={styles.inlineJoinButton}
-              onClick={() => {
-                void handleJoinParty();
-              }}
-              disabled={loading || !joinCode.trim()}
-              aria-label={
-                loading
-                  ? action === "join"
-                    ? "Connecting to party"
-                    : action === "resume"
-                      ? "Reconnecting to party"
-                      : "Connecting"
-                  : "Join party with this code"
-              }
-            >
-              <PaperPlaneTilt size={16} weight="bold" />
-            </button>
-          </div>
-        </div>
-      </section>
+      <JoinSection
+        joinCode={joinCode}
+        loading={loading}
+        action={action}
+        onChange={setJoinCode}
+        onSubmit={() => {
+          void handleJoinParty();
+        }}
+      />
     </>
   );
 
@@ -1164,190 +822,59 @@ export function PartyPanel({
           </div>
         </header>
         <section className={styles.section}>
-          <PartyStage
-            session={currentSession}
-            canClose={currentSession.isOwner}
-            status={status}
-            participantProfiles={participantProfiles}
-            friendTargets={friendTargets}
-            onLeave={handleResetAndLeave}
-            onClose={handleResetAndClose}
-            onReconnecting={handleRoomReconnecting}
-            onReady={handleRoomConnected}
-            onDisconnected={handleRoomDisconnected}
+          <React.Suspense
+            fallback={<div className={styles.sectionNotice}>Loading party lobby...</div>}
+          >
+            <PartyStage
+              session={currentSession}
+              canClose={currentSession.isOwner}
+              status={status}
+              participantProfiles={participantProfiles}
+              friendTargets={friendTargets}
+              onLeave={handleResetAndLeave}
+              onClose={handleResetAndClose}
+              onReconnecting={handleRoomReconnecting}
+              onReady={handleRoomConnected}
+              onDisconnected={handleRoomDisconnected}
+              summaryEnabled={summaryEnabled}
+              onTranscriptsChange={handleTranscriptsChange}
+            />
+          </React.Suspense>
+        </section>
+        <section className={styles.section}>
+          <SummaryPanel
             summaryEnabled={summaryEnabled}
-            onTranscriptsChange={handleTranscriptsChange}
+            canManageSummary={canManageSummary}
+            summaryStatusLabel={summaryStatusLabel}
+            summaryVerbosity={summaryVerbosity}
+            summaryUpdating={summaryUpdating}
+            summaryGenerating={summaryGenerating}
+            summaryButtonDisabled={summaryButtonDisabled}
+            summaryGenerateLabel={summaryGenerateLabel}
+            summaryResult={summaryResult}
+            summaryError={summaryError}
+            transcriptsReady={transcriptsReady}
+            summaryLastSavedLabel={summaryLastSavedLabel}
+            summaryMemoryId={summaryMemoryId}
+            onToggle={handleSummaryToggle}
+            onVerbosityChange={handleSummaryVerbosityChange}
+            onGenerate={() => {
+              void handleGenerateSummary();
+            }}
+            onReset={() => {
+              void handleSummaryReset();
+            }}
           />
         </section>
-        <section className={styles.section}>
-          <div className={styles.summaryPanel}>
-            <div className={styles.summaryHeaderRow}>
-              <div className={styles.summaryHeaderText}>
-                <span className={styles.label}>Conversation summary</span>
-                <p className={styles.summaryDescription}>
-                  {summaryEnabled
-                    ? "Generate a recap and Capsule will file it under Memory."
-                    : "Enable summaries to capture a recap of this voice party."}
-                </p>
-              </div>
-              {canManageSummary ? (
-                <button
-                  type="button"
-                  className={`${styles.summaryToggle} ${
-                    summaryEnabled ? styles.summaryToggleActive : ""
-                  }`.trim()}
-                  onClick={handleSummaryToggle}
-                  disabled={summaryUpdating}
-                  aria-pressed={summaryEnabled}
-                >
-                  {summaryStatusLabel}
-                </button>
-              ) : (
-                <span
-                  className={`${styles.summaryStatusBadge} ${
-                    summaryEnabled ? styles.summaryStatusBadgeActive : ""
-                  }`.trim()}
-                >
-                  {summaryEnabled ? "Enabled" : "Disabled"}
-                </span>
-              )}
-            </div>
-            <div className={styles.summaryControls}>
-              <div className={styles.summaryVerbosityRow}>
-                {SUMMARY_VERBOSITY_OPTIONS.map((option) => {
-                  const active = summaryVerbosity === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      className={`${styles.summaryVerbosityButton} ${
-                        active ? styles.summaryVerbosityButtonActive : ""
-                      }`.trim()}
-                      onClick={() => handleSummaryVerbosityChange(option)}
-                      disabled={!canManageSummary || summaryUpdating || !summaryEnabled}
-                      aria-pressed={active}
-                    >
-                      <span>{SUMMARY_LABELS[option]}</span>
-                      <small>{SUMMARY_DESCRIPTIONS[option]}</small>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className={styles.summaryActionRow}>
-                <button
-                  type="button"
-                  className={styles.summaryPrimaryButton}
-                  onClick={() => {
-                    void handleGenerateSummary();
-                  }}
-                  disabled={summaryButtonDisabled}
-                >
-                  {summaryGenerateLabel}
-                </button>
-                {canManageSummary && summarySettings.lastGeneratedAt ? (
-                  <button
-                    type="button"
-                    className={styles.summaryResetButton}
-                    onClick={() => {
-                      void handleSummaryReset();
-                    }}
-                    disabled={summaryUpdating || summaryGenerating}
-                  >
-                    Reset summary
-                  </button>
-                ) : null}
-              </div>
-              <div className={styles.summaryMetaRow}>
-                <span>
-                  {summaryEnabled
-                    ? transcriptsReady
-                      ? "Live captions are rolling."
-                      : "Listening for voices…"
-                    : "Summaries are off for this party."}
-                </span>
-                {summaryLastSavedLabel ? (
-                  <span>
-                    Last saved {summaryLastSavedLabel}
-                    {summaryMemoryId ? (
-                      <span className={styles.summaryMemoryTag}>Memory #{summaryMemoryId.slice(0, 8)}</span>
-                    ) : null}
-                  </span>
-                ) : null}
-              </div>
-              {summaryError ? (
-                <div className={styles.summaryError} role="status">
-                  {summaryError}
-                </div>
-              ) : null}
-            </div>
-            {summaryResult ? (
-              <div className={styles.summaryResultCard}>
-                <p className={styles.summaryResultText}>{summaryResult.summary}</p>
-                {summaryResult.highlights.length ? (
-                  <ul className={styles.summaryHighlights}>
-                    {summaryResult.highlights.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ) : null}
-                {summaryResult.nextActions.length ? (
-                  <div className={styles.summaryNextActions}>
-                    <span>Next steps</span>
-                    <ul>
-                      {summaryResult.nextActions.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </section>
-        <section className={styles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <LinkSimple size={18} weight="duotone" />
-            <span>Have a code? Jump into a party</span>
-          </div>
-          <div className={styles.inlineJoin}>
-            <div className={styles.inlineJoinField}>
-              <input
-                className={styles.inlineJoinInput}
-                placeholder="Enter your party code"
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value)}
-                disabled={loading}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    if (!loading && joinCode.trim()) {
-                      void handleJoinParty();
-                    }
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className={styles.inlineJoinButton}
-                onClick={() => {
-                  void handleJoinParty();
-                }}
-                disabled={loading || !joinCode.trim()}
-                aria-label={
-                  loading
-                    ? action === "join"
-                      ? "Connecting to party"
-                      : action === "resume"
-                        ? "Reconnecting to party"
-                        : "Connecting"
-                    : "Join party with this code"
-                }
-              >
-                <PaperPlaneTilt size={16} weight="bold" />
-              </button>
-            </div>
-          </div>
-        </section>
+        <JoinSection
+          joinCode={joinCode}
+          loading={loading}
+          action={action}
+          onChange={setJoinCode}
+          onSubmit={() => {
+            void handleJoinParty();
+          }}
+        />
         <ChatStartOverlay
           open={invitePickerOpen}
           onClose={handleCloseInvitePicker}
@@ -1401,1045 +928,3 @@ export function PartyPanel({
   );
 }
 
-function PartyStage({
-  session,
-  canClose,
-  status,
-  participantProfiles,
-  friendTargets,
-  onLeave,
-  onClose,
-  onReconnecting,
-  onReady,
-  onDisconnected,
-  summaryEnabled,
-  onTranscriptsChange,
-}: PartyStageProps) {
-  return (
-    <LiveKitRoom
-      key={session.partyId}
-      serverUrl={session.livekitUrl}
-      token={session.token}
-      connect
-      audio
-      video={false}
-      connectOptions={{ autoSubscribe: true }}
-    >
-      <RoomAudioRenderer />
-      <PartyStageScene
-        session={session}
-        canClose={canClose}
-        status={status}
-        participantProfiles={participantProfiles}
-        friendTargets={friendTargets}
-        onLeave={onLeave}
-        onClose={onClose}
-        onReconnecting={onReconnecting}
-        onReady={onReady}
-        onDisconnected={onDisconnected}
-        summaryEnabled={summaryEnabled}
-        onTranscriptsChange={onTranscriptsChange}
-      />
-    </LiveKitRoom>
-  );
-}
-
-type PartyStageSceneProps = {
-  session: PartySession;
-  canClose: boolean;
-  status: string;
-  participantProfiles: Map<string, ParticipantProfile>;
-  friendTargets: Map<string, ChatFriendTarget>;
-  onLeave(): Promise<void> | void;
-  onClose(): Promise<void> | void;
-  onReconnecting(): void;
-  onReady(room: Room): void;
-  onDisconnected(): void;
-  summaryEnabled: boolean;
-  onTranscriptsChange(segments: PartyTranscriptSegment[]): void;
-};
-
-type ParticipantMenuState = {
-  identity: string;
-  name: string;
-  avatar: string | null;
-  anchorRect: DOMRect;
-};
-
-function PartyStageScene({
-  session,
-  canClose,
-  status,
-  participantProfiles,
-  friendTargets,
-  onLeave,
-  onClose,
-  onReconnecting,
-  onReady,
-  onDisconnected,
-  summaryEnabled,
-  onTranscriptsChange,
-}: PartyStageSceneProps) {
-  const { updateMetadata } = usePartyContext();
-  const room = useRoomContext();
-  const participants = useParticipants();
-  const chat = useChatContext();
-  const { user } = useCurrentUser();
-  const transcriptBufferRef = React.useRef<Map<string, PartyTranscriptSegment>>(new Map());
-  const [micEnabled, setMicEnabled] = React.useState<boolean>(true);
-  const [micBusy, setMicBusy] = React.useState(false);
-  const [micNotice, setMicNotice] = React.useState<string | null>(null);
-  const [isDeafened, setIsDeafened] = React.useState(false);
-  const [voiceInputDeviceId, setVoiceInputDeviceId] = React.useState<string | null>(null);
-  const [voiceOutputDeviceId, setVoiceOutputDeviceId] = React.useState<string | null>(null);
-  const [voiceInputVolume, setVoiceInputVolume] = React.useState<number>(1);
-  const [voiceOutputVolume, setVoiceOutputVolume] = React.useState<number>(1);
-  const [volumeLevels, setVolumeLevels] = React.useState<Record<string, number>>({});
-  const [menuState, setMenuState] = React.useState<ParticipantMenuState | null>(null);
-  const [assistantNotice, setAssistantNotice] = React.useState<string | null>(null);
-  const [assistantBusy, setAssistantBusy] = React.useState(false);
-  const [hostNotice, setHostNotice] = React.useState<string | null>(null);
-  const [hostBusy, setHostBusy] = React.useState(false);
-  const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
-    room,
-    props: {
-      type: "button",
-      className: `${styles.controlButton} ${styles.startAudio}`,
-    },
-  });
-  const startAudioButtonProps = React.useMemo(() => {
-    const { style: _style, ...rest } = startAudioProps;
-    return rest;
-  }, [startAudioProps]);
-
-  const currentHostId = session.metadata.hostId ?? session.metadata.ownerId;
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const readString = (key: string): string | null => {
-      try {
-        const value = window.localStorage.getItem(key);
-        return value && value.trim().length ? value : null;
-      } catch {
-        return null;
-      }
-    };
-    const readNumber = (key: string, fallback: number): number => {
-      try {
-        const value = window.localStorage.getItem(key);
-        if (!value) return fallback;
-        const parsed = Number.parseInt(value, 10);
-        if (Number.isNaN(parsed)) return fallback;
-        return Math.min(Math.max(parsed, 0), 100);
-      } catch {
-        return fallback;
-      }
-    };
-
-    setVoiceInputDeviceId(readString(INPUT_DEVICE_STORAGE_KEY));
-    setVoiceOutputDeviceId(readString(OUTPUT_DEVICE_STORAGE_KEY));
-    setVoiceInputVolume(readNumber(INPUT_VOLUME_STORAGE_KEY, 80) / 100);
-    setVoiceOutputVolume(readNumber(OUTPUT_VOLUME_STORAGE_KEY, 80) / 100);
-  }, []);
-
-  const getParticipantVolume = React.useCallback(
-    (identity: string | null | undefined): number => {
-      if (!identity) return 1;
-      const stored = volumeLevels[identity];
-      if (typeof stored === "number" && Number.isFinite(stored)) {
-        return Math.min(Math.max(stored, 0), 1);
-      }
-      return 1;
-    },
-    [volumeLevels],
-  );
-
-  const setRemoteParticipantVolume = React.useCallback(
-    (identity: string | null | undefined, volume: number) => {
-      if (!room || !identity) return;
-      const participant = room.remoteParticipants.get(identity);
-      if (!participant) return;
-      const clampedVolume = Math.min(Math.max(volume, 0), 1);
-      participant.audioTrackPublications.forEach((publication) => {
-        const track = publication.audioTrack;
-        if (track && "setVolume" in track && typeof track.setVolume === "function") {
-          track.setVolume(clampedVolume);
-        }
-      });
-    },
-    [room],
-  );
-
-  const flushTranscripts = React.useCallback(() => {
-    const entries = Array.from(transcriptBufferRef.current.values());
-    if (!entries.length) {
-      onTranscriptsChange([]);
-      return;
-    }
-    entries.sort((a, b) => {
-      const aStart = a.startTime ?? Number.POSITIVE_INFINITY;
-      const bStart = b.startTime ?? Number.POSITIVE_INFINITY;
-      if (Number.isFinite(aStart) && Number.isFinite(bStart)) {
-        return aStart - bStart;
-      }
-      if (Number.isFinite(aStart)) return -1;
-      if (Number.isFinite(bStart)) return 1;
-      return a.id.localeCompare(b.id);
-    });
-    onTranscriptsChange(entries.slice(-MAX_TRANSCRIPT_SEGMENTS));
-  }, [onTranscriptsChange]);
-
-  const applyParticipantAudioState = React.useCallback(() => {
-    if (!room) return;
-    room.remoteParticipants.forEach((participant, identity) => {
-      const targetVolume =
-        (isDeafened ? 0 : getParticipantVolume(identity)) * voiceOutputVolume;
-      setRemoteParticipantVolume(identity, targetVolume);
-    });
-  }, [getParticipantVolume, isDeafened, room, setRemoteParticipantVolume, voiceOutputVolume]);
-
-  React.useEffect(() => {
-    if (!room) return;
-
-    const handleRoomDisconnected = () => {
-      onDisconnected();
-    };
-    const handleRoomReconnecting = () => {
-      onReconnecting();
-    };
-    const handleRoomReconnected = () => {
-      onReady(room);
-    };
-
-    onReady(room);
-    setMicEnabled(resolveLocalMicEnabled(room));
-    room.on(RoomEvent.Disconnected, handleRoomDisconnected);
-    room.on(RoomEvent.Reconnecting, handleRoomReconnecting);
-    room.on(RoomEvent.Reconnected, handleRoomReconnected);
-
-    return () => {
-      room.off(RoomEvent.Disconnected, handleRoomDisconnected);
-      room.off(RoomEvent.Reconnecting, handleRoomReconnecting);
-      room.off(RoomEvent.Reconnected, handleRoomReconnected);
-    };
-  }, [onDisconnected, onReady, onReconnecting, room]);
-
-  React.useEffect(() => {
-    if (!room || !voiceInputDeviceId) return;
-    room
-      .switchActiveDevice?.("audioinput", voiceInputDeviceId)
-      .catch((error) => console.warn("Failed to switch input device", error));
-  }, [room, voiceInputDeviceId]);
-
-  React.useEffect(() => {
-    if (!room || !voiceOutputDeviceId) return;
-    room
-      .switchActiveDevice?.("audiooutput", voiceOutputDeviceId)
-      .catch((error) => console.warn("Failed to switch output device", error));
-  }, [room, voiceOutputDeviceId]);
-
-  React.useEffect(() => {
-    if (!room) return;
-    room.localParticipant?.audioTrackPublications.forEach((publication) => {
-      const track = publication.audioTrack;
-      if (track && "setVolume" in track && typeof track.setVolume === "function") {
-        track.setVolume(Math.min(Math.max(voiceInputVolume, 0), 1));
-      }
-    });
-  }, [room, voiceInputVolume]);
-
-  React.useEffect(() => {
-    if (!room) return;
-
-    const syncMicState = () => {
-      setMicEnabled(resolveLocalMicEnabled(room));
-    };
-
-    const handleTrackToggle = (publication: TrackPublication, participant: Participant) => {
-      if (participant.isLocal && publication.kind === Track.Kind.Audio) {
-        syncMicState();
-      }
-    };
-
-    syncMicState();
-    const handleLocalTrackPublished = (publication: TrackPublication, participant: Participant) => {
-      if (participant.isLocal && publication.kind === Track.Kind.Audio) {
-        syncMicState();
-      }
-    };
-
-    room.on(RoomEvent.TrackMuted, handleTrackToggle);
-    room.on(RoomEvent.TrackUnmuted, handleTrackToggle);
-    room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
-
-    return () => {
-      room.off(RoomEvent.TrackMuted, handleTrackToggle);
-      room.off(RoomEvent.TrackUnmuted, handleTrackToggle);
-      room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
-    };
-  }, [room]);
-
-  React.useEffect(() => {
-    applyParticipantAudioState();
-  }, [applyParticipantAudioState]);
-
-  React.useEffect(() => {
-    if (!room || !summaryEnabled) {
-      transcriptBufferRef.current.clear();
-      if (!summaryEnabled) {
-        onTranscriptsChange([]);
-      }
-      return;
-    }
-
-    const handleTranscription = (segments: TranscriptionSegment[], participant?: Participant) => {
-      const identity = participant?.identity ?? null;
-      const profile = identity ? participantProfiles.get(identity) ?? null : null;
-      const speakerName =
-        profile?.name ?? participant?.name ?? (identity && identity.trim().length ? identity : "Guest");
-
-      for (const segment of segments) {
-        if (!segment?.id) continue;
-        const text = typeof segment.text === "string" ? segment.text.trim() : "";
-        if (!text.length) continue;
-        const entry: PartyTranscriptSegment = {
-          id: segment.id,
-          text,
-          speakerId: identity,
-          speakerName: speakerName ?? null,
-        };
-        if (typeof segment.startTime === "number") {
-          entry.startTime = segment.startTime;
-        }
-        if (typeof segment.endTime === "number") {
-          entry.endTime = segment.endTime;
-        }
-        if (segment.language !== undefined) {
-          entry.language = typeof segment.language === "string" ? segment.language : null;
-        }
-        if (typeof segment.final === "boolean") {
-          entry.final = segment.final;
-        }
-        transcriptBufferRef.current.set(segment.id, entry);
-      }
-
-      if (transcriptBufferRef.current.size > MAX_TRANSCRIPT_SEGMENTS * 2) {
-        const trimmedEntries = Array.from(transcriptBufferRef.current.entries())
-          .sort((a, b) => {
-            const aStart = a[1].startTime ?? Number.POSITIVE_INFINITY;
-            const bStart = b[1].startTime ?? Number.POSITIVE_INFINITY;
-            if (Number.isFinite(aStart) && Number.isFinite(bStart)) {
-              return aStart - bStart;
-            }
-            if (Number.isFinite(aStart)) return -1;
-            if (Number.isFinite(bStart)) return 1;
-            return a[0].localeCompare(b[0]);
-          })
-          .slice(-MAX_TRANSCRIPT_SEGMENTS);
-        transcriptBufferRef.current = new Map(trimmedEntries);
-      }
-
-      flushTranscripts();
-    };
-
-    room.on(RoomEvent.TranscriptionReceived, handleTranscription);
-
-    return () => {
-      room.off(RoomEvent.TranscriptionReceived, handleTranscription);
-    };
-  }, [flushTranscripts, onTranscriptsChange, participantProfiles, room, summaryEnabled]);
-
-  React.useEffect(() => {
-    if (!room) return;
-
-    const handleTrackSubscribed = (
-      _track: unknown,
-      publication: RemoteTrackPublication,
-      participant: Participant,
-    ) => {
-      if (participant.isLocal) return;
-      if (publication.kind !== Track.Kind.Audio) return;
-      const identity = participant.identity;
-      if (!identity) return;
-      const targetVolume =
-        (isDeafened ? 0 : getParticipantVolume(identity)) * voiceOutputVolume;
-      const track = publication.audioTrack;
-      if (track && "setVolume" in track && typeof track.setVolume === "function") {
-        track.setVolume(targetVolume);
-      }
-    };
-
-    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
-
-    return () => {
-      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
-    };
-  }, [getParticipantVolume, isDeafened, room, voiceOutputVolume]);
-
-  const handleToggleDeafen = React.useCallback(() => {
-    if (!room) return;
-    setIsDeafened((prev) => !prev);
-  }, [room]);
-
-  const handleParticipantVolumeChange = React.useCallback(
-    (identity: string, sliderPercent: number) => {
-      if (!identity) return;
-      const normalized = Math.min(Math.max(sliderPercent, 0), 100) / 100;
-      setVolumeLevels((prev) => {
-        const previous = prev[identity] ?? 1;
-        if (Math.abs(previous - normalized) < 0.001) {
-          return prev;
-        }
-        return {
-          ...prev,
-          [identity]: normalized,
-        };
-      });
-      const effectiveVolume = (isDeafened ? 0 : normalized) * voiceOutputVolume;
-      setRemoteParticipantVolume(identity, effectiveVolume);
-    },
-    [isDeafened, setRemoteParticipantVolume, voiceOutputVolume],
-  );
-
-  const closeParticipantMenu = React.useCallback(() => {
-    setMenuState(null);
-  }, []);
-
-  const handleOpenParticipantMenu = React.useCallback(
-    (
-      participant: ReturnType<typeof useParticipants>[number],
-      profile: ParticipantProfile | null,
-      anchor: HTMLElement,
-    ) => {
-      if (participant.isLocal) return;
-      const identity = participant.identity;
-      if (!identity) return;
-      const rect = anchor.getBoundingClientRect();
-      const nameCandidate =
-        profile?.name ?? participant.name ?? identity ?? "Guest";
-      setMenuState({
-        identity,
-        name: nameCandidate,
-        avatar: profile?.avatar ?? null,
-        anchorRect: rect,
-      });
-    },
-    [],
-  );
-
-  const handleSendMessage = React.useCallback(
-    (identity: string) => {
-      if (!identity) return;
-      if (identity === room?.localParticipant?.identity) return;
-      const knownProfile = participantProfiles.get(identity) ?? null;
-      const target =
-        friendTargets.get(identity) ??
-        {
-          userId: identity,
-          name: knownProfile?.name ?? identity,
-          avatar: knownProfile?.avatar ?? null,
-        };
-      const result = chat.startChat(target, { activate: true });
-      if (!result) {
-        console.warn("Unable to start a chat session for participant", identity);
-      }
-      closeParticipantMenu();
-    },
-    [chat, closeParticipantMenu, friendTargets, participantProfiles, room],
-  );
-
-  const handleMakeHost = React.useCallback(
-    async (identity: string) => {
-      if (!session || !identity || hostBusy) return;
-      if (identity === currentHostId) {
-        setHostNotice("That participant is already the host.");
-        return;
-      }
-      setHostBusy(true);
-      setHostNotice(null);
-      try {
-        const res = await fetch(`/api/party/${session.partyId}/host`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ hostId: identity }),
-        });
-        const payload = await res.json().catch(() => null);
-        if (!res.ok) {
-          const message =
-            payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
-              ? (payload as { message: string }).message
-              : "Unable to hand off hosting right now.";
-          throw new Error(message);
-        }
-        const nextHost =
-          payload && typeof payload === "object" && "hostId" in payload && typeof (payload as { hostId?: unknown }).hostId === "string"
-            ? ((payload as { hostId: string }).hostId as string)
-            : identity;
-        updateMetadata((metadata) => ({
-          ...metadata,
-          hostId: nextHost,
-        }));
-        setHostNotice("Hosting handed off.");
-        closeParticipantMenu();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to hand off hosting.";
-        setHostNotice(message);
-      } finally {
-        setHostBusy(false);
-      }
-    },
-    [closeParticipantMenu, currentHostId, hostBusy, session, updateMetadata],
-  );
-
-  React.useEffect(() => {
-    if (!menuState) return;
-    if (typeof window === "undefined") return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeParticipantMenu();
-      }
-    };
-    const handleViewportChange = () => {
-      closeParticipantMenu();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("scroll", handleViewportChange, true);
-    window.addEventListener("resize", handleViewportChange);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("scroll", handleViewportChange, true);
-      window.removeEventListener("resize", handleViewportChange);
-    };
-  }, [closeParticipantMenu, menuState]);
-
-  const handleToggleMic = React.useCallback(async () => {
-    if (!room) return;
-    const next = !(room.localParticipant?.isMicrophoneEnabled ?? true);
-    setMicBusy(true);
-    try {
-      if (next) {
-        try {
-          await requestMicrophonePermission();
-        } catch (permissionError) {
-          console.warn("[party] microphone getUserMedia request failed", permissionError);
-          throw new Error("Microphone permission is required to speak.");
-        }
-
-        if (typeof room.startAudio === "function") {
-          // Mobile browsers require an active audio context before capturing audio.
-          try {
-            await room.startAudio();
-          } catch (audioError) {
-            console.warn("[party] failed to start audio before enabling mic", audioError);
-          }
-        }
-      }
-      await room.localParticipant?.setMicrophoneEnabled(next);
-      setMicEnabled(resolveLocalMicEnabled(room));
-      setMicNotice(null);
-    } catch (err) {
-      console.warn("Toggle microphone failed", err);
-      const message = normalizeMicrophoneError(err);
-      setMicNotice(message.message);
-      setMicEnabled(resolveLocalMicEnabled(room));
-    } finally {
-      setMicBusy(false);
-    }
-  }, [room]);
-
-  const participantCount = participants.length;
-  const menuVolume = menuState ? getParticipantVolume(menuState.identity) : 1;
-  const canMessageSelected =
-    Boolean(menuState && menuState.identity !== room?.localParticipant?.identity);
-  const canTransferHost =
-    Boolean(user?.id) &&
-    (user?.id === session.metadata.ownerId || user?.id === currentHostId);
-  const assistantPresent = React.useMemo(
-    () =>
-      participants.some(
-        (participant) => typeof participant.identity === "string" && participant.identity.startsWith("agent-"),
-      ),
-    [participants],
-  );
-
-  const applyAssistantMetadata = React.useCallback(
-    (
-      assistant:
-        | {
-            desired?: boolean;
-            lastRequestedAt?: string | null;
-            lastDismissedAt?: string | null;
-          }
-        | null,
-      fallbackDesired: boolean,
-    ) => {
-      updateMetadata((metadata) => {
-        const currentAssistant =
-          metadata.assistant ?? { desired: fallbackDesired, lastRequestedAt: null, lastDismissedAt: null };
-        const nextDesired =
-          assistant && typeof assistant.desired === "boolean" ? assistant.desired : currentAssistant.desired;
-        const nextLastRequested =
-          assistant && "lastRequestedAt" in assistant
-            ? assistant.lastRequestedAt ?? null
-            : currentAssistant.lastRequestedAt ?? null;
-        const nextLastDismissed =
-          assistant && "lastDismissedAt" in assistant
-            ? assistant.lastDismissedAt ?? null
-            : currentAssistant.lastDismissedAt ?? null;
-
-        return {
-          ...metadata,
-          assistant: {
-            desired: typeof nextDesired === "boolean" ? nextDesired : fallbackDesired,
-            lastRequestedAt: nextLastRequested,
-            lastDismissedAt: nextLastDismissed,
-          },
-        };
-      });
-    },
-    [updateMetadata],
-  );
-
-  const summonAssistant = React.useCallback(async () => {
-    if (!session) return;
-    setAssistantBusy(true);
-    setAssistantNotice(null);
-    try {
-      const res = await fetch(`/api/party/${session.partyId}/assistant`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ desired: true }),
-      });
-      const payload = await res.json().catch(() => null);
-      if (!res.ok) {
-        const message =
-          payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
-            ? (payload as { message: string }).message
-            : "Unable to call the assistant right now.";
-        throw new Error(message);
-      }
-      const assistantPayload =
-        payload && typeof payload === "object" && "assistant" in payload
-          ? ((payload as { assistant?: unknown }).assistant as {
-              desired?: boolean;
-              lastRequestedAt?: string | null;
-              lastDismissedAt?: string | null;
-            } | null)
-          : null;
-      applyAssistantMetadata(assistantPayload, true);
-      setAssistantNotice("Assistant invited. It may take a few seconds to join.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to call the assistant.";
-      setAssistantNotice(message);
-    } finally {
-      setAssistantBusy(false);
-    }
-  }, [applyAssistantMetadata, session]);
-
-  const dismissAssistant = React.useCallback(async () => {
-    if (!session) return;
-    setAssistantBusy(true);
-    setAssistantNotice(null);
-    try {
-      const res = await fetch(`/api/party/${session.partyId}/assistant`, { method: "DELETE" });
-      const payload = await res.json().catch(() => null);
-      if (!res.ok) {
-        const message =
-          payload && typeof payload === "object" && typeof (payload as { message?: unknown }).message === "string"
-            ? (payload as { message: string }).message
-            : "Unable to dismiss the assistant right now.";
-        throw new Error(message);
-      }
-      const assistantPayload =
-        payload && typeof payload === "object" && "assistant" in payload
-          ? ((payload as { assistant?: unknown }).assistant as {
-              desired?: boolean;
-              lastRequestedAt?: string | null;
-              lastDismissedAt?: string | null;
-            } | null)
-          : null;
-      applyAssistantMetadata(assistantPayload, false);
-      setAssistantNotice("Assistant dismissed.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to dismiss the assistant.";
-      setAssistantNotice(message);
-    } finally {
-      setAssistantBusy(false);
-    }
-  }, [applyAssistantMetadata, session]);
-
-  return (
-    <>
-      <div className={styles.stageInner}>
-      <div className={styles.stageHeader}>
-        <span className={styles.stageTitle}>Live lobby</span>
-        <span className={styles.stageMeta}>
-          {participantCount} participant{participantCount === 1 ? "" : "s"}
-        </span>
-      </div>
-      <div className={styles.participantsGrid}>
-        {participants.map((participant) => {
-          const profile = participant.identity
-            ? participantProfiles.get(participant.identity)
-            : null;
-          return (
-            <ParticipantBadge
-              key={participant.sid}
-              participant={participant}
-              profile={profile ?? null}
-              isSelected={menuState?.identity === participant.identity}
-              onOpenMenu={handleOpenParticipantMenu}
-            />
-          );
-        })}
-        {participants.length === 0 ? (
-          <div className={styles.participantEmpty}>
-            <span>No one has joined yet. Share your invite to get the party started.</span>
-          </div>
-        ) : null}
-      </div>
-      <div className={styles.controls}>
-        <div className={styles.controlGroup}>
-          {!canPlayAudio ? (
-            <button {...startAudioButtonProps}>
-              <MicrophoneStage size={16} weight="bold" />
-              Tap to allow party audio
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlCompact}`}
-            onClick={() => {
-              void handleToggleMic();
-            }}
-            disabled={micBusy || !room}
-          >
-            {micEnabled ? (
-              <Microphone size={16} weight="bold" />
-            ) : (
-              <MicrophoneSlash size={16} weight="bold" />
-            )}
-            {micEnabled ? "Mute" : "Unmute"}
-          </button>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlCompact}`}
-            onClick={handleToggleDeafen}
-            disabled={!room}
-            aria-pressed={isDeafened}
-          >
-            {isDeafened ? (
-              <SpeakerSimpleSlash size={16} weight="bold" />
-            ) : (
-              <SpeakerSimpleHigh size={16} weight="bold" />
-            )}
-            {isDeafened ? "Undeafen" : "Deafen"}
-          </button>
-        </div>
-        {canClose ? (
-          <div className={styles.controlGroup}>
-            <button
-              type="button"
-              className={`${styles.controlButton} ${
-                assistantPresent ? styles.controlDanger : styles.controlCompact
-              }`}
-              onClick={() => {
-                if (assistantPresent) {
-                  void dismissAssistant();
-                } else {
-                  void summonAssistant();
-                }
-              }}
-              disabled={assistantBusy || !room}
-              aria-pressed={assistantPresent}
-            >
-              {assistantPresent ? <XCircle size={16} weight="bold" /> : <Sparkle size={16} weight="bold" />}
-              {assistantBusy
-                ? assistantPresent
-                  ? "Dismissing..."
-                  : "Calling..."
-                : assistantPresent
-                  ? "Dismiss Assistant"
-                  : "Call Assistant"}
-            </button>
-          </div>
-        ) : null}
-        <div className={styles.controlGroup}>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlGhost}`}
-            onClick={() => {
-              void onLeave();
-            }}
-          >
-            <SignOut size={16} weight="bold" />
-            Leave lobby
-          </button>
-          {canClose ? (
-            <button
-              type="button"
-              className={`${styles.controlButton} ${styles.controlDanger}`}
-              onClick={() => {
-                void onClose();
-              }}
-            >
-              <XCircle size={16} weight="bold" />
-              End party
-            </button>
-          ) : null}
-        </div>
-      </div>
-      {status !== "connected" ? (
-        <div className={styles.statusHint}>
-          <span>Connection status: {status}</span>
-        </div>
-      ) : null}
-      {micNotice ? (
-        <div className={styles.micNotice} role="status">
-          {micNotice}
-        </div>
-      ) : null}
-      {assistantNotice ? (
-        <div className={styles.micNotice} role="status">
-          {assistantNotice}
-        </div>
-      ) : null}
-      {hostNotice ? (
-        <div className={styles.micNotice} role="status">
-          {hostNotice}
-        </div>
-      ) : null}
-      </div>
-      {menuState ? (
-        <ParticipantMenuPortal
-          state={menuState}
-          onClose={closeParticipantMenu}
-          onSendMessage={() => handleSendMessage(menuState.identity)}
-          onVolumeChange={(value) => handleParticipantVolumeChange(menuState.identity, value)}
-          volume={menuVolume}
-          disableMessage={!canMessageSelected}
-          canMakeHost={canTransferHost && menuState.identity !== currentHostId}
-          onMakeHost={() => handleMakeHost(menuState.identity)}
-          makeHostBusy={hostBusy}
-        />
-      ) : null}
-    </>
-  );
-}
-
-type ParticipantBadgeProps = {
-  participant: ReturnType<typeof useParticipants>[number];
-  profile: ParticipantProfile | null;
-  isSelected?: boolean;
-  onOpenMenu?: (
-    participant: ReturnType<typeof useParticipants>[number],
-    profile: ParticipantProfile | null,
-    anchor: HTMLElement,
-  ) => void;
-};
-
-function resolveLocalMicEnabled(room: Room | null): boolean {
-  if (!room) return true;
-  const participant = room.localParticipant;
-  if (!participant) return true;
-  if (participant.audioTrackPublications.size > 0) {
-    for (const publication of participant.audioTrackPublications.values()) {
-      if (!publication.isMuted) {
-        return true;
-      }
-    }
-    return false;
-  }
-  return participant.isMicrophoneEnabled;
-}
-
-function ParticipantBadge({
-  participant,
-  profile,
-  isSelected = false,
-  onOpenMenu,
-}: ParticipantBadgeProps) {
-  const speaking = participant.isSpeaking;
-  const mic = participant.isMicrophoneEnabled;
-  const rawFallback = participant.name || participant.identity || "Guest";
-  const fallbackName = rawFallback.startsWith("agent-") ? "Assistant" : rawFallback;
-  const profileName = profile?.name ?? null;
-  const hasProfileName = typeof profileName === "string" && profileName.trim().length > 0;
-  const name = hasProfileName ? profileName : fallbackName;
-  const avatarCandidate = profile?.avatar ?? null;
-  const avatar =
-    typeof avatarCandidate === "string" && avatarCandidate.trim().length > 0
-      ? avatarCandidate
-      : null;
-  const initials = initialsFromName(name);
-  const actionable = Boolean(onOpenMenu && !participant.isLocal);
-  const classes = [
-    styles.participantCard,
-    speaking ? styles.participantSpeaking : "",
-    actionable ? styles.participantActionable : "",
-    isSelected ? styles.participantSelected : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const activateMenu = (anchor: HTMLElement) => {
-    if (!actionable || !onOpenMenu) return;
-    onOpenMenu(participant, profile, anchor);
-  };
-
-  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!actionable) return;
-    activateMenu(event.currentTarget);
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!actionable) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      activateMenu(event.currentTarget);
-    }
-  };
-
-  return (
-    <div
-      className={classes}
-      role={actionable ? "button" : undefined}
-      tabIndex={actionable ? 0 : undefined}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      aria-pressed={actionable ? isSelected : undefined}
-      aria-label={actionable ? `Interact with ${name}` : undefined}
-      data-identity={participant.identity ?? undefined}
-    >
-      <div className={styles.participantAvatar}>
-        {avatar ? (
-          <Image
-            alt={`${name}'s avatar`}
-            src={avatar}
-            width={42}
-            height={42}
-            className={styles.participantAvatarImage}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            sizes="42px"
-          />
-        ) : (
-          initials
-        )}
-      </div>
-      <div className={styles.participantDetails}>
-        <div className={styles.participantNameRow}>
-          <span className={styles.participantName}>{name}</span>
-        </div>
-        <div className={styles.participantState}>
-          {mic ? (
-            <Microphone size={14} weight="bold" />
-          ) : (
-            <MicrophoneSlash size={14} weight="bold" />
-          )}
-          <span>{mic ? (speaking ? "Speaking" : "Live") : "Muted"}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type ParticipantMenuPortalProps = {
-  state: ParticipantMenuState;
-  onClose(): void;
-  onSendMessage(): void;
-  onVolumeChange(value: number): void;
-  volume: number;
-  disableMessage?: boolean;
-  canMakeHost?: boolean;
-  onMakeHost?: () => void;
-  makeHostBusy?: boolean;
-};
-
-function ParticipantMenuPortal({
-  state,
-  onClose,
-  onSendMessage,
-  onVolumeChange,
-  volume,
-  disableMessage = false,
-  canMakeHost = false,
-  onMakeHost,
-  makeHostBusy = false,
-}: ParticipantMenuPortalProps) {
-  if (typeof window === "undefined" || typeof document === "undefined") {
-    return null;
-  }
-  const menuWidth = 260;
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const scrollX = window.scrollX ?? window.pageXOffset ?? 0;
-  const scrollY = window.scrollY ?? window.pageYOffset ?? 0;
-  const targetBottom = scrollY + state.anchorRect.bottom;
-  const topCandidate = targetBottom + 12;
-  const maxTop = scrollY + viewportHeight - 200;
-  const menuTop = Math.max(scrollY + 16, Math.min(topCandidate, maxTop));
-  const rawLeft =
-    scrollX + state.anchorRect.left + state.anchorRect.width / 2 - menuWidth / 2;
-  const minLeft = scrollX + 16;
-  const maxLeft = scrollX + viewportWidth - menuWidth - 16;
-  const menuLeft = Math.max(minLeft, Math.min(rawLeft, maxLeft));
-  const volumePercent = Math.round(Math.min(Math.max(volume, 0), 1) * 100);
-
-  return createPortal(
-    <>
-      <div className={cm.backdrop} onClick={onClose} aria-hidden="true" />
-      <div
-        className={`${cm.menu} ${styles.participantMenu}`}
-        style={{ top: `${menuTop}px`, left: `${menuLeft}px`, width: `${menuWidth}px` }}
-        role="dialog"
-        aria-label={`${state.name} options`}
-      >
-        <div className={styles.participantMenuHeader}>
-          <span className={styles.participantMenuName}>{state.name}</span>
-        </div>
-        <button
-          type="button"
-          className={cm.item}
-          onClick={onSendMessage}
-          disabled={disableMessage}
-        >
-          <PaperPlaneTilt size={16} weight="bold" />
-          Send a message
-        </button>
-        {canMakeHost ? (
-          <button
-            type="button"
-            className={cm.item}
-            onClick={() => {
-              onMakeHost?.();
-            }}
-            disabled={makeHostBusy}
-          >
-            <CrownSimple size={16} weight="bold" />
-            {makeHostBusy ? "Handing off..." : "Make host"}
-          </button>
-        ) : null}
-        <div className={cm.separator} aria-hidden="true" />
-        <div className={styles.participantMenuSlider}>
-          <div className={styles.participantMenuSliderLabel}>
-            <span>User volume</span>
-            <span>{volumePercent}%</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={volumePercent}
-            onChange={(event) => onVolumeChange(Number(event.currentTarget.value))}
-            className={styles.participantMenuSliderInput}
-            aria-label="Adjust user volume"
-          />
-        </div>
-      </div>
-    </>,
-    document.body,
-  );
-}

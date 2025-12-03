@@ -108,7 +108,7 @@ const ladderDetail: CapsuleLadderDetail = {
   publishedAt: new Date().toISOString(),
   meta: { game: { title: "Game A", mode: "1v1" } },
   game: { title: "Game A", mode: "1v1" },
-  config: { scoring: { system: "elo" } },
+  config: { scoring: { system: "elo" }, moderation: { proofRequired: true } },
   sections: {},
   aiPlan: null,
   publishedById: "user-1",
@@ -209,5 +209,36 @@ describe("CapsuleEventsSection interactions", () => {
     );
     expect(launchButton).toBeTruthy();
     expect(launchButton?.disabled).toBe(true);
+  });
+
+  it("shows proof input when proof is required", async () => {
+    await act(async () => {
+      root.render(
+        <CapsuleEventsSection
+          capsuleId="capsule-1"
+          ladders={ladderSummaries}
+          tournaments={[]}
+          loading={false}
+          error={null}
+          onRetry={() => {}}
+        />,
+      );
+    });
+
+    const reportNav = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.textContent?.toLowerCase().includes("report"),
+    );
+    expect(reportNav).toBeTruthy();
+    await act(async () => {
+      reportNav?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const proofInput = container.querySelector<HTMLInputElement>('input[type="url"]');
+    expect(proofInput).toBeTruthy();
+    expect(proofInput?.placeholder?.toLowerCase()).toContain("proof");
+    const hint = Array.from(container.querySelectorAll<HTMLElement>("span")).find((node) =>
+      node.textContent?.includes("Proof or notes are required"),
+    );
+    expect(hint).toBeTruthy();
   });
 });

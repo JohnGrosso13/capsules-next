@@ -27,6 +27,7 @@ const challengeResultSchema = z.object({
   reportedAt: z.string(),
   reportedById: z.string().nullable(),
   note: z.string().nullable().optional(),
+  proofUrl: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
   ratingChanges: z.array(ratingChangeSchema).optional(),
 });
@@ -36,10 +37,14 @@ const challengeSchema = z.object({
   ladderId: z.string(),
   challengerId: z.string(),
   opponentId: z.string(),
+  challengerCapsuleId: z.string().nullable().optional(),
+  opponentCapsuleId: z.string().nullable().optional(),
+  participantType: z.enum(["member", "capsule"]).optional(),
   createdAt: z.string(),
   createdById: z.string().nullable(),
   status: z.enum(["pending", "resolved", "void"]),
   note: z.string().nullable().optional(),
+  proofUrl: z.string().nullable().optional(),
   result: challengeResultSchema.optional(),
 });
 
@@ -49,9 +54,13 @@ const historySchema = z.object({
   challengeId: z.string().nullable(),
   challengerId: z.string(),
   opponentId: z.string(),
+  challengerCapsuleId: z.string().nullable().optional(),
+  opponentCapsuleId: z.string().nullable().optional(),
+  participantType: z.enum(["member", "capsule"]).optional(),
   outcome: z.enum(["challenger", "opponent", "draw"]),
   resolvedAt: z.string(),
   note: z.string().nullable().optional(),
+  proofUrl: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
   ratingChanges: z.array(ratingChangeSchema).optional(),
 });
@@ -83,6 +92,9 @@ const collectionResponseSchema = z.object({
 const createChallengeSchema = z.object({
   challengerId: z.string().min(1),
   opponentId: z.string().min(1),
+  challengerCapsuleId: z.string().min(1).optional(),
+  opponentCapsuleId: z.string().min(1).optional(),
+  participantType: z.enum(["member", "capsule"]).optional(),
   note: z.string().max(240).nullable().optional(),
 });
 
@@ -138,7 +150,8 @@ export async function POST(
 
   try {
     const result = await createLadderChallenge(actorId, params.ladderId, {
-      ...parsed.data,
+      challengerId: parsed.data.challengerId ?? null,
+      opponentId: parsed.data.opponentId ?? null,
       note: parsed.data.note ?? null,
     });
     if (isCapsuleMismatch(params.id, result.ladder.capsuleId)) {

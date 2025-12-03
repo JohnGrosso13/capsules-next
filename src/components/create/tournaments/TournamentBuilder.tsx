@@ -12,11 +12,12 @@ import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDat
 import type { UserSearchResult, CapsuleSearchResult } from "@/types/search";
 import type { CapsuleSummary } from "@/server/capsules/service";
 import styles from "../ladders/LadderBuilder.module.css";
-import { WizardLayout, type WizardLayoutStep } from "../ladders/components/WizardLayout";
+import type { WizardLayoutStep } from "../ladders/components/WizardLayout";
+import TournamentWizardView from "./TournamentWizardView";
 
 type FormatOption = "single_elimination" | "double_elimination" | "round_robin";
 type RegistrationType = "open" | "invite" | "waitlist" | "mixed";
-type TournamentStepId = "blueprint" | "details" | "format" | "content" | "participants" | "review";
+export type TournamentStepId = "blueprint" | "details" | "format" | "content" | "participants" | "review";
 type ParticipantEntityType = "custom" | "user" | "capsule";
 
 type TournamentFormState = {
@@ -296,17 +297,16 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
     participants: false,
     review: false,
   });
-  const [showOptions, setShowOptions] = React.useState(false);
-  const [showPreviewOverlay, setShowPreviewOverlay] = React.useState(false);
   const formContentRef = React.useRef<HTMLDivElement | null>(null);
   const friendsContext = useOptionalFriendsDataContext();
   const [showInvite, setShowInvite] = React.useState(false);
 
   const stepIndex = React.useMemo(() => TOURNAMENT_STEP_ORDER.indexOf(activeStep), [activeStep]);
-  const previousStepId = stepIndex > 0 ? TOURNAMENT_STEP_ORDER[stepIndex - 1] : null;
+  const previousStepId =
+    stepIndex > 0 ? (TOURNAMENT_STEP_ORDER[stepIndex - 1] as TournamentStepId) : null;
   const nextStepId =
     stepIndex >= 0 && stepIndex < TOURNAMENT_STEP_ORDER.length - 1
-      ? TOURNAMENT_STEP_ORDER[stepIndex + 1]
+      ? (TOURNAMENT_STEP_ORDER[stepIndex + 1] as TournamentStepId)
       : null;
   const nextStep = nextStepId ? TOURNAMENT_STEPS.find((step) => step.id === nextStepId) : null;
 
@@ -341,7 +341,6 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
   const handleStepSelect = React.useCallback((stepId: TournamentStepId) => {
     setActiveStep(stepId);
     setVisitedSteps((prev) => ({ ...prev, [stepId]: true }));
-    setShowOptions(false);
   }, []);
 
   const handleNextStep = React.useCallback(() => {
@@ -1345,78 +1344,6 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
     );
   }
 
-  const controlsStart = (
-    <>
-      <Button type="button" variant="ghost" onClick={handlePreviousStep} disabled={!previousStepId}>
-        Back
-      </Button>
-      <div className={styles.moreActions}>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => setShowOptions((prev) => !prev)}
-          aria-expanded={showOptions}
-        >
-          Options
-        </Button>
-        {showOptions ? (
-          <div className={styles.moreMenu} role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                handleCapsuleChange(null);
-                setShowOptions(false);
-              }}
-            >
-              Switch capsule
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                resetFormState();
-                setShowOptions(false);
-              }}
-            >
-              Reset tournament
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </>
-  );
-
-  const controlsEnd =
-    activeStep !== "review" ? (
-      <>
-        <Button
-          type="button"
-          variant="secondary"
-          className={styles.previewButton}
-          onClick={() => setShowPreviewOverlay(true)}
-        >
-          Preview
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          className={styles.stepperNextButton}
-          onClick={() => {
-            setVisitedSteps((prev) => ({ ...prev, [activeStep]: true }));
-            handleNextStep();
-          }}
-          disabled={!nextStepId}
-        >
-          {nextStep ? `Next: ${nextStep.title}` : "Next"}
-        </Button>
-      </>
-    ) : (
-      <Button type="button" onClick={createTournament} disabled={isSaving}>
-        {isSaving ? "Saving tournament..." : form.publish ? "Publish tournament" : "Save tournament draft"}
-      </Button>
-    );
-
   const formContent = (
     <>
       <header className={styles.stepHero}>
@@ -1438,39 +1365,29 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
       <div className={styles.builderWrap}>
         <div className={styles.wizardPanel}>
           <div className={styles.panelGlow} aria-hidden />
-          <WizardLayout
-            stepperLabel="Setup"
+          <TournamentWizardView
             steps={TOURNAMENT_STEPS}
-            activeStepId={activeStep}
+            activeStep={activeStep}
             completionMap={completionMap}
             onStepSelect={handleStepSelect}
-            formContentRef={formContentRef}
+            previousStepId={previousStepId}
+            onBack={handlePreviousStep}
+            onNextStep={() => {
+              setVisitedSteps((prev) => ({ ...prev, [activeStep]: true }));
+              handleNextStep();
+            }}
+            nextStepTitle={nextStep ? nextStep.title : null}
             formContent={formContent}
-            controlsStart={controlsStart}
-            controlsEnd={controlsEnd}
+            formContentRef={formContentRef}
             previewPanel={previewPanel}
+            previewMode={false}
+            isSaving={isSaving}
+            publish={form.publish}
+            onCreateTournament={createTournament}
+            onCapsuleChange={() => handleCapsuleChange(null)}
+            canSwitchCapsule={Boolean(selectedCapsule)}
+            onReset={resetFormState}
           />
-          {showPreviewOverlay ? (
-            <div className={styles.mobileSheet} role="dialog" aria-modal="true" aria-label="Tournament preview">
-              <div className={styles.mobileSheetBackdrop} onClick={() => setShowPreviewOverlay(false)} />
-              <div className={`${styles.mobileSheetBody} ${styles.desktopPreviewSheet}`}>
-                <div className={styles.mobileSheetHeader}>
-                  <span className={styles.mobileSheetTitle}>Tournament preview</span>
-                  <button
-                    type="button"
-                    className={styles.mobileSheetClose}
-                    onClick={() => setShowPreviewOverlay(false)}
-                    aria-label="Close tournament preview"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className={[styles.mobileSheetContent, styles.mobilePreviewContent].filter(Boolean).join(" ")}>
-                  {previewPanel}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
       <ChatStartOverlay

@@ -9,9 +9,15 @@ import type {
   CapsuleLadderMemberInput,
   CapsuleLadderMemberUpdateInput,
   CapsuleLadderSummary,
+  LadderChallenge,
+  LadderChallengeOutcome,
+  LadderChallengeStatus,
+  LadderMembershipStatus,
   LadderAiPlan,
   LadderConfig,
   LadderGameConfig,
+  LadderMatchRecord,
+  LadderParticipantType,
   LadderSectionBlock,
   LadderSections,
   LadderStatus,
@@ -46,6 +52,7 @@ type LadderMemberRow = {
   user_id: string | null;
   display_name: string | null;
   handle: string | null;
+  status?: string | null;
   seed: number | string | null;
   rank: number | string | null;
   rating: number | string | null;
@@ -60,6 +67,42 @@ type LadderMemberRow = {
 
 type LadderParticipationRow = LadderMemberRow & {
   ladder: LadderRow | null;
+};
+
+type LadderChallengeRow = {
+  id: string | null;
+  ladder_id: string | null;
+  participant_type: string | null;
+  challenger_member_id: string | null;
+  opponent_member_id: string | null;
+  challenger_capsule_id: string | null;
+  opponent_capsule_id: string | null;
+  status: string | null;
+  outcome: string | null;
+  note: string | null;
+  proof_url: string | null;
+  reported_by: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type LadderHistoryRow = {
+  id: string | null;
+  ladder_id: string | null;
+  challenge_id: string | null;
+  participant_type: string | null;
+  challenger_member_id: string | null;
+  opponent_member_id: string | null;
+  challenger_capsule_id: string | null;
+  opponent_capsule_id: string | null;
+  outcome: string | null;
+  note: string | null;
+  proof_url: string | null;
+  rank_changes: unknown;
+  rating_changes: unknown;
+  resolved_at: string | null;
+  created_at: string | null;
 };
 
 export type InsertCapsuleLadderParams = {
@@ -82,6 +125,47 @@ export type InsertCapsuleLadderParams = {
 export type UpdateCapsuleLadderParams = Partial<Omit<InsertCapsuleLadderParams, "capsuleId" | "createdById">> & {
   status?: LadderStatus;
   visibility?: LadderVisibility;
+};
+
+export type InsertLadderChallengeParams = {
+  ladderId: string;
+  participantType: LadderParticipantType;
+  challengerMemberId: string | null;
+  opponentMemberId: string | null;
+  challengerCapsuleId: string | null;
+  opponentCapsuleId: string | null;
+  status?: LadderChallengeStatus;
+  outcome?: LadderChallengeOutcome | null;
+  note?: string | null;
+  proofUrl?: string | null;
+  reportedById?: string | null;
+  createdById?: string | null;
+  createdAt?: string | null;
+};
+
+export type UpdateLadderChallengeParams = {
+  status?: LadderChallengeStatus;
+  outcome?: LadderChallengeOutcome | null;
+  note?: string | null;
+  proofUrl?: string | null;
+  reportedById?: string | null;
+  expectedUpdatedAt?: string | null;
+};
+
+export type InsertLadderHistoryParams = {
+  ladderId: string;
+  challengeId?: string | null;
+  participantType: LadderParticipantType;
+  challengerMemberId: string;
+  opponentMemberId: string;
+  challengerCapsuleId?: string | null;
+  opponentCapsuleId?: string | null;
+  outcome: LadderChallengeOutcome;
+  note?: string | null;
+  proofUrl?: string | null;
+  rankChanges?: LadderMatchRecord["rankChanges"];
+  ratingChanges?: LadderMatchRecord["ratingChanges"];
+  resolvedAt?: string | null;
 };
 
 function normalizeString(value: unknown): string | null {
@@ -336,12 +420,28 @@ function mapLadderMemberRow(row: LadderMemberRow | null): CapsuleLadderMember | 
   if (!id || !ladderId || !displayName) return null;
   const createdAt = normalizeTimestamp(row.created_at) ?? new Date().toISOString();
   const updatedAt = normalizeTimestamp(row.updated_at) ?? createdAt;
+  const statusRaw =
+    normalizeString((row as { status?: string }).status) ??
+    (() => {
+      const meta = parseJsonNullable<Record<string, unknown>>(row.metadata);
+      const raw = normalizeString((meta ?? {}).status as string | null);
+      return raw ?? "active";
+    })();
+  const status: LadderMembershipStatus =
+    statusRaw === "pending" ||
+    statusRaw === "invited" ||
+    statusRaw === "active" ||
+    statusRaw === "rejected" ||
+    statusRaw === "banned"
+      ? statusRaw
+      : "active";
   return {
     id,
     ladderId,
     userId: normalizeString(row.user_id),
     displayName,
     handle: normalizeString(row.handle),
+    status,
     seed: normalizeNumber(row.seed),
     rank: normalizeNumber(row.rank),
     rating: normalizeNumber(row.rating, 0) ?? 0,
@@ -353,6 +453,140 @@ function mapLadderMemberRow(row: LadderMemberRow | null): CapsuleLadderMember | 
     createdAt,
     updatedAt,
   };
+}
+
+function mapChallengeStatus(value: unknown): LadderChallengeStatus {
+  const normalized = normalizeString(value);
+  if (normalized === "resolved" || normalized === "void") {
+    return normalized;
+  }
+  return "pending";
+}
+
+function mapChallengeOutcome(value: unknown): LadderChallengeOutcome | null {
+  const normalized = normalizeString(value);
+  if (normalized === "challenger" || normalized === "opponent" || normalized === "draw") {
+    return normalized;
+  }
+  return null;
+}
+
+function mapRankChanges(value: unknown): NonNullable<LadderMatchRecord["rankChanges"]> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const record = entry as Record<string, unknown>;
+      const memberId =
+        normalizeString(record.memberId as string | null) ??
+        normalizeString(record.member_id as string | null);
+      const from = normalizeNumber(record.from, null);
+      const to = normalizeNumber(record.to, null);
+      if (!memberId || from === null || to === null) return null;
+      return { memberId, from, to };
+    })
+    .filter((entry): entry is NonNullable<LadderMatchRecord["rankChanges"]>[number] => Boolean(entry));
+}
+
+function mapRatingChanges(value: unknown): NonNullable<LadderMatchRecord["ratingChanges"]> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const record = entry as Record<string, unknown>;
+      const memberId =
+        normalizeString(record.memberId as string | null) ??
+        normalizeString(record.member_id as string | null);
+      const from = normalizeNumber(record.from, null);
+      const to = normalizeNumber(record.to, null);
+      if (!memberId || from === null || to === null) return null;
+      const mapped: NonNullable<LadderMatchRecord["ratingChanges"]>[number] = { memberId, from, to };
+      const delta = normalizeNumber(record.delta, null);
+      if (delta !== null) mapped.delta = delta;
+      return mapped;
+    })
+    .filter((entry): entry is NonNullable<LadderMatchRecord["ratingChanges"]>[number] => Boolean(entry));
+}
+
+function mapChallengeRow(row: LadderChallengeRow | null): LadderChallenge | null {
+  if (!row) return null;
+  const id = normalizeString(row.id);
+  const ladderId = normalizeString(row.ladder_id);
+  if (!id || !ladderId) return null;
+  const participantType: LadderParticipantType =
+    normalizeString(row.participant_type) === "capsule" ? "capsule" : "member";
+  const status = mapChallengeStatus(row.status);
+  const outcome = mapChallengeOutcome(row.outcome);
+  const createdAt = normalizeTimestamp(row.created_at) ?? new Date().toISOString();
+  const updatedAt = normalizeTimestamp(row.updated_at) ?? createdAt;
+  const challengerCapsuleId = normalizeString(row.challenger_capsule_id);
+  const opponentCapsuleId = normalizeString(row.opponent_capsule_id);
+  const challengerMemberId = normalizeString(row.challenger_member_id);
+  const opponentMemberId = normalizeString(row.opponent_member_id);
+  const note = normalizeString(row.note);
+  const proofUrl = normalizeString(row.proof_url);
+
+  const challenge: LadderChallenge = {
+    id,
+    ladderId,
+    challengerId: challengerMemberId ?? challengerCapsuleId ?? id,
+    opponentId: opponentMemberId ?? opponentCapsuleId ?? id,
+    challengerCapsuleId,
+    opponentCapsuleId,
+    participantType,
+    createdAt,
+    createdById: normalizeString(row.created_by),
+    status,
+  };
+  if (note) challenge.note = note;
+  if (proofUrl) challenge.proofUrl = proofUrl;
+  if (status === "resolved" && outcome) {
+    challenge.result = {
+      outcome,
+      reportedAt: updatedAt,
+      reportedById: normalizeString(row.reported_by),
+    };
+    if (note) challenge.result.note = note;
+    if (proofUrl) challenge.result.proofUrl = proofUrl;
+  }
+  return challenge;
+}
+
+function mapHistoryRow(row: LadderHistoryRow | null): LadderMatchRecord | null {
+  if (!row) return null;
+  const id = normalizeString(row.id);
+  const ladderId = normalizeString(row.ladder_id);
+  const outcome = mapChallengeOutcome(row.outcome);
+  if (!id || !ladderId || !outcome) return null;
+  const resolvedAt = normalizeTimestamp(row.resolved_at) ?? new Date().toISOString();
+  const participantType: LadderParticipantType =
+    normalizeString(row.participant_type) === "capsule" ? "capsule" : "member";
+  const challengerCapsuleId = normalizeString(row.challenger_capsule_id);
+  const opponentCapsuleId = normalizeString(row.opponent_capsule_id);
+  const challengerMemberId = normalizeString(row.challenger_member_id);
+  const opponentMemberId = normalizeString(row.opponent_member_id);
+  const note = normalizeString(row.note);
+  const proofUrl = normalizeString(row.proof_url);
+  const rankChanges = mapRankChanges(row.rank_changes);
+  const ratingChanges = mapRatingChanges(row.rating_changes);
+
+  const record: LadderMatchRecord = {
+    id,
+    ladderId,
+    challengeId: normalizeString(row.challenge_id),
+    challengerId: challengerMemberId ?? challengerCapsuleId ?? id,
+    opponentId: opponentMemberId ?? opponentCapsuleId ?? id,
+    challengerCapsuleId,
+    opponentCapsuleId,
+    participantType,
+    outcome,
+    resolvedAt,
+  };
+  if (note) record.note = note;
+  if (proofUrl) record.proofUrl = proofUrl;
+  if (rankChanges.length) record.rankChanges = rankChanges;
+  if (ratingChanges.length) record.ratingChanges = ratingChanges;
+  return record;
 }
 
 function ensureLadder(row: LadderRow | null, context: string): CapsuleLadderDetail {
@@ -401,6 +635,7 @@ export async function insertCapsuleLadderRecord(
 export async function updateCapsuleLadderRecord(
   ladderId: string,
   patch: UpdateCapsuleLadderParams,
+  options: { expectedUpdatedAt?: string | null } = {},
 ): Promise<CapsuleLadderDetail | null> {
   const payload: Record<string, unknown> = {};
   if (patch.name !== undefined) payload.name = patch.name;
@@ -421,12 +656,11 @@ export async function updateCapsuleLadderRecord(
   }
 
   try {
-    const result = await db
-      .from("capsule_ladders")
-      .update(payload)
-      .eq("id", ladderId)
-      .select<LadderRow>("*")
-      .maybeSingle();
+    const query = db.from("capsule_ladders").update(payload).eq("id", ladderId);
+    if (options.expectedUpdatedAt) {
+      query.eq("updated_at", options.expectedUpdatedAt);
+    }
+    const result = await query.select<LadderRow>("*").maybeSingle();
 
     const row = maybeResult(result, "update capsule_ladder record");
     return mapLadderDetailRow(row);
@@ -626,6 +860,7 @@ export async function insertCapsuleLadderMemberRecords(
     user_id: member.userId ?? null,
     display_name: member.displayName,
     handle: member.handle ?? null,
+    status: member.status ?? "active",
     seed: member.seed ?? null,
     rank: member.rank ?? null,
     rating: member.rating ?? 1200,
@@ -633,7 +868,11 @@ export async function insertCapsuleLadderMemberRecords(
     losses: member.losses ?? 0,
     draws: member.draws ?? 0,
     streak: member.streak ?? 0,
-    metadata: member.metadata ?? null,
+    metadata: member.metadata
+      ? { ...member.metadata, status: member.status ?? "active" }
+      : member.status
+        ? { status: member.status }
+        : null,
   }));
 
   try {
@@ -663,6 +902,7 @@ export async function updateCapsuleLadderMemberRecord(
   if (patch.userId !== undefined) payload.user_id = patch.userId ?? null;
   if (patch.displayName !== undefined) payload.display_name = patch.displayName;
   if (patch.handle !== undefined) payload.handle = patch.handle ?? null;
+  if (patch.status !== undefined) payload.status = patch.status ?? "active";
   if (patch.seed !== undefined) payload.seed = patch.seed ?? null;
   if (patch.rank !== undefined) payload.rank = patch.rank ?? null;
   if (patch.rating !== undefined) payload.rating = patch.rating ?? null;
@@ -671,6 +911,9 @@ export async function updateCapsuleLadderMemberRecord(
   if (patch.draws !== undefined) payload.draws = patch.draws ?? null;
   if (patch.streak !== undefined) payload.streak = patch.streak ?? null;
   if (patch.metadata !== undefined) payload.metadata = patch.metadata ?? null;
+  if (patch.status !== undefined && patch.metadata === undefined) {
+    payload.metadata = { status: patch.status ?? "active" };
+  }
 
   if (Object.keys(payload).length === 0) {
     return getCapsuleLadderMemberRecordById(ladderId, memberId);
@@ -718,6 +961,14 @@ export async function replaceCapsuleLadderMemberRecords(
   ladderId: string,
   members: CapsuleLadderMemberInput[],
 ): Promise<CapsuleLadderMember[]> {
+  // Keep a backup snapshot so we can restore on failure and avoid leaving ladders empty.
+  let backup: CapsuleLadderMember[] = [];
+  try {
+    backup = await listCapsuleLadderMemberRecords(ladderId);
+  } catch {
+    backup = [];
+  }
+
   try {
     const deleteResult = await db
       .from("capsule_ladder_members")
@@ -735,6 +986,7 @@ export async function replaceCapsuleLadderMemberRecords(
       user_id: member.userId ?? null,
       display_name: member.displayName,
       handle: member.handle ?? null,
+      status: member.status ?? "active",
       seed: member.seed ?? null,
       rank: member.rank ?? null,
       rating: member.rating ?? 1200,
@@ -742,7 +994,11 @@ export async function replaceCapsuleLadderMemberRecords(
       losses: member.losses ?? 0,
       draws: member.draws ?? 0,
       streak: member.streak ?? 0,
-      metadata: member.metadata ?? null,
+      metadata: member.metadata
+        ? { ...member.metadata, status: member.status ?? "active" }
+        : member.status
+          ? { status: member.status }
+          : null,
     }));
 
     const insertResult = await db
@@ -756,8 +1012,204 @@ export async function replaceCapsuleLadderMemberRecords(
       .map((row) => mapLadderMemberRow(row))
       .filter((member): member is CapsuleLadderMember => Boolean(member));
   } catch (error) {
+    if (backup.length) {
+      try {
+        const restorePayload = backup.map((member) => ({
+          id: member.id,
+          ladder_id: ladderId,
+          user_id: member.userId ?? null,
+          display_name: member.displayName,
+          handle: member.handle ?? null,
+          seed: member.seed ?? null,
+          rank: member.rank ?? null,
+          rating: member.rating ?? 1200,
+          wins: member.wins ?? 0,
+          losses: member.losses ?? 0,
+          draws: member.draws ?? 0,
+          streak: member.streak ?? 0,
+          metadata: member.metadata ?? null,
+        }));
+        await db.from("capsule_ladder_members").insert(restorePayload).fetch();
+      } catch (restoreError) {
+        console.error("replace capsule_ladder_members: failed to restore backup roster", restoreError);
+      }
+    }
+
     if (isDatabaseError(error)) {
       throw decorateDatabaseError("replace capsule_ladder_members", error);
+    }
+    throw error;
+  }
+}
+
+export async function listLadderChallengesForLadder(ladderId: string): Promise<LadderChallenge[]> {
+  try {
+    const result = await db
+      .from("capsule_ladder_challenges")
+      .select<LadderChallengeRow>("*")
+      .eq("ladder_id", ladderId)
+      .order("created_at", { ascending: false })
+      .fetch();
+    const rows = expectResult(result, "list capsule_ladder_challenges");
+    return rows
+      .map((row) => mapChallengeRow(row))
+      .filter((challenge): challenge is LadderChallenge => Boolean(challenge));
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("list capsule_ladder_challenges", error);
+    }
+    throw error;
+  }
+}
+
+export async function getLadderChallengeById(
+  ladderId: string,
+  challengeId: string,
+): Promise<LadderChallenge | null> {
+  try {
+    const result = await db
+      .from("capsule_ladder_challenges")
+      .select<LadderChallengeRow>("*")
+      .eq("ladder_id", ladderId)
+      .eq("id", challengeId)
+      .maybeSingle();
+    const row = maybeResult(result, "get capsule_ladder_challenge record");
+    return mapChallengeRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("get capsule_ladder_challenge record", error);
+    }
+    throw error;
+  }
+}
+
+export async function insertLadderChallenge(
+  params: InsertLadderChallengeParams,
+): Promise<LadderChallenge> {
+  try {
+    const result = await db
+      .from("capsule_ladder_challenges")
+      .insert({
+        ladder_id: params.ladderId,
+        participant_type: params.participantType,
+        challenger_member_id: params.challengerMemberId ?? null,
+        opponent_member_id: params.opponentMemberId ?? null,
+        challenger_capsule_id: params.challengerCapsuleId ?? null,
+        opponent_capsule_id: params.opponentCapsuleId ?? null,
+        status: params.status ?? "pending",
+        outcome: params.outcome ?? null,
+        note: params.note ?? null,
+        proof_url: params.proofUrl ?? null,
+        reported_by: params.reportedById ?? null,
+        created_by: params.createdById ?? null,
+        created_at: params.createdAt ?? undefined,
+      })
+      .select<LadderChallengeRow>("*")
+      .single();
+    const row = expectResult(result, "insert capsule_ladder_challenge");
+    const mapped = mapChallengeRow(row);
+    if (!mapped) {
+      throw new Error("insertLadderChallenge: failed to map challenge row");
+    }
+    return mapped;
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("insert capsule_ladder_challenge", error);
+    }
+    throw error;
+  }
+}
+
+export async function updateLadderChallengeStatusOutcome(
+  ladderId: string,
+  challengeId: string,
+  patch: UpdateLadderChallengeParams,
+): Promise<LadderChallenge | null> {
+  const payload: Record<string, unknown> = {};
+  if (patch.status !== undefined) payload.status = patch.status;
+  if (patch.outcome !== undefined) payload.outcome = patch.outcome ?? null;
+  if (patch.note !== undefined) payload.note = patch.note ?? null;
+  if (patch.proofUrl !== undefined) payload.proof_url = patch.proofUrl ?? null;
+  if (patch.reportedById !== undefined) payload.reported_by = patch.reportedById ?? null;
+
+  if (Object.keys(payload).length === 0) {
+    return getLadderChallengeById(ladderId, challengeId);
+  }
+
+  try {
+    const query = db
+      .from("capsule_ladder_challenges")
+      .update(payload)
+      .eq("ladder_id", ladderId)
+      .eq("id", challengeId);
+    if (patch.expectedUpdatedAt) {
+      query.eq("updated_at", patch.expectedUpdatedAt);
+    }
+    const result = await query.select<LadderChallengeRow>("*").maybeSingle();
+    const row = maybeResult(result, "update capsule_ladder_challenge");
+    return mapChallengeRow(row);
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("update capsule_ladder_challenge", error);
+    }
+    throw error;
+  }
+}
+
+export async function insertLadderHistoryRecord(
+  params: InsertLadderHistoryParams,
+): Promise<LadderMatchRecord> {
+  try {
+    const result = await db
+      .from("capsule_ladder_history")
+      .insert({
+        ladder_id: params.ladderId,
+        challenge_id: params.challengeId ?? null,
+        participant_type: params.participantType,
+        challenger_member_id: params.challengerMemberId,
+        opponent_member_id: params.opponentMemberId,
+        challenger_capsule_id: params.challengerCapsuleId ?? null,
+        opponent_capsule_id: params.opponentCapsuleId ?? null,
+        outcome: params.outcome,
+        note: params.note ?? null,
+        proof_url: params.proofUrl ?? null,
+        rank_changes: params.rankChanges ?? null,
+        rating_changes: params.ratingChanges ?? null,
+        resolved_at: params.resolvedAt ?? new Date().toISOString(),
+      })
+      .select<LadderHistoryRow>("*")
+      .single();
+    const row = expectResult(result, "insert capsule_ladder_history");
+    const mapped = mapHistoryRow(row);
+    if (!mapped) {
+      throw new Error("insertLadderHistoryRecord: failed to map history row");
+    }
+    return mapped;
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("insert capsule_ladder_history", error);
+    }
+    throw error;
+  }
+}
+
+export async function listLadderHistoryForLadder(ladderId: string): Promise<LadderMatchRecord[]> {
+  try {
+    const result = await db
+      .from("capsule_ladder_history")
+      .select<LadderHistoryRow>("*")
+      .eq("ladder_id", ladderId)
+      .order("resolved_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .fetch();
+    const rows = expectResult(result, "list capsule_ladder_history");
+    return rows
+      .map((row) => mapHistoryRow(row))
+      .filter((record): record is LadderMatchRecord => Boolean(record));
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      throw decorateDatabaseError("list capsule_ladder_history", error);
     }
     throw error;
   }

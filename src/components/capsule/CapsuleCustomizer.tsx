@@ -86,7 +86,7 @@ const SEARCH_EVENT_NAME = "capsules:search:open";
 function ChatMessageBubble({
   message,
   onBannerSelect,
-  onSuggestionSelect: _onSuggestionSelect,
+  onSuggestionSelect,
 }: {
   message: ChatMessage;
   onBannerSelect: (option: ChatBannerOption) => void;
@@ -125,6 +125,22 @@ function ChatMessageBubble({
             ))}
           </div>
         ) : null}
+        {message.suggestions && message.suggestions.length ? (
+          <div className={styles.chatSuggestions} role="list">
+            {message.suggestions.map((suggestion, index) => (
+              <button
+                key={`${message.id}-${index}`}
+                type="button"
+                className={styles.chatSuggestionChip}
+                role="listitem"
+                onClick={() => onSuggestionSelect?.(suggestion)}
+                aria-label={`Use suggestion ${index + 1}`}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -132,18 +148,34 @@ function ChatMessageBubble({
 
 
 function CapsuleCustomizer(props: CapsuleCustomizerProps) {
-  const { open, ...contextValue } = useCapsuleCustomizerState(props);
+  const [imageQuality, setImageQuality] = React.useState<
+    (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]
+  >("standard");
+
+  const { open, ...contextValue } = useCapsuleCustomizerState({
+    ...props,
+    imageQuality,
+  });
 
   if (!open) return null;
 
   return (
     <CapsuleCustomizerProvider value={contextValue}>
-      <CapsuleCustomizerContent />
+      <CapsuleCustomizerContent
+        imageQuality={imageQuality}
+        onImageQualityChange={setImageQuality}
+      />
     </CapsuleCustomizerProvider>
   );
 }
 
-function CapsuleCustomizerContent() {
+function CapsuleCustomizerContent({
+  imageQuality,
+  onImageQualityChange,
+}: {
+  imageQuality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number];
+  onImageQualityChange: (value: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]) => void;
+}) {
   const meta = useCapsuleCustomizerMeta();
   const chat = useCapsuleCustomizerChat();
   const memory = useCapsuleCustomizerMemory();
@@ -172,9 +204,6 @@ function CapsuleCustomizerContent() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = React.useState(false);
   const mobileNavCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
-  const [imageQuality, setImageQuality] = React.useState<
-    (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]
-  >("standard");
   const smartContextEnabled = chat.smartContextEnabled;
   const toggleSmartContext = chat.onToggleSmartContext;
 
@@ -895,7 +924,7 @@ function CapsuleCustomizerContent() {
 
   const ChatSection = () => (
     <section className={styles.chatColumn}>
-    <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
+      <div ref={chat.logRef} className={styles.chatLog} aria-live="polite">
         {chat.messages.map((message) => (
           <ChatMessageBubble
             key={message.id}
@@ -904,27 +933,30 @@ function CapsuleCustomizerContent() {
             onSuggestionSelect={chat.onSuggestionSelect}
           />
         ))}
-    {chat.busy ? (
-      <div className={styles.chatTyping} aria-live="polite">
-        Capsule AI is thinking...
+        {chat.busy ? (
+          <div className={styles.chatTyping} aria-live="polite">
+            <span className={styles.chatTypingDot} />
+            <span className={styles.chatTypingDot} />
+            <span className={styles.chatTypingDot} />
+            <span className={styles.chatTypingLabel}>Generating…</span>
+          </div>
+        ) : null}
       </div>
-    ) : null}
-    </div>
 
-    <div className={styles.prompterDock}>
-    <div className={styles.prompterWrap}>
-      <AiPrompterStage
-        key={chat.prompterSession}
-        placeholder={meta.prompterPlaceholder}
-        chips={[]}
-        statusMessage={null}
-        onAction={chat.onPrompterAction}
-        variant="default"
-        showIntentMenu
-        submitVariant="icon"
-      />
-    </div>
-    </div>
+      <div className={styles.prompterDock}>
+        <div className={styles.prompterWrap}>
+          <AiPrompterStage
+            key={chat.prompterSession}
+            placeholder={meta.prompterPlaceholder}
+            chips={meta.prompterChips}
+            statusMessage={null}
+            onAction={chat.onPrompterAction}
+            variant="default"
+            showIntentMenu
+            submitVariant="icon"
+          />
+        </div>
+      </div>
     </section>
   );
 
@@ -960,7 +992,7 @@ function CapsuleCustomizerContent() {
                         className={styles.aiImageSelect}
                         value={imageQuality}
                         onChange={(event) =>
-                          setImageQuality(
+                          onImageQualityChange(
                             event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number],
                           )
                         }

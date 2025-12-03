@@ -419,6 +419,11 @@ class FriendsRealtimeService {
     let unsubscribeEvents: (() => void) | null = null;
     let unsubscribePresence: (() => void) | null = null;
 
+    const presenceChannels = Array.isArray(channels.presence)
+      ? channels.presence.filter((ch) => typeof ch === "string" && ch.trim().length > 0)
+      : [];
+    const primaryPresenceChannel = presenceChannels[0] ?? null;
+
     const connect = async () => {
       try {
         const client = await factory.getClient(tokenProvider);
@@ -441,35 +446,55 @@ class FriendsRealtimeService {
           return;
         }
 
-        const presenceChannel = client.presence(channels.presence);
-        manager.setPresenceChannel(presenceChannel);
+        const presenceCleanups: Array<() => void> = [];
+        const presenceChannelRefs: Array<{ name: string; channel: RealtimePresenceChannel }> = [];
 
-        const presenceCleanup = await presenceChannel.subscribe(manager.handlePresenceMessage);
-        unsubscribePresence = wrapCleanup(presenceCleanup, "Realtime presence unsubscribe error");
-        if (unsubscribed && unsubscribePresence) {
-          unsubscribePresence();
-          return;
-        }
-
-        try {
-          const members = await presenceChannel.getMembers();
-          if (!unsubscribed) {
-            manager.syncMembers(members);
+        for (const channelName of presenceChannels) {
+          const presenceChannel = client.presence(channelName);
+          if (channelName === primaryPresenceChannel) {
+            manager.setPresenceChannel(presenceChannel);
           }
-        } catch (err) {
-          console.error("presence get failed", err);
+
+          const presenceCleanup = await presenceChannel.subscribe(manager.handlePresenceMessage);
+          const wrappedCleanup = wrapCleanup(
+            presenceCleanup,
+            `Realtime presence unsubscribe error (${channelName})`,
+          );
+          presenceCleanups.push(wrappedCleanup);
+          presenceChannelRefs.push({ name: channelName, channel: presenceChannel });
+          if (unsubscribed) {
+            wrappedCleanup();
+            return;
+          }
+        }
+        unsubscribePresence = () => {
+          presenceCleanups.forEach((cleanup) => cleanup());
+        };
+
+        for (const entry of presenceChannelRefs) {
+          try {
+            const members = await entry.channel.getMembers();
+            if (!unsubscribed) {
+              manager.syncMembers(members);
+            }
+          } catch (err) {
+            console.error("presence get failed", { channel: entry.name, err });
+          }
         }
 
         const clientId = client.clientId();
-        if (clientId && !unsubscribed) {
+        if (clientId && !unsubscribed && primaryPresenceChannel) {
+          const selfChannel =
+            presenceChannelRefs.find((entry) => entry.name === primaryPresenceChannel)?.channel ??
+            client.presence(primaryPresenceChannel);
           try {
-            await manager.enterPresence(presenceChannel, clientId);
+            await manager.enterPresence(selfChannel, clientId);
           } catch (err) {
             console.error("presence enter failed", err);
           }
         }
 
-        if (!unsubscribed) {
+        if (!unsubscribed && primaryPresenceChannel) {
           manager.attachActivityListeners();
           manager.startVisibilityTracking();
         }

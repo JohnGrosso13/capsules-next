@@ -101,6 +101,35 @@ const blockSummarySchema = z.object({
   user: friendUserSummarySchema.nullable(),
 });
 
+const capsuleMemberProfileSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  userKey: z.string().nullable().optional(),
+});
+
+const capsuleMemberRequestSummarySchema = z.object({
+  id: z.string(),
+  capsuleId: z.string(),
+  requesterId: z.string().optional(),
+  responderId: z.string().nullable().optional(),
+  status: z.string().optional(),
+  role: z.string().nullable().optional(),
+  message: z.string().nullable().optional(),
+  createdAt: z.string().nullable().optional(),
+  respondedAt: z.string().nullable().optional(),
+  approvedAt: z.string().nullable().optional(),
+  declinedAt: z.string().nullable().optional(),
+  cancelledAt: z.string().nullable().optional(),
+  requester: capsuleMemberProfileSchema.nullable().optional(),
+  initiatorId: z.string().nullable().optional(),
+  initiator: capsuleMemberProfileSchema.nullable().optional(),
+  origin: z.string().optional(),
+  capsuleName: z.string().nullable().optional(),
+  capsuleSlug: z.string().nullable().optional(),
+  capsuleLogoUrl: z.string().nullable().optional(),
+});
+
 export const socialGraphSnapshotSchema = z.object({
   friends: z.array(friendSummarySchema),
   incomingRequests: z.array(friendRequestSummarySchema),
@@ -108,6 +137,7 @@ export const socialGraphSnapshotSchema = z.object({
   followers: z.array(followSummarySchema),
   following: z.array(followSummarySchema),
   blocked: z.array(blockSummarySchema),
+  capsuleInvites: z.array(capsuleMemberRequestSummarySchema),
 });
 
 const friendListItemSchema = z.object({
@@ -122,10 +152,12 @@ const friendListItemSchema = z.object({
 
 export const friendSyncResponseSchema = z.object({
   friends: z.array(friendListItemSchema),
-  graph: socialGraphSnapshotSchema,
+  graph: socialGraphSnapshotSchema.extend({
+    capsuleInvites: z.array(capsuleMemberRequestSummarySchema),
+  }),
   channels: z.object({
     events: z.string(),
-    presence: z.string(),
+    presence: z.array(z.string()),
   }),
   viewerId: z.string(),
 });
@@ -136,6 +168,8 @@ export const friendUpdateResponseSchema = z.object({
   success: z.literal(true),
   action: friendActionSchema,
   result: actionResultSchema.optional(),
-  graph: socialGraphSnapshotSchema,
+  graph: socialGraphSnapshotSchema.extend({
+    capsuleInvites: z.array(capsuleMemberRequestSummarySchema),
+  }),
   friends: z.array(friendListItemSchema),
 });

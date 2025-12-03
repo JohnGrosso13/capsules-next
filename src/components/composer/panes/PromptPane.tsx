@@ -64,6 +64,10 @@ export type PromptPaneProps = {
   quickPromptBubbleOptions: QuickPromptOption[];
   promptSurfaceProps: PromptPaneSurfaceProps;
   onAddAttachmentToPreview?: (attachment: ComposerChatAttachment) => void;
+  canRetryLastPrompt: boolean;
+  onRetryLastPrompt(): void;
+  smartContextEnabled: boolean;
+  onEnableContext?(): void;
 };
 
 const AI_ATTACHMENT_FEEDBACK_PROMPT =
@@ -142,6 +146,10 @@ export function PromptPane({
   quickPromptBubbleOptions,
   promptSurfaceProps,
   onAddAttachmentToPreview,
+  canRetryLastPrompt,
+  onRetryLastPrompt,
+  smartContextEnabled,
+  onEnableContext,
 }: PromptPaneProps) {
   const chatScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shouldStickRef = React.useRef(true);
@@ -413,6 +421,34 @@ export function PromptPane({
   return (
     <>
       <div className={styles.chatArea}>
+        {!smartContextEnabled ? (
+          <div className={styles.contextNotice} role="status" aria-live="polite">
+            <div>
+              <p className={styles.contextNoticeTitle}>Smart Context is off</p>
+              <p className={styles.contextNoticeCopy}>
+                Replies won&apos;t use your feed or memories until you turn it on.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={styles.contextNoticeButton}
+              onClick={() => onEnableContext?.()}
+            >
+              Turn on context
+            </button>
+          </div>
+        ) : null}
+        {!loading && canRetryLastPrompt ? (
+          <div className={styles.retryBanner}>
+            <div>
+              <p className={styles.retryTitle}>Something went wrong</p>
+              <p className={styles.retryCopy}>Retry your last request with the same details.</p>
+            </div>
+            <button type="button" className={styles.retryButton} onClick={onRetryLastPrompt}>
+              Retry
+            </button>
+          </div>
+        ) : null}
         {summaryControls.entries.length ? (
           summaryControls.collapsed ? (
             <div className={summaryStyles.summaryContextToggleRow}>

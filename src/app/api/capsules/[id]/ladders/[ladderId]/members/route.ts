@@ -19,6 +19,7 @@ const ladderMemberSchema = z.object({
   userId: z.string().nullable(),
   displayName: z.string(),
   handle: z.string().nullable(),
+  status: z.enum(["pending", "invited", "active", "rejected", "banned"]).optional(),
   seed: z.number().nullable(),
   rank: z.number().nullable(),
   rating: z.number(),
@@ -35,6 +36,7 @@ const memberInputSchema = z.object({
   displayName: z.string().min(1).max(80),
   userId: z.string().max(64).nullable().optional(),
   handle: z.string().max(40).nullable().optional(),
+  status: z.enum(["pending", "invited", "active", "rejected", "banned"]).optional(),
   seed: z.number().int().min(1).max(999).nullable().optional(),
   rank: z.number().int().min(1).max(999).nullable().optional(),
   rating: z.number().int().min(100).max(4000).nullable().optional(),
@@ -59,6 +61,7 @@ function toMemberInput(input: MemberInput): CapsuleLadderMemberInput {
   const next: CapsuleLadderMemberInput = {
     displayName: input.displayName,
   };
+  if (input.status !== undefined) next.status = input.status;
   if (input.userId !== undefined) {
     next.userId = input.userId ?? null;
   }

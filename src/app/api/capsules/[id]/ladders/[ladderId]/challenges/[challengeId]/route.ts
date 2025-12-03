@@ -27,6 +27,7 @@ const challengeResultSchema = z.object({
   reportedAt: z.string(),
   reportedById: z.string().nullable(),
   note: z.string().nullable().optional(),
+  proofUrl: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
   ratingChanges: z.array(ratingChangeSchema).optional(),
 });
@@ -36,10 +37,14 @@ const challengeSchema = z.object({
   ladderId: z.string(),
   challengerId: z.string(),
   opponentId: z.string(),
+  challengerCapsuleId: z.string().nullable().optional(),
+  opponentCapsuleId: z.string().nullable().optional(),
+  participantType: z.enum(["member", "capsule"]).optional(),
   createdAt: z.string(),
   createdById: z.string().nullable(),
   status: z.enum(["pending", "resolved", "void"]),
   note: z.string().nullable().optional(),
+  proofUrl: z.string().nullable().optional(),
   result: challengeResultSchema.optional(),
 });
 
@@ -49,9 +54,13 @@ const historySchema = z.object({
   challengeId: z.string().nullable(),
   challengerId: z.string(),
   opponentId: z.string(),
+  challengerCapsuleId: z.string().nullable().optional(),
+  opponentCapsuleId: z.string().nullable().optional(),
+  participantType: z.enum(["member", "capsule"]).optional(),
   outcome: z.enum(["challenger", "opponent", "draw"]),
   resolvedAt: z.string(),
   note: z.string().nullable().optional(),
+  proofUrl: z.string().nullable().optional(),
   rankChanges: z.array(rankChangeSchema).optional(),
   ratingChanges: z.array(ratingChangeSchema).optional(),
 });
@@ -83,6 +92,9 @@ const collectionResponseSchema = z.object({
 const resolveSchema = z.object({
   outcome: z.enum(["challenger", "opponent", "draw"]),
   note: z.string().max(240).nullable().optional(),
+  challengerCapsuleId: z.string().min(1).optional(),
+  opponentCapsuleId: z.string().min(1).optional(),
+  proofUrl: z.string().url().max(2048).nullable().optional(),
 });
 
 function isCapsuleMismatch(

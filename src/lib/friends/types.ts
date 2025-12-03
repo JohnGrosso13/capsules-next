@@ -55,7 +55,7 @@ export type FriendsCounters = {
 export type FriendsChannelInfo =
   | {
       events: string;
-      presence: string;
+      presence: string[];
     }
   | null;
 

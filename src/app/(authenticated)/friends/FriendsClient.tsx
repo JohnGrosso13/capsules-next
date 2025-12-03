@@ -161,9 +161,11 @@ export function FriendsClient() {
     error: assistantTasksError,
     refresh: refreshAssistantTasks,
   } = useAssistantTasks({
+    includeCompleted: true,
     pollIntervalMs: assistantTabActive ? 60_000 : 0,
     idlePollIntervalMs: assistantTabActive ? 5 * 60_000 : 0,
     enabled: assistantTabActive,
+    limit: 50,
   });
   const assistantError = assistantActionError ?? assistantTasksError;
   const searchParams = useSearchParams();

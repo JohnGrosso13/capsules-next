@@ -3,15 +3,7 @@ import * as React from "react";
 import type { ZodIssue } from "zod";
 import { useRouter } from "next/navigation";
 import { CapsuleGate } from "@/components/capsule/CapsuleGate";
-import { CapsuleEventsSection } from "@/components/capsule/CapsuleEventsSection";
 import type { CapsuleSummary } from "@/server/capsules/service";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  type AlertTone,
-} from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { trackLadderEvent } from "@/lib/telemetry/ladders";
 import styles from "./LadderBuilder.module.css";
@@ -44,10 +36,9 @@ import {
   LADDER_WIZARD_STEPS,
   type LadderWizardStepId,
 } from "./ladderWizardConfig";
+import { createWizardLifecycleState, msSince, type WizardLifecycleMetrics } from "./lifecycle";
 import {
-  GUIDED_STEP_DEFINITIONS,
   GUIDED_STEP_ORDER,
-  GUIDED_STEP_MAP,
   DEFAULT_GUIDED_STEP,
   buildGuidedSummaryIdeas,
   type GuidedStepId,
@@ -64,12 +55,10 @@ import {
   convertMembersToPayload,
   convertSectionsToPayload,
 } from "./builderPayload";
-import type { AssistantMessage } from "./assistantTypes";
 import { useLadderDraft, type PersistedLadderDraft } from "./hooks/useLadderDraft";
-import { AiPlanCard } from "./components/AiPlanCard";
-import { ReviewOverviewCard } from "./components/ReviewOverviewCard";
-import { GuidedStepContent } from "./components/GuidedStepContent";
-import { WizardLayout } from "./components/WizardLayout";
+import { createInitialAssistantState, useAssistantState } from "./hooks/useAssistantState";
+import { useToastNotifications } from "./hooks/useToastNotifications";
+import LadderWizardView from "./LadderWizardView";
 import type {
   CapsuleLadderDetail,
   CapsuleLadderMember,
@@ -98,47 +87,6 @@ type LadderBlueprintResponse = {
     meta?: Record<string, unknown> | null;
   };
   members?: Array<Record<string, unknown>>;
-};
-type LadderToast = {
-  id: string;
-  tone: AlertTone;
-  title: string;
-  description?: string;
-  persist?: boolean;
-};
-type WizardLifecycleMetrics = {
-  wizardStartedAt: number;
-  stepVisits: Record<LadderWizardStepId, number>;
-  stepStartedAt: Record<LadderWizardStepId, number>;
-  completedSteps: Set<LadderWizardStepId>;
-  currentStepId: LadderWizardStepId;
-  firstChallengeAt: number | null;
-  blueprintApplied: boolean;
-  publishAttempts: number;
-};
-
-const createWizardLifecycleState = (initialStep: LadderWizardStepId): WizardLifecycleMetrics => {
-  const startedAt = Date.now();
-  const visits = {} as Record<LadderWizardStepId, number>;
-  const stepStartedAt = {} as Record<LadderWizardStepId, number>;
-  LADDER_WIZARD_STEP_ORDER.forEach((id) => {
-    visits[id] = 0;
-    stepStartedAt[id] = startedAt;
-  });
-  return {
-    wizardStartedAt: startedAt,
-    stepVisits: visits,
-    stepStartedAt,
-    completedSteps: new Set<LadderWizardStepId>(),
-    currentStepId: initialStep,
-    firstChallengeAt: null,
-    blueprintApplied: false,
-    publishAttempts: 0,
-  };
-};
-
-const msSince = (start: number, end: number = Date.now()): number => {
-  return Math.max(0, Math.round(end - start));
 };
 
 const summarizeIssues = (issues: ZodIssue[]): Array<{ path: string; message: string }> => {
@@ -176,7 +124,7 @@ const splitToList = (value: string | string[] | null | undefined, limit = 6): st
   return unique.slice(0, Math.max(1, limit));
 };
 
-type LadderPreviewSnapshot = {
+export type LadderPreviewSnapshot = {
   summary: CapsuleLadderSummary;
   detail: CapsuleLadderDetail;
   members: CapsuleLadderMember[];
@@ -331,29 +279,6 @@ const parseNumericField = (value: unknown, options?: { min?: number; max?: numbe
 };
 
 const ASSISTANT_STEPS: GuidedStepId[] = ["blueprint", "title", "summary", "overview", "rules", "shoutouts", "rewards"];
-const ASSISTANT_WELCOME_TEXT =
-  "Tell me the vibe, game, who it's for, and what's at stake. I can help with a title, one-line summary, rules, or rewards\u2014whatever you need.";
-
-type AssistantStepState = {
-  draft: string;
-  isSending: boolean;
-  threadId: string | null;
-  conversation: AssistantMessage[];
-};
-
-const createInitialAssistantState = (): AssistantStepState => ({
-  draft: "",
-  isSending: false,
-  threadId: null,
-  conversation: [
-    {
-      id: "ai-welcome",
-      sender: "ai",
-      text: ASSISTANT_WELCOME_TEXT,
-      timestamp: Date.now(),
-    },
-  ],
-});
 
 const DEFAULT_WIZARD_START_STEP = (LADDER_WIZARD_STEP_ORDER[0] ?? "basics") as LadderWizardStepId;
 
@@ -398,46 +323,19 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
       : "standard";
   const [seed, setSeed] = React.useState(() => ({ ...defaultSeedForm }));
   const isOnline = useNetworkStatus();
-  const [toasts, setToasts] = React.useState<LadderToast[]>([]);
-  const toastTimers = React.useRef<Record<string, number>>({});
+  const { toasts, pushToast, dismissToast } = useToastNotifications();
   const offlineToastId = React.useRef<string | null>(null);
   const hasAnnouncedNetwork = React.useRef(false);
   const [isSaving, setSaving] = React.useState(false);
   const [guidedStep, setGuidedStep] = React.useState<GuidedStepId>(DEFAULT_GUIDED_STEP);
-  const [assistantStateByStep, setAssistantStateByStep] = React.useState<
-    Partial<Record<GuidedStepId, AssistantStepState>>
-  >(() => ({
-    title: createInitialAssistantState(),
-    summary: createInitialAssistantState(),
-  }));
-  const createAssistantMessage = React.useCallback((sender: AssistantMessage["sender"], text: string): AssistantMessage => {
-    return {
-      id: `${sender}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      sender,
-      text,
-      timestamp: Date.now(),
-    };
-  }, []);
-  const currentAssistantState: AssistantStepState =
-    assistantStateByStep[guidedStep] ?? createInitialAssistantState();
-  const assistantDraft = currentAssistantState.draft;
-  const assistantIsSending = currentAssistantState.isSending;
-  const assistantConversation = currentAssistantState.conversation;
-  const updateAssistantState = React.useCallback(
-    (step: GuidedStepId, updater: (prev: AssistantStepState) => AssistantStepState) => {
-      if (!ASSISTANT_STEPS.includes(step)) return;
-      setAssistantStateByStep((prev) => {
-        const previous = prev[step] ?? createInitialAssistantState();
-        return {
-          ...prev,
-          [step]: updater(previous),
-        };
-      });
-    },
-    [],
-  );
-  const [showMoreActions, setShowMoreActions] = React.useState(false);
-  const [showPreviewOverlay, setShowPreviewOverlay] = React.useState(false);
+  const {
+    assistantStateByStep,
+    assistantDraft,
+    assistantIsSending,
+    assistantConversation,
+    createAssistantMessage,
+    updateAssistantState,
+  } = useAssistantState(guidedStep, ASSISTANT_STEPS);
   const resetBuilderToDefaults = React.useCallback(() => {
     setForm(createInitialFormState());
     setMembers(defaultMembersForm());
@@ -490,29 +388,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
       }
     },
     [setForm, setMembers, setMeta, setGuidedStep, setSeed],
-  );
-  const dismissToast = React.useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    const timerId = toastTimers.current[id];
-    if (typeof timerId === "number") {
-      window.clearTimeout(timerId);
-      delete toastTimers.current[id];
-    }
-  }, []);
-  const pushToast = React.useCallback(
-    (toast: Omit<LadderToast, "id">) => {
-      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      setToasts((prev) => [...prev, { ...toast, id }]);
-      if (!toast.persist) {
-        const timeout = window.setTimeout(() => {
-          setToasts((prev) => prev.filter((item) => item.id !== id));
-          delete toastTimers.current[id];
-        }, toast.tone === "danger" ? 6000 : 4200);
-        toastTimers.current[id] = timeout;
-      }
-      return id;
-    },
-    [],
   );
   const handleDraftRestored = React.useCallback(
     (_timestamp: number) => {
@@ -568,16 +443,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
     });
   }, [capsuleList.length, draftRestoredAt, helperDensityVariant, metaVariant, selectedCapsuleId]);
   const formContentRef = React.useRef<HTMLDivElement | null>(null);
-  React.useEffect(() => {
-    return () => {
-      Object.values(toastTimers.current).forEach((timerId) => {
-        if (typeof timerId === "number") {
-          window.clearTimeout(timerId);
-        }
-      });
-      toastTimers.current = {};
-    };
-  }, []);
   React.useEffect(() => {
     if (formContentRef.current) {
       formContentRef.current.focus();
@@ -667,13 +532,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
     });
     return map;
   }, []);
-  const guidedStepIndex = React.useMemo(
-    () => Math.max(0, GUIDED_STEP_ORDER.indexOf(guidedStep)),
-    [guidedStep],
-  );
-  const guidedPreviousStepId = guidedStepIndex > 0 ? GUIDED_STEP_ORDER[guidedStepIndex - 1] : null;
-  const guidedNextStepId =
-    guidedStepIndex < GUIDED_STEP_ORDER.length - 1 ? GUIDED_STEP_ORDER[guidedStepIndex + 1] : null;
   React.useEffect(() => {
     setGuidedVisited((prev) => (prev[guidedStep] ? prev : { ...prev, [guidedStep]: true }));
   }, [guidedStep]);
@@ -762,7 +620,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
     isRegistrationTouched,
     isTimelineTouched,
   ]);
-  const guidedNextStep = guidedNextStepId ? GUIDED_STEP_MAP.get(guidedNextStepId) ?? null : null;
   const guidedSummaryIdeas = React.useMemo(() => {
     const summaryOptions: {
       capsuleName?: string | null;
@@ -1624,7 +1481,7 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
   ]);
   const handleAssistantKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (event.key === "Enter") {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         handleAssistantSend();
       }
@@ -1680,7 +1537,6 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
     );
     if (!confirmDiscard) return;
     discardDraft();
-    setShowMoreActions(false);
     setGuidedVisited(
       GUIDED_STEP_ORDER.reduce((acc, id) => {
         acc[id] = id === guidedStep;
@@ -1880,207 +1736,10 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
     selectedCapsule,
     validateStep,
   ]);
-  const renderAiPlan = () => <AiPlanCard plan={aiPlan} />;
-  const renderToastStack = () =>
-    toasts.length ? (
-      <div className={styles.toastStack} role="region" aria-live="assertive">
-        {toasts.map((toast) => (
-          <Alert key={toast.id} tone={toast.tone} className={styles.toastCard}>
-            <button
-              type="button"
-              className={styles.toastDismiss}
-              onClick={() => dismissToast(toast.id)}
-              aria-label="Dismiss notification"
-            >
-              Close
-            </button>
-            <AlertTitle>{toast.title}</AlertTitle>
-            {toast.description ? <AlertDescription>{toast.description}</AlertDescription> : null}
-          </Alert>
-        ))}
-      </div>
-    ) : null;
-  const renderReviewOverview = () => (
-    <ReviewOverviewCard
-      capsuleName={selectedCapsule?.name ?? null}
-      visibility={form.visibility}
-      publish={form.publish}
-      membersCount={members.length}
-      sectionsReady={previewModel.sections.length}
-    />
+  const handleAssistantDraftChange = React.useCallback(
+    (value: string) => updateAssistantState(guidedStep, (prev) => ({ ...prev, draft: value })),
+    [guidedStep, updateAssistantState],
   );
-  const renderPreviewPanel = () => {
-    return (
-      <div className={styles.previewEmbed}>
-        <CapsuleEventsSection
-          capsuleId={previewSnapshot.summary.capsuleId}
-          ladders={[previewSnapshot.summary]}
-          tournaments={[]}
-          loading={false}
-          error={null}
-          onRetry={() => undefined}
-          previewOverrides={previewSnapshot}
-        />
-      </div>
-    );
-  };
-  const renderGuidedExperience = () => {
-    const previewPanel = renderPreviewPanel();
-    return (
-      <>
-        <WizardLayout
-          stepperLabel="Setup"
-          steps={GUIDED_STEP_DEFINITIONS}
-          activeStepId={guidedStep}
-          completionMap={guidedCompletion}
-          onStepSelect={handleGuidedStepSelect}
-          toastStack={renderToastStack()}
-          formContentRef={formContentRef}
-          stepStackClassName={styles.guidedStack}
-          formContent={
-            <GuidedStepContent
-              step={guidedStep}
-              capsuleId={selectedCapsuleId}
-              form={form}
-              members={members}
-              guidedSummaryIdeas={guidedSummaryIdeas}
-              assistantConversation={assistantConversation}
-              assistantDraft={assistantDraft}
-              assistantBusy={assistantIsSending}
-              onAssistantDraftChange={(value) =>
-                updateAssistantState(guidedStep, (prev) => ({ ...prev, draft: value }))
-              }
-              onAssistantKeyDown={handleAssistantKeyDown}
-              onAssistantSend={handleAssistantSend}
-              onFormField={handleFormField}
-              onRegistrationChange={handleRegistrationChange}
-              onGameChange={handleGameChange}
-              onScoringChange={handleScoringChange}
-              onScheduleChange={handleScheduleChange}
-              onSectionChange={handleSectionChange}
-              onMemberField={handleMemberField}
-              onAddMember={addMember}
-              onAddMemberWithUser={addMemberWithUser}
-              onRemoveMember={removeMember}
-              reviewOverview={renderReviewOverview()}
-              reviewAiPlan={renderAiPlan()}
-            />
-          }
-          controlsStart={
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  if (!guidedPreviousStepId) return;
-                  handleGuidedStepSelect(guidedPreviousStepId);
-                }}
-                disabled={!guidedPreviousStepId}
-              >
-                Back
-              </Button>
-              <div className={styles.moreActions}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setShowMoreActions((prev) => !prev)}
-                  aria-expanded={showMoreActions}
-                >
-                  Options
-                </Button>
-                {showMoreActions ? (
-                  <div className={styles.moreMenu} role="menu">
-                    {canDiscardDraft ? (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={handleDiscardDraft}
-                        disabled={isSaving}
-                      >
-                        Discard draft
-                      </button>
-                    ) : null}
-                    {selectedCapsule ? (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          handleCapsuleChange(null);
-                          setShowMoreActions(false);
-                        }}
-                        disabled={isSaving}
-                      >
-                        Switch capsule
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </>
-          }
-          controlsEnd={
-            guidedStep !== "review" ? (
-              <>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className={styles.previewButton}
-                  onClick={() => setShowPreviewOverlay(true)}
-                >
-                  Preview
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className={styles.stepperNextButton}
-                  onClick={() => {
-                    if (!guidedNextStepId) return;
-                    handleGuidedStepSelect(guidedNextStepId);
-                  }}
-                  disabled={!guidedNextStepId}
-                >
-                  {guidedNextStep ? `Next: ${guidedNextStep.title}` : "Next"}
-                </Button>
-              </>
-              ) : (
-              <Button
-                type="button"
-                variant="secondary"
-                className={styles.stepperNextButton}
-                onClick={createLadder}
-                disabled={isSaving || !isOnline}
-              >
-                {isSaving ? "Saving ladder..." : form.publish ? "Publish ladder" : "Save ladder draft"}
-              </Button>
-              )
-            }
-            previewPanel={previewPanel}
-            showPreview={previewMode}
-          />
-        {showPreviewOverlay ? (
-          <div className={styles.mobileSheet} role="dialog" aria-modal="true" aria-label="Ladder preview">
-            <div className={styles.mobileSheetBackdrop} onClick={() => setShowPreviewOverlay(false)} />
-            <div className={`${styles.mobileSheetBody} ${styles.desktopPreviewSheet}`}>
-              <div className={styles.mobileSheetHeader}>
-                <span className={styles.mobileSheetTitle}>Ladder preview</span>
-                <button
-                  type="button"
-                  className={styles.mobileSheetClose}
-                  onClick={() => setShowPreviewOverlay(false)}
-                  aria-label="Close ladder preview"
-                >
-                  Close
-                </button>
-              </div>
-              <div className={[styles.mobileSheetContent, styles.mobilePreviewContent].filter(Boolean).join(" ")}>
-                {previewPanel}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </>
-    );
-  };
   if (!selectedCapsule) {
     return (
       <div className={styles.gateWrap}>
@@ -2100,7 +1759,45 @@ export function LadderBuilder({ capsules, initialCapsuleId = null, previewMode =
     <div className={styles.builderWrap}>
       <div className={styles.wizardPanel}>
         <div className={styles.panelGlow} aria-hidden />
-        {renderGuidedExperience()}
+        <LadderWizardView
+          guidedStep={guidedStep}
+          guidedCompletion={guidedCompletion}
+          guidedSummaryIdeas={guidedSummaryIdeas}
+          onStepSelect={handleGuidedStepSelect}
+          formContentRef={formContentRef}
+          selectedCapsuleId={selectedCapsuleId}
+          selectedCapsuleName={selectedCapsule?.name ?? null}
+          form={form}
+          members={members}
+          previewModel={previewModel}
+          previewSnapshot={previewSnapshot}
+          aiPlan={aiPlan}
+          toasts={toasts}
+          onDismissToast={dismissToast}
+          assistantConversation={assistantConversation}
+          assistantDraft={assistantDraft}
+          assistantBusy={assistantIsSending}
+          onAssistantDraftChange={handleAssistantDraftChange}
+          onAssistantKeyDown={handleAssistantKeyDown}
+          onAssistantSend={handleAssistantSend}
+          onFormField={handleFormField}
+          onRegistrationChange={handleRegistrationChange}
+          onGameChange={handleGameChange}
+          onScoringChange={handleScoringChange}
+          onScheduleChange={handleScheduleChange}
+          onSectionChange={handleSectionChange}
+          onMemberField={handleMemberField}
+          onAddMember={addMember}
+          onAddMemberWithUser={addMemberWithUser}
+          onRemoveMember={removeMember}
+          onDiscardDraft={handleDiscardDraft}
+          canDiscardDraft={canDiscardDraft}
+          onCreateLadder={createLadder}
+          onCapsuleChange={handleCapsuleChange}
+          previewMode={previewMode}
+          isSaving={isSaving}
+          isOnline={isOnline}
+        />
       </div>
     </div>
   );

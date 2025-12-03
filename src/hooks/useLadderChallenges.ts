@@ -2,7 +2,13 @@
 
 import * as React from "react";
 
-import type { CapsuleLadderMember, LadderChallenge, LadderChallengeOutcome, LadderMatchRecord } from "@/types/ladders";
+import type {
+  CapsuleLadderMember,
+  LadderChallenge,
+  LadderChallengeOutcome,
+  LadderMatchRecord,
+  LadderParticipantType,
+} from "@/types/ladders";
 
 type UseLadderChallengesOptions = {
   capsuleId: string | null;
@@ -10,14 +16,20 @@ type UseLadderChallengesOptions = {
 };
 
 type ChallengePayload = {
-  challengerId: string;
-  opponentId: string;
+  challengerId?: string | null;
+  opponentId?: string | null;
+  challengerCapsuleId?: string | null;
+  opponentCapsuleId?: string | null;
+  participantType?: LadderParticipantType;
   note?: string | null;
 };
 
 type ResolvePayload = {
   outcome: LadderChallengeOutcome;
   note?: string | null;
+  challengerCapsuleId?: string | null;
+  opponentCapsuleId?: string | null;
+  proofUrl?: string | null;
 };
 
 type ChallengeResponse = {

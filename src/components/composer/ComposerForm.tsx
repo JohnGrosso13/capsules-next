@@ -708,6 +708,8 @@ type ComposerFormProps = {
   onCancelThemePreview(): void;
   onRetryVideo(): void;
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
+  onRetryLastPrompt(): void;
+  canRetryLastPrompt: boolean;
 };
 
 export function ComposerForm({
@@ -743,6 +745,8 @@ export function ComposerForm({
   onForceChoice,
   onRetryVideo,
   onSaveCreation,
+  onRetryLastPrompt,
+  canRetryLastPrompt,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -1962,6 +1966,10 @@ export function ComposerForm({
       quickPromptBubbleOptions={quickPromptBubbleOptions}
       promptSurfaceProps={promptSurfaceProps}
       onAddAttachmentToPreview={handleAddAttachmentToPreview}
+      canRetryLastPrompt={canRetryLastPrompt}
+      onRetryLastPrompt={onRetryLastPrompt}
+      smartContextEnabled={smartContextEnabled}
+      onEnableContext={() => onSmartContextChange(true)}
     />
   );
 

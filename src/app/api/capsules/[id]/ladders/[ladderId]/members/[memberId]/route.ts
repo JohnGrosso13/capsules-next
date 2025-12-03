@@ -20,6 +20,7 @@ const ladderMemberSchema = z.object({
   userId: z.string().nullable(),
   displayName: z.string(),
   handle: z.string().nullable(),
+  status: z.enum(["pending", "invited", "active", "rejected", "banned"]).optional(),
   seed: z.number().nullable(),
   rank: z.number().nullable(),
   rating: z.number(),
@@ -37,6 +38,7 @@ const memberPatchSchema = z
     userId: z.string().max(64).nullable().optional(),
     displayName: z.string().min(1).max(80).optional(),
     handle: z.string().max(40).nullable().optional(),
+    status: z.enum(["pending", "invited", "active", "rejected", "banned"]).optional(),
     seed: z.number().int().min(1).max(999).nullable().optional(),
     rank: z.number().int().min(1).max(999).nullable().optional(),
     rating: z.number().int().min(100).max(4000).nullable().optional(),
@@ -61,6 +63,7 @@ function toMemberPatch(data: MemberPatch): CapsuleLadderMemberUpdateInput {
   if (data.userId !== undefined) patch.userId = data.userId ?? null;
   if (data.displayName !== undefined) patch.displayName = data.displayName;
   if (data.handle !== undefined) patch.handle = data.handle ?? null;
+  if (data.status !== undefined) patch.status = data.status;
   if (data.seed !== undefined) patch.seed = data.seed;
   if (data.rank !== undefined) patch.rank = data.rank;
   if (data.rating !== undefined) patch.rating = data.rating;

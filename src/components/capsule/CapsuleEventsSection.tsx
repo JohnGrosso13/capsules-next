@@ -134,6 +134,7 @@ export function CapsuleEventsSection({
     opponentId: "",
     outcome: "challenger",
     notes: "",
+    proofUrl: "",
   });
   const [challengeForm, setChallengeForm] = React.useState({
     challengerId: "",
@@ -168,6 +169,7 @@ export function CapsuleEventsSection({
       challengeId: "",
       challengerId: "",
       opponentId: "",
+      proofUrl: "",
     }));
     setChallengeForm((prev) => ({ ...prev, challengerId: "", opponentId: "" }));
     setChallengeMessage(null);
@@ -258,6 +260,9 @@ export function CapsuleEventsSection({
   const shoutoutsBlock = selectedLadderDetail?.sections?.shoutouts ?? null;
   const rewardsBlock = selectedLadderDetail?.sections?.results ?? null;
   const schedule = selectedLadderDetail?.config?.schedule ?? null;
+  const proofRequired = Boolean(
+    (selectedLadderDetail?.config?.moderation as { proofRequired?: boolean } | undefined)?.proofRequired,
+  );
   const timelineItems = React.useMemo(() => {
     const items: Array<{ label: string; value: string }> = [];
     if (schedule?.cadence) items.push({ label: "Season length", value: String(schedule.cadence) });
@@ -401,7 +406,7 @@ export function CapsuleEventsSection({
     (challengeId: string) => {
       const selected = challenges.find((challenge) => challenge.id === challengeId);
       if (!selected) {
-        setReportForm((prev) => ({ ...prev, challengeId: "", challengerId: "", opponentId: "" }));
+        setReportForm((prev) => ({ ...prev, challengeId: "", challengerId: "", opponentId: "", proofUrl: "" }));
         return;
       }
       setReportForm((prev) => ({
@@ -410,6 +415,7 @@ export function CapsuleEventsSection({
         challengerId: selected.challengerId,
         opponentId: selected.opponentId,
         outcome: "challenger",
+        proofUrl: "",
       }));
       setReportStatus("idle");
     },
@@ -477,6 +483,12 @@ export function CapsuleEventsSection({
       try {
         let challengeId = reportForm.challengeId;
         const trimmedNotes = reportForm.notes.trim();
+        const trimmedProof = reportForm.proofUrl.trim();
+        if (proofRequired && !trimmedNotes && !trimmedProof) {
+          setReportStatus("idle");
+          setChallengeMessage("Add proof or notes to resolve this match.");
+          return;
+        }
         if (!challengeId) {
           const created = await createChallenge({
             challengerId: reportForm.challengerId,
@@ -491,6 +503,7 @@ export function CapsuleEventsSection({
         await resolveChallenge(challengeId, {
           outcome: reportForm.outcome as "challenger" | "opponent" | "draw",
           note: trimmedNotes ? trimmedNotes : null,
+          proofUrl: trimmedProof ? trimmedProof : null,
         });
         trackLadderEvent({
           event: "ladders.match.report",
@@ -514,9 +527,11 @@ export function CapsuleEventsSection({
       reportForm.challengerId,
       reportForm.ladderId,
       reportForm.notes,
+      reportForm.proofUrl,
       reportForm.opponentId,
       reportForm.outcome,
       resolveChallenge,
+      proofRequired,
     ],
   );
 
@@ -1070,6 +1085,19 @@ export function CapsuleEventsSection({
               placeholder="Series score, proof links, or quick context."
               rows={3}
             />
+          </label>
+          <label className={styles.reportField} aria-label="Proof link">
+            <span>Proof link{proofRequired ? " (required)" : ""}</span>
+            <Input
+              type="url"
+              inputMode="url"
+              value={reportForm.proofUrl}
+              onChange={(event) => handleReportFieldChange("proofUrl", event.target.value)}
+              placeholder={proofRequired ? "Add a link to match proof" : "Optional proof or VOD link"}
+            />
+            {proofRequired ? (
+              <span className={styles.reportHint}>Proof or notes are required to resolve matches on this ladder.</span>
+            ) : null}
           </label>
         </div>
         {challengeMessage ? (

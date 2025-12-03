@@ -4,6 +4,7 @@ import * as React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 
 import type { PrompterChipOption } from "@/components/prompter/hooks/usePrompterStageController";
 import { usePrompterChips } from "./usePrompterChips";
@@ -61,7 +62,7 @@ describe("usePrompterChips cache scoping", () => {
     sessionStorage.setItem("prompter_chips:home:user-a", JSON.stringify(userA));
     sessionStorage.setItem("prompter_chips:home:user-b", JSON.stringify(userB));
 
-    (fetch as unknown as vi.Mock).mockResolvedValueOnce({
+    (fetch as unknown as Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ chips: userB.chips }),
     });
@@ -87,7 +88,7 @@ describe("usePrompterChips cache scoping", () => {
     sessionStorage.setItem("prompter_chips:home:user-expired", JSON.stringify(expired));
 
     const fallback: PrompterChipOption[] = [{ id: "fresh", label: "Fresh" }];
-    (fetch as unknown as vi.Mock).mockResolvedValueOnce({
+    (fetch as unknown as Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ chips: fallback }),
     });

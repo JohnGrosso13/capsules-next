@@ -1,5 +1,5 @@
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import { FRIEND_PRESENCE_CHANNEL, friendEventsChannel } from "@/services/realtime/friends";
+import { buildPresenceChannelList, friendEventsChannel } from "@/services/realtime/friends";
 import { listSocialGraph } from "@/lib/supabase/friends";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import {
@@ -34,11 +34,15 @@ async function handle(req: Request) {
     }));
 
     const eventsChannel = friendEventsChannel(ownerId);
+    const presenceChannels = buildPresenceChannelList(
+      ownerId,
+      graph.friends.map((friend) => friend.friendUserId),
+    );
 
     return validatedJson(friendSyncResponseSchema, {
       friends,
       graph,
-      channels: { events: eventsChannel, presence: FRIEND_PRESENCE_CHANNEL },
+      channels: { events: eventsChannel, presence: presenceChannels },
       viewerId: ownerId,
     });
   } catch (error) {

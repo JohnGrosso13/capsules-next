@@ -77,6 +77,7 @@ const jsonObjectSchema = z
 const ladderMemberInputSchema = z.object({
   displayName: z.string().min(1).max(80),
   handle: z.string().max(40).nullable().optional(),
+  status: z.enum(["pending", "invited", "active", "rejected", "banned"]).optional(),
   seed: z.number().int().min(1).max(999).nullable().optional(),
   rank: z.number().int().min(1).max(999).nullable().optional(),
   rating: z.number().int().min(100).max(4000).nullable().optional(),

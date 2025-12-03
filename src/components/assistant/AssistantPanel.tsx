@@ -21,6 +21,7 @@ type AssistantPanelProps = {
   onCancelTask?: (taskId: string) => Promise<void> | void;
   cancelingTaskIds?: Set<string>;
   friends?: FriendItem[];
+  hasRealFriends?: boolean;
 };
 
 const RELATIVE_DIVISIONS: Array<{ amount: number; unit: Intl.RelativeTimeFormatUnit }> = [
@@ -169,6 +170,15 @@ function CollapsibleSection({
   );
 }
 
+const BLOCKED_RECIPIENT_IDS = new Set(["capsules", "memory", "dream", ASSISTANT_USER_ID].map((id) => id.toLowerCase()));
+
+function isEligibleRecipient(friend: FriendItem): friend is FriendItem & { userId: string } {
+  if (typeof friend.userId !== "string") return false;
+  const trimmed = friend.userId.trim();
+  if (!trimmed) return false;
+  return !BLOCKED_RECIPIENT_IDS.has(trimmed.toLowerCase());
+}
+
 export function AssistantPanel({
   tasks,
   loading,
@@ -177,13 +187,11 @@ export function AssistantPanel({
   onCancelTask,
   cancelingTaskIds,
   friends,
+  hasRealFriends = false,
 }: AssistantPanelProps) {
   const friendList = React.useMemo(
     () =>
-      (friends ?? []).filter(
-        (friend): friend is FriendItem & { userId: string } =>
-          typeof friend.userId === "string" && friend.userId.trim().length > 0,
-      ),
+      (friends ?? []).filter((friend): friend is FriendItem & { userId: string } => isEligibleRecipient(friend)),
     [friends],
   );
   const friendMap = React.useMemo(
@@ -204,6 +212,10 @@ export function AssistantPanel({
   const primaryError = !loading && !hasTasks && error ? error : null;
   const composerBodyId = "assistant-task-composer";
   const tasksBodyId = "assistant-task-list";
+  const hasEligibleFriends = friendList.length > 0;
+  const recipientGuardMessage = hasRealFriends
+    ? "System contacts can't receive assistant tasks. Choose a real friend."
+    : "Add a friend before assigning an assistant task.";
 
   const handleRefresh = React.useCallback(() => {
     void onRefresh();
@@ -228,6 +240,10 @@ export function AssistantPanel({
   const handleCreateTask = React.useCallback(async () => {
     setCreateError(null);
     setCreateSuccess(null);
+    if (!hasEligibleFriends) {
+      setCreateError(recipientGuardMessage);
+      return;
+    }
     const promptPieces = [taskTitle.trim(), taskDetails.trim()].filter(Boolean);
     if (!promptPieces.length) {
       setCreateError("Add a goal or message for the assistant.");
@@ -272,7 +288,15 @@ export function AssistantPanel({
     } finally {
       setCreatingTask(false);
     }
-  }, [friendMap, onRefresh, selectedRecipients, taskDetails, taskTitle]);
+  }, [
+    friendMap,
+    hasEligibleFriends,
+    onRefresh,
+    recipientGuardMessage,
+    selectedRecipients,
+    taskDetails,
+    taskTitle,
+  ]);
 
   const sortedTasks = React.useMemo(() => {
     if (!tasks || !tasks.length) return [];
@@ -443,18 +467,30 @@ export function AssistantPanel({
               id="assistant-task-recipients"
               type="button"
               className={styles.inviteInput}
-              onClick={() => setInviteOpen(true)}
+              onClick={() => {
+                if (!hasEligibleFriends) {
+                  setCreateError(recipientGuardMessage);
+                  return;
+                }
+                setInviteOpen(true);
+              }}
+              disabled={!hasEligibleFriends}
             >
               {selectedRecipients.size ? (
                 <span>{selectedRecipients.size} selected</span>
               ) : (
-                <span className={styles.muted}>Type a name to involve</span>
+                <span className={styles.muted}>
+                  {hasEligibleFriends ? "Type a name to involve" : "Add friends to involve"}
+                </span>
               )}
             </button>
           </div>
 
           {createError ? (
             <p className={`${styles.inlineError} ${styles.inlineErrorTight}`}>{createError}</p>
+          ) : null}
+          {!hasEligibleFriends && !createError ? (
+            <p className={styles.inlineError}>{recipientGuardMessage}</p>
           ) : null}
           {createSuccess ? <p className={styles.success}>{createSuccess}</p> : null}
 
@@ -463,7 +499,7 @@ export function AssistantPanel({
               type="button"
               className={styles.primaryButton}
               onClick={() => void handleCreateTask()}
-              disabled={creatingTask}
+              disabled={creatingTask || !hasEligibleFriends}
             >
               {creatingTask ? "Starting..." : "Start task"}
             </button>

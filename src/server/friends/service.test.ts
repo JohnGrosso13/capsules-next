@@ -27,11 +27,18 @@ vi.mock("./repository", () => ({
 
 vi.mock("@/services/realtime/friends", () => ({
   publishFriendEvents: vi.fn(),
+  invalidateFriendIdCache: vi.fn(),
+}));
+
+vi.mock("@/server/notifications/triggers", () => ({
+  notifyFriendRequest: vi.fn(),
+  notifyFriendRequestAccepted: vi.fn(),
 }));
 
 const repository = await import("./repository");
 const realtime = await import("@/services/realtime/friends");
 const service = await import("./service");
+const triggers = await import("@/server/notifications/triggers");
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -143,5 +150,91 @@ describe("blockUser", () => {
     expect(repository.softDeleteFollowEdge).toHaveBeenCalledTimes(2);
     expect(summary.reason).toBe("updated");
     expect(realtime.publishFriendEvents).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("acceptFriendRequest", () => {
+  it("publishes events, notifies, and clears caches after accepting a request", async () => {
+    const requestRow = {
+      id: "req-1",
+      requester_id: "user-a",
+      recipient_id: "user-b",
+      status: "pending",
+      created_at: "2024-01-01T00:00:00Z",
+      requester: { id: "user-a", user_key: "user:a", full_name: "User A" },
+      recipient: { id: "user-b", user_key: "user:b", full_name: "User B" },
+    } as const;
+
+    const acceptedRow = {
+      ...requestRow,
+      status: "accepted",
+      responded_at: "2024-01-02T00:00:00Z",
+      accepted_at: "2024-01-02T00:00:00Z",
+    } as const;
+
+    const friendEdgeAB = {
+      id: "edge-ab",
+      user_id: "user-a",
+      friend_user_id: "user-b",
+      created_at: "2024-01-02T00:00:00Z",
+      users: { id: "user-b", user_key: "user:b", full_name: "User B" },
+    } as const;
+    const friendEdgeBA = {
+      id: "edge-ba",
+      user_id: "user-b",
+      friend_user_id: "user-a",
+      created_at: "2024-01-02T00:00:00Z",
+      users: { id: "user-a", user_key: "user:a", full_name: "User A" },
+    } as const;
+
+    vi.mocked(repository.getRequestById).mockResolvedValue(requestRow as unknown as RawRow);
+    vi.mocked(repository.updatePendingRequest).mockResolvedValue(
+      acceptedRow as unknown as RawRow,
+    );
+    vi.mocked(repository.ensureFriendshipEdge).mockResolvedValue(friendEdgeAB as unknown as RawRow);
+    vi.mocked(repository.closePendingRequest).mockResolvedValue();
+    vi.mocked(repository.findFriendshipRow)
+      .mockResolvedValueOnce(friendEdgeAB as unknown as RawRow)
+      .mockResolvedValueOnce(friendEdgeBA as unknown as RawRow);
+    vi.mocked(realtime.publishFriendEvents).mockResolvedValue();
+    vi.mocked(realtime.invalidateFriendIdCache).mockResolvedValue();
+
+    const outcome = await service.acceptFriendRequest("req-1", "user-b");
+
+    expect(outcome.request.id).toBe("req-1");
+    expect(realtime.publishFriendEvents).toHaveBeenCalled();
+    expect(triggers.notifyFriendRequestAccepted).toHaveBeenCalledTimes(1);
+    expect(realtime.invalidateFriendIdCache).toHaveBeenCalledWith(["user-a", "user-b"]);
+  });
+
+  it("rolls back partial friendship creation when the second edge fails", async () => {
+    const requestRow = {
+      id: "req-2",
+      requester_id: "user-a",
+      recipient_id: "user-b",
+      status: "pending",
+    } as const;
+
+    vi.mocked(repository.getRequestById).mockResolvedValue(requestRow as unknown as RawRow);
+    vi.mocked(repository.updatePendingRequest).mockResolvedValue({
+      ...requestRow,
+      status: "accepted",
+    } as unknown as RawRow);
+    vi.mocked(repository.ensureFriendshipEdge)
+      .mockResolvedValueOnce({
+        id: "edge-ab",
+        user_id: "user-a",
+        friend_user_id: "user-b",
+      } as unknown as RawRow)
+      .mockRejectedValueOnce(new Error("insert failed"));
+    vi.mocked(repository.closePendingRequest).mockResolvedValue();
+
+    await expect(service.acceptFriendRequest("req-2", "user-b")).rejects.toThrow("insert failed");
+    expect(repository.softDeleteFriendshipEdge).toHaveBeenCalledWith(
+      "user-a",
+      "user-b",
+      expect.any(String),
+    );
+    expect(realtime.invalidateFriendIdCache).not.toHaveBeenCalled();
   });
 });

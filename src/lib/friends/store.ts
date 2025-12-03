@@ -271,6 +271,7 @@ export class FriendsStore {
     const outcome = await this.deps.mutate(input);
     this.recompute({
       graph: outcome.graph,
+      channels: outcome.channels ?? this.state.channels,
       status: "ready",
       error: null,
       lastUpdatedAt: Date.now(),

@@ -275,9 +275,11 @@ export function ConnectionsRail() {
     error: assistantTasksError,
     refresh: refreshAssistantTasks,
   } = useAssistantTasks({
+    includeCompleted: true,
     pollIntervalMs: assistantTabActive ? 60_000 : 5 * 60_000,
     idlePollIntervalMs: 5 * 60_000,
     enabled: true,
+    limit: 50,
   });
   const assistantError = assistantActionError ?? assistantTasksError;
 

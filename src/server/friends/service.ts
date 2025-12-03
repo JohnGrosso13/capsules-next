@@ -1,4 +1,4 @@
-import { publishFriendEvents } from "@/services/realtime/friends";
+import { invalidateFriendIdCache, publishFriendEvents } from "@/services/realtime/friends";
 import type { FriendRealtimeEvent } from "@/services/realtime/friends";
 
 import {
@@ -43,7 +43,7 @@ import {
   updatePendingRequest,
 } from "./repository";
 import { listViewerCapsuleInvites } from "@/server/capsules/repository";
-import { notifyFriendRequest } from "@/server/notifications/triggers";
+import { notifyFriendRequest, notifyFriendRequestAccepted } from "@/server/notifications/triggers";
 
 import { asString, mapBlockRow, mapFollowRow, mapFriendRow, mapRequestRow } from "./mappers";
 
@@ -208,8 +208,20 @@ export async function acceptFriendRequest(
     accepted_at: acceptedAt,
   });
 
-  await ensureFriendshipEdge(requesterId, recipientId, requestId);
-  await ensureFriendshipEdge(recipientId, requesterId, requestId);
+  let requesterEdge: RawRow | null = null;
+  try {
+    requesterEdge = await ensureFriendshipEdge(requesterId, recipientId, requestId);
+    await ensureFriendshipEdge(recipientId, requesterId, requestId);
+  } catch (error) {
+    if (requesterEdge) {
+      try {
+        await softDeleteFriendshipEdge(requesterId, recipientId, nowIso());
+      } catch {
+        // ignore rollback failure
+      }
+    }
+    throw error;
+  }
   await closePendingRequest(recipientId, requesterId, "cancelled", acceptedAt);
 
   const [requesterFriendRow, recipientFriendRow] = await Promise.all([
@@ -250,6 +262,8 @@ export async function acceptFriendRequest(
   }
 
   await publishFriendEvents(events);
+  await invalidateFriendIdCache([requesterId, recipientId]);
+  void notifyFriendRequestAccepted(outgoing);
 
   return {
     request: incoming,
@@ -377,6 +391,8 @@ export async function removeFriendship(
       event: { type: "friendship.removed", payload: { friendUserId: userId } },
     },
   ]);
+
+  await invalidateFriendIdCache([userId, friendUserId]);
 
   return mapFriendRow(existing);
 }
@@ -512,6 +528,8 @@ export async function blockUser(
       event: { type: "follow.updated", payload: { state: "unfollow", userId: blockerId } },
     },
   ]);
+
+  await invalidateFriendIdCache([blockerId, blockedId]);
 
   return blockSummary;
 }

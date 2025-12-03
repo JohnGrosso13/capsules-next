@@ -1,5 +1,11 @@
 export type LadderVisibility = "private" | "capsule" | "public";
 export type LadderStatus = "draft" | "active" | "archived";
+export type LadderMembershipStatus =
+  | "pending"
+  | "invited"
+  | "active"
+  | "rejected"
+  | "banned";
 
 export type LadderSectionBlock = {
   id: string;
@@ -137,6 +143,7 @@ export type CapsuleLadderMember = {
   userId: string | null;
   displayName: string;
   handle: string | null;
+  status?: LadderMembershipStatus;
   seed: number | null;
   rank: number | null;
   rating: number;
@@ -153,6 +160,7 @@ export type CapsuleLadderMemberInput = {
   userId?: string | null;
   displayName: string;
   handle?: string | null;
+  status?: LadderMembershipStatus;
   seed?: number | null;
   rank?: number | null;
   rating?: number | null;
@@ -167,6 +175,7 @@ export type CapsuleLadderMemberUpdateInput = {
   userId?: string | null;
   displayName?: string;
   handle?: string | null;
+  status?: LadderMembershipStatus;
   seed?: number | null;
   rank?: number | null;
   rating?: number | null;
@@ -178,6 +187,7 @@ export type CapsuleLadderMemberUpdateInput = {
 };
 
 export type LadderChallengeOutcome = "challenger" | "opponent" | "draw";
+export type LadderParticipantType = "member" | "capsule";
 
 export type LadderChallengeStatus = "pending" | "resolved" | "void";
 
@@ -186,6 +196,7 @@ export type LadderChallengeResult = {
   reportedAt: string;
   reportedById: string | null;
   note?: string | null;
+  proofUrl?: string | null;
   rankChanges?: Array<{ memberId: string; from: number; to: number }>;
   ratingChanges?: Array<{ memberId: string; from: number; to: number; delta?: number }>;
 };
@@ -195,10 +206,14 @@ export type LadderChallenge = {
   ladderId: string;
   challengerId: string;
   opponentId: string;
+  challengerCapsuleId?: string | null;
+  opponentCapsuleId?: string | null;
+  participantType?: LadderParticipantType;
   createdAt: string;
   createdById: string | null;
   status: LadderChallengeStatus;
   note?: string | null;
+  proofUrl?: string | null;
   result?: LadderChallengeResult;
 };
 
@@ -208,9 +223,13 @@ export type LadderMatchRecord = {
   challengeId: string | null;
   challengerId: string;
   opponentId: string;
+  challengerCapsuleId?: string | null;
+  opponentCapsuleId?: string | null;
+  participantType?: LadderParticipantType;
   outcome: LadderChallengeOutcome;
   resolvedAt: string;
   note?: string | null;
+  proofUrl?: string | null;
   rankChanges?: Array<{ memberId: string; from: number; to: number }>;
   ratingChanges?: Array<{ memberId: string; from: number; to: number; delta?: number }>;
 };

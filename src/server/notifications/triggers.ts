@@ -3,7 +3,12 @@ import { fetchPostCoreById } from "@/server/posts/repository";
 import { listCapsuleFollowers, listCapsuleMembers, getCapsuleSummaryForViewer } from "@/server/capsules/repository";
 import type { FriendRequestSummary } from "@/server/friends/types";
 import type { CapsuleMemberRequestSummary } from "@/types/capsules";
-import type { CapsuleLadderDetail, CapsuleLadderMember, LadderChallenge } from "@/types/ladders";
+import type {
+  CapsuleLadderDetail,
+  CapsuleLadderMember,
+  LadderChallenge,
+  LadderMatchRecord,
+} from "@/types/ladders";
 
 function trimString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -192,6 +197,35 @@ export async function notifyFriendRequest(request: FriendRequestSummary): Promis
   }
 }
 
+export async function notifyFriendRequestAccepted(request: FriendRequestSummary): Promise<void> {
+  const requesterId = trimString(request.requesterId);
+  const recipientId = trimString(request.recipientId);
+  if (!requesterId || !recipientId || requesterId === recipientId) return;
+
+  const recipientName = trimString(request.user?.name) ?? "A Capsules member";
+  const href = "/friends";
+
+  try {
+    await createNotifications(
+      [requesterId],
+      {
+        type: "friend_request_accepted",
+        title: `${recipientName} accepted your friend request`,
+        body: "You can start a chat or follow their updates.",
+        href,
+        data: {
+          requestId: request.id,
+          userId: recipientId,
+        },
+        actorId: recipientId,
+      },
+      { respectPreferences: true },
+    );
+  } catch (error) {
+    console.warn("notifyFriendRequestAccepted error", error);
+  }
+}
+
 export async function notifyCapsuleInvite(invite: CapsuleMemberRequestSummary): Promise<void> {
   const targetUserId = trimString(invite.requesterId);
   const initiatorId = trimString(invite.initiatorId);
@@ -259,5 +293,53 @@ export async function notifyLadderChallenge(options: {
     );
   } catch (error) {
     console.warn("notifyLadderChallenge error", error);
+  }
+}
+
+export async function notifyLadderChallengeResolved(options: {
+  ladder: CapsuleLadderDetail;
+  challenge: LadderChallenge;
+  history: LadderMatchRecord;
+  members: CapsuleLadderMember[];
+  actorId?: string | null;
+}): Promise<void> {
+  const opponent = options.members.find((member) => member.id === options.challenge.opponentId);
+  const challenger = options.members.find((member) => member.id === options.challenge.challengerId);
+  const opponentUserId = trimString(opponent?.userId ?? null);
+  const challengerUserId = trimString(challenger?.userId ?? null);
+  const actorId = trimString(options.actorId ?? null);
+  const ladderName = trimString(options.ladder.name) ?? "your ladder";
+  const href = `/create/ladders?ladderId=${encodeURIComponent(options.ladder.id)}`;
+
+  const recipients = [opponentUserId, challengerUserId]
+    .filter((id): id is string => Boolean(id))
+    .filter((id, index, arr) => arr.indexOf(id) === index && id !== actorId);
+
+  if (!recipients.length) return;
+
+  const title = `Match resolved on ${ladderName}`;
+  const body =
+    options.history.outcome === "draw"
+      ? "Match recorded as a draw."
+      : `${options.history.outcome === "challenger" ? "Challenger" : "Opponent"} reported a win.`;
+
+  try {
+    await createNotifications(
+      recipients,
+      {
+        type: "ladder_challenge_resolved",
+        title,
+        body,
+        href,
+        data: {
+          ladderId: options.ladder.id,
+          challengeId: options.challenge.id,
+        },
+        actorId,
+      },
+      { respectPreferences: true },
+    );
+  } catch (error) {
+    console.warn("notifyLadderChallengeResolved error", error);
   }
 }

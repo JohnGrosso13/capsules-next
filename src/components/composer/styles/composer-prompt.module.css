@@ -1112,6 +1112,78 @@
   background: var(--composer-attachment-bg, rgba(255, 255, 255, 0.06));
 }
 
+.retryBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 0 16px 8px;
+  border-radius: 10px;
+  background: var(--surface-muted, rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.retryTitle {
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary, #fff);
+}
+
+.retryCopy {
+  margin: 2px 0 0;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.78));
+  font-size: 0.92rem;
+}
+
+.retryButton {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(135deg, #5f8bff, #7dd0ff);
+  color: #0b1023;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  filter: brightness(0.97);
+}
+
+.contextNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 8px 16px 12px;
+  border-radius: 10px;
+  background: var(--surface-subdued, rgba(255, 255, 255, 0.05));
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+
+.contextNoticeTitle {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+}
+
+.contextNoticeCopy {
+  margin: 2px 0 0;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.78));
+  font-size: 0.92rem;
+}
+
+.contextNoticeButton {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--surface-strong, #fff);
+  color: #0b1023;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 @media (max-width: 900px) {
   .chatArea {
     gap: 0.75rem;

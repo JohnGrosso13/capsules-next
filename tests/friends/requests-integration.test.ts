@@ -92,7 +92,7 @@ function createStore() {
     .mockResolvedValue({
       viewerId: "viewer-1",
       graph: structuredClone(baseGraph),
-      channels: { events: "events:viewer-1", presence: "presence:friends" },
+      channels: { events: "events:viewer-1", presence: ["presence:friends"] },
     });
 
   const mutate = vi

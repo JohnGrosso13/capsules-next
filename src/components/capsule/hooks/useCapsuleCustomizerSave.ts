@@ -28,7 +28,7 @@ type ComposeAssetResult = {
   blob: Blob;
   width: number;
   height: number;
-  mimeType: "image/jpeg";
+  mimeType: "image/jpeg" | "image/png";
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -221,18 +221,21 @@ async function composeAssetImage({
     canvas.height,
   );
 
+  const targetMime: ComposeAssetResult["mimeType"] =
+    customizerMode === "logo" || customizerMode === "avatar" ? "image/png" : "image/jpeg";
+
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((value) => {
       if (value) resolve(value);
       else reject(new Error("Failed to prepare asset export."));
-    }, "image/jpeg");
+    }, targetMime);
   });
 
   return {
     blob,
     width: canvas.width,
     height: canvas.height,
-    mimeType: "image/jpeg" as const,
+    mimeType: targetMime,
   };
 }
 
@@ -343,7 +346,8 @@ export function useCapsuleCustomizerSave({
       });
 
       const fileNamePrefix = getFileNamePrefix(customizerMode, normalizedName);
-      const fileName = `${fileNamePrefix}-${customizerMode}-${Date.now()}.jpg`;
+      const extension = exportResult.mimeType === "image/png" ? "png" : "jpg";
+      const fileName = `${fileNamePrefix}-${customizerMode}-${Date.now()}.${extension}`;
       const bannerFile = new File([exportResult.blob], fileName, { type: exportResult.mimeType });
       const imageData = await blobToBase64(exportResult.blob);
 

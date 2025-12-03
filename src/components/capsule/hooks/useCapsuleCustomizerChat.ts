@@ -22,9 +22,12 @@ import { base64ToFile } from "./capsuleImageUtils";
 import { callAiPrompt } from "@/services/composer/ai";
 import { customizerDraftSchema, type CustomizerDraft } from "@/shared/schemas/customizer";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import type { ComposerImageQuality } from "@/lib/composer/image-settings";
 
 const MAX_PROMPT_REFINEMENTS = 4;
 const ASPECT_TOLERANCE = 0.0025;
+const SYSTEM_PROMPT =
+  "Act as a helpful, concise GPT assistant. Prioritize capsule visuals when asked, but answer any topic clearly and briefly.";
 
 const MODE_ASPECT_RATIO: Record<CapsuleCustomizerMode, number> = {
   banner: 16 / 9,
@@ -64,6 +67,8 @@ type UseCustomizerChatOptions = {
   seed?: number | null;
   guidance?: number | null;
   smartContextEnabled: boolean;
+  imageQuality: ComposerImageQuality;
+  open: boolean;
 };
 
 function randomId(): string {
@@ -283,6 +288,8 @@ export function useCapsuleCustomizerChat({
   seed,
   guidance,
   smartContextEnabled,
+  imageQuality,
+  open,
 }: UseCustomizerChatOptions) {
   const [messages, setMessages] = React.useState<ChatMessage[]>(() =>
     buildIntroMessages(assistantIntro, clarifier),
@@ -298,14 +305,62 @@ export function useCapsuleCustomizerChat({
   });
   const customizerDraftRef = React.useRef<CustomizerDraft | null>(null);
   const messagesRef = React.useRef<ChatMessage[]>([]);
+  const requestAbortRef = React.useRef<AbortController | null>(null);
+
+  const abortInFlight = React.useCallback((reason: string = "capsule_customizer_closed") => {
+    if (requestAbortRef.current) {
+      requestAbortRef.current.abort(reason);
+      requestAbortRef.current = null;
+    }
+  }, []);
 
   React.useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
+  React.useEffect(
+    () => () => {
+      abortInFlight("capsule_customizer_unmount");
+    },
+    [abortInFlight],
+  );
+
+  const shouldAbort = !open;
+
+  React.useEffect(() => {
+    if (!shouldAbort) return;
+    abortInFlight("capsule_customizer_closed");
+    setChatBusy(false);
+  }, [abortInFlight, shouldAbort]);
+
   const resetPromptHistory = React.useCallback(() => {
     promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
   }, []);
+
+  const buildContextSummary = React.useCallback((): string => {
+    const recent = messagesRef.current.slice(-6);
+    const chatParts = recent
+      .map((entry) => {
+        const role = entry.role === "user" ? "User" : "Assistant";
+        const content = entry.content.trim().replace(/\s+/g, " ");
+        return `${role}: ${content.slice(0, 140)}`;
+      })
+      .join(" | ");
+
+    const selection = selectedBannerRef.current;
+    let selectionSummary = "No image selected";
+    if (selection) {
+      if (selection.kind === "ai") {
+        selectionSummary = `AI concept prompt: ${selection.prompt.slice(0, 120)}`;
+      } else if (selection.kind === "upload") {
+        selectionSummary = `Uploaded image: ${selection.name}`;
+      } else if (selection.kind === "memory") {
+        selectionSummary = `Memory: ${selection.title ?? selection.id}`;
+      }
+    }
+
+    return `Recent conversation (${chatParts || "none"}). Current selection: ${selectionSummary}.`;
+  }, [selectedBannerRef]);
 
   const resetConversation = React.useCallback(
     (intro: string, clarifierOverride?: CapsulePromptClarifier | null) => {
@@ -640,9 +695,8 @@ export function useCapsuleCustomizerChat({
     [selectedBannerRef, setSaveError, updateSelectedBanner],
   );
 
-  const handlePrompterAction = React.useCallback(
-    (action: PrompterAction) => {
-      if (chatBusy) return;
+  const handlePrompterAction = (action: PrompterAction) => {
+    if (chatBusy) return;
 
       const firstAttachment = action.attachments?.[0] ?? null;
       const actionAttachments = action.attachments ?? null;
@@ -711,6 +765,11 @@ export function useCapsuleCustomizerChat({
       };
 
       const run = async () => {
+        requestAbortRef.current?.abort("capsule_customizer_new_request");
+        const controller = new AbortController();
+        requestAbortRef.current = controller;
+        const contextSummary = buildContextSummary();
+
         try {
           if (replyMode === "chat") {
             const customizerPayload: Record<string, unknown> = {
@@ -724,6 +783,9 @@ export function useCapsuleCustomizerChat({
                 variantId: null,
                 currentAssetUrl: null,
                 currentAssetData: null,
+                imageQuality,
+                systemPrompt: SYSTEM_PROMPT,
+                contextSummary,
               },
               replyMode,
             };
@@ -736,6 +798,7 @@ export function useCapsuleCustomizerChat({
               useContext: smartContextEnabled,
               stream: true,
               endpoint: "/api/ai/customize",
+              signal: controller.signal,
               onStreamMessage(content) {
                 setMessages((prev) =>
                   prev.map((entry) => (entry.id === assistantId ? { ...entry, content } : entry)),
@@ -814,6 +877,9 @@ export function useCapsuleCustomizerChat({
               variantId: null,
               currentAssetUrl: source?.imageUrl ?? null,
               currentAssetData: source?.imageData ?? null,
+              imageQuality,
+              systemPrompt: SYSTEM_PROMPT,
+              contextSummary,
             },
             replyMode,
           };
@@ -832,6 +898,7 @@ export function useCapsuleCustomizerChat({
             useContext: smartContextEnabled,
             stream: true,
             endpoint: "/api/ai/customize",
+            signal: controller.signal,
             onStreamMessage(content) {
               setMessages((prev) =>
                 prev.map((entry) =>
@@ -955,6 +1022,13 @@ export function useCapsuleCustomizerChat({
             ),
           );
         } catch (error) {
+          if ((error as { name?: string })?.name === "AbortError") {
+            return;
+          }
+          if (typeof (error as { message?: string }).message === "string" &&
+              (error as { message?: string }).message?.toLowerCase().includes("aborted")) {
+            return;
+          }
           console.error("capsule banner ai error", error);
           const message = error instanceof Error ? error.message : "Failed to generate banner.";
           promptHistoryRef.current = {
@@ -975,46 +1049,23 @@ export function useCapsuleCustomizerChat({
           );
           setSaveError(message);
         } finally {
+          requestAbortRef.current = null;
           setChatBusy(false);
         }
       };
 
       void run();
-    },
-    [
-      aiWorkingMessage,
-      assetLabel,
-      chatBusy,
-      customizerMode,
-      ensureAspectForGeneratedBanner,
-      normalizedName,
-      resolveBannerSourceForEdit,
-      selectedBannerRef,
-      setSaveError,
-      setSelectedBanner,
-      updateSelectedBanner,
-      guidance,
-      onVariantReceived,
-      onVariantRefreshRequested,
-      capsuleId,
-      seed,
-      smartContextEnabled,
-      stylePersonaId,
-    ],
-  );
+    };
 
-  const handleSuggestionSelect = React.useCallback(
-    (suggestion: string) => {
-      const trimmed = suggestion.trim();
-      if (!trimmed) return;
-      handlePrompterAction({
-        kind: "generate",
-        text: trimmed,
-        raw: trimmed,
-      });
-    },
-    [handlePrompterAction],
-  );
+  const handleSuggestionSelect = (suggestion: string) => {
+    const trimmed = suggestion.trim();
+    if (!trimmed) return;
+    handlePrompterAction({
+      kind: "generate",
+      text: trimmed,
+      raw: trimmed,
+    });
+  };
 
   return {
     messages,
