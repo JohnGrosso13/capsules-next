@@ -72,6 +72,7 @@ type AiComposerDrawerProps = {
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
   onRetryLastPrompt(): void;
   canRetryLastPrompt: boolean;
+  onCancelRun(): void;
 };
 
 export function AiComposerDrawer(props: AiComposerDrawerProps) {
@@ -111,6 +112,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
     onSaveCreation,
     onRetryLastPrompt,
     canRetryLastPrompt,
+    onCancelRun,
   } = props;
   const portalClassName = styles.portalHost ?? "ai-composer-portal-host";
   const { host, ready } = usePortalHost(portalClassName, open);
@@ -182,6 +184,7 @@ export function AiComposerDrawer(props: AiComposerDrawerProps) {
       onSaveCreation={onSaveCreation}
       onRetryLastPrompt={onRetryLastPrompt}
       canRetryLastPrompt={canRetryLastPrompt}
+      onCancelRun={onCancelRun}
     />,
     host,
   );

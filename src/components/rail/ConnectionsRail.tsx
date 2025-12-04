@@ -18,6 +18,7 @@ import {
   type ChatFriendTarget,
   type ChatSession,
 } from "@/components/providers/ChatProvider";
+import { preferDisplayName } from "@/lib/users/format";
 import { type FriendItem } from "@/hooks/useFriendsData";
 import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 import type { AssistantTaskSummary } from "@/types/assistant";
@@ -349,9 +350,15 @@ export function ConnectionsRail() {
     const map = new Map<string, ChatFriendTarget>();
     friends.forEach((friend) => {
       if (!friend.userId) return;
+      const name = preferDisplayName({
+        name: friend.name,
+        handle: friend.key ?? null,
+        fallback: friend.userId,
+        fallbackLabel: "Friend",
+      });
       map.set(friend.userId, {
         userId: friend.userId,
-        name: friend.name || friend.userId,
+        name,
         avatar: friend.avatar ?? null,
       });
     });

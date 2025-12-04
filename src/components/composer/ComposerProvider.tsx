@@ -59,6 +59,12 @@ import type {
 
 type ComposerImageSettings = ReturnType<typeof useComposerImageSettings>["settings"];
 
+type BackgroundReadyNotice = {
+  kind: "image" | "video" | "text";
+  label: string;
+  threadId: string | null;
+};
+
 const POLL_OPTION_KEYWORDS = ["option", "options", "choice", "choices", "answer", "answers", "selection", "selections"];
 const POLL_TITLE_KEYWORDS = [
   "title",
@@ -80,6 +86,7 @@ const POLL_QUESTION_PATTERNS = [
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_ATTACHMENTS = 6;
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB
+const BACKGROUND_REMINDER_KEY = "composer:background:reminder";
 
 const EMPTY_RECENT_DRAFT: ComposerDraft = {
   kind: "text",
@@ -320,6 +327,12 @@ export type ComposerState = {
   videoStatus: ComposerVideoStatus;
   saveStatus: ComposerSaveStatus;
   contextSnapshot: ComposerContextSnapshot | null;
+  backgrounded: boolean;
+  backgroundReadyNotice: BackgroundReadyNotice | null;
+  backgroundReminderVisible: boolean;
+  backgroundPreference: {
+    remindOnBackground: boolean;
+  };
   lastPrompt: {
     prompt: string;
     attachments: PrompterAttachment[] | null;
@@ -365,6 +378,9 @@ type ComposerActionsValue = {
   retryVideo(): void;
   saveCreation(request: ComposerSaveRequest): Promise<string | null>;
   retryLastPrompt(): void;
+  cancelActiveRequest(): void;
+  resumeFromBackground(): void;
+  dismissBackgroundReminder(dontShowAgain?: boolean): void;
 };
 
 type ComposerProviderValue = {
@@ -400,6 +416,12 @@ const initialState: ComposerState = {
   videoStatus: createIdleVideoStatus(),
   saveStatus: createIdleSaveStatus(),
   contextSnapshot: null,
+  backgrounded: false,
+  backgroundReadyNotice: null,
+  backgroundReminderVisible: false,
+  backgroundPreference: {
+    remindOnBackground: true,
+  },
   lastPrompt: null,
 };
 
@@ -409,6 +431,7 @@ function resetStateWithPreference(
 ): ComposerState {
   return {
     ...initialState,
+    backgroundPreference: prev.backgroundPreference,
     ...overrides,
   };
 }
@@ -672,6 +695,30 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     }
   }, []);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(BACKGROUND_REMINDER_KEY);
+    if (stored === "off") {
+      setState((prev) => ({
+        ...prev,
+        backgroundPreference: { remindOnBackground: false },
+      }));
+    }
+  }, [setState]);
+
+  const persistBackgroundPreference = React.useCallback(
+    (remindOnBackground: boolean) => {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(BACKGROUND_REMINDER_KEY, remindOnBackground ? "on" : "off");
+      }
+      setState((prev) => ({
+        ...prev,
+        backgroundPreference: { remindOnBackground },
+      }));
+    },
+    [setState],
+  );
+
   const pushAssistantError = React.useCallback(
     (content: string, history: ComposerChatMessage[] = []) => {
       const assistantError: ComposerChatMessage = {
@@ -688,6 +735,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         loadingKind: null,
         message: content,
         history: history.length ? history.concat(assistantError) : (prev.history ?? []).concat(assistantError),
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
       }));
     },
     [setState],
@@ -1228,6 +1278,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           summaryResult: null,
           summaryOptions: null,
           summaryMessageId: null,
+          backgrounded: false,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: false,
           lastPrompt: {
             prompt: trimmedPrompt,
             attachments: normalizedAttachments ?? null,
@@ -1298,6 +1351,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             ? pendingHistory.filter((entry) => entry.id !== workingMessageId).concat(assistantError)
             : prev.history.filter((entry) => entry.id !== workingMessageId).concat(assistantError),
           message: errorMessage,
+          backgrounded: false,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: false,
         }));
         clearRequestToken(requestToken);
         clearRequestController(controller);
@@ -1338,6 +1394,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         message: workingAssistant.content,
         choices: null,
         history: [workingAssistant],
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
       }));
       try {
         const result = await requestImageGeneration(prompt, imageRequestOptions);
@@ -1356,9 +1415,10 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           createdAt: new Date().toISOString(),
           attachments: null,
         };
+        const nextThreadId = safeRandomUUID();
         setState((prev) => ({
           ...prev,
-          open: true,
+          open: prev.backgrounded && !prev.open ? prev.open : true,
           loading: false,
           loadingKind: null,
           prompt,
@@ -1370,7 +1430,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           message: assistantMessage.content,
           choices: null,
           history: [assistantMessage],
-          threadId: safeRandomUUID(),
+          threadId: nextThreadId,
+          backgrounded: prev.backgrounded && !prev.open,
+          backgroundReadyNotice:
+            prev.backgrounded && !prev.open
+              ? { kind: "image", label: "Image ready", threadId: nextThreadId }
+              : null,
+          backgroundReminderVisible: false,
         }));
       } catch (error) {
         console.error("Logo tool failed", error);
@@ -1381,6 +1447,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           loadingKind: null,
           message: "Image generation failed. Tap retry to try again.",
           choices: null,
+          backgrounded: false,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: false,
         }));
       }
     },
@@ -1407,6 +1476,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         message: workingAssistant.content,
         choices: null,
         history: [workingAssistant],
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
       }));
       try {
         const result = await requestImageEdit({
@@ -1429,9 +1501,10 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           createdAt: new Date().toISOString(),
           attachments: null,
         };
+        const nextThreadId = safeRandomUUID();
         setState((prev) => ({
           ...prev,
-          open: true,
+          open: prev.backgrounded && !prev.open ? prev.open : true,
           loading: false,
           loadingKind: null,
           prompt,
@@ -1443,7 +1516,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           message: assistantMessage.content,
           choices: null,
           history: [assistantMessage],
-          threadId: safeRandomUUID(),
+          threadId: nextThreadId,
+          backgrounded: prev.backgrounded && !prev.open,
+          backgroundReadyNotice:
+            prev.backgrounded && !prev.open
+              ? { kind: "image", label: "Image ready", threadId: nextThreadId }
+              : null,
+          backgroundReminderVisible: false,
         }));
       } catch (error) {
         console.error("Image edit tool failed", error);
@@ -1454,6 +1533,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           loadingKind: null,
           message: "Image edit failed. Tap retry to try again.",
           choices: null,
+          backgrounded: false,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: false,
         }));
       }
     },
@@ -1489,6 +1571,18 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
 
   const close = React.useCallback(
     () => {
+      const snapshot = getState();
+      const hasActiveRun = snapshot.loading || snapshot.videoStatus.state === "running";
+      if (hasActiveRun) {
+        setState((prev) => ({
+          ...prev,
+          open: false,
+          backgrounded: true,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: prev.backgroundPreference.remindOnBackground,
+        }));
+        return;
+      }
       if (requestAbortRef.current) {
         requestAbortRef.current.abort("composer_closed");
       }
@@ -1496,17 +1590,80 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       clearRequestController(requestAbortRef.current);
       resetComposerState();
     },
-    [clearRequestController, clearRequestToken, resetComposerState],
+    [clearRequestController, clearRequestToken, getState, resetComposerState, setState],
+  );
+
+  const cancelActiveRequest = React.useCallback(() => {
+    const activeToken = requestTokenRef.current;
+    if (requestAbortRef.current) {
+      requestAbortRef.current.abort("composer_cancelled");
+    }
+    clearRequestToken(activeToken ?? undefined);
+    clearRequestController(requestAbortRef.current);
+    setState((prev) => {
+      const cancelled = prev.loading || prev.videoStatus.state === "running";
+      const nextHistory = cancelled
+        ? (prev.history ?? []).concat({
+            id: safeRandomUUID(),
+            role: "assistant",
+            content: "Cancelled your request.",
+            createdAt: new Date().toISOString(),
+            attachments: null,
+          })
+        : prev.history ?? [];
+      const nextMessage = cancelled ? "Cancelled your request." : prev.message;
+      return {
+        ...prev,
+        history: nextHistory,
+        message: nextMessage,
+        loading: false,
+        loadingKind: null,
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
+        videoStatus: prev.videoStatus.state === "running" ? createIdleVideoStatus() : prev.videoStatus,
+      };
+    });
+  }, [clearRequestController, clearRequestToken, setState]);
+
+  const resumeFromBackground = React.useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      open: true,
+      backgrounded: false,
+      backgroundReadyNotice: null,
+      backgroundReminderVisible: false,
+    }));
+  }, [setState]);
+
+  const dismissBackgroundReminder = React.useCallback(
+    (dontShowAgain?: boolean) => {
+      if (dontShowAgain) {
+        persistBackgroundPreference(false);
+      }
+      setState((prev) => ({
+        ...prev,
+        backgroundReminderVisible: false,
+        ...(dontShowAgain ? { backgroundPreference: { remindOnBackground: false } } : {}),
+      }));
+    },
+    [persistBackgroundPreference, setState],
   );
 
   const handlePrompterAction = React.useCallback(
     async (action: PrompterAction) => {
-      if (action.kind === "post_manual") {
-        const content = action.content.trim();
-        if (!content && (!action.attachments || !action.attachments.length)) {
-          return;
-        }
-        setState((prev) => ({ ...prev, loading: true }));
+        if (action.kind === "post_manual") {
+          const content = action.content.trim();
+          if (!content && (!action.attachments || !action.attachments.length)) {
+            return;
+          }
+          setState((prev) => ({
+            ...prev,
+            loading: true,
+            backgrounded: false,
+            backgroundReadyNotice: null,
+            backgroundReminderVisible: false,
+          }));
         try {
           const postPayload: Record<string, unknown> = {
             client_id: safeRandomUUID(),
@@ -1534,7 +1691,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           window.dispatchEvent(new CustomEvent("posts:refresh", { detail: { reason: "manual" } }));
         } catch (error) {
           console.error("Manual post failed", error);
-          setState((prev) => ({ ...prev, loading: false }));
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            backgrounded: false,
+            backgroundReadyNotice: null,
+            backgroundReminderVisible: false,
+          }));
         }
         return;
       }
@@ -1547,7 +1710,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             source: "heuristic",
             variants: heuristicPlan.variants,
           });
-          setState((prev) => ({ ...prev, open: true }));
+          setState((prev) => ({
+            ...prev,
+            open: true,
+            backgrounded: false,
+            backgroundReadyNotice: null,
+            backgroundReminderVisible: false,
+          }));
           return;
         }
         try {
@@ -1559,7 +1728,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             source: response.source,
             variants: normalized,
           });
-          setState((prev) => ({ ...prev, open: true }));
+          setState((prev) => ({
+            ...prev,
+            open: true,
+            backgrounded: false,
+            backgroundReadyNotice: null,
+            backgroundReminderVisible: false,
+          }));
         } catch (error) {
           console.error("Styler action failed", error);
         }
@@ -1610,7 +1785,13 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
   const post = React.useCallback(async () => {
     const current = getState();
     if (!current.draft) return;
-    setState((prev) => ({ ...prev, loading: true }));
+    setState((prev) => ({
+      ...prev,
+      loading: true,
+      backgrounded: false,
+      backgroundReadyNotice: null,
+      backgroundReminderVisible: false,
+    }));
     try {
       const postPayload = buildPostPayload(current.draft, current.rawPost, {
         name: author.name,
@@ -1636,6 +1817,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         loading: false,
         message: errorMessage,
         history: (prev.history ?? []).concat(assistantError),
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
       }));
     }
   }, [
@@ -1677,6 +1861,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
         summaryResult: result,
         summaryOptions: options,
         summaryMessageId: messageId,
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
       }));
     },
     [setState],
@@ -1707,6 +1894,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           loadingKind: null,
           message: validationError,
           history: [...(prev.history ?? []), assistantError],
+          backgrounded: false,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: false,
         }));
         return;
       }
@@ -1770,6 +1960,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
           summaryOptions: preserveSummary ? prev.summaryOptions : null,
           summaryMessageId: preserveSummary ? prev.summaryMessageId : null,
           videoStatus: nextVideoStatus,
+          backgrounded: false,
+          backgroundReadyNotice: null,
+          backgroundReminderVisible: false,
           lastPrompt: {
             prompt: trimmed,
             attachments: attachmentList ?? null,
@@ -1838,6 +2031,9 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
             history: safeHistory.concat(assistantError),
             message: errorMessage,
             videoStatus: fallbackVideoStatus,
+            backgrounded: false,
+            backgroundReadyNotice: null,
+            backgroundReminderVisible: false,
           };
         });
         clearRequestToken(requestToken);
@@ -1936,16 +2132,22 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
       retryVideo,
       saveCreation,
       retryLastPrompt,
+      cancelActiveRequest,
+      resumeFromBackground,
+      dismissBackgroundReminder,
     }),
     [
       close,
       createProject,
+      dismissBackgroundReminder,
       forceChoiceInternal,
       handlePrompterAction,
       handlePrompterHandoff,
       post,
       retryLastPrompt,
       retryVideo,
+      cancelActiveRequest,
+      resumeFromBackground,
       saveCreation,
       saveDraft,
       selectProject,
@@ -2016,6 +2218,7 @@ export function AiComposerRoot() {
     applyThemePreview,
     cancelThemePreview,
     retryLastPrompt,
+    cancelActiveRequest,
   } = useComposer();
 
   const forceHandlers = forceChoice
@@ -2070,6 +2273,7 @@ export function AiComposerRoot() {
       onSaveCreation={saveCreation}
       onRetryLastPrompt={retryLastPrompt}
       canRetryLastPrompt={Boolean(state.lastPrompt) && !state.loading}
+      onCancelRun={cancelActiveRequest}
       {...forceHandlers}
     />
   );

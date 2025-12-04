@@ -1,16 +1,8 @@
 import "server-only";
 
-import { Redis } from "@upstash/redis";
+import { getCacheClient } from "@/config/cache";
+import type { CacheClient } from "@/ports/cache";
 
-import { serverEnv } from "@/lib/env/server";
-
-let redisClient: Redis | null = null;
-
-export function getRedis(): Redis | null {
-  if (redisClient) return redisClient;
-  const { UPSTASH_REDIS_REST_URL: url, UPSTASH_REDIS_REST_TOKEN: token } = serverEnv;
-  if (!url || !token) return null;
-  redisClient = new Redis({ url, token });
-  return redisClient;
+export function getRedis(): CacheClient | null {
+  return getCacheClient();
 }
-

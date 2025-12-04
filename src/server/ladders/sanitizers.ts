@@ -316,6 +316,12 @@ export function sanitizeChallenge(
     statusRaw === "resolved" || statusRaw === "void" ? statusRaw : "pending";
   const note = sanitizeText(source.note, 240, null) ?? null;
   const createdById = normalizeId(source.createdById as string);
+  const participantTypeRaw = sanitizeText(source.participantType, 16, null);
+  const participantType: LadderChallenge["participantType"] =
+    participantTypeRaw === "capsule" ? "capsule" : "member";
+  const challengerCapsuleId = normalizeId((source as { challengerCapsuleId?: string }).challengerCapsuleId);
+  const opponentCapsuleId = normalizeId((source as { opponentCapsuleId?: string }).opponentCapsuleId);
+  const proofUrl = sanitizeText(source.proofUrl, 2048, null) ?? null;
   const resultRaw = isPlainObject(source.result) ? (source.result as Record<string, unknown>) : null;
   let result: LadderChallenge["result"] | undefined;
   if (resultRaw) {
@@ -327,6 +333,10 @@ export function sanitizeChallenge(
         reportedById: normalizeId(resultRaw.reportedById as string),
         note: sanitizeText(resultRaw.note, 240, null) ?? null,
       };
+      const resultProof = sanitizeText(resultRaw.proofUrl, 2048, null);
+      if (resultProof) {
+        result.proofUrl = resultProof;
+      }
       const rankChanges = sanitizeRankChanges(resultRaw.rankChanges);
       if (rankChanges.length && result) {
         result.rankChanges = rankChanges;
@@ -343,11 +353,17 @@ export function sanitizeChallenge(
     ladderId,
     challengerId,
     opponentId,
+    challengerCapsuleId,
+    opponentCapsuleId,
+    participantType,
     createdAt,
     createdById,
     status,
     note,
   };
+  if (proofUrl) {
+    challenge.proofUrl = proofUrl;
+  }
   if (result) {
     challenge.result = result;
   }
@@ -370,6 +386,12 @@ export function sanitizeMatchRecord(
   const note = sanitizeText(source.note, 240, null) ?? null;
   const rankChanges = sanitizeRankChanges(source.rankChanges);
   const ratingChanges = sanitizeRatingChanges(source.ratingChanges);
+  const participantTypeRaw = sanitizeText(source.participantType, 16, null);
+  const participantType: LadderMatchRecord["participantType"] =
+    participantTypeRaw === "capsule" ? "capsule" : "member";
+  const challengerCapsuleId = normalizeId((source as { challengerCapsuleId?: string }).challengerCapsuleId);
+  const opponentCapsuleId = normalizeId((source as { opponentCapsuleId?: string }).opponentCapsuleId);
+  const proofUrl = sanitizeText(source.proofUrl, 2048, null) ?? null;
 
   const record: LadderMatchRecord = {
     id,
@@ -377,10 +399,14 @@ export function sanitizeMatchRecord(
     challengeId,
     challengerId,
     opponentId,
+    challengerCapsuleId,
+    opponentCapsuleId,
+    participantType,
     outcome,
     resolvedAt,
   };
   if (note) record.note = note;
+  if (proofUrl) record.proofUrl = proofUrl;
   if (rankChanges.length) record.rankChanges = rankChanges;
   if (ratingChanges.length) record.ratingChanges = ratingChanges;
   return record;

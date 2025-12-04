@@ -161,7 +161,6 @@ function ComposerToolbar({
           type="button"
           className={styles.closeIcon}
           onClick={onClose}
-          disabled={disabled}
           aria-label="Close composer"
         >
           <X size={18} weight="bold" />
@@ -341,7 +340,6 @@ function ComposerToolbar({
         type="button"
         className={styles.closeIcon}
         onClick={onClose}
-        disabled={disabled}
         aria-label="Close composer"
       >
         <X size={18} weight="bold" />
@@ -371,7 +369,7 @@ function ComposerFooter({
   privacy,
   onPrivacyChange,
   loading,
-  attachmentUploading,
+  attachmentUploading: _attachmentUploading,
   onClose,
   onSave,
   onPreviewToggle,
@@ -409,7 +407,6 @@ function ComposerFooter({
           type="button"
           className={styles.cancelAction}
           onClick={onClose}
-          disabled={loading || attachmentUploading}
         >
           Cancel
         </button>
@@ -710,6 +707,7 @@ type ComposerFormProps = {
   onSaveCreation(request: ComposerSaveRequest): Promise<string | null> | Promise<void> | void;
   onRetryLastPrompt(): void;
   canRetryLastPrompt: boolean;
+  onCancelRun(): void;
 };
 
 export function ComposerForm({
@@ -747,6 +745,7 @@ export function ComposerForm({
   onSaveCreation,
   onRetryLastPrompt,
   canRetryLastPrompt,
+  onCancelRun,
 }: ComposerFormProps) {
   const workingDraft = React.useMemo<ComposerDraft>(
     () =>
@@ -1970,6 +1969,7 @@ export function ComposerForm({
       onRetryLastPrompt={onRetryLastPrompt}
       smartContextEnabled={smartContextEnabled}
       onEnableContext={() => onSmartContextChange(true)}
+      onCancelRun={onCancelRun}
     />
   );
 

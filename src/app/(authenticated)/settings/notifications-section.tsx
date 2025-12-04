@@ -258,6 +258,13 @@ export function NotificationsSettingsSection({
         ) : null}
       </header>
       <div className={cards.cardBody}>
+        <div className={styles.columnsHeader} aria-hidden="true">
+          <div className={styles.columnsHeaderSpacer} />
+          <div className={styles.columnsHeaderLabels}>
+            <span className={styles.columnsHeaderLabel}>Notifications</span>
+            <span className={styles.columnsHeaderLabel}>Emails</span>
+          </div>
+        </div>
         <div className={styles.options}>
           {OPTIONS.map((option) => {
             const enabled = Boolean(settings[option.key]);

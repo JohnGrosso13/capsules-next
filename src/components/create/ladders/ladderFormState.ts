@@ -229,6 +229,8 @@ export const ladderMemberFormSchema = z
   .object({
     id: z.string().uuid().optional(),
     userId: z.string().max(80).optional(),
+    capsuleId: z.string().max(80).optional(),
+    capsuleSlug: z.string().max(80).optional(),
     avatarUrl: z.string().max(512).optional(),
     displayName: z.string().max(80),
     handle: z.string().max(40).optional(),
@@ -240,8 +242,19 @@ export const ladderMemberFormSchema = z
     streak: z.string().max(3),
   })
   .superRefine((value, ctx) => {
-    if (!value.displayName.trim().length) {
+    const name = value.displayName.trim();
+    if (!name.length) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["displayName"], message: "Display name is required." });
+      return;
+    }
+    const hasUserId = typeof value.userId === "string" && value.userId.trim().length > 0;
+    const hasCapsuleId = typeof value.capsuleId === "string" && value.capsuleId.trim().length > 0;
+    if (!hasUserId && !hasCapsuleId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["displayName"],
+        message: "Select a real user or Capsule from search.",
+      });
     }
   });
 
@@ -249,6 +262,8 @@ export type LadderMemberFormValues = z.infer<typeof ladderMemberFormSchema>;
 
 export const createEmptyMemberForm = (index: number): LadderMemberFormValues => ({
   userId: "",
+  capsuleId: "",
+  capsuleSlug: "",
   avatarUrl: "",
   displayName: "",
   handle: "",

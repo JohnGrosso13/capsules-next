@@ -177,6 +177,13 @@ export function usePrompterStageController({
     : null;
   const apiComposerLoading = Boolean(composerContext?.state?.loading);
   const composerLoading = Boolean(apiComposerLoading || localLoading);
+  const composerOpen = Boolean(composerContext?.state?.open);
+  const backgroundReadyNotice = composerContext?.state?.backgroundReadyNotice ?? null;
+  const backgroundReminderVisible = composerContext?.state?.backgroundReminderVisible ?? false;
+  const backgroundPreference = composerContext?.state?.backgroundPreference ?? { remindOnBackground: true };
+  const backgroundReadyActive = Boolean(backgroundReadyNotice && !composerOpen);
+  const resumeFromBackground = composerContext?.resumeFromBackground ?? noop;
+  const dismissBackgroundReminder = composerContext?.dismissBackgroundReminder ?? noop;
 
   React.useEffect(() => {
     if (apiComposerLoading) {
@@ -564,11 +571,11 @@ export function usePrompterStageController({
       attachment?.status === "error");
 
   const chipOptions = React.useMemo<PrompterChipOption[]>(
-  () =>
-    chips.map((chip) =>
-      typeof chip === "string"
-        ? {
-            id: chip,
+    () =>
+      chips.map((chip) =>
+        typeof chip === "string"
+          ? {
+              id: chip,
             label: chip,
             value: chip,
             surface: surface ?? undefined,
@@ -584,6 +591,20 @@ export function usePrompterStageController({
     ),
   [chips, surface],
 );
+
+  React.useEffect(() => {
+    if (backgroundReadyNotice && !composerOpen) {
+      showLocalStatus(`${backgroundReadyNotice.label}. Tap to reopen.`, 3200);
+    }
+  }, [backgroundReadyNotice, composerOpen, showLocalStatus]);
+
+  const readyHint =
+    backgroundReadyActive && backgroundReadyNotice
+      ? `${backgroundReadyNotice.label}. Tap to jump back in.`
+      : null;
+
+  const buttonLabelFinal = backgroundReadyActive && backgroundReadyNotice ? backgroundReadyNotice.label : buttonLabel;
+  const buttonDisabledFinal = backgroundReadyActive ? false : buttonDisabled;
 
   return {
     composerContext,
@@ -642,10 +663,10 @@ export function usePrompterStageController({
     suggestedTools,
     activeTool,
     applyManualIntent,
-    buttonLabel,
-    buttonDisabled,
+    buttonLabel: buttonLabelFinal,
+    buttonDisabled: buttonDisabledFinal,
     buttonVariant,
-    hint: resolvedHint,
+    hint: readyHint ?? resolvedHint,
     showHint,
     uploadingHint,
     uploadCompleteHint,
@@ -659,6 +680,13 @@ export function usePrompterStageController({
     voiceStatusMessage,
     voiceButtonLabel,
     handleVoiceToggle,
+    backgroundReadyNotice,
+    backgroundReadyActive,
+    composerOpen,
+    resumeFromBackground,
+    backgroundReminderVisible,
+    backgroundPreference,
+    dismissBackgroundReminder,
   };
 }
 

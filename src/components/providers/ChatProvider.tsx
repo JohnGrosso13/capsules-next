@@ -9,6 +9,7 @@ import { requestRealtimeToken } from "@/lib/realtime/token";
 import { ChatEngine } from "@/lib/chat/chat-engine";
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { useCurrentUser } from "@/services/auth/client";
+import { preferDisplayName } from "@/lib/users/format";
 import type { ChatSession, ChatParticipant, ChatMessageAttachment } from "./chat-store";
 
 export type {
@@ -117,17 +118,28 @@ export function requestChatStart(
 
 function coerceFriendTarget(friend: FriendItem): ChatFriendTarget | null {
   if (!friend.userId) return null;
+  const name = preferDisplayName({
+    name: friend.name,
+    handle: friend.key ?? null,
+    fallback: friend.userId,
+    fallbackLabel: "Friend",
+  });
   return {
     userId: friend.userId,
-    name: friend.name || friend.userId,
+    name,
     avatar: friend.avatar ?? null,
   };
 }
 
 function friendTargetToParticipant(target: ChatFriendTarget): ChatParticipant {
+  const name = preferDisplayName({
+    name: target.name,
+    fallback: target.userId,
+    fallbackLabel: "Friend",
+  });
   return {
     id: target.userId,
-    name: target.name || target.userId,
+    name,
     avatar: target.avatar ?? null,
   };
 }

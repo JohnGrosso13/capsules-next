@@ -15,7 +15,7 @@ type TournamentWizardViewProps = {
   onBack: () => void;
   onNextStep: () => void;
   nextStepTitle: string | null;
-  formContent: React.ReactNode;
+  renderFormContent: (stepControls: React.ReactNode) => React.ReactNode;
   formContentRef: React.RefObject<HTMLDivElement | null>;
   previewPanel: React.ReactNode;
   previewMode?: boolean;
@@ -36,7 +36,7 @@ const TournamentWizardView = React.memo(function TournamentWizardView({
   onBack,
   onNextStep,
   nextStepTitle,
-  formContent,
+  renderFormContent,
   formContentRef,
   previewPanel,
   previewMode = false,
@@ -50,75 +50,80 @@ const TournamentWizardView = React.memo(function TournamentWizardView({
   const [showOptions, setShowOptions] = React.useState(false);
   const [showPreviewOverlay, setShowPreviewOverlay] = React.useState(false);
 
-  const controlsStart = (
-    <>
-      <Button type="button" variant="ghost" onClick={onBack} disabled={!previousStepId}>
-        Back
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => setShowOptions((prev) => !prev)}
-        aria-expanded={showOptions}
-      >
-        Options
-      </Button>
-      {showOptions ? (
-        <div className={styles.moreMenu} role="menu">
-          {canSwitchCapsule ? (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                onCapsuleChange();
-                setShowOptions(false);
-              }}
-            >
-              Switch capsule
-            </button>
-          ) : null}
-          <button
+  const stepControls = (
+    <div className={styles.stepControls} aria-label="Step controls">
+      <div className={styles.stepControlsStart}>
+        <Button type="button" variant="ghost" onClick={onBack} disabled={!previousStepId}>
+          Back
+        </Button>
+        <div className={styles.moreActions}>
+          <Button
             type="button"
-            role="menuitem"
-            onClick={() => {
-              onReset();
-              setShowOptions(false);
-            }}
+            variant="ghost"
+            onClick={() => setShowOptions((prev) => !prev)}
+            aria-expanded={showOptions}
           >
-            Reset tournament
-          </button>
+            Options
+          </Button>
+          {showOptions ? (
+            <div className={styles.moreMenu} role="menu">
+              {canSwitchCapsule ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    onCapsuleChange();
+                    setShowOptions(false);
+                  }}
+                >
+                  Switch capsule
+                </button>
+              ) : null}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onReset();
+                  setShowOptions(false);
+                }}
+              >
+                Reset tournament
+              </button>
+            </div>
+          ) : null}
         </div>
-      ) : null}
-    </>
+      </div>
+      <div className={styles.stepControlsEnd}>
+        {activeStep !== "review" ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className={styles.previewButton}
+              onClick={() => setShowPreviewOverlay(true)}
+            >
+              Preview
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className={styles.stepperNextButton}
+              onClick={onNextStep}
+              disabled={!nextStepTitle}
+            >
+              {nextStepTitle ? `Next: ${nextStepTitle}` : "Next"}
+            </Button>
+          </>
+        ) : (
+          <Button type="button" onClick={onCreateTournament} disabled={isSaving}>
+            {isSaving ? "Saving tournament..." : publish ? "Publish tournament" : "Save tournament draft"}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 
-  const controlsEnd =
-    activeStep !== "review" ? (
-      <>
-        <Button
-          type="button"
-          variant="secondary"
-          className={styles.previewButton}
-          onClick={() => setShowPreviewOverlay(true)}
-        >
-          Preview
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          className={styles.stepperNextButton}
-          onClick={onNextStep}
-          disabled={!nextStepTitle}
-        >
-          {nextStepTitle ? `Next: ${nextStepTitle}` : "Next"}
-        </Button>
-      </>
-    ) : (
-      <Button type="button" onClick={onCreateTournament} disabled={isSaving}>
-        {isSaving ? "Saving tournament..." : publish ? "Publish tournament" : "Save tournament draft"}
-      </Button>
-    );
-
+  const formContent = renderFormContent(stepControls);
   return (
     <>
       <WizardLayout
@@ -129,8 +134,6 @@ const TournamentWizardView = React.memo(function TournamentWizardView({
         onStepSelect={onStepSelect}
         formContentRef={formContentRef}
         formContent={formContent}
-        controlsStart={controlsStart}
-        controlsEnd={controlsEnd}
         previewPanel={previewPanel}
         showPreview={previewMode}
       />

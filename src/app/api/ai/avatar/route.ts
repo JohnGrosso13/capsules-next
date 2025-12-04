@@ -6,10 +6,11 @@ import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { aiImageVariantSchema } from "@/shared/schemas/ai";
 import {
-  checkRateLimit,
+  checkRateLimits,
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 import { generateAvatarAsset, editAvatarAsset } from "@/server/customizer/assets/avatar";
 
 const requestSchema = z.object({
@@ -54,13 +55,30 @@ const AVATAR_RATE_LIMIT: RateLimitDefinition = {
   window: "30 m",
 };
 
+const AVATAR_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.avatar.ip",
+  limit: 40,
+  window: "30 m",
+};
+
+const AVATAR_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.avatar.global",
+  limit: 120,
+  window: "30 m",
+};
+
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Sign in to customize your avatar.");
   }
 
-  const rateLimit = await checkRateLimit(AVATAR_RATE_LIMIT, `avatar:${ownerId}`);
+  const clientIp = resolveClientIp(req);
+  const rateLimit = await checkRateLimits([
+    { definition: AVATAR_RATE_LIMIT, identifier: `avatar:${ownerId}` },
+    { definition: AVATAR_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+    { definition: AVATAR_GLOBAL_RATE_LIMIT, identifier: "global:ai.avatar" },
+  ]);
   if (rateLimit && !rateLimit.success) {
     const retryAfter = computeRetryAfterSeconds(rateLimit.reset);
     return returnError(

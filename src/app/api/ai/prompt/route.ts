@@ -26,10 +26,11 @@ import {
 } from "@/server/composer/run";
 import { storeConversationSnapshot } from "@/server/ai/conversation-store";
 import {
-  checkRateLimit,
+  checkRateLimits,
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 import { deriveRequestOrigin } from "@/lib/url";
 import {
   getChatContext,
@@ -46,6 +47,7 @@ import {
   resolveWalletContext,
   EntitlementError,
 } from "@/server/billing/entitlements";
+import { shouldEnableMemoryContext } from "@/server/chat/context-gating";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -134,9 +136,6 @@ function collectRecentUserText(history: ComposerChatMessage[] | undefined, limit
     .filter(Boolean);
   return recentUsers.join(" ");
 }
-
-// Context was previously gated on a recall heuristic. We now keep enrichment on by default
-// (unless explicitly disabled by the client) to give the model maximum context.
 
 function normalizeSearchText(value: string | null | undefined): string | null {
   if (!value || typeof value !== "string") return null;
@@ -229,6 +228,18 @@ const HISTORY_RETURN_LIMIT = 24;
 const PROMPT_RATE_LIMIT: RateLimitDefinition = {
   name: "ai.prompt",
   limit: 30,
+  window: "5 m",
+};
+
+const PROMPT_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.prompt.ip",
+  limit: 120,
+  window: "5 m",
+};
+
+const PROMPT_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.prompt.global",
+  limit: 400,
   window: "5 m",
 };
 
@@ -348,7 +359,12 @@ export async function POST(req: Request) {
     return parsed.response;
   }
 
-  const rateLimitResult = await checkRateLimit(PROMPT_RATE_LIMIT, ownerId);
+  const clientIp = resolveClientIp(req);
+  const rateLimitResult = await checkRateLimits([
+    { definition: PROMPT_RATE_LIMIT, identifier: ownerId },
+    { definition: PROMPT_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+    { definition: PROMPT_GLOBAL_RATE_LIMIT, identifier: "global:ai.prompt" },
+  ]);
   if (rateLimitResult && !rateLimitResult.success) {
     const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
     return returnError(
@@ -417,9 +433,14 @@ export async function POST(req: Request) {
     });
   }
 
-  // Default to full-context enrichment unless the client explicitly disables it.
   const contextEnabled =
     typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true;
+  const memoryContextEnabled =
+    contextEnabled &&
+    shouldEnableMemoryContext({
+      message,
+      history: previousHistory,
+    });
 
   const shouldBuildAttachmentContext = contextEnabled && attachments.length > 0;
   const attachmentContexts = shouldBuildAttachmentContext
@@ -482,18 +503,22 @@ export async function POST(req: Request) {
 
   if (contextEnabled) {
     const capsuleHistoryPromise: Promise<ChatMemorySnippet[]> =
-      contextEnabled && capsuleId
+      memoryContextEnabled && capsuleId
         ? getCapsuleHistorySnippets({ capsuleId, viewerId: ownerId, query: message })
         : Promise.resolve<ChatMemorySnippet[]>([]);
 
+    const chatContextPromise = memoryContextEnabled
+      ? getChatContext({
+          ownerId,
+          message,
+          history: previousHistory,
+          origin: requestOrigin ?? null,
+          capsuleId,
+        })
+      : Promise.resolve(null);
+
     const [contextResult, userCardResult, capsuleHistorySnippets] = await Promise.all([
-      getChatContext({
-        ownerId,
-        message,
-        history: previousHistory,
-        origin: requestOrigin ?? null,
-        capsuleId,
-      }),
+      chatContextPromise,
       getUserCardCached(ownerId),
       capsuleHistoryPromise,
     ]);

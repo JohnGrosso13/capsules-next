@@ -89,6 +89,13 @@ export function AiPrompterStage(props: Props) {
     voiceStatus,
     voiceButtonLabel,
     handleVoiceToggle,
+    backgroundReadyNotice,
+    backgroundReadyActive,
+    composerOpen,
+    resumeFromBackground,
+    backgroundReminderVisible,
+    backgroundPreference,
+    dismissBackgroundReminder,
   } = controller;
 
   const noop = React.useCallback(() => {}, []);
@@ -96,6 +103,24 @@ export function AiPrompterStage(props: Props) {
   const allowIntentMenu =
     typeof props.showIntentMenu === "boolean" ? props.showIntentMenu : variantConfig.allowIntentMenu;
   const submitVariant = props.submitVariant ?? "default";
+  const readyMode = Boolean(backgroundReadyActive && backgroundReadyNotice && !composerOpen);
+  const [hideReminder, setHideReminder] = React.useState(false);
+  React.useEffect(() => {
+    if (!backgroundReminderVisible && hideReminder) {
+      setHideReminder(false);
+    }
+  }, [backgroundReminderVisible, hideReminder]);
+  const handleDismissReminder = React.useCallback(() => {
+    dismissBackgroundReminder(hideReminder || !backgroundPreference.remindOnBackground);
+    setHideReminder(false);
+  }, [backgroundPreference.remindOnBackground, dismissBackgroundReminder, hideReminder]);
+  const handleReadyResume = React.useCallback(() => {
+    if (readyMode) {
+      resumeFromBackground();
+      return;
+    }
+    handleGenerate();
+  }, [handleGenerate, readyMode, resumeFromBackground]);
 
   const buttonClassName =
     buttonVariant === "style" ? cssClass("genBtn", "genBtnStyle") : cssClass("genBtn");
@@ -113,10 +138,10 @@ export function AiPrompterStage(props: Props) {
       if (hasModifier || allowNewline) return;
       event.preventDefault();
       if (!buttonDisabled) {
-        handleGenerate();
+        handleReadyResume();
       }
     },
-    [buttonDisabled, handleGenerate, variantConfig.multilineInput],
+    [buttonDisabled, handleReadyResume, variantConfig.multilineInput],
   );
 
   return (
@@ -138,6 +163,33 @@ export function AiPrompterStage(props: Props) {
             </div>
           </div>
         ) : null}
+        {backgroundReminderVisible ? (
+          <div className={styles.backgroundReminder} role="status" aria-live="polite">
+            <div className={styles.backgroundReminderCopy}>
+              <p className={styles.backgroundReminderTitle}>Running in the background</p>
+              <p className={styles.backgroundReminderText}>
+                We&apos;ll keep generating even if you close the composer.
+              </p>
+              <label className={styles.backgroundReminderCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={hideReminder || !backgroundPreference.remindOnBackground}
+                  onChange={(event) => setHideReminder(event.target.checked)}
+                />
+                <span>Don&apos;t show again</span>
+              </label>
+            </div>
+            <div className={styles.backgroundReminderActions}>
+              <button
+                type="button"
+                className={styles.backgroundReminderButton}
+                onClick={handleDismissReminder}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        ) : null}
         <PrompterToolbar
           inputRef={textRef}
           text={text}
@@ -147,7 +199,7 @@ export function AiPrompterStage(props: Props) {
           buttonLabel={buttonLabel}
           buttonClassName={buttonClassName}
           buttonDisabled={buttonDisabled}
-          onGenerate={handleGenerate}
+          onGenerate={handleReadyResume}
           dataIntent={String(effectiveIntent)}
           fileInputRef={fileInputRef}
           uploading={attachmentUploading}

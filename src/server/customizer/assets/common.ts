@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { encodeBase64 } from "@/lib/base64";
 import { storeImageSrcToSupabase } from "@/lib/supabase/storage";

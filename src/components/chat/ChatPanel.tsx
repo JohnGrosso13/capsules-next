@@ -6,6 +6,7 @@ import { Plus, ChatsTeardrop } from "@phosphor-icons/react/dist/ssr";
 import { useChatContext } from "@/components/providers/ChatProvider";
 import type { ChatFriendTarget, ChatSession } from "@/components/providers/ChatProvider";
 import type { FriendItem } from "@/hooks/useFriendsData";
+import { preferDisplayName } from "@/lib/users/format";
 
 import styles from "./chat.module.css";
 import { ChatConversation } from "./ChatConversation";
@@ -59,9 +60,15 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, frie
     const map = new Map<string, ChatFriendTarget>();
     eligibleFriends.forEach((friend) => {
       if (!friend.userId) return;
+      const name = preferDisplayName({
+        name: friend.name,
+        handle: friend.key ?? null,
+        fallback: friend.userId,
+        fallbackLabel: "Friend",
+      });
       map.set(friend.userId, {
         userId: friend.userId,
-        name: friend.name || friend.userId,
+        name,
         avatar: friend.avatar ?? null,
       });
     });
@@ -71,7 +78,12 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, frie
   const friendLookup = React.useMemo(() => {
     const map = new Map<string, { name: string | null; avatar: string | null }>();
     eligibleFriends.forEach((friend) => {
-      const name = friend.name?.trim() || friend.userId || friend.key || null;
+      const name = preferDisplayName({
+        name: friend.name,
+        handle: friend.key ?? null,
+        fallback: friend.userId,
+        fallbackLabel: "Friend",
+      });
       const avatar = friend.avatar ?? null;
       const identifiers: string[] = [];
       if (typeof friend.userId === "string") identifiers.push(friend.userId);

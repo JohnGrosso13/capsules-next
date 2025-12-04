@@ -6,6 +6,7 @@ import Image from "next/image";
 import { CheckCircle, ChatsTeardrop, MagnifyingGlass, PlusCircle, X } from "@phosphor-icons/react/dist/ssr";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
+import { preferDisplayName } from "@/lib/users/format";
 
 import styles from "./GroupChatOverlay.module.css";
 
@@ -104,9 +105,15 @@ export function ChatStartOverlay({
     return friends.reduce<SelectableFriend[]>((list, friend) => {
       if (!friend.userId || seen.has(friend.userId)) return list;
       seen.add(friend.userId);
+      const name = preferDisplayName({
+        name: friend.name,
+        handle: friend.key ?? null,
+        fallback: friend.userId,
+        fallbackLabel: "Friend",
+      });
       list.push({
         userId: friend.userId,
-        name: friend.name || friend.userId,
+        name,
         avatar: friend.avatar ?? null,
         status: friend.status,
       });

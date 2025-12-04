@@ -19,6 +19,7 @@ export type MemberPayload = {
   losses: number;
   draws: number;
   streak: number;
+  metadata?: Record<string, unknown> | null;
 };
 
 export const convertSectionsToPayload = (form: Pick<LadderBuilderFormState, "sections" | "customSections">) => {
@@ -56,6 +57,9 @@ export const convertMembersToPayload = (members: LadderMemberFormValues[]): Memb
     const displayName = member.displayName.trim();
     if (!displayName.length) return;
     const userId = trimOrNull(member.userId ?? "");
+    const capsuleId = trimOrNull(member.capsuleId ?? "");
+    const capsuleSlug = trimOrNull(member.capsuleSlug ?? "");
+    const avatarUrl = trimOrNull(member.avatarUrl ?? "");
     const handle = trimOrNull(member.handle ?? "");
     const seedValue = parseOptionalIntegerField(member.seed, { min: 1, max: 999 });
     const rating = parseIntegerField(member.rating, 1200, { min: 100, max: 4000 });
@@ -63,6 +67,10 @@ export const convertMembersToPayload = (members: LadderMemberFormValues[]): Memb
     const losses = parseIntegerField(member.losses, 0, { min: 0, max: 500 });
     const draws = parseIntegerField(member.draws, 0, { min: 0, max: 500 });
     const streak = parseIntegerField(member.streak, 0, { min: -20, max: 20 });
+    if (!userId && !capsuleId) {
+      // Validation should have caught this, but guard against stray entries.
+      return;
+    }
     const entry: MemberPayload = {
       displayName,
       rating,
@@ -74,6 +82,22 @@ export const convertMembersToPayload = (members: LadderMemberFormValues[]): Memb
     if (userId) entry.userId = userId;
     if (handle) entry.handle = handle;
     if (seedValue !== null) entry.seed = seedValue;
+    const metadata: Record<string, unknown> = {};
+    if (userId) {
+      metadata.userId = userId;
+      metadata.identityType = "user";
+    }
+    if (capsuleId) {
+      metadata.capsuleId = capsuleId;
+      metadata.capsuleSlug = capsuleSlug;
+      metadata.identityType = "capsule";
+    }
+    if (avatarUrl) {
+      metadata.avatarUrl = avatarUrl;
+    }
+    if (Object.keys(metadata).length) {
+      entry.metadata = metadata;
+    }
     payload.push(entry);
   });
   return payload;

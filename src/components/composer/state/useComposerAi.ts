@@ -266,9 +266,30 @@ export function useComposerAi({
               }
             : null;
 
+        const shouldHoldClosed = prev.backgrounded && !prev.open;
+        const readyKind =
+          nextVideoStatus.state === "succeeded"
+            ? "video"
+            : ((mergedDraft?.kind ?? baseDraftForKind.kind ?? "text") as string).toLowerCase() === "image"
+              ? "image"
+              : "text";
+        const readyNotice =
+          shouldHoldClosed && nextVideoStatus.state !== "running"
+            ? ({
+                kind: readyKind as "image" | "video" | "text",
+                label:
+                readyKind === "video"
+                  ? "Video ready"
+                  : readyKind === "image"
+                    ? "Image ready"
+                    : "Draft ready",
+                threadId: nextThreadId,
+              } as const)
+            : null;
+
         return {
           ...prev,
-          open: true,
+          open: shouldHoldClosed ? prev.open : true,
           loading: false,
           loadingKind: null,
           prompt,
@@ -280,6 +301,9 @@ export function useComposerAi({
           threadId: nextThreadId,
           videoStatus: nextVideoStatus,
           contextSnapshot: nextSnapshot,
+          backgrounded: shouldHoldClosed,
+          backgroundReadyNotice: readyNotice,
+          backgroundReminderVisible: shouldHoldClosed ? false : prev.backgroundReminderVisible,
         };
       });
 

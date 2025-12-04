@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { serverEnv } from "@/lib/env/server";
 import { runAssistantReminderSweep } from "@/server/chat/assistant/reminders";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 function authorize(request: Request): boolean {
   const token =

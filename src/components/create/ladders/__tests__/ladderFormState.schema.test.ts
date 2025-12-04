@@ -44,6 +44,7 @@ describe("ladder form schemas", () => {
 
     const oversizedRoster = ladderMembersCollectionSchema.safeParse(
       Array.from({ length: 25 }, (_, index) => ({
+        userId: `user-${index}`,
         displayName: `Member ${index}`,
         handle: "",
         seed: String(index + 1),
@@ -57,6 +58,25 @@ describe("ladder form schemas", () => {
     expect(oversizedRoster.success).toBe(false);
     if (!oversizedRoster.success) {
       expect(oversizedRoster.error.issues[0]?.message).toContain("Limit ladders to 24 participants");
+    }
+  });
+
+  it("requires roster entries to link to a real user or Capsule", () => {
+    const result = ladderMembersCollectionSchema.safeParse([
+      {
+        displayName: "Unlinked Player",
+        handle: "",
+        seed: "1",
+        rating: "1200",
+        wins: "0",
+        losses: "0",
+        draws: "0",
+        streak: "0",
+      },
+    ]);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain("Select a real user or Capsule");
     }
   });
 });

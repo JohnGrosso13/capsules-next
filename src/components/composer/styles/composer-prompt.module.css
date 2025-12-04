@@ -948,6 +948,29 @@
   outline-offset: 2px;
 }
 
+.videoCancelButton {
+  appearance: none;
+  border: 1px solid var(--composer-rail-tab-border, rgba(255, 255, 255, 0.16));
+  background: transparent;
+  color: var(--composer-text, #fff);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 150ms ease, transform 150ms ease, border-color 150ms ease;
+}
+
+.videoCancelButton:hover {
+  transform: translateY(-1px);
+  border-color: var(--composer-rail-tab-active-color, var(--composer-text));
+}
+
+.videoCancelButton:focus-visible {
+  outline: 2px solid var(--composer-rail-tab-active-color, var(--composer-text));
+  outline-offset: 2px;
+}
+
 @keyframes videoStatusSpin {
   to {
     transform: rotate(360deg);

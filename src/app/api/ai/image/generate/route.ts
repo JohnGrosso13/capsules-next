@@ -3,10 +3,11 @@ import { z } from "zod";
 import { generateImageFromPrompt } from "@/lib/ai/prompter";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import {
-  checkRateLimit,
+  checkRateLimits,
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 import {
   chargeUsage,
   ensureFeatureAccess,
@@ -32,6 +33,18 @@ const IMAGE_GENERATE_RATE_LIMIT: RateLimitDefinition = {
   window: "10 m",
 };
 
+const IMAGE_GENERATE_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.image.generate.ip",
+  limit: 60,
+  window: "10 m",
+};
+
+const IMAGE_GENERATE_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.image.generate.global",
+  limit: 200,
+  window: "10 m",
+};
+
 const IMAGE_GENERATE_COMPUTE_COST = 5_000;
 
 export async function POST(req: Request) {
@@ -51,7 +64,12 @@ export async function POST(req: Request) {
       }
     : {};
 
-  const rateLimitResult = await checkRateLimit(IMAGE_GENERATE_RATE_LIMIT, ownerId);
+  const clientIp = resolveClientIp(req);
+  const rateLimitResult = await checkRateLimits([
+    { definition: IMAGE_GENERATE_RATE_LIMIT, identifier: ownerId },
+    { definition: IMAGE_GENERATE_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+    { definition: IMAGE_GENERATE_GLOBAL_RATE_LIMIT, identifier: "global:ai.image.generate" },
+  ]);
   if (rateLimitResult && !rateLimitResult.success) {
     const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
     return returnError(

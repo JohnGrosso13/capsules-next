@@ -6,6 +6,7 @@ import Image from "next/image";
 import { CheckCircle, PlusCircle, X, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
+import { preferDisplayName } from "@/lib/users/format";
 
 import styles from "./GroupChatOverlay.module.css";
 
@@ -54,7 +55,12 @@ function mapFriend(friend: FriendItem): SelectableFriend | null {
   return {
     id: friend.id,
     userId: friend.userId,
-    name: friend.name || friend.userId,
+    name: preferDisplayName({
+      name: friend.name,
+      handle: friend.key ?? null,
+      fallback: friend.userId,
+      fallbackLabel: "Friend",
+    }),
     avatar: friend.avatar ?? null,
     status: friend.status,
   };

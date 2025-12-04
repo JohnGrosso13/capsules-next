@@ -1,7 +1,7 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getDatabaseAdminClient } from "@/config/database";
-import { serverEnv } from "@/lib/env/server";
+import { getSupabaseServerAdapter } from "@/config/supabase-server";
 import type {
   DatabaseClient,
   DatabaseError,
@@ -241,16 +241,7 @@ let cachedClient: SupabaseClientShim | null = null;
 
 export function getSupabaseAdminClient() {
   if (!cachedClient) {
-    const storageClient = createClient(
-      serverEnv.SUPABASE_URL,
-      serverEnv.SUPABASE_SERVICE_ROLE_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
+    const storageClient = getSupabaseServerAdapter().getServiceRoleClient();
     cachedClient = new SupabaseClientShim(getDatabaseAdminClient(), storageClient);
   }
   return cachedClient;

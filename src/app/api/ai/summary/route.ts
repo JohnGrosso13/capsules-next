@@ -8,6 +8,12 @@ import { serverEnv } from "@/lib/env/server";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { getOrCreateMemoryCaption } from "@/server/memories/caption-cache";
 import { readSummaryCache, writeSummaryCache } from "@/server/summary-cache";
+import {
+  checkRateLimits,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 import type { SummarySignaturePayload } from "@/lib/ai/summary-signature";
 import type {
   SummaryApiResponse,
@@ -63,6 +69,24 @@ const summaryResponseSchema = z.object({
   model: z.string().nullable(),
   source: z.enum(["document", "feed", "text", "memory", "party"]),
 });
+
+const SUMMARY_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.summary",
+  limit: 20,
+  window: "10 m",
+};
+
+const SUMMARY_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.summary.ip",
+  limit: 80,
+  window: "10 m",
+};
+
+const SUMMARY_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.summary.global",
+  limit: 250,
+  window: "10 m",
+};
 
 type ParsedBody = z.infer<typeof requestSchema>;
 
@@ -337,6 +361,22 @@ export async function POST(req: NextRequest) {
   const ownerId = await ensureUserFromRequest(req, null, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Authentication required.");
+  }
+
+  const clientIp = resolveClientIp(req);
+  const rateLimit = await checkRateLimits([
+    { definition: SUMMARY_RATE_LIMIT, identifier: ownerId },
+    { definition: SUMMARY_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+    { definition: SUMMARY_GLOBAL_RATE_LIMIT, identifier: "global:ai.summary" },
+  ]);
+  if (rateLimit && !rateLimit.success) {
+    const retryAfterSeconds = computeRetryAfterSeconds(rateLimit.reset);
+    return returnError(
+      429,
+      "rate_limited",
+      "Too many summary requests right now. Please wait a moment and try again.",
+      retryAfterSeconds == null ? undefined : { retryAfterSeconds },
+    );
   }
 
   const parsed = await parseJsonBody(req, requestSchema);

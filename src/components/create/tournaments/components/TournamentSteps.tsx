@@ -2,14 +2,17 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getIdentityAccent } from "@/lib/identity/teams";
+import type { LadderVisibility } from "@/types/ladders";
 
 import styles from "../../ladders/LadderBuilder.module.css";
 import { AssistantPrompter } from "../../ladders/components/AssistantPrompter";
+import { ReviewOverviewCard } from "../../ladders/components/ReviewOverviewCard";
+import { AiPlanCard, type AiPlanLike } from "../../ladders/components/AiPlanCard";
 import type { AssistantMessage } from "../../ladders/assistantTypes";
 import { NameField } from "./NameField";
 import type {
-  ParticipantEntityType,
   ParticipantFormState,
   ParticipantSuggestion,
   RegistrationType,
@@ -37,6 +40,7 @@ type BlueprintStepProps = {
   generating: boolean;
   onFormChange: FormChangeHandler;
   onGenerateDraft: () => void;
+  stepControls?: React.ReactNode;
 };
 
 const BlueprintStep = React.memo(function BlueprintStep({
@@ -44,6 +48,7 @@ const BlueprintStep = React.memo(function BlueprintStep({
   generating,
   onFormChange,
   onGenerateDraft,
+  stepControls,
 }: BlueprintStepProps) {
   const conversation = React.useMemo<AssistantMessage[]>(
     () => [
@@ -91,52 +96,9 @@ const BlueprintStep = React.memo(function BlueprintStep({
           onKeyDown={handleKeyDown}
           onSend={handleSend}
         />
+        {stepControls}
       </CardContent>
     </Card>
-  );
-});
-
-type DetailsStepProps = {
-  form: TournamentFormState;
-  onFormChange: FormChangeHandler;
-};
-
-const DetailsStep = React.memo(function DetailsStep({ form, onFormChange }: DetailsStepProps) {
-  return (
-    <div className={styles.sectionCard}>
-      <div className={styles.fieldGroup}>
-        <label className={styles.label}>Visibility</label>
-        <div className={styles.radioRow}>
-          {(["private", "capsule", "public"] as const).map((option) => (
-            <label key={option} className={styles.radioLabel}>
-              <input
-                type="radio"
-                name="tournament-visibility"
-                checked={form.visibility === option}
-                onChange={() => onFormChange("visibility", option)}
-              />
-              <span className={styles.radioText}>
-                {option === "private"
-                  ? "Private (organizers only)"
-                  : option === "capsule"
-                    ? "Capsule members"
-                    : "Public"}
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className={styles.checkboxRow}>
-        <label className={styles.checkboxLabel}>
-          <input
-            type="checkbox"
-            checked={form.publish}
-            onChange={(event) => onFormChange("publish", event.target.checked)}
-          />
-          <span>Publish to Capsule Events after saving</span>
-        </label>
-      </div>
-    </div>
   );
 });
 
@@ -145,7 +107,11 @@ type TitleStepProps = {
   onFormChange: FormChangeHandler;
 };
 
-const TitleStep = React.memo(function TitleStep({ form, onFormChange }: TitleStepProps) {
+const TitleStep = React.memo(function TitleStep({
+  form,
+  onFormChange,
+  stepControls,
+}: TitleStepProps & { stepControls?: React.ReactNode }) {
   const conversation = React.useMemo<AssistantMessage[]>(
     () => [
       {
@@ -186,6 +152,7 @@ const TitleStep = React.memo(function TitleStep({ form, onFormChange }: TitleSte
           onKeyDown={() => {}}
           onSend={() => {}}
         />
+        {stepControls}
       </CardContent>
     </Card>
   );
@@ -196,7 +163,11 @@ type SummaryStepProps = {
   onFormChange: FormChangeHandler;
 };
 
-const SummaryStep = React.memo(function SummaryStep({ form, onFormChange }: SummaryStepProps) {
+const SummaryStep = React.memo(function SummaryStep({
+  form,
+  onFormChange,
+  stepControls,
+}: SummaryStepProps & { stepControls?: React.ReactNode }) {
   const conversation = React.useMemo<AssistantMessage[]>(
     () => [
       {
@@ -237,6 +208,7 @@ const SummaryStep = React.memo(function SummaryStep({ form, onFormChange }: Summ
           onKeyDown={() => {}}
           onSend={() => {}}
         />
+        {stepControls}
       </CardContent>
     </Card>
   );
@@ -444,6 +416,311 @@ const SignupsStep = React.memo(function SignupsStep({ form, onFormChange }: Sign
   );
 });
 
+type OverviewStepProps = {
+  form: TournamentFormState;
+  onFormChange: FormChangeHandler;
+};
+
+const OverviewStep = React.memo(function OverviewStep({
+  form,
+  onFormChange,
+  stepControls,
+}: OverviewStepProps & { stepControls?: React.ReactNode }) {
+  const conversation = React.useMemo<AssistantMessage[]>(
+    () => [
+      {
+        id: "tournament-overview-ai-welcome",
+        sender: "ai",
+        text: "Tell me who this bracket is for and what the stakes are. I can help draft an overview or tighten the hook.",
+        timestamp: Date.now(),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <Card className={styles.namingPanel}>
+      <CardHeader className={styles.namingHeader}>
+        <CardTitle className={styles.namingTitle}>Overview</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.namingBody}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label} htmlFor="tournament-overview">
+            Overview copy
+          </label>
+          <textarea
+            id="tournament-overview"
+            className={styles.namingTextArea}
+            value={form.overview}
+            onChange={(event) => onFormChange("overview", event.target.value)}
+            rows={3}
+            placeholder="Set the stakes, cadence, rewards, and why challengers should care."
+          />
+        </div>
+        <div className={styles.namingOr}>
+          <span>or chat with Capsule AI</span>
+        </div>
+        <AssistantPrompter
+          placeholder="Ask Capsule AI to draft the overview or tighten the hook..."
+          conversation={conversation}
+          draft={form.overview}
+          busy={false}
+          onDraftChange={(value) => onFormChange("overview", value)}
+          onKeyDown={() => {}}
+          onSend={() => {}}
+        />
+        {stepControls}
+      </CardContent>
+    </Card>
+  );
+});
+
+type RulesStepProps = {
+  form: TournamentFormState;
+  onFormChange: FormChangeHandler;
+};
+
+const RulesStep = React.memo(function RulesStep({
+  form,
+  onFormChange,
+  stepControls,
+}: RulesStepProps & { stepControls?: React.ReactNode }) {
+  const conversation = React.useMemo<AssistantMessage[]>(
+    () => [
+      {
+        id: "tournament-rules-ai-welcome",
+        sender: "ai",
+        text: "Describe formats, disputes, and check-ins. I can help draft a clear ruleset.",
+        timestamp: Date.now(),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <Card className={styles.namingPanel}>
+      <CardHeader className={styles.namingHeader}>
+        <CardTitle className={styles.namingTitle}>Rules</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.namingBody}>
+        <div className={styles.fieldGroup}>
+          <textarea
+            id="tournament-rules"
+            className={styles.namingTextArea}
+            value={form.rules}
+            onChange={(event) => onFormChange("rules", event.target.value)}
+            rows={3}
+            placeholder="Matches are best-of-three. Report scores within 2 hours with screenshots."
+          />
+        </div>
+        <div className={styles.namingOr}>
+          <span>or chat with Capsule AI</span>
+        </div>
+        <AssistantPrompter
+          placeholder="Ask for a full ruleset, anti-cheat notes, or dispute policy..."
+          conversation={conversation}
+          draft={form.rules}
+          busy={false}
+          onDraftChange={(value) => onFormChange("rules", value)}
+          onKeyDown={() => {}}
+          onSend={() => {}}
+        />
+        {stepControls}
+      </CardContent>
+    </Card>
+  );
+});
+
+type ShoutoutsStepProps = {
+  form: TournamentFormState;
+  onFormChange: FormChangeHandler;
+};
+
+const ShoutoutsStep = React.memo(function ShoutoutsStep({
+  form,
+  onFormChange,
+  stepControls,
+}: ShoutoutsStepProps & { stepControls?: React.ReactNode }) {
+  const conversation = React.useMemo<AssistantMessage[]>(
+    () => [
+      {
+        id: "tournament-shoutouts-ai-welcome",
+        sender: "ai",
+        text: "Call out rivalries, MVPs, clutch moments, or sponsor beats. I can help shape spotlight storylines.",
+        timestamp: Date.now(),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <Card className={styles.namingPanel}>
+      <CardHeader className={styles.namingHeader}>
+        <CardTitle className={styles.namingTitle}>Shoutouts</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.namingBody}>
+        <div className={styles.fieldGroup}>
+          <textarea
+            id="tournament-shoutouts"
+            className={styles.namingTextArea}
+            value={form.broadcast}
+            onChange={(event) => onFormChange("broadcast", event.target.value)}
+            rows={3}
+            placeholder="Call out rivalries, MVP awards, clutch moments, or rookie spotlights."
+          />
+        </div>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label} htmlFor="tournament-updates">
+            Schedule &amp; updates
+          </label>
+          <textarea
+            id="tournament-updates"
+            className={styles.namingTextArea}
+            value={form.updates}
+            onChange={(event) => onFormChange("updates", event.target.value)}
+            rows={3}
+            placeholder="Round timing, check-ins, deadlines..."
+          />
+        </div>
+        <div className={styles.namingOr}>
+          <span>or chat with Capsule AI</span>
+        </div>
+        <AssistantPrompter
+          placeholder="Ask for spotlight themes, weekly awards, or story hooks..."
+          conversation={conversation}
+          draft={form.broadcast}
+          busy={false}
+          onDraftChange={(value) => onFormChange("broadcast", value)}
+          onKeyDown={() => {}}
+          onSend={() => {}}
+        />
+        {stepControls}
+      </CardContent>
+    </Card>
+  );
+});
+
+type BasicsStepProps = {
+  form: TournamentFormState;
+  onFormChange: FormChangeHandler;
+};
+
+const BasicsStep = React.memo(function BasicsStep({
+  form,
+  onFormChange,
+  stepControls,
+}: BasicsStepProps & { stepControls?: React.ReactNode }) {
+  return (
+    <Card className={styles.namingPanel} variant="ghost">
+      <CardHeader className={styles.namingHeader}>
+        <CardTitle className={styles.namingTitle}>Basics</CardTitle>
+        <CardDescription className={styles.formCardDescription}>
+          Capsule AI uses this to suggest rules, playlists, stats, and the timeline, but you can keep it lightweight to
+          start.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className={styles.namingBody}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label} htmlFor="tournament-game-title">
+            Game or title (optional)
+          </label>
+          <Input
+            id="tournament-game-title"
+            value={form.gameTitle}
+            onChange={(event) => onFormChange("gameTitle", event.target.value)}
+            placeholder="Rocket League"
+          />
+          <p className={styles.fieldHint}>
+            Name the main game or series you&apos;re featuring, or leave this blank and Capsule will fall back to a
+            generic title.
+          </p>
+        </div>
+        <div className={styles.fieldRow}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label} htmlFor="tournament-platform">
+              Platform (optional)
+            </label>
+            <Input
+              id="tournament-platform"
+              value={form.gamePlatform}
+              onChange={(event) => onFormChange("gamePlatform", event.target.value)}
+              placeholder="Cross-play"
+            />
+            <p className={styles.fieldHint}>
+              Call out console, PC, or cross-play so challengers know where they&apos;ll be playing.
+            </p>
+          </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label} htmlFor="tournament-region">
+              Region (optional)
+            </label>
+            <Input
+              id="tournament-region"
+              value={form.gameRegion}
+              onChange={(event) => onFormChange("gameRegion", event.target.value)}
+              placeholder="NA / EU"
+            />
+            <p className={styles.fieldHint}>
+              Note primary regions or servers (e.g. NA, EU, Asia) to help set expectations around ping and timing.
+            </p>
+          </div>
+        </div>
+        <div className={styles.namingDivider} />
+        <p className={styles.fieldHint}>Timeline & cadence</p>
+        <div className={styles.fieldRow}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label} htmlFor="tournament-season-length">
+              Season length or arc
+            </label>
+            <Input
+              id="tournament-season-length"
+              value={form.seasonLength}
+              onChange={(event) => onFormChange("seasonLength", event.target.value)}
+              placeholder="8 weeks of weekly duels"
+            />
+          </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label} htmlFor="tournament-match-cadence">
+              Match cadence
+            </label>
+            <Input
+              id="tournament-match-cadence"
+              value={form.matchCadence}
+              onChange={(event) => onFormChange("matchCadence", event.target.value)}
+              placeholder="Thursdays 7 PM local"
+            />
+          </div>
+        </div>
+        <div className={styles.fieldRow}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label} htmlFor="tournament-kickoff-notes">
+              Kickoff notes
+            </label>
+            <Input
+              id="tournament-kickoff-notes"
+              value={form.kickoffNotes}
+              onChange={(event) => onFormChange("kickoffNotes", event.target.value)}
+              placeholder="Season kickoff stream + Capsule shoutouts"
+            />
+          </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label} htmlFor="tournament-basics-timezone">
+              Timezone
+            </label>
+            <Input
+              id="tournament-basics-timezone"
+              value={form.timezone}
+              onChange={(event) => onFormChange("timezone", event.target.value)}
+              placeholder="NA / CET"
+            />
+          </div>
+        </div>
+        {stepControls}
+      </CardContent>
+    </Card>
+  );
+});
+
 type FormatStepProps = {
   form: TournamentFormState;
   onFormChange: FormChangeHandler;
@@ -549,94 +826,106 @@ const FormatStep = React.memo(function FormatStep({ form, onFormChange }: Format
           </div>
         </div>
       </div>
+      <div className={styles.fieldGroup}>
+        <span className={styles.label}>Match format</span>
+        <div className={styles.matchFormatRow}>
+          {[
+            {
+              id: "1v1" as NonNullable<TournamentFormState["matchMode"]>,
+              label: "1v1 (player vs player)",
+              hint: "Best for solo ladders and duels.",
+            },
+            {
+              id: "teams" as NonNullable<TournamentFormState["matchMode"]>,
+              label: "Teams (users vs users)",
+              hint: "Teams of users compete (set roster size later).",
+            },
+            {
+              id: "capsule_vs_capsule" as NonNullable<TournamentFormState["matchMode"]>,
+              label: "Capsule vs Capsule",
+              hint: "Capsule vs Capsule matches at the community level.",
+            },
+          ].map((mode) => {
+            const active = (form.matchMode ?? "1v1") === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                className={`${styles.formatOption} ${active ? styles.formatOptionActive : ""}`.trim()}
+                aria-pressed={active}
+                onClick={() => onFormChange("matchMode", mode.id)}
+              >
+                <span className={styles.formatOptionLabel}>{mode.label}</span>
+                <span className={styles.formatOptionHint}>{mode.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className={styles.fieldHint}>Choose one of the three formats to continue.</p>
+      </div>
     </div>
   );
 });
 
-type ContentStepProps = {
+type RewardsStepProps = {
   form: TournamentFormState;
   onFormChange: FormChangeHandler;
 };
 
-const ContentStep = React.memo(function ContentStep({ form, onFormChange }: ContentStepProps) {
+const RewardsStep = React.memo(function RewardsStep({
+  form,
+  onFormChange,
+  stepControls,
+}: RewardsStepProps & { stepControls?: React.ReactNode }) {
+  const conversation = React.useMemo<AssistantMessage[]>(
+    () => [
+      {
+        id: "tournament-rewards-ai-welcome",
+        sender: "ai",
+        text: "Describe prizes, titles, and perks. I can help polish reward tiers or sponsor-friendly incentives.",
+        timestamp: Date.now(),
+      },
+    ],
+    [],
+  );
+
   return (
-    <div className={styles.sectionCard}>
-      <div className={styles.fieldGroup}>
-        <label className={styles.label} htmlFor="overview">
-          Overview
-        </label>
-        <textarea
-          id="overview"
-          className={styles.textarea}
-          rows={4}
-          value={form.overview}
-          placeholder="What makes this tournament exciting?"
-          onChange={(event) => onFormChange("overview", event.target.value)}
-        />
-      </div>
-      <div className={styles.fieldGroup}>
-        <label className={styles.label} htmlFor="rules">
-          Rules &amp; format
-        </label>
-        <textarea
-          id="rules"
-          className={styles.textarea}
-          rows={4}
-          value={form.rules}
-          placeholder="Formats, disputes, check-ins..."
-          onChange={(event) => onFormChange("rules", event.target.value)}
-        />
-      </div>
-      <div className={styles.fieldGroupRow}>
+    <Card className={styles.namingPanel}>
+      <CardHeader className={styles.namingHeader}>
+        <CardTitle className={styles.namingTitle}>Rewards</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.namingBody}>
         <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="broadcast">
-            Broadcast &amp; spotlight
-          </label>
           <textarea
-            id="broadcast"
-            className={styles.textarea}
+            id="tournament-rewards"
+            className={styles.namingTextArea}
+            value={form.rewards}
+            onChange={(event) => onFormChange("rewards", event.target.value)}
             rows={3}
-            value={form.broadcast}
-            placeholder="Caster notes, highlight ideas..."
-            onChange={(event) => onFormChange("broadcast", event.target.value)}
+            placeholder="Top 3 earn featured posts, MVP gets a custom Capsule portrait."
           />
         </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label} htmlFor="updates">
-            Schedule &amp; updates
-          </label>
-          <textarea
-            id="updates"
-            className={styles.textarea}
-            rows={3}
-            value={form.updates}
-            placeholder="Round timing, check-ins, deadlines..."
-            onChange={(event) => onFormChange("updates", event.target.value)}
-          />
+        <div className={styles.namingOr}>
+          <span>or chat with Capsule AI</span>
         </div>
-      </div>
-      <div className={styles.fieldGroup}>
-        <label className={styles.label} htmlFor="ai-notes">
-          Production notes
-        </label>
-        <textarea
-          id="ai-notes"
-          className={styles.textarea}
-          rows={3}
-          value={form.aiNotes}
-          placeholder="Shoutouts, sponsors, themes..."
-          onChange={(event) => onFormChange("aiNotes", event.target.value)}
+        <AssistantPrompter
+          placeholder="Ask for prize ideas, seasonal incentives, or sponsor-friendly rewards..."
+          conversation={conversation}
+          draft={form.rewards}
+          busy={false}
+          onDraftChange={(value) => onFormChange("rewards", value)}
+          onKeyDown={() => {}}
+          onSend={() => {}}
         />
-      </div>
-    </div>
+        {stepControls}
+      </CardContent>
+    </Card>
   );
 });
 
 type ParticipantsStepProps = {
   participants: ParticipantFormState[];
   onParticipantChange: (index: number, field: keyof ParticipantFormState, value: string) => void;
-  onParticipantEntityType: (index: number, entityType: ParticipantEntityType) => void;
-  onParticipantEntityId: (index: number, value: string) => void;
   onParticipantSuggestion: (index: number, suggestion: ParticipantSuggestion) => void;
   onAddParticipant: () => void;
   onRemoveParticipant: (index: number) => void;
@@ -646,136 +935,278 @@ type ParticipantsStepProps = {
 const ParticipantsStep = React.memo(function ParticipantsStep({
   participants,
   onParticipantChange,
-  onParticipantEntityType,
-  onParticipantEntityId,
   onParticipantSuggestion,
   onAddParticipant,
   onRemoveParticipant,
   onInviteClick,
 }: ParticipantsStepProps) {
+  const [expandedIndex, setExpandedIndex] = React.useState<number | null>(null);
+
   return (
-    <div className={styles.sectionCard}>
-      <div className={styles.fieldGroup}>
-        <p className={styles.fieldHint}>Add seeds manually or pull from Capsule users/capsules.</p>
-      </div>
-      <div className={styles.memberGrid}>
-        {participants.map((participant, index) => (
-          <div key={participant.id ?? index} className={styles.memberCard}>
-            <div className={styles.fieldGroupRow}>
-              <div className={styles.fieldGroupWide}>
-                <label className={styles.label} htmlFor={`participant-name-${index}`}>
-                  Participant name
-                </label>
-                <NameField
-                  index={index}
-                  participant={participant}
-                  onChangeName={(value) => onParticipantChange(index, "displayName", value)}
-                  onSelectSuggestion={(suggestion) => onParticipantSuggestion(index, suggestion)}
-                />
-              </div>
-              <div className={styles.fieldGroupNarrow}>
-                <label className={styles.label} htmlFor={`participant-seed-${index}`}>
-                  Seed
-                </label>
-                <Input
-                  id={`participant-seed-${index}`}
-                  value={participant.seed}
-                  onChange={(event) => onParticipantChange(index, "seed", event.target.value)}
-                  placeholder={String(index + 1)}
-                />
-              </div>
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor={`participant-handle-${index}`}>
-                Handle or team tag
-              </label>
-              <Input
-                id={`participant-handle-${index}`}
-                value={participant.handle}
-                onChange={(event) => onParticipantChange(index, "handle", event.target.value)}
-                placeholder="@handle"
-              />
-            </div>
-            <div className={styles.fieldGroupRow}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label} htmlFor={`participant-type-${index}`}>
-                  Entity type
-                </label>
-                <select
-                  id={`participant-type-${index}`}
-                  className={styles.select}
-                  value={participant.entityType}
-                  onChange={(event) => onParticipantEntityType(index, event.target.value as ParticipantEntityType)}
-                >
-                  <option value="custom">Custom</option>
-                  <option value="user">User</option>
-                  <option value="capsule">Capsule</option>
-                </select>
-              </div>
-              {participant.entityType !== "custom" ? (
-                <div className={styles.fieldGroup}>
-                  <label className={styles.label} htmlFor={`participant-entity-${index}`}>
-                    {participant.entityType === "user" ? "User ID" : "Capsule ID"}
-                  </label>
-                  <Input
-                    id={`participant-entity-${index}`}
-                    value={participant.entityType === "user" ? participant.userId : participant.capsuleId}
-                    onChange={(event) => onParticipantEntityId(index, event.target.value)}
-                    placeholder={participant.entityType === "user" ? "user_123" : "capsule_123"}
-                  />
-                </div>
-              ) : null}
-            </div>
-            <div className={styles.memberActions}>
-              <Button type="button" variant="ghost" onClick={() => onRemoveParticipant(index)}>
-                Remove
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className={styles.memberActions}>
-        <Button type="button" variant="secondary" onClick={onAddParticipant}>
-          Add participant
-        </Button>
-        <Button type="button" variant="secondary" className={styles.memberInviteButton} onClick={onInviteClick}>
-          Invite
-        </Button>
-      </div>
-    </div>
+    <Card className={styles.formCard} variant="ghost">
+      <CardHeader className={styles.formCardHeader}>
+        <CardTitle className={styles.formCardTitle}>Roster seeds &amp; stats</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.formCardContent}>
+        <p className={styles.fieldHint}>
+          <abbr
+            className={styles.helperAbbr}
+            title="ELO updates player skill after every match. Keep new brackets near 1200 and adjust with K-factor for larger swings."
+          >
+            ELO
+          </abbr>{" "}
+          feeds highlight badges alongside{" "}
+          <abbr className={styles.helperAbbr} title="Streak counts consecutive wins so you can spotlight hot runs.">
+            streak
+          </abbr>{" "}
+          momentum.
+        </p>
+        <div className={styles.membersTableWrap}>
+          <table className={styles.membersTable}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Seed</th>
+                <th>Rating</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {participants.map((participant, index) => {
+                const accent = getIdentityAccent(participant.displayName || `Seed ${index + 1}`, index);
+                const accentStyle = {
+                  "--identity-color": accent.primary,
+                  "--identity-glow": accent.glow,
+                  "--identity-border": accent.border,
+                  "--identity-surface": accent.surface,
+                  "--identity-text": accent.text,
+                } as React.CSSProperties;
+                return (
+                  <React.Fragment key={participant.id ?? `participant-${index}`}>
+                    <tr>
+                      <td>
+                        <NameField
+                          index={index}
+                          participant={participant}
+                          onChangeName={(value) => onParticipantChange(index, "displayName", value)}
+                          onSelectSuggestion={(suggestion) => onParticipantSuggestion(index, suggestion)}
+                        />
+                      </td>
+                      <td>
+                        <Input
+                          id={`participant-seed-${index}`}
+                          value={participant.seed}
+                          className={styles.memberNumberInput}
+                          onChange={(event) => onParticipantChange(index, "seed", event.target.value)}
+                          placeholder={String(index + 1)}
+                        />
+                      </td>
+                      <td>
+                        <Input
+                          id={`participant-rating-${index}`}
+                          value={participant.rating}
+                          className={styles.memberNumberInput}
+                          onChange={(event) => onParticipantChange(index, "rating", event.target.value)}
+                          placeholder="1200"
+                        />
+                      </td>
+                      <td className={styles.memberActions}>
+                        <span className={styles.memberChip} style={accentStyle}>
+                          Seed {participant.seed || index + 1}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
+                        >
+                          {expandedIndex === index ? "Hide stats" : "Edit stats"}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveParticipant(index)}>
+                          Remove
+                        </Button>
+                      </td>
+                    </tr>
+                    {expandedIndex === index ? (
+                      <tr className={styles.memberAdvancedRow}>
+                        <td colSpan={4}>
+                          <div className={styles.memberAdvanced}>
+                            <div className={styles.memberAdvancedFields}>
+                              <div className={styles.memberAdvancedField}>
+                                <label className={styles.label} htmlFor={`participant-handle-${index}`}>
+                                  Handle or team tag
+                                </label>
+                                <Input
+                                  id={`participant-handle-${index}`}
+                                  value={participant.handle}
+                                  className={styles.memberNumberInput}
+                                  onChange={(event) => onParticipantChange(index, "handle", event.target.value)}
+                                  placeholder="@handle"
+                                />
+                              </div>
+                              <div className={styles.memberAdvancedField}>
+                                <label className={styles.label} htmlFor={`participant-wins-${index}`}>
+                                  Wins
+                                </label>
+                                <Input
+                                  id={`participant-wins-${index}`}
+                                  value={participant.wins}
+                                  className={styles.memberNumberInput}
+                                  onChange={(event) => onParticipantChange(index, "wins", event.target.value)}
+                                />
+                              </div>
+                              <div className={styles.memberAdvancedField}>
+                                <label className={styles.label} htmlFor={`participant-losses-${index}`}>
+                                  Losses
+                                </label>
+                                <Input
+                                  id={`participant-losses-${index}`}
+                                  value={participant.losses}
+                                  className={styles.memberNumberInput}
+                                  onChange={(event) => onParticipantChange(index, "losses", event.target.value)}
+                                />
+                              </div>
+                              <div className={styles.memberAdvancedField}>
+                                <label className={styles.label} htmlFor={`participant-draws-${index}`}>
+                                  Draws
+                                </label>
+                                <Input
+                                  id={`participant-draws-${index}`}
+                                  value={participant.draws}
+                                  className={styles.memberNumberInput}
+                                  onChange={(event) => onParticipantChange(index, "draws", event.target.value)}
+                                />
+                              </div>
+                              <div className={styles.memberAdvancedField}>
+                                <label className={styles.label} htmlFor={`participant-streak-${index}`}>
+                                  Streak
+                                </label>
+                                <Input
+                                  id={`participant-streak-${index}`}
+                                  value={participant.streak}
+                                  className={styles.memberNumberInput}
+                                  onChange={(event) => onParticipantChange(index, "streak", event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <p className={styles.memberAdvancedHint}>
+                              Optional: set starting records and tags for returning seasons or migrated tournaments. Leave
+                              blank for new brackets.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className={styles.memberActionsRow}>
+          <Button
+            type="button"
+            variant="secondary"
+            className={styles.memberActionButton}
+            onClick={onAddParticipant}
+          >
+            Add participant
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className={styles.memberInviteButton}
+            onClick={onInviteClick}
+          >
+            Invite
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 });
 
 type ReviewStepProps = {
   form: TournamentFormState;
   participants: ParticipantFormState[];
+  capsuleName: string | null;
+  sectionsReady: number;
+  aiPlan: AiPlanLike;
+  onFormChange: FormChangeHandler;
+  stepControls?: React.ReactNode;
 };
 
-const ReviewStep = React.memo(function ReviewStep({ form, participants }: ReviewStepProps) {
+const ReviewStep = React.memo(function ReviewStep({
+  form,
+  participants,
+  capsuleName,
+  sectionsReady,
+  aiPlan,
+  onFormChange,
+  stepControls,
+}: ReviewStepProps) {
+  const membersCount = React.useMemo(
+    () => participants.filter((participant) => participant.displayName.trim().length).length,
+    [participants],
+  );
   return (
-    <div className={styles.sectionCard}>
-      <div className={styles.fieldGroupRow}>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label}>Visibility</label>
-          <p className={styles.fieldHint}>
-            {form.visibility === "public" ? "Public" : form.visibility === "capsule" ? "Capsule members" : "Private"}
-          </p>
+    <Card className={styles.namingPanel} variant="ghost">
+      <CardHeader className={styles.namingHeader}>
+        <CardTitle className={styles.namingTitle}>Review &amp; publish</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.namingBody}>
+        <div className={styles.guidedReviewStack}>
+          <ReviewOverviewCard
+            capsuleName={capsuleName}
+            visibility={form.visibility as LadderVisibility}
+            publish={form.publish}
+            membersCount={membersCount}
+            sectionsReady={sectionsReady}
+          />
+          <Card className={styles.formCard} variant="ghost">
+            <CardHeader className={styles.formCardHeader}>
+              <CardTitle className={styles.formCardTitle}>Visibility &amp; publish</CardTitle>
+              <CardDescription className={styles.formCardDescription}>
+                Flip to public whenever you&apos;re ready.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className={styles.formCardContent}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="tournament-visibility">
+                  Visibility
+                </label>
+                <select
+                  id="tournament-visibility"
+                  className={styles.select}
+                  value={form.visibility}
+                  onChange={(event) =>
+                    onFormChange("visibility", event.target.value as TournamentFormState["visibility"])
+                  }
+                >
+                  <option value="capsule">Capsule members</option>
+                  <option value="private">Managers only</option>
+                  <option value="public">Public showcase</option>
+                </select>
+              </div>
+              <div className={styles.checkboxRow}>
+                <input
+                  id="tournament-publish"
+                  type="checkbox"
+                  checked={form.publish}
+                  onChange={(event) => onFormChange("publish", event.target.checked)}
+                />
+                <label htmlFor="tournament-publish">Publish immediately after saving</label>
+              </div>
+              <p className={styles.fieldHint}>
+                Leave unchecked to save a draft. Capsule will keep everything private.
+              </p>
+            </CardContent>
+          </Card>
+          <AiPlanCard plan={aiPlan} />
         </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label}>Publish state</label>
-          <p className={styles.fieldHint}>{form.publish ? "Publish immediately" : "Save as draft"}</p>
-        </div>
-        <div className={styles.fieldGroup}>
-          <label className={styles.label}>Seeds</label>
-          <p className={styles.fieldHint}>
-            {participants.filter((participant) => participant.displayName.trim().length).length} entrants
-          </p>
-        </div>
-      </div>
-      <p className={styles.fieldHint}>
-        Use the Preview button to confirm the capsule layout matches the ladder design language before publishing.
-      </p>
-    </div>
+        {stepControls}
+      </CardContent>
+    </Card>
   );
 });
 
@@ -784,11 +1215,12 @@ type TournamentStepContentProps = {
   form: TournamentFormState;
   participants: ParticipantFormState[];
   generating: boolean;
+  capsuleName: string | null;
+  sectionsReady: number;
+  aiPlan: AiPlanLike;
   onFormChange: FormChangeHandler;
   onGenerateDraft: () => void;
   onParticipantChange: (index: number, field: keyof ParticipantFormState, value: string) => void;
-  onParticipantEntityType: (index: number, entityType: ParticipantEntityType) => void;
-  onParticipantEntityId: (index: number, value: string) => void;
   onParticipantSuggestion: (index: number, suggestion: ParticipantSuggestion) => void;
   onAddParticipant: () => void;
   onRemoveParticipant: (index: number) => void;
@@ -800,16 +1232,18 @@ export const TournamentStepContent = React.memo(function TournamentStepContent({
   form,
   participants,
   generating,
+  capsuleName,
+  sectionsReady,
+  aiPlan,
   onFormChange,
   onGenerateDraft,
   onParticipantChange,
-  onParticipantEntityType,
-  onParticipantEntityId,
   onParticipantSuggestion,
   onAddParticipant,
   onRemoveParticipant,
   onInviteClick,
-}: TournamentStepContentProps) {
+  stepControls,
+}: TournamentStepContentProps & { stepControls?: React.ReactNode }) {
   if (activeStep === "blueprint") {
     return (
       <BlueprintStep
@@ -817,22 +1251,24 @@ export const TournamentStepContent = React.memo(function TournamentStepContent({
         generating={generating}
         onFormChange={onFormChange}
         onGenerateDraft={onGenerateDraft}
+        stepControls={stepControls}
       />
     );
   }
-  if (activeStep === "title") return <TitleStep form={form} onFormChange={onFormChange} />;
-  if (activeStep === "summary") return <SummaryStep form={form} onFormChange={onFormChange} />;
+  if (activeStep === "title") return <TitleStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
+  if (activeStep === "summary") return <SummaryStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
   if (activeStep === "signups") return <SignupsStep form={form} onFormChange={onFormChange} />;
-  if (activeStep === "details") return <DetailsStep form={form} onFormChange={onFormChange} />;
+  if (activeStep === "basics") return <BasicsStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
+  if (activeStep === "overview") return <OverviewStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
+  if (activeStep === "rules") return <RulesStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
+  if (activeStep === "shoutouts") return <ShoutoutsStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
   if (activeStep === "format") return <FormatStep form={form} onFormChange={onFormChange} />;
-  if (activeStep === "content") return <ContentStep form={form} onFormChange={onFormChange} />;
+  if (activeStep === "rewards") return <RewardsStep form={form} onFormChange={onFormChange} stepControls={stepControls} />;
   if (activeStep === "participants") {
     return (
       <ParticipantsStep
         participants={participants}
         onParticipantChange={onParticipantChange}
-        onParticipantEntityType={onParticipantEntityType}
-        onParticipantEntityId={onParticipantEntityId}
         onParticipantSuggestion={onParticipantSuggestion}
         onAddParticipant={onAddParticipant}
         onRemoveParticipant={onRemoveParticipant}
@@ -840,5 +1276,15 @@ export const TournamentStepContent = React.memo(function TournamentStepContent({
       />
     );
   }
-  return <ReviewStep form={form} participants={participants} />;
+  return (
+    <ReviewStep
+      form={form}
+      participants={participants}
+      capsuleName={capsuleName}
+      sectionsReady={sectionsReady}
+      aiPlan={aiPlan}
+      onFormChange={onFormChange}
+      stepControls={stepControls}
+    />
+  );
 });

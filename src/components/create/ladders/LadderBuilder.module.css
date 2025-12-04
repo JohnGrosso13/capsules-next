@@ -348,7 +348,9 @@
 }
 
 .membersTableWrap {
-  overflow-x: auto;
+  position: relative;
+  /* Keep suggestions floating above without introducing scrollbars on the table container. */
+  overflow: visible;
 }
 
 .membersTable {
@@ -361,7 +363,8 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 16px 34px rgba(5, 8, 22, 0.5);
-  overflow: hidden;
+  /* Allow search suggestion popovers to extend beyond the table rows. */
+  overflow: visible;
 }
 
 .membersTable th,
@@ -398,12 +401,13 @@
 
 .memberSuggestList {
   position: absolute;
-  z-index: 2;
+  z-index: 24;
   margin-top: 6px;
   width: 100%;
     border-radius: 12px;
     border: 1px solid var(--ladder-border-soft);
-    background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(12, 18, 32, 0.9));
+    /* Use a fully opaque, solid surface so suggestions never show content below. */
+    background: #050816;
     box-shadow: 0 16px 30px rgba(6, 10, 26, 0.45);
     overflow: hidden;
   }
@@ -450,6 +454,10 @@
 
 .memberSuggestAvatar[data-has-image="true"] {
   background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(12, 18, 32, 0.9));
+}
+
+.memberSuggestAvatar[data-kind="capsule"] {
+  border-radius: 10px;
 }
 
 .memberSuggestAvatar img {
@@ -677,6 +685,10 @@
   overflow: hidden;
 }
 
+.memberAvatar[data-kind="capsule"] {
+  border-radius: 10px;
+}
+
 .memberAvatar::after {
   content: "";
   position: absolute;
@@ -708,6 +720,44 @@
 
 .memberAvatar[data-has-image="true"] .memberAvatarText {
   opacity: 0;
+}
+
+.memberNameInput {
+  border-radius: 999px;
+  border: 1px solid var(--ladder-border-soft, rgba(255, 255, 255, 0.14));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--ladder-surface-glass, rgba(16, 20, 40, 0.9)) 92%, transparent),
+    color-mix(in srgb, var(--ladder-surface-strong, rgba(6, 10, 24, 0.96)) 80%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 22px rgba(5, 8, 22, 0.55);
+}
+
+.memberNameInput:focus-visible {
+  outline: none;
+  border-color: var(--ladder-border-strong, rgba(164, 191, 255, 0.9));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ladder-accent-2) 70%, transparent),
+    0 14px 30px rgba(8, 18, 44, 0.9);
+}
+
+.memberNumberInput {
+  border-radius: 12px;
+  border: 1px solid var(--ladder-border-soft, rgba(255, 255, 255, 0.14));
+  background: color-mix(in srgb, var(--ladder-surface-strong, rgba(10, 14, 30, 0.9)) 94%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 18px rgba(5, 8, 22, 0.55);
+}
+
+.memberNumberInput:focus-visible {
+  outline: none;
+  border-color: var(--ladder-border-strong, rgba(164, 191, 255, 0.9));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ladder-accent-1) 60%, transparent),
+    0 12px 26px rgba(8, 18, 44, 0.85);
 }
 
   .memberActions {

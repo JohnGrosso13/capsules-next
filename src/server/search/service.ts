@@ -19,6 +19,7 @@ import {
   structuredPayloadToRecords,
   type StructuredRecord,
 } from "@/server/capsules/structured";
+import { sanitizeUserKey } from "@/lib/users/format";
 
 const USER_SECTION_LIMIT = 6;
 const CAPSULE_SECTION_LIMIT = 6;
@@ -86,14 +87,6 @@ type Highlightable = {
   text: string;
   tokens: string[];
 };
-
-function sanitizeUserKey(value: string | null | undefined): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed.length) return null;
-  if (/^clerk:user/i.test(trimmed)) return null;
-  return trimmed;
-}
 
 function buildHighlight({ text, tokens }: Highlightable): string | null {
   if (!text || !tokens.length) return null;

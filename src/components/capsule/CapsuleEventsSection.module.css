@@ -550,6 +550,12 @@
 .searchHeader h3 {
   margin: 0;
 }
+.tournamentSelector {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 
 .searchBar {
   display: flex;
@@ -751,6 +757,122 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.bracketGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 8px;
+}
+
+.bracketRounds {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bracketRound {
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-muted, rgba(14, 18, 36, 0.9)) 90%, transparent);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+}
+
+.bracketRoundHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+}
+
+.bracketMatch {
+  border-radius: 12px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--surface-muted, rgba(14, 18, 36, 0.9)) 94%, transparent);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bracketRoundLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3, rgba(255, 255, 255, 0.65));
+}
+
+.bracketSeedRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bracketSeed {
+  min-width: 40px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  background: color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.08)) 40%, transparent);
+}
+
+.bracketTeam {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.bracketSeedRowWinner {
+  border-left: 3px solid var(--accent, #7df0ff);
+  padding-left: 6px;
+  background: color-mix(in srgb, var(--accent, #7df0ff) 10%, transparent);
+  border-radius: 10px;
+}
+
+.bracketStatusPill {
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #7df0ff) 18%, transparent);
+  color: var(--text-1, #fff);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bracketFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.bracketStatusText {
+  font-size: 12px;
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
+}
+
+.bracketActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bracketNote {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-2, rgba(255, 255, 255, 0.85));
+}
+
+.bracketHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-3, rgba(255, 255, 255, 0.7));
 }
 
 .detailHeader {
@@ -1412,6 +1534,19 @@
   to {
     background-color: transparent;
   }
+}
+
+.tournamentMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tournamentMetaRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 @media (prefers-reduced-motion: reduce) {

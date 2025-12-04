@@ -9,6 +9,12 @@ import {
   resolveWalletContext,
   EntitlementError,
 } from "@/server/billing/entitlements";
+import {
+  checkRateLimits,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 
 const sectionSchema = z.object({
   heading: z.string().min(1, "Section heading cannot be empty"),
@@ -32,6 +38,24 @@ const requestSchema = z.object({
 
 const PDF_COMPUTE_COST = 1_000;
 
+const PDF_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.pdf",
+  limit: 20,
+  window: "10 m",
+};
+
+const PDF_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.pdf.ip",
+  limit: 80,
+  window: "10 m",
+};
+
+const PDF_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.pdf.global",
+  limit: 200,
+  window: "10 m",
+};
+
 function sanitizeFilename(value: string | null | undefined): string {
   const fallback = "composer.pdf";
   if (!value) return fallback;
@@ -43,6 +67,22 @@ export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Sign in to generate a PDF.");
+  }
+
+  const clientIp = resolveClientIp(req);
+  const rateLimitResult = await checkRateLimits([
+    { definition: PDF_RATE_LIMIT, identifier: ownerId },
+    { definition: PDF_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+    { definition: PDF_GLOBAL_RATE_LIMIT, identifier: "global:ai.pdf" },
+  ]);
+  if (rateLimitResult && !rateLimitResult.success) {
+    const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
+    return returnError(
+      429,
+      "rate_limited",
+      "You're exporting PDFs too quickly. Try again shortly.",
+      retryAfterSeconds == null ? undefined : { retryAfterSeconds },
+    );
   }
 
   let parsed;

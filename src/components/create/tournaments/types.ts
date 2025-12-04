@@ -7,9 +7,12 @@ export type TournamentStepId =
   | "title"
   | "summary"
   | "signups"
-  | "details"
+  | "basics"
+  | "overview"
+  | "rules"
+  | "shoutouts"
   | "format"
-  | "content"
+  | "rewards"
   | "participants"
   | "review";
 export type ParticipantEntityType = "custom" | "user" | "capsule";
@@ -19,7 +22,14 @@ export type TournamentFormState = {
   summary: string;
   visibility: "private" | "capsule" | "public";
   publish: boolean;
+  gameTitle: string;
+  gamePlatform: string;
+  gameRegion: string;
+  seasonLength: string;
+  matchCadence: string;
+  kickoffNotes: string;
   format: FormatOption;
+  matchMode?: "1v1" | "teams" | "capsule_vs_capsule" | "";
   bestOf: string;
   start: string;
   timezone: string;
@@ -30,7 +40,7 @@ export type TournamentFormState = {
   rules: string;
   broadcast: string;
   updates: string;
-  aiNotes: string;
+  rewards: string;
 };
 
 export type ParticipantFormState = {
@@ -38,6 +48,11 @@ export type ParticipantFormState = {
   displayName: string;
   handle: string;
   seed: string;
+  rating: string;
+  wins: string;
+  losses: string;
+  draws: string;
+  streak: string;
   entityType: ParticipantEntityType;
   userId: string;
   capsuleId: string;
@@ -48,6 +63,7 @@ export type TournamentPreviewModel = {
   summary: string;
   capsuleName: string;
   format: string;
+  matchMode?: "1v1" | "teams" | "capsule_vs_capsule" | "";
   registration: string;
   kickoff: string;
   sections: Array<{ id: string; title: string; body: string }>;

@@ -93,7 +93,16 @@ export const NameField = ({ index, participant, onChangeName, onSelectSuggestion
         <Input
           id={`participant-name-${index}`}
           value={query}
-          onFocus={() => setOpen(true)}
+          name={`participant-search-${index}`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          inputMode="search"
+          onFocus={() => {
+            setOpen(true);
+            setSuggestions([]);
+          }}
           onBlur={() => window.setTimeout(() => setOpen(false), 120)}
           onChange={(event) => {
             const value = event.target.value;

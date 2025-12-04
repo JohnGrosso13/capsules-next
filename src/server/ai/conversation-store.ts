@@ -85,7 +85,7 @@ export async function storeConversationSnapshot(
     const tasks: Array<Promise<unknown>> = [
       redis.set(threadKey, payload, { ex: SNAPSHOT_TTL_SECONDS }),
       redis.set(summaryItemKey, summaryPayload, { ex: SNAPSHOT_TTL_SECONDS }),
-      redis.zadd(summaryIndexKey, { score: summaryScore, member: threadId }),
+      redis.zadd(summaryIndexKey, [{ score: summaryScore, member: threadId }]),
     ];
     const cutoff = Date.now() - SUMMARY_INDEX_WINDOW_MS;
     if (cutoff > 0) {

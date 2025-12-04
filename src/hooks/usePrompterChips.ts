@@ -26,11 +26,9 @@ export function usePrompterChips(
   fallback?: PrompterChipOption[],
   userId?: string | null,
 ): UsePrompterChipsResult {
-  const isBrowser = typeof window !== "undefined";
-  // Use a deterministic seed to keep SSR/CSR chip ordering stable and avoid hydration mismatches.
   const userCacheKey = (userId ?? "anon").trim() || "anon";
-  const seedRef = React.useRef<number>(stableHash(`${surface ?? "chips"}:${userCacheKey}`));
-  const [hydrated, setHydrated] = React.useState(isBrowser);
+  const seedRef = React.useRef<number>(stableHash(surface ?? "chips"));
+  const [hydrated, setHydrated] = React.useState(false);
   const cacheKey = surface ? `prompter_chips:${surface}:${userCacheKey}` : null;
 
   const pickInitialChips = React.useCallback(
@@ -86,10 +84,7 @@ export function usePrompterChips(
 
   const seedChips = React.useMemo(() => pickInitialChips(fallback), [fallback, pickInitialChips]);
 
-  const [chips, setChips] = React.useState<PrompterChipOption[] | undefined>(() => {
-    const cached = isBrowser ? readCachedChips() : undefined;
-    return cached ?? seedChips;
-  });
+  const [chips, setChips] = React.useState<PrompterChipOption[] | undefined>(() => seedChips);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -101,8 +96,8 @@ export function usePrompterChips(
   }, [hydrated]);
 
   React.useEffect(() => {
-    seedRef.current = stableHash(`${surface ?? "chips"}:${userCacheKey}`);
-  }, [surface, userCacheKey]);
+    seedRef.current = stableHash(surface ?? "chips");
+  }, [surface]);
 
   // Keep state aligned when surface changes before the fetch resolves.
   React.useEffect(() => {

@@ -8,10 +8,13 @@ export const TOURNAMENT_STEPS: TournamentStepDefinition[] = [
   { id: "title", title: "Title", subtitle: "Name your tournament" },
   { id: "summary", title: "Summary", subtitle: "Set the hook and vibe" },
   { id: "signups", title: "Sign-Ups", subtitle: "How players join" },
-  { id: "details", title: "Details", subtitle: "Visibility & publish" },
+  { id: "basics", title: "Basics", subtitle: "Choose the game, match style, and timing." },
   { id: "format", title: "Format", subtitle: "Bracket, registration, timing" },
-  { id: "content", title: "Content", subtitle: "Sections & production notes" },
-  { id: "participants", title: "Seeds", subtitle: "Entrants and seeds" },
+  { id: "overview", title: "Overview", subtitle: "Overview & highlights" },
+  { id: "rules", title: "Rules", subtitle: "Rules & format" },
+  { id: "shoutouts", title: "Shoutouts", subtitle: "Shoutouts & broadcast" },
+  { id: "rewards", title: "Rewards", subtitle: "Prizing & incentives" },
+  { id: "participants", title: "Roster", subtitle: "Seeds & records" },
   { id: "review", title: "Review", subtitle: "Preview & publish" },
 ];
 

@@ -6,8 +6,7 @@ import { deriveRequestOrigin } from "@/lib/url";
 import { requireCapsuleOwnership } from "@/server/capsules/domain/common";
 import { resolveWalletContext, grantPlanAllowances } from "@/server/billing/entitlements";
 import { ensureDefaultPlans, resolvePlanForScope } from "@/server/billing/plans";
-import { getStripeClient } from "@/server/billing/stripe";
-import { getStripeConfig } from "@/server/billing/config";
+import { getBillingAdapter } from "@/config/billing";
 import { upsertSubscription } from "@/server/billing/service";
 import { returnError, validatedJson } from "@/server/validation/http";
 
@@ -78,9 +77,9 @@ export async function POST(req: Request) {
     ensureDevCredits: true,
   });
 
-  const stripe = getStripeClient();
-  const stripeConfigured = Boolean(getStripeConfig().secretKey) && Boolean(stripe);
-  const bypassCheckout = walletContext.bypass || !stripeConfigured || !plan.stripePriceId;
+  const billing = getBillingAdapter();
+  const billingConfigured = billing.isConfigured();
+  const bypassCheckout = walletContext.bypass || !billingConfigured || !plan.stripePriceId;
 
   if (bypassCheckout) {
     const subscription = await upsertSubscription({
@@ -109,17 +108,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const session = await stripe!.checkout.sessions.create({
+    const session = await billing.createCheckoutSession({
+      priceId: plan.stripePriceId,
       mode: "subscription",
-      success_url: `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-      line_items: [
-        {
-          price: plan.stripePriceId,
-          quantity: 1,
-        },
-      ],
-      client_reference_id: walletContext.wallet.id,
+      successUrl: `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl,
+      quantity: 1,
+      clientReferenceId: walletContext.wallet.id,
       metadata: {
         wallet_id: walletContext.wallet.id,
         plan_code: plan.code,
@@ -127,14 +122,12 @@ export async function POST(req: Request) {
         owner_id: walletOwnerId,
         user_id: ownerId,
       },
-      subscription_data: {
-        metadata: {
-          wallet_id: walletContext.wallet.id,
-          plan_code: plan.code,
-          owner_type: scope,
-          owner_id: walletOwnerId,
-          user_id: ownerId,
-        },
+      subscriptionMetadata: {
+        wallet_id: walletContext.wallet.id,
+        plan_code: plan.code,
+        owner_type: scope,
+        owner_id: walletOwnerId,
+        user_id: ownerId,
       },
     });
 
@@ -142,8 +135,8 @@ export async function POST(req: Request) {
       walletId: walletContext.wallet.id,
       planId: plan.id,
       status: "incomplete",
-      stripeSubscriptionId: session.subscription ? String(session.subscription) : null,
-      stripeCustomerId: session.customer ? String(session.customer) : null,
+      stripeSubscriptionId: session.subscriptionId ?? null,
+      stripeCustomerId: session.customerId ?? null,
       metadata: {
         checkout_session_id: session.id,
         plan_code: plan.code,
@@ -154,7 +147,7 @@ export async function POST(req: Request) {
       checkoutUrl: session.url ?? successUrl,
       mode: "stripe",
       planCode: plan.code,
-      subscriptionId: session.subscription ? String(session.subscription) : undefined,
+      subscriptionId: session.subscriptionId ?? undefined,
     });
   } catch (error) {
     console.error("stripe.checkout.create_failed", error);

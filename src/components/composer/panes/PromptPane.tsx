@@ -68,6 +68,7 @@ export type PromptPaneProps = {
   onRetryLastPrompt(): void;
   smartContextEnabled: boolean;
   onEnableContext?(): void;
+  onCancelRun?(): void;
 };
 
 const AI_ATTACHMENT_FEEDBACK_PROMPT =
@@ -150,6 +151,7 @@ export function PromptPane({
   onRetryLastPrompt,
   smartContextEnabled,
   onEnableContext,
+  onCancelRun,
 }: PromptPaneProps) {
   const chatScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shouldStickRef = React.useRef(true);
@@ -374,12 +376,6 @@ export function PromptPane({
                       />
                     </div>
                     <div className={styles.chatGeneratedMeta}>
-                      <div className={styles.chatGeneratedText}>
-                        {generatedCaption ? <p>{generatedCaption}</p> : null}
-                        {helperLabel ? (
-                          <span className={styles.chatGeneratedSubdued}>{helperLabel}</span>
-                        ) : null}
-                      </div>
                       <div className={styles.chatGeneratedActions}>
                         {attachment.url ? (
                           <a
@@ -400,6 +396,12 @@ export function PromptPane({
                           >
                             Add to preview
                           </button>
+                        ) : null}
+                      </div>
+                      <div className={styles.chatGeneratedText}>
+                        {generatedCaption ? <p>{generatedCaption}</p> : null}
+                        {helperLabel ? (
+                          <span className={styles.chatGeneratedSubdued}>{helperLabel}</span>
                         ) : null}
                       </div>
                     </div>
@@ -537,6 +539,19 @@ export function PromptPane({
               />
             ) : null}
 
+            {isLoadingImage && onCancelRun ? (
+              <li className={styles.msgRow} data-role="ai">
+                <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.videoStatusBubble}`}>
+                  <p>Still rendering your visual...</p>
+                  <div className={styles.videoStatusActions}>
+                    <button type="button" className={styles.videoCancelButton} onClick={onCancelRun}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ) : null}
+
             {historyAfterAttachment.length
               ? renderChatEntries(historyAfterAttachment, "after")
               : null}
@@ -552,6 +567,13 @@ export function PromptPane({
                 <div className={`${styles.msgBubble} ${styles.aiBubble} ${styles.videoStatusBubble}`}>
                   <span className={styles.videoStatusSpinner} aria-hidden="true" />
                   <p>{videoStatus.message ?? "Rendering your clip..."}</p>
+                  {onCancelRun ? (
+                    <div className={styles.videoStatusActions}>
+                      <button type="button" className={styles.videoCancelButton} onClick={onCancelRun}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </li>
             ) : null}
@@ -634,6 +656,13 @@ export function PromptPane({
                   <span className={styles.streamDot} />
                   <span className={styles.streamDot} />
                   <span className={styles.streamDot} />
+                  {onCancelRun ? (
+                    <div className={styles.videoStatusActions}>
+                      <button type="button" className={styles.videoCancelButton} onClick={onCancelRun}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </li>
             ) : null}

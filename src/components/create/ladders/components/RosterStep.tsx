@@ -7,12 +7,19 @@ import { Input } from "@/components/ui/input";
 import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
 import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { getIdentityAccent } from "@/lib/identity/teams";
-import type { UserSearchResult } from "@/types/search";
+import type { CapsuleSearchResult, UserSearchResult } from "@/types/search";
 
 import type { LadderMemberFormValues } from "../ladderFormState";
 import styles from "../LadderBuilder.module.css";
 
-type MemberSuggestion = Pick<UserSearchResult, "id" | "name" | "avatarUrl" | "subtitle">;
+type MemberSuggestion = {
+  kind: "user" | "capsule";
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  subtitle: string | null;
+  slug?: string | null;
+};
 
 export type RosterStepProps = {
   capsuleId: string | null;
@@ -29,11 +36,18 @@ const SUGGESTION_LIMIT = 6;
 type NameFieldProps = {
   index: number;
   member: LadderMemberFormValues;
+  capsuleId: string | null;
   onChangeName: (value: string) => void;
-  onSelectUser: (user: { id: string; name: string; avatarUrl?: string | null }) => void;
+  onSelectIdentity: (payload: {
+    kind: "user" | "capsule";
+    id: string;
+    name: string;
+    avatarUrl?: string | null;
+    slug?: string | null;
+  }) => void;
 };
 
-const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps) => {
+const NameField = ({ index, member, capsuleId, onChangeName, onSelectIdentity }: NameFieldProps) => {
   const [query, setQuery] = React.useState(member.displayName);
   const [suggestions, setSuggestions] = React.useState<MemberSuggestion[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -58,7 +72,12 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
         const response = await fetch("/api/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q: term, limit: SUGGESTION_LIMIT }),
+          body: JSON.stringify({
+            q: term,
+            limit: SUGGESTION_LIMIT,
+            capsuleId,
+            scopes: ["users", "capsules"],
+          }),
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -66,18 +85,40 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
           return;
         }
         const data = (await response.json().catch(() => null)) as
-          | { sections?: Array<{ type: string; items?: UserSearchResult[] }> }
+          | {
+              sections?: Array<{
+                type: string;
+                items?: Array<UserSearchResult | CapsuleSearchResult>;
+              }>;
+            }
           | null;
-        const userSection = data?.sections?.find((section) => section.type === "users");
-        const hits = Array.isArray(userSection?.items) ? (userSection?.items as UserSearchResult[]) : [];
-        setSuggestions(
-          hits.slice(0, SUGGESTION_LIMIT).map((item) => ({
+        const sections = data?.sections ?? [];
+        const userSection = sections.find((section) => section.type === "users");
+        const capsuleSection = sections.find((section) => section.type === "capsules");
+        const userItems: UserSearchResult[] = Array.isArray(userSection?.items)
+          ? (userSection.items as UserSearchResult[])
+          : [];
+        const capsuleItems: CapsuleSearchResult[] = Array.isArray(capsuleSection?.items)
+          ? (capsuleSection.items as CapsuleSearchResult[])
+          : [];
+        const nextSuggestions: MemberSuggestion[] = [
+          ...userItems.slice(0, SUGGESTION_LIMIT).map((item) => ({
+            kind: "user" as const,
             id: item.id,
             name: item.name,
             avatarUrl: item.avatarUrl,
             subtitle: item.subtitle,
           })),
-        );
+          ...capsuleItems.slice(0, SUGGESTION_LIMIT).map((item) => ({
+            kind: "capsule" as const,
+            id: item.id,
+            name: item.name,
+            avatarUrl: item.logoUrl,
+            subtitle: item.subtitle ?? item.slug ?? null,
+            slug: item.slug,
+          })),
+        ].slice(0, SUGGESTION_LIMIT);
+        setSuggestions(nextSuggestions);
       } catch {
         setSuggestions([]);
       }
@@ -86,10 +127,22 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [capsuleId, query]);
+
+  const handleFocus = () => {
+    abortRef.current?.abort();
+    setSuggestions([]);
+    setOpen(true);
+  };
 
   const handleSelect = (suggestion: MemberSuggestion) => {
-    onSelectUser({ id: suggestion.id, name: suggestion.name, avatarUrl: suggestion.avatarUrl ?? null });
+    onSelectIdentity({
+      kind: suggestion.kind,
+      id: suggestion.id,
+      name: suggestion.name,
+      avatarUrl: suggestion.avatarUrl ?? null,
+      slug: suggestion.slug ?? null,
+    });
     setQuery(suggestion.name);
     setOpen(false);
   };
@@ -99,6 +152,7 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
       <span
         className={styles.memberAvatar}
         data-has-image={Boolean(member.avatarUrl)}
+        data-kind={member.capsuleId ? "capsule" : "user"}
         style={
           (() => {
             const accent = getIdentityAccent(member.displayName || `Seed ${index + 1}`, index);
@@ -130,8 +184,12 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
         <Input
           id={`member-name-${index}`}
           value={query}
-          onFocus={() => setOpen(true)}
+          onFocus={handleFocus}
           onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          className={styles.memberNameInput}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           onChange={(event) => {
             const value = event.target.value;
             setQuery(value);
@@ -162,6 +220,7 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
                   <span
                     className={styles.memberSuggestAvatar}
                     data-has-image={hasAvatar}
+                    data-kind={suggestion.kind}
                     style={style}
                     aria-hidden="true"
                   >
@@ -181,7 +240,11 @@ const NameField = ({ index, member, onChangeName, onSelectUser }: NameFieldProps
                     <span className={styles.memberSuggestName}>{suggestion.name}</span>
                     {suggestion.subtitle ? (
                       <span className={styles.memberSuggestMeta}>{suggestion.subtitle}</span>
-                    ) : null}
+                    ) : (
+                      <span className={styles.memberSuggestMeta}>
+                        {suggestion.kind === "capsule" ? "Capsule" : "User"}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -316,15 +379,26 @@ export const RosterStep = React.memo(function RosterStep({
                         <NameField
                           index={index}
                           member={member}
+                          capsuleId={capsuleId}
                           onChangeName={(value) => {
                             onMemberField(index, "displayName", value);
                             onMemberField(index, "userId", "");
+                            onMemberField(index, "capsuleId", "");
+                            onMemberField(index, "capsuleSlug", "");
                             onMemberField(index, "avatarUrl", "");
                           }}
-                          onSelectUser={(user) => {
-                            onMemberField(index, "displayName", user.name);
-                            onMemberField(index, "userId", user.id);
-                            onMemberField(index, "avatarUrl", user.avatarUrl ?? "");
+                          onSelectIdentity={(selection) => {
+                            onMemberField(index, "displayName", selection.name);
+                            onMemberField(index, "avatarUrl", selection.avatarUrl ?? "");
+                            if (selection.kind === "user") {
+                              onMemberField(index, "userId", selection.id);
+                              onMemberField(index, "capsuleId", "");
+                              onMemberField(index, "capsuleSlug", "");
+                            } else {
+                              onMemberField(index, "userId", "");
+                              onMemberField(index, "capsuleId", selection.id);
+                              onMemberField(index, "capsuleSlug", selection.slug ?? "");
+                            }
                           }}
                         />
                       </td>
@@ -332,6 +406,7 @@ export const RosterStep = React.memo(function RosterStep({
                         <Input
                           id={`member-seed-${index}`}
                           value={member.seed}
+                          className={styles.memberNumberInput}
                           onChange={(event) => onMemberField(index, "seed", event.target.value)}
                         />
                       </td>
@@ -339,6 +414,7 @@ export const RosterStep = React.memo(function RosterStep({
                         <Input
                           id={`member-rating-${index}`}
                           value={member.rating}
+                          className={styles.memberNumberInput}
                           onChange={(event) => onMemberField(index, "rating", event.target.value)}
                         />
                       </td>
@@ -371,6 +447,7 @@ export const RosterStep = React.memo(function RosterStep({
                                 <Input
                                   id={`member-wins-${index}`}
                                   value={member.wins}
+                                  className={styles.memberNumberInput}
                                   onChange={(event) => onMemberField(index, "wins", event.target.value)}
                                 />
                               </div>
@@ -381,6 +458,7 @@ export const RosterStep = React.memo(function RosterStep({
                                 <Input
                                   id={`member-losses-${index}`}
                                   value={member.losses}
+                                  className={styles.memberNumberInput}
                                   onChange={(event) => onMemberField(index, "losses", event.target.value)}
                                 />
                               </div>
@@ -391,6 +469,7 @@ export const RosterStep = React.memo(function RosterStep({
                                 <Input
                                   id={`member-draws-${index}`}
                                   value={member.draws}
+                                  className={styles.memberNumberInput}
                                   onChange={(event) => onMemberField(index, "draws", event.target.value)}
                                 />
                               </div>
@@ -401,6 +480,7 @@ export const RosterStep = React.memo(function RosterStep({
                                 <Input
                                   id={`member-streak-${index}`}
                                   value={member.streak}
+                                  className={styles.memberNumberInput}
                                   onChange={(event) => onMemberField(index, "streak", event.target.value)}
                                 />
                               </div>

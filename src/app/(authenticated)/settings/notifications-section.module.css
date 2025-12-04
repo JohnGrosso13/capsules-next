@@ -22,6 +22,37 @@
   font-size: 0.9rem;
 }
 
+.columnsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-2, rgba(255, 255, 255, 0.7));
+}
+
+.columnsHeaderSpacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.columnsHeaderLabels {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.columnsHeaderLabel {
+  min-width: 56px;
+  text-align: center;
+}
+
 .options {
   display: grid;
   gap: 14px;

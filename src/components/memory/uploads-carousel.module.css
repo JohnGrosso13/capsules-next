@@ -305,7 +305,7 @@
 .detailOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 6, 13, 0.68);
+  background: rgba(5, 6, 13, 0.96);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -331,20 +331,21 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  border: 1px solid var(--card-border);
-  background: var(--surface-muted);
-  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(5, 6, 13, 0.9);
+  color: #fff;
+  z-index: 2;
   cursor: pointer;
 }
 
 .detailClose:hover {
-  background: var(--surface-elevated);
+  background: rgba(5, 6, 13, 1);
 }
 
 .detailMedia {

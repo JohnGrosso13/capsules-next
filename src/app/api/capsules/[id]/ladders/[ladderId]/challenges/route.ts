@@ -153,6 +153,13 @@ export async function POST(
       challengerId: parsed.data.challengerId ?? null,
       opponentId: parsed.data.opponentId ?? null,
       note: parsed.data.note ?? null,
+      ...(parsed.data.participantType ? { participantType: parsed.data.participantType } : {}),
+      ...(parsed.data.challengerCapsuleId !== undefined
+        ? { challengerCapsuleId: parsed.data.challengerCapsuleId ?? null }
+        : {}),
+      ...(parsed.data.opponentCapsuleId !== undefined
+        ? { opponentCapsuleId: parsed.data.opponentCapsuleId ?? null }
+        : {}),
     });
     if (isCapsuleMismatch(params.id, result.ladder.capsuleId)) {
       return returnError(404, "ladder_not_found", "Ladder not found.");

@@ -1,9 +1,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
-
 import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import type { CapsuleSummary } from "@/server/capsules/service";
-
+import type { AiPlanLike } from "../../ladders/components/AiPlanCard";
 import { TOURNAMENT_STEPS, TOURNAMENT_STEP_ORDER } from "../constants";
 import type {
   ParticipantEntityType,
@@ -14,43 +13,48 @@ import type {
   TournamentStepDefinition,
   TournamentStepId,
 } from "../types";
-
 const defaultVisitedState: Record<TournamentStepId, boolean> = {
   blueprint: true,
   title: false,
   summary: false,
   signups: false,
-  details: false,
+  basics: false,
+  overview: false,
+  rules: false,
+  shoutouts: false,
   format: false,
-  content: false,
+  rewards: false,
   participants: false,
   review: false,
 };
-
 const clamp = (value: number, { min, max }: { min?: number; max?: number } = {}): number => {
   let result = value;
   if (typeof min === "number") result = Math.max(min, result);
   if (typeof max === "number") result = Math.min(max, result);
   return result;
 };
-
 export const parseInteger = (value: string, fallback: number, options: { min?: number; max?: number } = {}): number => {
   const parsed = Number.parseInt(value.trim(), 10);
   if (!Number.isFinite(parsed)) return fallback;
   return clamp(parsed, options);
 };
-
 const trimOrNull = (value: string): string | null => {
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
 };
-
 export const createDefaultForm = (): TournamentFormState => ({
   name: "",
   summary: "",
   visibility: "capsule",
   publish: false,
+  gameTitle: "",
+  gamePlatform: "",
+  gameRegion: "",
+  seasonLength: "",
+  matchCadence: "",
+  kickoffNotes: "",
   format: "single_elimination",
+  matchMode: "1v1",
   bestOf: "3",
   start: "",
   timezone: "",
@@ -61,18 +65,21 @@ export const createDefaultForm = (): TournamentFormState => ({
   rules: "",
   broadcast: "",
   updates: "",
-  aiNotes: "",
+  rewards: "",
 });
-
 export const createEmptyParticipant = (index: number): ParticipantFormState => ({
   displayName: "",
   handle: "",
   seed: String(index + 1),
+  rating: "1200",
+  wins: "0",
+  losses: "0",
+  draws: "0",
+  streak: "0",
   entityType: "custom",
   userId: "",
   capsuleId: "",
 });
-
 export const normalizeParticipants = (list: ParticipantFormState[]): ParticipantFormState[] => {
   return list.map((participant, index) => ({
     ...participant,
@@ -80,16 +87,104 @@ export const normalizeParticipants = (list: ParticipantFormState[]): Participant
     entityType: participant.entityType ?? "custom",
     userId: participant.userId ?? "",
     capsuleId: participant.capsuleId ?? "",
+    rating: (participant.rating ?? "").trim().length ? participant.rating : "1200",
+    wins: (participant.wins ?? "").trim().length ? participant.wins : "0",
+    losses: (participant.losses ?? "").trim().length ? participant.losses : "0",
+    draws: (participant.draws ?? "").trim().length ? participant.draws : "0",
+    streak: (participant.streak ?? "").trim().length ? participant.streak : "0",
   }));
 };
 
+export const buildTournamentMetaPayload = (form: TournamentFormState) => {
+  const maxEntrantsInput = form.maxEntrants.trim();
+  const maxEntrants = maxEntrantsInput.length
+    ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
+    : null;
+  return {
+    variant: "tournament",
+    format: form.format,
+    matchMode: form.matchMode ?? null,
+    formatLabel:
+      form.format === "single_elimination"
+        ? "Single Elim"
+        : form.format === "double_elimination"
+          ? "Double Elim"
+          : "Round Robin",
+    startsAt: form.start.trim().length ? form.start.trim() : null,
+    schedule: {
+      start: form.start.trim().length ? form.start.trim() : null,
+      timezone: form.timezone.trim().length ? form.timezone.trim() : null,
+    },
+    settings: {
+      bestOf: form.bestOf,
+      registrationType: form.registrationType,
+      maxEntrants,
+    },
+  } as Record<string, unknown>;
+};
+
+export const buildTournamentConfigPayload = (form: TournamentFormState) => {
+  const maxEntrantsInput = form.maxEntrants.trim();
+  const maxEntrants = maxEntrantsInput.length
+    ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
+    : null;
+  const requirements = (form.registrationRequirements ?? "")
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length);
+  const schedule: Record<string, unknown> = {};
+  if (form.start.trim().length) schedule.kickoff = form.start.trim();
+  if (form.timezone.trim().length) schedule.timezone = form.timezone.trim();
+  return {
+    objectives: ["Deliver a high-energy bracket with Capsule AI commentary."],
+    schedule,
+    registration: {
+      type: form.registrationType,
+      maxTeams: maxEntrants ?? null,
+      ...(requirements.length ? { requirements } : {}),
+    },
+    metadata: {
+      tournament: {
+        format: form.format,
+        bestOf: form.bestOf,
+      },
+    },
+  } as Record<string, unknown>;
+};
+
+export const buildTournamentMembersPayload = (participants: ParticipantFormState[]) => {
+  return normalizeParticipants(participants)
+    .filter((participant) => participant.displayName.trim().length)
+    .map((participant, index) => {
+      const payload: Record<string, unknown> = {
+        displayName: participant.displayName.trim(),
+        handle: participant.handle.trim().length ? participant.handle.trim() : null,
+        seed: parseInteger(participant.seed, index + 1, { min: 1, max: 256 }),
+        rating: parseInteger(participant.rating, 1200, { min: 100, max: 4000 }),
+        wins: parseInteger(participant.wins, 0, { min: 0 }),
+        losses: parseInteger(participant.losses, 0, { min: 0 }),
+        draws: parseInteger(participant.draws, 0, { min: 0 }),
+        streak: parseInteger(participant.streak, 0, { min: -20, max: 20 }),
+      };
+      const userId = participant.entityType === "user" ? participant.userId.trim() : "";
+      const capsuleId = participant.entityType === "capsule" ? participant.capsuleId.trim() : "";
+      if (userId) payload.userId = userId;
+      const metadata: Record<string, unknown> = {};
+      if (capsuleId) metadata.capsuleId = capsuleId;
+      if (participant.entityType !== "custom") metadata.entityType = participant.entityType;
+      if (Object.keys(metadata).length) {
+        payload.metadata = metadata;
+      }
+      return payload;
+    });
+};
 type UseTournamentWizardArgs = {
   selectedCapsule: CapsuleSummary | null;
 };
-
 export type TournamentWizardController = {
   form: TournamentFormState;
   participants: ParticipantFormState[];
+  aiPlan: AiPlanLike;
   statusMessage: string | null;
   errorMessage: string | null;
   isSaving: boolean;
@@ -109,8 +204,6 @@ export type TournamentWizardController = {
   handleParticipantChange: (index: number, field: keyof ParticipantFormState, value: string) => void;
   addParticipant: () => void;
   removeParticipant: (index: number) => void;
-  handleParticipantEntityType: (index: number, entityType: ParticipantEntityType) => void;
-  handleParticipantEntityId: (index: number, value: string) => void;
   handleParticipantSuggestion: (index: number, suggestion: ParticipantSuggestion) => void;
   handleInvite: (userIds: string[]) => Promise<void>;
   handleGenerateDraft: () => Promise<void>;
@@ -119,16 +212,15 @@ export type TournamentWizardController = {
   setShowInvite: (value: boolean) => void;
   setStatusMessage: (value: string | null) => void;
 };
-
 export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs): TournamentWizardController => {
   const router = useRouter();
   const friendsContext = useOptionalFriendsDataContext();
-
   const [form, setForm] = React.useState<TournamentFormState>(createDefaultForm);
   const [participants, setParticipants] = React.useState<ParticipantFormState[]>([
     createEmptyParticipant(0),
     createEmptyParticipant(1),
   ]);
+  const [aiPlan, setAiPlan] = React.useState<AiPlanLike>(null);
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [isSaving, setSaving] = React.useState(false);
@@ -137,7 +229,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
   const [visitedSteps, setVisitedSteps] = React.useState<Record<TournamentStepId, boolean>>(defaultVisitedState);
   const formContentRef = React.useRef<HTMLDivElement | null>(null);
   const [showInvite, setShowInvite] = React.useState(false);
-
   const stepIndex = React.useMemo(() => TOURNAMENT_STEP_ORDER.indexOf(activeStep), [activeStep]);
   const previousStepId = stepIndex > 0 ? (TOURNAMENT_STEP_ORDER[stepIndex - 1] as TournamentStepId) : null;
   const nextStepId =
@@ -145,12 +236,10 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       ? (TOURNAMENT_STEP_ORDER[stepIndex + 1] as TournamentStepId)
       : null;
   const nextStep = nextStepId ? TOURNAMENT_STEPS.find((step) => step.id === nextStepId) ?? null : null;
-
   const resetMessages = React.useCallback(() => {
     setStatusMessage(null);
     setErrorMessage(null);
   }, []);
-
   const resetFormState = React.useCallback(() => {
     setForm(createDefaultForm());
     setParticipants([createEmptyParticipant(0), createEmptyParticipant(1)]);
@@ -158,29 +247,24 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     setVisitedSteps(defaultVisitedState);
     resetMessages();
   }, [resetMessages]);
-
   const handleStepSelect = React.useCallback((stepId: TournamentStepId) => {
     setActiveStep(stepId);
     setVisitedSteps((prev) => ({ ...prev, [stepId]: true }));
   }, []);
-
   const handleNextStep = React.useCallback(() => {
     if (!nextStepId) return;
     handleStepSelect(nextStepId);
   }, [handleStepSelect, nextStepId]);
-
   const handlePreviousStep = React.useCallback(() => {
     if (!previousStepId) return;
     handleStepSelect(previousStepId);
   }, [handleStepSelect, previousStepId]);
-
   const handleFormChange = React.useCallback(
     <K extends keyof TournamentFormState>(key: K, value: TournamentFormState[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
     },
     [],
   );
-
   const handleParticipantChange = React.useCallback(
     (index: number, field: keyof ParticipantFormState, value: string) => {
       setParticipants((prev) => {
@@ -199,6 +283,20 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
           updated.handle = value;
         } else if (field === "seed") {
           updated.seed = value;
+        } else if (field === "rating") {
+          updated.rating = value;
+        } else if (field === "wins") {
+          updated.wins = value;
+        } else if (field === "losses") {
+          updated.losses = value;
+        } else if (field === "draws") {
+          updated.draws = value;
+        } else if (field === "streak") {
+          updated.streak = value;
+        } else if (field === "userId") {
+          updated.userId = value;
+        } else if (field === "capsuleId") {
+          updated.capsuleId = value;
         } else if (field === "id") {
           updated.id = value;
         }
@@ -208,50 +306,12 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     },
     [],
   );
-
   const addParticipant = React.useCallback(() => {
     setParticipants((prev) => [...prev, createEmptyParticipant(prev.length)]);
   }, []);
-
   const removeParticipant = React.useCallback((index: number) => {
     setParticipants((prev) => prev.filter((_, i) => i !== index));
   }, []);
-
-  const handleParticipantEntityType = React.useCallback((index: number, entityType: ParticipantEntityType) => {
-    setParticipants((prev) => {
-      const next = [...prev];
-      const current = next[index];
-      if (!current) return prev;
-      const updated: ParticipantFormState = { ...current, entityType };
-      if (entityType === "user") {
-        updated.capsuleId = "";
-      } else if (entityType === "capsule") {
-        updated.userId = "";
-      } else {
-        updated.userId = "";
-        updated.capsuleId = "";
-      }
-      next[index] = updated;
-      return next;
-    });
-  }, []);
-
-  const handleParticipantEntityId = React.useCallback((index: number, value: string) => {
-    setParticipants((prev) => {
-      const next = [...prev];
-      const current = next[index];
-      if (!current) return prev;
-      const updated: ParticipantFormState = { ...current };
-      if (updated.entityType === "user") {
-        updated.userId = value;
-      } else if (updated.entityType === "capsule") {
-        updated.capsuleId = value;
-      }
-      next[index] = updated;
-      return next;
-    });
-  }, []);
-
   const handleParticipantSuggestion = React.useCallback((index: number, suggestion: ParticipantSuggestion) => {
     setParticipants((prev) => {
       const next = [...prev];
@@ -268,7 +328,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       return next;
     });
   }, []);
-
   const handleInvite = React.useCallback(
     async (userIds: string[]) => {
       const friendMap = new Map<string, { id: string; name: string }>();
@@ -296,7 +355,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     },
     [friendsContext?.friends],
   );
-
   const convertSectionsToPayload = React.useCallback(() => {
     const mapBlock = (title: string, body: string) => ({
       title: title.trim().length ? title.trim() : "Untitled",
@@ -307,98 +365,37 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       rules: mapBlock("Rules & Format", form.rules),
       shoutouts: mapBlock("Broadcast & Spotlight", form.broadcast),
       upcoming: mapBlock("Schedule & Check-ins", form.updates),
-      results: mapBlock("Highlights & Recap", form.aiNotes),
+      results: mapBlock("Rewards", form.rewards),
     };
-  }, [form.aiNotes, form.broadcast, form.overview, form.rules, form.updates]);
+  }, [form.broadcast, form.overview, form.rewards, form.rules, form.updates]);
+  const convertConfigToPayload = React.useCallback(
+    () => buildTournamentConfigPayload(form),
+    [form],
+  );
+  const convertParticipantsToPayload = React.useCallback(
+    () => buildTournamentMembersPayload(participants),
+    [participants],
+  );
+  const buildMetaPayload = React.useCallback(
+    () => buildTournamentMetaPayload(form),
+    [form],
+  );
 
-  const convertConfigToPayload = React.useCallback(() => {
-    const maxEntrantsInput = form.maxEntrants.trim();
-    const maxEntrants = maxEntrantsInput.length
-      ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
-      : null;
-    const requirements = (form.registrationRequirements ?? "")
-      .split("\n")
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length);
-    const schedule: Record<string, unknown> = {};
-    if (form.start.trim().length) schedule.kickoff = form.start.trim();
-    if (form.timezone.trim().length) schedule.timezone = form.timezone.trim();
-
-    return {
-      objectives: ["Deliver a high-energy bracket with Capsule AI commentary."],
-      schedule,
-      registration: {
-        type: form.registrationType,
-        maxTeams: maxEntrants ?? null,
-        ...(requirements.length ? { requirements } : {}),
-      },
-      metadata: {
-        tournament: {
-          format: form.format,
-          bestOf: form.bestOf,
-        },
-      },
-    } as Record<string, unknown>;
-  }, [form.bestOf, form.format, form.maxEntrants, form.registrationRequirements, form.registrationType, form.start, form.timezone]);
-
-  const convertParticipantsToPayload = React.useCallback(() => {
-    return normalizeParticipants(participants)
-      .filter((participant) => participant.displayName.trim().length)
-      .map((participant, index) => {
-        const payload: Record<string, unknown> = {
-          displayName: participant.displayName.trim(),
-          handle: participant.handle.trim().length ? participant.handle.trim() : null,
-          seed: parseInteger(participant.seed, index + 1, { min: 1, max: 256 }),
-          rating: 1200,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          streak: 0,
-        };
-        const userId = participant.entityType === "user" ? participant.userId.trim() : "";
-        const capsuleId = participant.entityType === "capsule" ? participant.capsuleId.trim() : "";
-        if (userId) payload.userId = userId;
-        const metadata: Record<string, unknown> = {};
-        if (capsuleId) metadata.capsuleId = capsuleId;
-        if (participant.entityType !== "custom") metadata.entityType = participant.entityType;
-        if (Object.keys(metadata).length) {
-          payload.metadata = metadata;
-        }
-        return payload;
-      });
-  }, [participants]);
-
-  const buildMetaPayload = React.useCallback(() => {
-    const maxEntrantsInput = form.maxEntrants.trim();
-    const maxEntrants = maxEntrantsInput.length
-      ? parseInteger(maxEntrantsInput, 16, { min: 2, max: 128 })
-      : null;
-    return {
-      variant: "tournament",
-      format: form.format,
-      formatLabel:
-        form.format === "single_elimination"
-          ? "Single Elim"
-          : form.format === "double_elimination"
-            ? "Double Elim"
-            : "Round Robin",
-      startsAt: form.start.trim().length ? form.start.trim() : null,
-      schedule: {
-        start: form.start.trim().length ? form.start.trim() : null,
-        timezone: form.timezone.trim().length ? form.timezone.trim() : null,
-      },
-      settings: {
-        bestOf: form.bestOf,
-        registrationType: form.registrationType,
-        maxEntrants,
-      },
-      notes: form.aiNotes.trim().length ? form.aiNotes.trim() : null,
-    } as Record<string, unknown>;
-  }, [form.aiNotes, form.bestOf, form.format, form.maxEntrants, form.registrationType, form.start, form.timezone]);
+  const toTrimmedString = (value: unknown): string => {
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    return "";
+  };
 
   const applyBlueprint = React.useCallback(
     (data: {
-      ladder: { name: string; summary: string | null; sections: Record<string, unknown>; config: Record<string, unknown> };
+      ladder: {
+        name: string;
+        summary: string | null;
+        sections: Record<string, unknown>;
+        config: Record<string, unknown>;
+        aiPlan?: unknown;
+      };
       members: Array<Record<string, unknown>>;
     }) => {
       const { ladder } = data;
@@ -423,7 +420,19 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
           typeof sections.upcoming === "object" && sections.upcoming
             ? ((sections.upcoming as Record<string, unknown>).body as string | undefined) ?? prev.updates
             : prev.updates,
+        rewards:
+          typeof sections.results === "object" && sections.results
+            ? ((sections.results as Record<string, unknown>).body as string | undefined) ?? prev.rewards
+            : prev.rewards,
       }));
+      const parseStat = (value: unknown): number | null => {
+        if (typeof value === "number") return value;
+        if (typeof value === "string") {
+          const parsed = Number.parseInt(value, 10);
+          return Number.isFinite(parsed) ? parsed : null;
+        }
+        return null;
+      };
 
       const mappedMembers = data.members
         .map((entry, index) => {
@@ -449,11 +458,21 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
               : typeof record.seed === "string"
                 ? Number.parseInt(record.seed, 10)
                 : index + 1;
+          const ratingValue = parseStat((record as { rating?: unknown }).rating);
+          const winsValue = parseStat((record as { wins?: unknown }).wins);
+          const lossesValue = parseStat((record as { losses?: unknown }).losses);
+          const drawsValue = parseStat((record as { draws?: unknown }).draws);
+          const streakValue = parseStat((record as { streak?: unknown }).streak);
           const participant: ParticipantFormState = {
             displayName,
             handle:
               typeof record.handle === "string" && record.handle.trim().length ? record.handle.trim() : "",
             seed: Number.isFinite(seed) ? String(seed) : String(index + 1),
+            rating: Number.isFinite(ratingValue ?? NaN) ? String(ratingValue) : "1200",
+            wins: Number.isFinite(winsValue ?? NaN) ? String(winsValue) : "0",
+            losses: Number.isFinite(lossesValue ?? NaN) ? String(lossesValue) : "0",
+            draws: Number.isFinite(drawsValue ?? NaN) ? String(drawsValue) : "0",
+            streak: Number.isFinite(streakValue ?? NaN) ? String(streakValue) : "0",
             userId,
             capsuleId,
             entityType,
@@ -467,16 +486,49 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       if (mappedMembers.length) {
         setParticipants(normalizeParticipants(mappedMembers));
       }
+
+      const rawPlan = data.ladder.aiPlan;
+      if (rawPlan && typeof rawPlan === "object") {
+        const planRecord = rawPlan as Record<string, unknown>;
+        const suggestionsRaw = Array.isArray((planRecord as { suggestions?: unknown }).suggestions)
+          ? ((planRecord as { suggestions?: unknown }).suggestions as unknown[])
+          : [];
+        const suggestions = suggestionsRaw
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const suggestion = entry as Record<string, unknown>;
+            const title = toTrimmedString(suggestion.title);
+            const summary = toTrimmedString((suggestion as { summary?: unknown }).summary);
+            if (!title || !summary) return null;
+            return {
+              id:
+                toTrimmedString(suggestion.id) ||
+                `suggestion-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              title,
+              summary,
+              section: toTrimmedString((suggestion as { section?: unknown }).section) || null,
+            };
+          })
+          .filter(Boolean);
+        const plan = {
+          reasoning: toTrimmedString((planRecord as { reasoning?: unknown }).reasoning) || null,
+          prompt: toTrimmedString((planRecord as { prompt?: unknown }).prompt) || null,
+          // suggestions is optional on AiPlanLike; cast to keep types simple
+          suggestions: suggestions as NonNullable<AiPlanLike>["suggestions"],
+        };
+        setAiPlan(plan as AiPlanLike);
+      } else {
+        setAiPlan(null);
+      }
+
       setVisitedSteps((prev) => ({
         ...prev,
         blueprint: true,
-        content: true,
         participants: true,
       }));
     },
     [],
   );
-
   const handleGenerateDraft = React.useCallback(async () => {
     if (!selectedCapsule) {
       setErrorMessage("Choose a capsule before generating a tournament plan.");
@@ -496,13 +548,11 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         const message = data?.error?.message ?? data?.message ?? "We couldn't generate a tournament blueprint.";
         throw new Error(message);
       }
-
       const blueprint = (await response.json()) as {
         ladder: { name: string; summary: string | null; sections: Record<string, unknown>; config: Record<string, unknown> };
         members: Array<Record<string, unknown>>;
@@ -517,7 +567,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       setGenerating(false);
     }
   }, [applyBlueprint, form.format, form.maxEntrants, form.summary, handleStepSelect, resetMessages, selectedCapsule]);
-
   const createTournament = React.useCallback(async () => {
     if (!selectedCapsule) {
       setErrorMessage("Choose a capsule before creating the tournament.");
@@ -527,7 +576,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       setErrorMessage("Give your tournament a name.");
       return;
     }
-
     resetMessages();
     setSaving(true);
     try {
@@ -546,13 +594,11 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
           members: convertParticipantsToPayload(),
         }),
       });
-
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
         const message = payload?.error?.message ?? payload?.message ?? "Unable to create the tournament.";
         throw new Error(message);
       }
-
       const { ladder } = await response.json();
       setStatusMessage(
         form.publish
@@ -582,7 +628,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     router,
     selectedCapsule,
   ]);
-
   const completionMap = React.useMemo(
     () => ({
       blueprint: visitedSteps.blueprint,
@@ -595,28 +640,42 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
             form.maxEntrants.trim() ||
             form.registrationRequirements.trim(),
         ),
-      details: visitedSteps.details,
-      format: visitedSteps.format,
-      content:
-        visitedSteps.content &&
+      basics:
+        visitedSteps.basics &&
         Boolean(
-          form.overview.trim() ||
-            form.rules.trim() ||
-            form.broadcast.trim() ||
-            form.updates.trim() ||
-            form.aiNotes.trim(),
+          form.gameTitle.trim() ||
+            form.gamePlatform.trim() ||
+            form.gameRegion.trim() ||
+            form.seasonLength.trim() ||
+            form.matchCadence.trim() ||
+            form.kickoffNotes.trim() ||
+            form.timezone.trim(),
         ),
+      overview: visitedSteps.overview && Boolean(form.overview.trim()),
+      rules: visitedSteps.rules && Boolean(form.rules.trim()),
+      shoutouts:
+        visitedSteps.shoutouts &&
+        Boolean(form.broadcast.trim() || form.updates.trim()),
+      format: visitedSteps.format,
+      rewards: visitedSteps.rewards && Boolean(form.rewards.trim()),
       participants: visitedSteps.participants && participants.some((participant) => participant.displayName.trim().length),
       review: visitedSteps.review,
     }),
     [
-      form.aiNotes,
       form.broadcast,
       form.name,
       form.overview,
+      form.rewards,
       form.rules,
       form.summary,
       form.updates,
+      form.gameTitle,
+      form.gamePlatform,
+      form.gameRegion,
+      form.seasonLength,
+      form.matchCadence,
+      form.kickoffNotes,
+      form.timezone,
       form.maxEntrants,
       form.registrationRequirements,
       form.registrationType,
@@ -624,7 +683,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       visitedSteps,
     ],
   );
-
   const previewModel = React.useMemo<TournamentPreviewModel>(() => {
     const formatLabel =
       form.format === "single_elimination"
@@ -654,9 +712,9 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       },
       { id: "updates", title: "Schedule & updates", body: form.updates.trim() || "Set check-in rules and timings." },
       {
-        id: "production",
-        title: "Production notes",
-        body: form.aiNotes.trim() || "Call out sponsors, themes, or Capsule AI touches.",
+        id: "rewards",
+        title: "Rewards",
+        body: form.rewards.trim() || "Call out prizing, titles, and perks.",
       },
     ];
     return {
@@ -664,8 +722,9 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       summary: form.summary.trim(),
       capsuleName: selectedCapsule?.name ?? "Capsule",
       format: formatLabel,
+      matchMode: (form.matchMode as TournamentPreviewModel["matchMode"]) ?? "",
       registration: maxEntrants
-        ? `${form.registrationType} • cap ${maxEntrants}`
+        ? `${form.registrationType} cap ${maxEntrants}`
         : form.registrationType,
       kickoff: kickoffParts.length ? kickoffParts.join(" | ") : "Kickoff time TBD",
       sections,
@@ -676,25 +735,26 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       })),
     };
   }, [
-    form.aiNotes,
     form.broadcast,
     form.format,
+    form.matchMode,
     form.maxEntrants,
     form.name,
     form.overview,
+    form.rewards,
     form.rules,
     form.start,
     form.summary,
     form.timezone,
     form.updates,
     form.registrationType,
-    participants,
-    selectedCapsule?.name,
-  ]);
-
+      participants,
+      selectedCapsule?.name,
+    ]);
   return {
     form,
     participants,
+    aiPlan,
     statusMessage,
     errorMessage,
     isSaving,
@@ -714,8 +774,6 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     handleParticipantChange,
     addParticipant,
     removeParticipant,
-    handleParticipantEntityType,
-    handleParticipantEntityId,
     handleParticipantSuggestion,
     handleInvite,
     handleGenerateDraft,

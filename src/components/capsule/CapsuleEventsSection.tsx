@@ -19,7 +19,14 @@ import { useLadderChallenges } from "@/hooks/useLadderChallenges";
 import { formatRelativeTime } from "@/lib/composer/sidebar-types";
 import { trackLadderEvent } from "@/lib/telemetry/ladders";
 import { getIdentityAccent } from "@/lib/identity/teams";
-import type { CapsuleLadderDetail, CapsuleLadderMember } from "@/types/ladders";
+import {
+  buildDoubleEliminationBracket,
+  buildSingleEliminationBracket,
+  type BracketMatch,
+  type BracketRound,
+  type TournamentBracket,
+} from "@/lib/ladders/bracket";
+import type { CapsuleLadderDetail, CapsuleLadderMember, LadderParticipantType } from "@/types/ladders";
 import styles from "./CapsuleEventsSection.module.css";
 
 type CapsuleEventsSectionProps = {
@@ -80,6 +87,31 @@ function formatGameMeta(ladder: CapsuleLadderSummary): { title: string; meta: st
   };
 }
 
+function resolveMatchMode(
+  meta: Record<string, unknown> | null | undefined,
+  gameMode?: string | null,
+): string | null {
+  const rawMode =
+    meta && typeof meta.matchMode === "string" && meta.matchMode.trim().length
+      ? meta.matchMode.trim()
+      : null;
+  if (rawMode) return rawMode;
+  if (gameMode && gameMode.trim().length) return gameMode.trim();
+  const nestedGame =
+    meta && typeof meta.game === "object" && meta.game
+      ? ((meta.game as Record<string, unknown>).mode as string | undefined)
+      : null;
+  if (nestedGame && nestedGame.trim().length) return nestedGame.trim();
+  return null;
+}
+
+function extractMemberCapsuleId(member: CapsuleLadderMember | null | undefined): string | null {
+  const metadata = member?.metadata as Record<string, unknown> | null;
+  const capsuleId =
+    metadata && typeof metadata.capsuleId === "string" ? metadata.capsuleId.trim() : null;
+  return capsuleId && capsuleId.length ? capsuleId : null;
+}
+
 function getInitials(name: string): string {
   const trimmed = name.trim();
   if (!trimmed.length) return "??";
@@ -106,6 +138,32 @@ function sortStandings(members: CapsuleLadderMember[], scoringSystem?: string): 
   });
 }
 
+function resolveTournamentFormat(
+  detail: CapsuleLadderDetail | null | undefined,
+): "single_elimination" | "double_elimination" | "round_robin" {
+  const meta = detail?.meta && typeof detail.meta === "object" ? (detail.meta as Record<string, unknown>) : null;
+  const metaFormat =
+    typeof meta?.format === "string"
+      ? meta.format
+      : typeof meta?.tournamentFormat === "string"
+        ? meta.tournamentFormat
+        : null;
+  const configMeta =
+    detail?.config && typeof detail.config === "object"
+      ? ((detail.config as { metadata?: unknown }).metadata as Record<string, unknown> | undefined)
+      : undefined;
+  const tournamentConfig =
+    configMeta && typeof configMeta.tournament === "object"
+      ? (configMeta.tournament as Record<string, unknown>)
+      : null;
+  const configFormat =
+    tournamentConfig && typeof tournamentConfig.format === "string" ? tournamentConfig.format : null;
+  const normalized = (metaFormat || configFormat || "").toLowerCase();
+  if (normalized.includes("double")) return "double_elimination";
+  if (normalized.includes("round")) return "round_robin";
+  return "single_elimination";
+}
+
 export function CapsuleEventsSection({
   capsuleId,
   ladders,
@@ -115,17 +173,17 @@ export function CapsuleEventsSection({
   onRetry,
   previewOverrides,
 }: CapsuleEventsSectionProps) {
-  void tournaments; // Future: tournaments view in this shell.
-
   const isOnline = useNetworkStatus();
   const previewing = Boolean(previewOverrides);
   const ladderSummaries = React.useMemo(
     () => (previewOverrides ? [previewOverrides.summary] : ladders),
     [previewOverrides, ladders],
   );
+  const tournamentSummaries = React.useMemo(() => tournaments, [tournaments]);
   const [activeNav, setActiveNav] = React.useState<NavId>("ladder");
   const [activeTab, setActiveTab] = React.useState<LadderTabId>("standings");
   const [selectedLadderId, setSelectedLadderId] = React.useState<string | null>(null);
+  const [selectedTournamentId, setSelectedTournamentId] = React.useState<string | null>(null);
   const [reportStatus, setReportStatus] = React.useState<"idle" | "saving" | "saved">("idle");
   const [reportForm, setReportForm] = React.useState({
     ladderId: "",
@@ -136,6 +194,8 @@ export function CapsuleEventsSection({
     notes: "",
     proofUrl: "",
   });
+  const [tournamentReportError, setTournamentReportError] = React.useState<string | null>(null);
+  const [tournamentReportingMatchId, setTournamentReportingMatchId] = React.useState<string | null>(null);
   const [challengeForm, setChallengeForm] = React.useState({
     challengerId: "",
     opponentId: "",
@@ -163,6 +223,17 @@ export function CapsuleEventsSection({
   }, [ladderSummaries]);
 
   React.useEffect(() => {
+    if (!tournamentSummaries.length) {
+      setSelectedTournamentId(null);
+      return;
+    }
+    setSelectedTournamentId((prev) => {
+      if (prev && tournamentSummaries.some((entry) => entry.id === prev)) return prev;
+      return tournamentSummaries[0]?.id ?? null;
+    });
+  }, [tournamentSummaries]);
+
+  React.useEffect(() => {
     setReportForm((prev) => ({
       ...prev,
       ladderId: selectedLadderId ?? "",
@@ -175,6 +246,11 @@ export function CapsuleEventsSection({
     setChallengeMessage(null);
     setReportStatus("idle");
   }, [selectedLadderId]);
+
+  React.useEffect(() => {
+    setTournamentReportError(null);
+    setTournamentReportingMatchId(null);
+  }, [selectedTournamentId]);
 
   React.useEffect(() => {
     if (!menuOpen) return;
@@ -197,6 +273,10 @@ export function CapsuleEventsSection({
   const selectedLadderSummary = React.useMemo(
     () => ladderSummaries.find((ladder) => ladder.id === selectedLadderId) ?? null,
     [ladderSummaries, selectedLadderId],
+  );
+  const selectedTournamentSummary = React.useMemo(
+    () => tournamentSummaries.find((entry) => entry.id === selectedTournamentId) ?? null,
+    [selectedTournamentId, tournamentSummaries],
   );
   const selectedGameMeta = React.useMemo(
     () => (selectedLadderSummary ? formatGameMeta(selectedLadderSummary) : null),
@@ -223,6 +303,17 @@ export function CapsuleEventsSection({
     () => (previewOverrides ? async () => {} : refreshLadderDetailRaw),
     [previewOverrides, refreshLadderDetailRaw],
   );
+  const {
+    ladder: selectedTournamentDetail,
+    members: tournamentMembers,
+    loading: tournamentDetailLoading,
+    error: tournamentDetailError,
+    refresh: refreshTournamentDetail,
+  } = useLadderDetail({
+    capsuleId,
+    ladderId: selectedTournamentId,
+    disabled: !selectedTournamentId || previewing,
+  });
   const scoringSystem =
     (selectedLadderDetail?.config?.scoring as { system?: string } | undefined)?.system ?? "elo";
   const isSimpleLadder = scoringSystem === "simple";
@@ -247,6 +338,18 @@ export function CapsuleEventsSection({
     resolveChallenge,
     membersSnapshot: challengeMembersSnapshot,
   } = useLadderChallenges({ capsuleId, ladderId: selectedLadderId });
+  const {
+    challenges: tournamentChallenges,
+    history: tournamentHistory,
+    loading: tournamentChallengesLoading,
+    refreshing: tournamentChallengesRefreshing,
+    mutating: tournamentChallengesMutating,
+    error: tournamentChallengesError,
+    refresh: refreshTournamentChallenges,
+    createChallenge: createTournamentChallenge,
+    resolveChallenge: resolveTournamentChallenge,
+    membersSnapshot: tournamentMembersSnapshot,
+  } = useLadderChallenges({ capsuleId, ladderId: selectedTournamentId });
 
   const pendingChallenges = React.useMemo(
     () => challenges.filter((challenge) => challenge.status === "pending"),
@@ -254,6 +357,18 @@ export function CapsuleEventsSection({
   );
 
   const recentHistory = React.useMemo(() => history.slice(0, 4), [history]);
+  const tournamentFormat = React.useMemo(
+    () => resolveTournamentFormat(selectedTournamentDetail),
+    [selectedTournamentDetail],
+  );
+  const tournamentBracket: TournamentBracket = React.useMemo(() => {
+    const memberList = tournamentMembers ?? [];
+    const matchHistory = tournamentHistory ?? [];
+    if (tournamentFormat === "double_elimination") {
+      return buildDoubleEliminationBracket(memberList, matchHistory);
+    }
+    return buildSingleEliminationBracket(memberList, matchHistory);
+  }, [tournamentFormat, tournamentHistory, tournamentMembers]);
 
   const overviewBlock = selectedLadderDetail?.sections?.overview ?? null;
   const rulesBlock = selectedLadderDetail?.sections?.rules ?? null;
@@ -263,6 +378,16 @@ export function CapsuleEventsSection({
   const proofRequired = Boolean(
     (selectedLadderDetail?.config?.moderation as { proofRequired?: boolean } | undefined)?.proofRequired,
   );
+  const ladderMatchMode = resolveMatchMode(
+    selectedLadderDetail?.meta as Record<string, unknown> | null,
+    (selectedLadderDetail?.game as { mode?: string } | undefined)?.mode ?? null,
+  );
+  const tournamentMatchMode = resolveMatchMode(
+    selectedTournamentDetail?.meta as Record<string, unknown> | null,
+    (selectedTournamentDetail?.game as { mode?: string } | undefined)?.mode ?? null,
+  );
+  const loadingTournamentState =
+    tournamentChallengesLoading || tournamentChallengesRefreshing || tournamentChallengesMutating;
   const timelineItems = React.useMemo(() => {
     const items: Array<{ label: string; value: string }> = [];
     if (schedule?.cadence) items.push({ label: "Season length", value: String(schedule.cadence) });
@@ -285,6 +410,32 @@ export function CapsuleEventsSection({
       challengeMembersSnapshot.find((member) => member.id === memberId) ||
       null,
     [challengeMembersSnapshot, ladderMembers],
+  );
+  const findTournamentMember = React.useCallback(
+    (memberId: string) =>
+      tournamentMembers.find((member) => member.id === memberId) ||
+      tournamentMembersSnapshot.find((member) => member.id === memberId) ||
+      null,
+    [tournamentMembers, tournamentMembersSnapshot],
+  );
+  const buildParticipantPayload = React.useCallback(
+    (
+      challengerId: string,
+      opponentId: string,
+      mode: string | null,
+      lookup: (memberId: string) => CapsuleLadderMember | null,
+    ): {
+      participantType: LadderParticipantType;
+      challengerCapsuleId?: string | null;
+      opponentCapsuleId?: string | null;
+    } => {
+      const participantType: LadderParticipantType = mode === "capsule_vs_capsule" ? "capsule" : "member";
+      if (participantType !== "capsule") return { participantType };
+      const challengerCapsuleId = extractMemberCapsuleId(lookup(challengerId)) ?? null;
+      const opponentCapsuleId = extractMemberCapsuleId(lookup(opponentId)) ?? null;
+      return { participantType, challengerCapsuleId, opponentCapsuleId };
+    },
+    [],
   );
 
   const suggestChallengerId = React.useCallback(
@@ -444,10 +595,17 @@ export function CapsuleEventsSection({
       try {
         setChallengeMessage(null);
         const note = challengeForm.note.trim();
+        const participantPayload = buildParticipantPayload(
+          challengeForm.challengerId,
+          challengeForm.opponentId,
+          ladderMatchMode,
+          findMember,
+        );
         await createChallenge({
           challengerId: challengeForm.challengerId,
           opponentId: challengeForm.opponentId,
           note: note ? note : null,
+          ...participantPayload,
         });
         trackLadderEvent({
           event: "ladders.match.report",
@@ -467,7 +625,17 @@ export function CapsuleEventsSection({
         setChallengeMessage((err as Error).message);
       }
     },
-    [capsuleId, challengeForm.challengerId, challengeForm.note, challengeForm.opponentId, createChallenge, selectedLadderId],
+    [
+      buildParticipantPayload,
+      capsuleId,
+      challengeForm.challengerId,
+      challengeForm.note,
+      challengeForm.opponentId,
+      createChallenge,
+      findMember,
+      ladderMatchMode,
+      selectedLadderId,
+    ],
   );
 
   const handleReportSubmit = React.useCallback(
@@ -484,6 +652,12 @@ export function CapsuleEventsSection({
         let challengeId = reportForm.challengeId;
         const trimmedNotes = reportForm.notes.trim();
         const trimmedProof = reportForm.proofUrl.trim();
+        const participantPayload = buildParticipantPayload(
+          reportForm.challengerId,
+          reportForm.opponentId,
+          ladderMatchMode,
+          findMember,
+        );
         if (proofRequired && !trimmedNotes && !trimmedProof) {
           setReportStatus("idle");
           setChallengeMessage("Add proof or notes to resolve this match.");
@@ -494,6 +668,7 @@ export function CapsuleEventsSection({
             challengerId: reportForm.challengerId,
             opponentId: reportForm.opponentId,
             note: trimmedNotes ? trimmedNotes : null,
+            ...participantPayload,
           });
           challengeId = created.challenges[0]?.id ?? "";
         }
@@ -504,6 +679,7 @@ export function CapsuleEventsSection({
           outcome: reportForm.outcome as "challenger" | "opponent" | "draw",
           note: trimmedNotes ? trimmedNotes : null,
           proofUrl: trimmedProof ? trimmedProof : null,
+          ...participantPayload,
         });
         trackLadderEvent({
           event: "ladders.match.report",
@@ -532,6 +708,72 @@ export function CapsuleEventsSection({
       reportForm.outcome,
       resolveChallenge,
       proofRequired,
+      buildParticipantPayload,
+      findMember,
+      ladderMatchMode,
+    ],
+  );
+  const handleReportTournamentMatch = React.useCallback(
+    async (
+      match: { id: string; a: CapsuleLadderMember | null; b: CapsuleLadderMember | null },
+      winner: "a" | "b",
+    ) => {
+      if (!selectedTournamentId || !match.a || !match.b) return;
+      const participantPayload = buildParticipantPayload(match.a.id, match.b.id, tournamentMatchMode, findTournamentMember);
+      const tournamentPayload: Parameters<typeof createTournamentChallenge>[0] = {
+        challengerId: match.a.id,
+        opponentId: match.b.id,
+        ...(participantPayload.participantType ? { participantType: participantPayload.participantType } : {}),
+        ...(participantPayload.challengerCapsuleId !== undefined
+          ? { challengerCapsuleId: participantPayload.challengerCapsuleId ?? null }
+          : {}),
+        ...(participantPayload.opponentCapsuleId !== undefined
+          ? { opponentCapsuleId: participantPayload.opponentCapsuleId ?? null }
+          : {}),
+      };
+      setTournamentReportError(null);
+      setTournamentReportingMatchId(match.id);
+      try {
+        const existing = tournamentChallenges.find((challenge) => {
+          const sides = new Set([challenge.challengerId, challenge.opponentId]);
+          return sides.has(match.a!.id) && sides.has(match.b!.id) && challenge.status === "pending";
+        });
+        let challengeId = existing?.id ?? "";
+        if (!challengeId) {
+          const created = await createTournamentChallenge(tournamentPayload);
+          challengeId = created.challenges[0]?.id ?? "";
+        }
+        if (!challengeId) {
+          throw new Error("Unable to create a bracket match for this pairing.");
+        }
+        await resolveTournamentChallenge(challengeId, {
+          outcome: winner === "a" ? "challenger" : "opponent",
+          note: "Bracket result",
+          ...(participantPayload.participantType ? { participantType: participantPayload.participantType } : {}),
+          ...(participantPayload.challengerCapsuleId !== undefined
+            ? { challengerCapsuleId: participantPayload.challengerCapsuleId ?? null }
+            : {}),
+          ...(participantPayload.opponentCapsuleId !== undefined
+            ? { opponentCapsuleId: participantPayload.opponentCapsuleId ?? null }
+            : {}),
+        });
+        await Promise.all([refreshTournamentDetail(), refreshTournamentChallenges()]);
+      } catch (err) {
+        setTournamentReportError((err as Error).message);
+      } finally {
+        setTournamentReportingMatchId(null);
+      }
+    },
+    [
+      buildParticipantPayload,
+      createTournamentChallenge,
+      findTournamentMember,
+      refreshTournamentChallenges,
+      refreshTournamentDetail,
+      resolveTournamentChallenge,
+      selectedTournamentId,
+      tournamentChallenges,
+      tournamentMatchMode,
     ],
   );
 
@@ -1192,6 +1434,168 @@ export function CapsuleEventsSection({
     </div>
   );
 
+  const renderTournaments = () => {
+    if (!tournamentSummaries.length) {
+      return null;
+    }
+    if (tournamentDetailError) {
+      return (
+        <Alert tone="danger">
+          <AlertTitle>Unable to load tournament</AlertTitle>
+          <AlertDescription>{tournamentDetailError}</AlertDescription>
+        </Alert>
+      );
+    }
+    const hasBracket =
+      tournamentBracket.type === "double"
+        ? tournamentBracket.winners.some((round) => round.matches.length) ||
+          tournamentBracket.losers.some((round) => round.matches.length) ||
+          tournamentBracket.finals.some((round) => round.matches.length)
+        : tournamentBracket.rounds.some((round) => round.matches.length);
+    const renderMatchCard = (match: BracketMatch) => {
+      const winnerId = match.winnerId;
+      const reporting = tournamentReportingMatchId === match.id;
+      const canReport = Boolean(match.a && match.b && match.status !== "complete");
+      const aName = match.a?.displayName ?? match.aSource ?? (match.status === "bye" ? "Bye" : "TBD");
+      const bName = match.b?.displayName ?? match.bSource ?? (match.status === "bye" ? "Bye" : "TBD");
+      const aSeed = match.a?.seed ?? null;
+      const bSeed = match.b?.seed ?? null;
+
+      return (
+        <div key={match.id} className={styles.bracketMatch}>
+          <div className={styles.bracketRoundLabel}>
+            Round {match.round} - Match {match.index + 1}
+          </div>
+          <div
+            className={`${styles.bracketSeedRow} ${winnerId && winnerId === match.a?.id ? styles.bracketSeedRowWinner : ""}`}
+          >
+            <span className={styles.bracketSeed}>{aSeed ? `#${aSeed}` : "-"}</span>
+            <span className={styles.bracketTeam}>{aName}</span>
+            {winnerId && winnerId === match.a?.id ? (
+              <span className={styles.bracketStatusPill}>Advances</span>
+            ) : null}
+          </div>
+          <div
+            className={`${styles.bracketSeedRow} ${winnerId && winnerId === match.b?.id ? styles.bracketSeedRowWinner : ""}`}
+          >
+            <span className={styles.bracketSeed}>{bSeed ? `#${bSeed}` : "-"}</span>
+            <span className={styles.bracketTeam}>{bName}</span>
+            {winnerId && winnerId === match.b?.id ? (
+              <span className={styles.bracketStatusPill}>Advances</span>
+            ) : null}
+          </div>
+          {match.history?.note ? <p className={styles.bracketNote}>{match.history.note}</p> : null}
+          <div className={styles.bracketFooter}>
+            <span className={styles.bracketStatusText}>
+              {match.status === "complete"
+                ? "Result saved"
+                : match.status === "bye"
+                  ? "Auto-advance"
+                  : "Awaiting result"}
+            </span>
+            {canReport ? (
+              <div className={styles.bracketActions}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={reporting || loadingTournamentState}
+                  onClick={() => handleReportTournamentMatch(match, "a")}
+                >
+                  {reporting ? "Saving..." : `${match.a?.displayName ?? "Side A"} wins`}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={reporting || loadingTournamentState}
+                  onClick={() => handleReportTournamentMatch(match, "b")}
+                >
+                  {reporting ? "Saving..." : `${match.b?.displayName ?? "Side B"} wins`}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    };
+
+    const renderRoundSet = (rounds: BracketRound[], heading?: string) => {
+      const hasRounds = rounds.some((round) => round.matches.length);
+      if (!hasRounds) return null;
+      return (
+        <div className={styles.bracketRounds}>
+          {heading ? <p className={styles.detailEyebrow}>{heading}</p> : null}
+          {rounds.map((round) => (
+            <div key={`round-${heading ?? ""}-${round.round}`} className={styles.bracketRound}>
+              <div className={styles.bracketRoundHeader}>
+                <span>{round.label ?? `Round ${round.round}`}</span>
+              </div>
+              <div className={styles.bracketGrid}>
+                {round.matches.map((match) => renderMatchCard(match))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    return (
+      <div className={styles.panelCard}>
+        <div className={styles.searchHeader}>
+          <h3>Tournaments</h3>
+          <div className={styles.tournamentSelector}>
+            <select
+              className={styles.ladderSelect}
+              value={selectedTournamentId ?? ""}
+              onChange={(event) => setSelectedTournamentId(event.target.value || null)}
+            >
+              {tournamentSummaries.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+            {selectedTournamentSummary ? (
+              <div className={styles.detailBadges}>
+                <span className={`${styles.statusBadge} ${styles[`tone${statusTone(selectedTournamentSummary.status)}`]}`}>
+                  {formatStatus(selectedTournamentSummary.status)}
+                </span>
+                <span className={styles.badgeSoft}>{formatVisibility(selectedTournamentSummary.visibility)}</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {tournamentDetailLoading ? (
+          <div className={styles.standingsSkeleton} aria-busy="true">
+            <div className={styles.skeletonRow} />
+            <div className={styles.skeletonRow} />
+            <div className={styles.skeletonRow} />
+          </div>
+        ) : tournamentChallengesError ? (
+          <Alert tone="danger">
+            <AlertTitle>Bracket unavailable</AlertTitle>
+            <AlertDescription>{tournamentChallengesError}</AlertDescription>
+          </Alert>
+        ) : hasBracket ? (
+          <>
+            {tournamentBracket.type === "double" ? (
+              <>
+                {renderRoundSet(tournamentBracket.winners, "Winners bracket")}
+                {renderRoundSet(tournamentBracket.losers, "Elimination bracket")}
+                {renderRoundSet(tournamentBracket.finals, "Finals")}
+              </>
+            ) : (
+              renderRoundSet(tournamentBracket.rounds)
+            )}
+          </>
+        ) : (
+          <p className={styles.sectionEmpty}>Add at least two entrants to generate a bracket.</p>
+        )}
+        {tournamentReportError ? <p className={styles.challengeMessage}>{tournamentReportError}</p> : null}
+      </div>
+    );
+  };
   return (
     <>
       <div className={`${styles.shell} ${previewing ? styles.shellPreview : ""}`}>
@@ -1437,6 +1841,7 @@ export function CapsuleEventsSection({
           ) : (
             renderRoster()
           )}
+        {renderTournaments()}
         </section>
       </div>
 
@@ -1450,8 +1855,3 @@ export function CapsuleEventsSection({
     </>
   );
 }
-
-
-
-
-

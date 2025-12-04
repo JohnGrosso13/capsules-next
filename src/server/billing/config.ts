@@ -5,6 +5,9 @@ export type StripeConfig = {
   webhookSecret: string | null;
   pricePersonal: string | null;
   priceCapsule: string | null;
+  priceCreator: string | null;
+  pricePro: string | null;
+  priceStudio: string | null;
 };
 
 export function getStripeConfig(): StripeConfig {
@@ -13,6 +16,9 @@ export function getStripeConfig(): StripeConfig {
     webhookSecret: serverEnv.STRIPE_WEBHOOK_SECRET ?? null,
     pricePersonal: serverEnv.STRIPE_PRICE_PERSONAL ?? null,
     priceCapsule: serverEnv.STRIPE_PRICE_CAPSULE ?? null,
+    priceCreator: serverEnv.STRIPE_PRICE_CREATOR ?? null,
+    pricePro: serverEnv.STRIPE_PRICE_PRO ?? null,
+    priceStudio: serverEnv.STRIPE_PRICE_STUDIO ?? null,
   };
 }
 

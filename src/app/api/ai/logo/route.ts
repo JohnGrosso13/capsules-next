@@ -6,6 +6,18 @@ import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { aiImageVariantSchema } from "@/shared/schemas/ai";
 import { generateLogoAsset, editLogoAsset } from "@/server/customizer/assets/logo";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import {
+  checkRateLimits,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -43,10 +55,46 @@ const responseSchema = z.object({
   variant: variantResponseSchema.optional(),
 });
 
+const LOGO_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.logo",
+  limit: 8,
+  window: "30 m",
+};
+
+const LOGO_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.logo.ip",
+  limit: 30,
+  window: "30 m",
+};
+
+const LOGO_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.logo.global",
+  limit: 120,
+  window: "30 m",
+};
+
+const LOGO_COMPUTE_COST = 5_000;
+
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
     return returnError(401, "auth_required", "Sign in to customize capsule logos.");
+  }
+
+  const clientIp = resolveClientIp(req);
+  const rateLimit = await checkRateLimits([
+    { definition: LOGO_RATE_LIMIT, identifier: ownerId },
+    { definition: LOGO_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+    { definition: LOGO_GLOBAL_RATE_LIMIT, identifier: "global:ai.logo" },
+  ]);
+  if (rateLimit && !rateLimit.success) {
+    const retryAfterSeconds = computeRetryAfterSeconds(rateLimit.reset);
+    return returnError(
+      429,
+      "rate_limited",
+      "You're generating logos too quickly. Try again shortly.",
+      retryAfterSeconds == null ? undefined : { retryAfterSeconds },
+    );
   }
 
   const parsed = await parseJsonBody(req, requestSchema);
@@ -74,6 +122,28 @@ export async function POST(req: Request) {
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
+    const walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "default",
+      featureName: "AI logo generation",
+    });
+    await chargeUsage({
+      wallet: walletContext.wallet,
+      balance: walletContext.balance,
+      metric: "compute",
+      amount: LOGO_COMPUTE_COST,
+      reason: "ai.logo",
+      bypass: walletContext.bypass,
+    });
+
     const baseOptions = {
       prompt,
       ownerId,
@@ -104,6 +174,9 @@ export async function POST(req: Request) {
       ...(result.variant ? { variant: result.variant } : {}),
     });
   } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message);
+    }
     const code = (error as { code?: string }).code ?? null;
     if (code === "style_persona_not_found") {
       return returnError(404, "style_persona_not_found", "The selected style persona is not available.");

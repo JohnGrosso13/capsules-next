@@ -76,6 +76,7 @@ const jsonObjectSchema = z
 
 const ladderMemberInputSchema = z.object({
   displayName: z.string().min(1).max(80),
+  userId: z.string().max(64).nullable().optional(),
   handle: z.string().max(40).nullable().optional(),
   status: z.enum(["pending", "invited", "active", "rejected", "banned"]).optional(),
   seed: z.number().int().min(1).max(999).nullable().optional(),
@@ -110,6 +111,7 @@ function normalizeMemberInput(member: RawMemberPayload): CapsuleLadderMemberInpu
   const normalized: CapsuleLadderMemberInput = {
     displayName: member.displayName,
   };
+  if (member.userId !== undefined) normalized.userId = member.userId;
   if (member.handle !== undefined) normalized.handle = member.handle;
   if (member.seed !== undefined) normalized.seed = member.seed;
   if (member.rank !== undefined) normalized.rank = member.rank;

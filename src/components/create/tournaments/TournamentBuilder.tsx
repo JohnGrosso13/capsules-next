@@ -48,7 +48,7 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
     resetFormState();
   }, [resetFormState, selectedCapsule]);
 
-  const formContent = (
+  const renderFormContent = (stepControls: React.ReactNode) => (
     <>
       <TournamentStatus error={wizard.errorMessage} status={wizard.statusMessage} />
       <TournamentStepContent
@@ -56,15 +56,17 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
         form={wizard.form}
         participants={wizard.participants}
         generating={wizard.generating}
+        capsuleName={wizard.previewModel.capsuleName}
+        sectionsReady={wizard.previewModel.sections.length}
+        aiPlan={wizard.aiPlan}
         onFormChange={wizard.handleFormChange}
         onGenerateDraft={wizard.handleGenerateDraft}
         onParticipantChange={wizard.handleParticipantChange}
-        onParticipantEntityType={wizard.handleParticipantEntityType}
-        onParticipantEntityId={wizard.handleParticipantEntityId}
         onParticipantSuggestion={wizard.handleParticipantSuggestion}
         onAddParticipant={wizard.addParticipant}
         onRemoveParticipant={wizard.removeParticipant}
         onInviteClick={() => wizard.setShowInvite(true)}
+        stepControls={stepControls}
       />
     </>
   );
@@ -108,7 +110,7 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
             onBack={wizard.handlePreviousStep}
             onNextStep={wizard.handleNextStep}
             nextStepTitle={nextStep ? nextStep.title : null}
-            formContent={formContent}
+            renderFormContent={renderFormContent}
             formContentRef={wizard.formContentRef}
             previewPanel={previewPanel}
             previewMode={false}

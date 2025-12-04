@@ -1,18 +1,14 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { clientEnv } from "../env/client";
+import { getSupabaseBrowserAdapter } from "@/config/supabase-browser";
 
 let client: SupabaseClient | null = null;
 
 export function getBrowserSupabaseClient() {
   if (!client) {
-    if (!clientEnv.SUPABASE_URL || !clientEnv.SUPABASE_ANON_KEY) {
-      throw new Error("Supabase client environment variables are not configured");
-    }
-    client = createClient(clientEnv.SUPABASE_URL, clientEnv.SUPABASE_ANON_KEY);
+    client = getSupabaseBrowserAdapter().getBrowserClient();
   }
   return client;
 }

@@ -44,7 +44,7 @@ export const TournamentPreview = React.memo(function TournamentPreview({ model }
         <div className={styles.previewRoster}>
           <div className={styles.previewHeader}>
             <div>
-              <span className={styles.previewLabel}>Seeds</span>
+              <span className={styles.previewLabel}>Roster</span>
               <h3 className={styles.previewTitle}>Top entrants</h3>
             </div>
           </div>

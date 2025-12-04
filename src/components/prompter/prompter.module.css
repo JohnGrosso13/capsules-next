@@ -77,6 +77,72 @@
     font-size: 1rem;
   }
 
+  .backgroundReminder {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    background: linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 82%, transparent),
+      color-mix(in srgb, var(--color-brand) 10%, transparent)
+    );
+    box-shadow: var(--shadow-sm, 0 12px 24px color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 26%, transparent));
+  }
+
+  .backgroundReminderCopy {
+    display: grid;
+    gap: 4px;
+  }
+
+  .backgroundReminderTitle {
+    margin: 0;
+    font-weight: 700;
+    color: var(--color-fg);
+  }
+
+  .backgroundReminderText {
+    margin: 0;
+    color: var(--color-fg-subtle, var(--color-fg-muted));
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .backgroundReminderCheckbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: var(--color-fg-subtle, var(--color-fg-muted));
+  }
+
+  .backgroundReminderActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .backgroundReminderButton {
+    border: 1px solid var(--cta-chip-border);
+    background: var(--prompter-primary-button-background, var(--cta-gradient));
+    color: var(--prompter-primary-button-text, var(--text-on-brand, var(--color-fg)));
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .backgroundReminderButton:hover,
+  .backgroundReminderButton:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: var(--cta-chip-shadow, 0 12px 24px color-mix(in srgb, var(--color-brand) 28%, transparent));
+  }
+
   @media (max-width: 640px) {
     .prompterStage {
       margin: 0 auto;

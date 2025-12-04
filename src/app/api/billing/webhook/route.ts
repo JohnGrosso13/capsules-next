@@ -1,7 +1,6 @@
-import Stripe from "stripe";
 import { z } from "zod";
 
-import { getStripeClient } from "@/server/billing/stripe";
+import { getBillingAdapter } from "@/config/billing";
 import { getStripeConfig } from "@/server/billing/config";
 import { ensureDefaultPlans } from "@/server/billing/plans";
 import {
@@ -14,6 +13,7 @@ import {
 import type { BillingPlan } from "@/server/billing/service";
 import { grantPlanAllowances } from "@/server/billing/entitlements";
 import { returnError, validatedJson } from "@/server/validation/http";
+import type { BillingSubscription, BillingWebhookEvent } from "@/ports/billing";
 
 export const runtime = "nodejs";
 
@@ -47,7 +47,7 @@ async function resolvePlanFromMetadata(metadata: Record<string, unknown> | null 
 }
 
 async function handleSubscriptionUpsert(
-  subscription: Stripe.Subscription,
+  subscription: BillingSubscription,
   sourceType: string,
   sourceId: string | null,
 ): Promise<void> {
@@ -60,7 +60,7 @@ async function handleSubscriptionUpsert(
   const wallet = await getWalletById(walletId);
   if (!wallet) return;
 
-  const priceId = subscription.items.data[0]?.price?.id ?? null;
+  const priceId = subscription.priceId ?? null;
   const plan =
     (await resolvePlanFromMetadata(subscription.metadata)) ?? (await resolvePlanFromPrice(priceId));
 
@@ -68,12 +68,13 @@ async function handleSubscriptionUpsert(
     walletId,
     planId: plan?.id ?? null,
     status: mapStripeStatus(subscription.status),
-    currentPeriodEnd: subscription.current_period_end
-      ? new Date(subscription.current_period_end * 1000).toISOString()
-      : null,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
+    currentPeriodEnd:
+      typeof subscription.currentPeriodEnd === "number"
+        ? new Date(subscription.currentPeriodEnd * 1000).toISOString()
+        : null,
+    cancelAtPeriodEnd: subscription.cancelAtPeriodEnd ?? false,
     stripeSubscriptionId: subscription.id,
-    stripeCustomerId: typeof subscription.customer === "string" ? subscription.customer : null,
+    stripeCustomerId: subscription.customerId,
     metadata: subscription.metadata ?? {},
   });
 
@@ -89,19 +90,19 @@ async function handleSubscriptionUpsert(
 }
 
 export async function POST(req: Request) {
-  const stripe = getStripeClient();
+  const billing = getBillingAdapter();
   const { webhookSecret } = getStripeConfig();
 
-  if (!stripe || !webhookSecret) {
+  if (!billing.isConfigured() || !webhookSecret) {
     return returnError(400, "stripe_unconfigured", "Stripe is not configured");
   }
 
   const signature = req.headers.get("stripe-signature");
   const rawBody = await req.text();
 
-  let event: Stripe.Event;
+  let event: BillingWebhookEvent;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, signature ?? "", webhookSecret);
+    event = billing.parseWebhookEvent(rawBody, signature ?? "");
   } catch (error) {
     console.error("stripe.webhook.invalid", error);
     return returnError(400, "invalid_signature", "Invalid Stripe signature");
@@ -110,49 +111,62 @@ export async function POST(req: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        if (!session.subscription) break;
-        const subscriptionId = String(session.subscription);
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-          expand: ["items.data.price"],
-        });
-        await handleSubscriptionUpsert(subscription, "stripe_checkout", session.id);
+        if ("session" in event) {
+          const subscriptionId = event.session.subscriptionId;
+          if (!subscriptionId) break;
+          const subscription = await billing.retrieveSubscription(subscriptionId);
+          if (!subscription) break;
+          await handleSubscriptionUpsert(subscription, "stripe_checkout", event.session.id);
+        }
         break;
       }
       case "customer.subscription.updated":
       case "customer.subscription.created": {
-        const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionUpsert(subscription, "stripe_subscription", subscription.id);
+        if ("subscription" in event) {
+          await handleSubscriptionUpsert(
+            event.subscription,
+            "stripe_subscription",
+            event.subscription.id,
+          );
+        }
         break;
       }
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionUpsert(subscription, "stripe_subscription", subscription.id);
+        if ("subscription" in event) {
+          await handleSubscriptionUpsert(
+            event.subscription,
+            "stripe_subscription",
+            event.subscription.id,
+          );
+        }
         break;
       }
       case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId =
-          typeof invoice.subscription === "string" ? invoice.subscription : null;
-        if (!subscriptionId) break;
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-          expand: ["items.data.price"],
-        });
-        await handleSubscriptionUpsert(subscription, "stripe_invoice", invoice.id ?? null);
+        if ("invoice" in event) {
+          const subscriptionId = event.invoice.subscriptionId;
+          if (!subscriptionId) break;
+          const subscription = await billing.retrieveSubscription(subscriptionId);
+          if (!subscription) break;
+          await handleSubscriptionUpsert(
+            subscription,
+            "stripe_invoice",
+            event.invoice.id ?? subscriptionId,
+          );
 
-        const dbSub = await getSubscriptionByStripeId(subscriptionId);
-        if (dbSub) {
-          const plan =
-            (await resolvePlanFromMetadata(subscription.metadata)) ??
-            (await resolvePlanFromPrice(subscription.items.data[0]?.price?.id ?? null));
-          if (plan) {
-            await grantPlanAllowances({
-              walletId: dbSub.walletId,
-              plan,
-              sourceType: "stripe_invoice",
-              sourceId: invoice.id ?? subscriptionId,
-              reason: "Invoice payment",
-            });
+          const dbSub = await getSubscriptionByStripeId(subscriptionId);
+          if (dbSub) {
+            const plan =
+              (await resolvePlanFromMetadata(subscription.metadata)) ??
+              (await resolvePlanFromPrice(subscription.priceId));
+            if (plan) {
+              await grantPlanAllowances({
+                walletId: dbSub.walletId,
+                plan,
+                sourceType: "stripe_invoice",
+                sourceId: event.invoice.id ?? subscriptionId,
+                reason: "Invoice payment",
+              });
+            }
           }
         }
         break;

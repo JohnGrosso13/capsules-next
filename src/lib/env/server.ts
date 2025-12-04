@@ -175,6 +175,9 @@ const serverEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: optionalString,
   STRIPE_PRICE_PERSONAL: optionalString,
   STRIPE_PRICE_CAPSULE: optionalString,
+  STRIPE_PRICE_CREATOR: optionalString,
+  STRIPE_PRICE_PRO: optionalString,
+  STRIPE_PRICE_STUDIO: optionalString,
 });
 
 const rawServerEnv = {
@@ -285,6 +288,9 @@ const rawServerEnv = {
   STRIPE_WEBHOOK_SECRET: readEnv("STRIPE_WEBHOOK_SECRET", ["STRIPE_SIGNING_SECRET"]),
   STRIPE_PRICE_PERSONAL: readEnv("STRIPE_PRICE_PERSONAL"),
   STRIPE_PRICE_CAPSULE: readEnv("STRIPE_PRICE_CAPSULE"),
+  STRIPE_PRICE_CREATOR: readEnv("STRIPE_PRICE_CREATOR"),
+  STRIPE_PRICE_PRO: readEnv("STRIPE_PRICE_PRO"),
+  STRIPE_PRICE_STUDIO: readEnv("STRIPE_PRICE_STUDIO"),
 } satisfies Record<string, string | undefined>;
 
 const parsedServerEnv = serverEnvSchema.safeParse(rawServerEnv);

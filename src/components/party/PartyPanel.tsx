@@ -23,7 +23,9 @@ import {
   type PartyPrivacy,
   type PartySession,
 } from "@/components/providers/PartyProvider";
+import { useOptionalFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { useCurrentUser } from "@/services/auth/client";
+import { preferDisplayName } from "@/lib/users/format";
 import type { SummaryLengthHint, SummaryResult } from "@/types/summary";
 
 import { usePartyInvites } from "./hooks/usePartyInvites";
@@ -379,6 +381,8 @@ export function PartyPanel({
     updateMetadata,
   } = usePartyContext();
   const { user } = useCurrentUser();
+  const friendsContext = useOptionalFriendsDataContext();
+  const viewerSupabaseId = friendsContext?.viewerId ?? null;
 
   const [displayName, setDisplayName] = React.useState(() => user?.name ?? "");
   const [privacy, setPrivacy] = React.useState<PartyPrivacy>(DEFAULT_PRIVACY);
@@ -391,20 +395,70 @@ export function PartyPanel({
 
   const participantProfiles = React.useMemo(() => {
     const map = new Map<string, ParticipantProfile>();
+    const upsertProfile = (id: string | null | undefined, profile: ParticipantProfile) => {
+      if (!id) return;
+      const existing = map.get(id);
+      if (!existing) {
+        map.set(id, profile);
+        return;
+      }
+      const nextName = existing.name ?? profile.name ?? null;
+      const nextAvatar = existing.avatar ?? profile.avatar ?? null;
+      if (nextName !== existing.name || nextAvatar !== existing.avatar) {
+        map.set(id, { name: nextName, avatar: nextAvatar });
+      }
+    };
+
     friendTargets.forEach((target, userId) => {
-      map.set(userId, {
+      upsertProfile(userId, {
         name: target.name ?? null,
         avatar: target.avatar ?? null,
       });
     });
-    if (user?.id) {
-      map.set(user.id, {
-        name: user.name ?? user.email ?? null,
-        avatar: user.avatarUrl ?? null,
+
+    const viewerName = preferDisplayName({
+      name: session?.displayName ?? user?.name ?? null,
+      handle: user?.key ?? null,
+      fallback: user?.email ?? null,
+      fallbackLabel: "You",
+    });
+    const viewerAvatar = user?.avatarUrl ?? null;
+
+    upsertProfile(viewerSupabaseId, { name: viewerName, avatar: viewerAvatar });
+    upsertProfile(user?.id ?? null, { name: viewerName, avatar: viewerAvatar });
+
+    const ownerId = session?.metadata?.ownerId ?? null;
+    const hostId = session?.metadata?.hostId ?? null;
+    const ownerDisplayName = session?.metadata?.ownerDisplayName ?? null;
+    const ownerAvatar =
+      ownerId && (ownerId === viewerSupabaseId || ownerId === user?.id) ? viewerAvatar : null;
+
+    if (ownerId) {
+      upsertProfile(ownerId, {
+        name:
+          ownerDisplayName ??
+          (ownerId === viewerSupabaseId || ownerId === user?.id ? viewerName : null),
+        avatar: ownerAvatar,
       });
     }
+    if (hostId && hostId === viewerSupabaseId) {
+      upsertProfile(hostId, { name: viewerName, avatar: viewerAvatar });
+    }
+
     return map;
-  }, [friendTargets, user?.avatarUrl, user?.email, user?.id, user?.name]);
+  }, [
+    friendTargets,
+    session?.displayName,
+    session?.metadata?.hostId,
+    session?.metadata?.ownerDisplayName,
+    session?.metadata?.ownerId,
+    user?.avatarUrl,
+    user?.email,
+    user?.id,
+    user?.key,
+    user?.name,
+    viewerSupabaseId,
+  ]);
 
   const partyQuery = searchParams?.get("party");
 
@@ -763,13 +817,19 @@ export function PartyPanel({
         ? "Enabled"
         : "Disabled";
     const hostProfile = activeHostId ? participantProfiles.get(activeHostId) ?? null : null;
-    const hostName =
-      hostProfile?.name ??
-      (activeHostId === user?.id
-        ? "You"
-        : activeHostId ??
-          currentSession.metadata.ownerDisplayName ??
-          "Host");
+    const hostName = preferDisplayName({
+      name:
+        hostProfile?.name ??
+        (activeHostId === viewerSupabaseId || activeHostId === user?.id
+          ? currentSession.displayName ?? user?.name ?? null
+          : currentSession.metadata.ownerDisplayName ?? null) ??
+        null,
+      fallback: activeHostId ?? null,
+      fallbackLabel:
+        activeHostId && (activeHostId === viewerSupabaseId || activeHostId === user?.id)
+          ? "You"
+          : "Host",
+    });
     const liveDurationLabel = createdAtLabel || "Just now";
 
     return (

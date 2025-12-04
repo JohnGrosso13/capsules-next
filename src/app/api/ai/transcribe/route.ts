@@ -4,10 +4,11 @@ import { AIConfigError, transcribeAudioFromBase64 } from "@/lib/ai/prompter";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { returnError } from "@/server/validation/http";
 import {
-  checkRateLimit,
+  checkRateLimits,
   retryAfterSeconds as computeRetryAfterSeconds,
   type RateLimitDefinition,
 } from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 import {
   chargeUsage,
   ensureFeatureAccess,
@@ -23,6 +24,18 @@ const TRANSCRIBE_RATE_LIMIT: RateLimitDefinition = {
   window: "10 m",
 };
 
+const TRANSCRIBE_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.transcribe.ip",
+  limit: 80,
+  window: "10 m",
+};
+
+const TRANSCRIBE_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.transcribe.global",
+  limit: 250,
+  window: "10 m",
+};
+
 const TRANSCRIBE_COMPUTE_COST = 2_000;
 
 export async function POST(req: Request) {
@@ -33,7 +46,12 @@ export async function POST(req: Request) {
       return returnError(401, "auth_required", "Authentication required");
     }
 
-    const rateLimitResult = await checkRateLimit(TRANSCRIBE_RATE_LIMIT, ownerId);
+    const clientIp = resolveClientIp(req);
+    const rateLimitResult = await checkRateLimits([
+      { definition: TRANSCRIBE_RATE_LIMIT, identifier: ownerId },
+      { definition: TRANSCRIBE_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+      { definition: TRANSCRIBE_GLOBAL_RATE_LIMIT, identifier: "global:ai.transcribe" },
+    ]);
     if (rateLimitResult && !rateLimitResult.success) {
       const retryAfterSeconds = computeRetryAfterSeconds(rateLimitResult.reset);
       return returnError(

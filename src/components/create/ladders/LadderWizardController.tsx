@@ -1047,10 +1047,19 @@ export function LadderWizardController({
             const losses = parseNumericField(record.losses, { min: 0, max: 500 }) ?? 0;
             const draws = parseNumericField(record.draws, { min: 0, max: 500 }) ?? 0;
             const streak = parseNumericField(record.streak, { min: -20, max: 20 }) ?? 0;
+            const metadata = record.metadata && typeof record.metadata === "object" ? (record.metadata as Record<string, unknown>) : null;
+            const capsuleId = metadata ? toTrimmedString(metadata.capsuleId) : "";
+            const capsuleSlug = metadata ? toTrimmedString(metadata.capsuleSlug ?? metadata.slug) : "";
+            const avatarUrl = toTrimmedString(
+              (record as { avatarUrl?: unknown }).avatarUrl ?? (metadata as { avatarUrl?: unknown } | null)?.avatarUrl,
+            );
             return {
               userId: toTrimmedString(record.userId),
               displayName,
               handle: toTrimmedString(record.handle),
+              capsuleId,
+              capsuleSlug,
+              avatarUrl,
               seed: String(seedValue),
               rating: String(rating),
               wins: String(wins),

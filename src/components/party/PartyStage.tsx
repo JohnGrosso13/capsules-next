@@ -35,7 +35,7 @@ import {
 
 import { useChatContext, type ChatFriendTarget } from "@/components/providers/ChatProvider";
 import { usePartyContext, type PartySession } from "@/components/providers/PartyProvider";
-import { useCurrentUser } from "@/services/auth/client";
+import { preferDisplayName } from "@/lib/users/format";
 import cm from "@/components/ui/context-menu.module.css";
 import styles from "./party-panel.module.css";
 import { initialsFromName, MAX_TRANSCRIPT_SEGMENTS, type ParticipantProfile, type PartyTranscriptSegment } from "./partyTypes";
@@ -154,7 +154,6 @@ const PartyStageScene = React.memo(function PartyStageScene({
   const room = useRoomContext();
   const participants = useParticipants();
   const chat = useChatContext();
-  const { user } = useCurrentUser();
   const { voiceInputDeviceId, voiceOutputDeviceId, voiceInputVolume, voiceOutputVolume } =
     usePersistentAudioSettings();
   const transcriptBufferRef = React.useRef<Map<string, PartyTranscriptSegment>>(new Map());
@@ -335,8 +334,15 @@ const PartyStageScene = React.memo(function PartyStageScene({
     const handleTranscription = (segments: TranscriptionSegment[], participant?: Participant) => {
       const identity = participant?.identity ?? null;
       const profile = identity ? participantProfiles.get(identity) ?? null : null;
-      const speakerName =
-        profile?.name ?? participant?.name ?? (identity && identity.trim().length ? identity : "Guest");
+      const isAssistant = typeof identity === "string" && identity.startsWith("agent-");
+      const speakerName = preferDisplayName({
+        name:
+          profile?.name ??
+          participant?.name ??
+          (identity === session.metadata.ownerId ? session.metadata.ownerDisplayName ?? null : null),
+        fallback: identity,
+        fallbackLabel: isAssistant ? "Assistant" : "Guest",
+      });
 
       for (const segment of segments) {
         if (!segment?.id) continue;
@@ -387,7 +393,15 @@ const PartyStageScene = React.memo(function PartyStageScene({
     return () => {
       room.off(RoomEvent.TranscriptionReceived, handleTranscription);
     };
-  }, [flushTranscripts, onTranscriptsChange, participantProfiles, room, summaryEnabled]);
+  }, [
+    flushTranscripts,
+    onTranscriptsChange,
+    participantProfiles,
+    room,
+    session.metadata.ownerDisplayName,
+    session.metadata.ownerId,
+    summaryEnabled,
+  ]);
 
   React.useEffect(() => {
     if (!room) return;
@@ -455,8 +469,15 @@ const PartyStageScene = React.memo(function PartyStageScene({
       const identity = participant.identity;
       if (!identity) return;
       const rect = anchor.getBoundingClientRect();
-      const nameCandidate =
-        profile?.name ?? participant.name ?? identity ?? "Guest";
+      const isAssistant = identity.startsWith("agent-");
+      const nameCandidate = preferDisplayName({
+        name:
+          profile?.name ??
+          participant.name ??
+          (identity === session.metadata.ownerId ? session.metadata.ownerDisplayName ?? null : null),
+        fallback: identity,
+        fallbackLabel: isAssistant ? "Assistant" : "Guest",
+      });
       setMenuState({
         identity,
         name: nameCandidate,
@@ -464,7 +485,7 @@ const PartyStageScene = React.memo(function PartyStageScene({
         anchorRect: rect,
       });
     },
-    [],
+    [session.metadata.ownerDisplayName, session.metadata.ownerId],
   );
 
   const handleSendMessage = React.useCallback(
@@ -472,11 +493,16 @@ const PartyStageScene = React.memo(function PartyStageScene({
       if (!identity) return;
       if (identity === room?.localParticipant?.identity) return;
       const knownProfile = participantProfiles.get(identity) ?? null;
+      const fallbackName = preferDisplayName({
+        name: knownProfile?.name ?? null,
+        fallback: identity,
+        fallbackLabel: "Guest",
+      });
       const target =
         friendTargets.get(identity) ??
         {
           userId: identity,
-          name: knownProfile?.name ?? identity,
+          name: fallbackName,
           avatar: knownProfile?.avatar ?? null,
         };
       const result = chat.startChat(target, { activate: true });
@@ -590,11 +616,13 @@ const PartyStageScene = React.memo(function PartyStageScene({
 
   const participantCount = participants.length;
   const menuVolume = menuState ? getParticipantVolume(menuState.identity) : 1;
-  const canMessageSelected =
-    Boolean(menuState && menuState.identity !== room?.localParticipant?.identity);
+  const selfIdentity = room?.localParticipant?.identity ?? null;
+  const canMessageSelected = Boolean(menuState && menuState.identity !== selfIdentity);
   const canTransferHost =
-    Boolean(user?.id) &&
-    (user?.id === session.metadata.ownerId || user?.id === currentHostId);
+    session.isOwner ||
+    (selfIdentity
+      ? selfIdentity === session.metadata.ownerId || selfIdentity === currentHostId
+      : false);
   const assistantPresent = React.useMemo(
     () =>
       participants.some(
@@ -891,11 +919,12 @@ function ParticipantBadge({
 }: ParticipantBadgeProps) {
   const speaking = participant.isSpeaking;
   const mic = participant.isMicrophoneEnabled;
-  const rawFallback = participant.name || participant.identity || "Guest";
-  const fallbackName = rawFallback.startsWith("agent-") ? "Assistant" : rawFallback;
-  const profileName = profile?.name ?? null;
-  const hasProfileName = typeof profileName === "string" && profileName.trim().length > 0;
-  const name = hasProfileName ? profileName : fallbackName;
+  const assistantName = participant.identity?.startsWith("agent-") ? "Assistant" : null;
+  const name = preferDisplayName({
+    name: profile?.name ?? assistantName ?? participant.name ?? null,
+    fallback: assistantName ?? participant.identity ?? null,
+    fallbackLabel: assistantName ?? "Guest",
+  });
   const avatarCandidate = profile?.avatar ?? null;
   const avatar =
     typeof avatarCandidate === "string" && avatarCandidate.trim().length > 0

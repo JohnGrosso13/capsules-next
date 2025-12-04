@@ -1,7 +1,5 @@
 import "server-only";
 
-import type { Redis } from "@upstash/redis";
-
 import { getRealtimeAuthProvider, getRealtimePublisher } from "@/config/realtime-server";
 import { getChatDirectChannel, CHAT_CONSTANTS } from "@/lib/chat/channels";
 import { getAiImageChannel } from "@/lib/ai/channels";
@@ -9,6 +7,7 @@ import { listFriendUserIds } from "@/server/friends/repository";
 import { getRedis } from "@/server/redis/client";
 import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 import type { RealtimeAuthPayload, RealtimeCapabilities } from "@/ports/realtime";
+import type { CacheClient } from "@/ports/cache";
 
 export const FRIEND_CHANNEL_PREFIX = "user";
 export const FRIEND_EVENTS_NAMESPACE = "friends";
@@ -173,7 +172,7 @@ function normalizeRedisValue(raw: unknown): string[] | null {
   return null;
 }
 
-async function readFriendIdsFromRedis(redis: Redis, userId: string): Promise<string[] | null> {
+async function readFriendIdsFromRedis(redis: CacheClient, userId: string): Promise<string[] | null> {
   try {
     const raw = await redis.get<unknown>(buildFriendIdsCacheKey(userId));
     return normalizeRedisValue(raw);
@@ -184,7 +183,7 @@ async function readFriendIdsFromRedis(redis: Redis, userId: string): Promise<str
 }
 
 async function writeFriendIdsToRedis(
-  redis: Redis,
+  redis: CacheClient,
   userId: string,
   ids: string[],
   ttlSeconds: number,
@@ -258,7 +257,7 @@ async function getFriendIdsFromMemory(userId: string): Promise<string[]> {
   }
 }
 
-async function getFriendIdsFromRedis(userId: string, redis: Redis): Promise<string[]> {
+async function getFriendIdsFromRedis(userId: string, redis: CacheClient): Promise<string[]> {
   const cached = await readFriendIdsFromRedis(redis, userId);
   if (cached !== null) {
     setMemoryCacheEntry(userId, cached, FRIEND_ID_CACHE_TTL_MS);

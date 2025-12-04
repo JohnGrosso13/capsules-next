@@ -39,7 +39,7 @@ export type WalletContext = {
   bypass: boolean;
 };
 
-const FEATURE_TIER_ORDER = ["free", "default", "pro", "ultra"] as const;
+const FEATURE_TIER_ORDER = ["free", "creator", "default", "pro", "studio", "ultra"] as const;
 
 function tierRank(value: string | null | undefined): number {
   if (!value) return 0;

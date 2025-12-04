@@ -7,6 +7,8 @@ import cards from "@/components/cards.module.css";
 import layout from "./settings.module.css";
 import styles from "./billing-section.module.css";
 
+type SubscriptionTierId = "free" | "creator" | "pro" | "studio";
+
 type CapsuleSummary = {
   id: string;
   name: string;
@@ -41,11 +43,6 @@ type WalletResponse = {
   } | null;
 };
 
-type PlansResponse = {
-  personal: BillingPlan[];
-  capsule: BillingPlan[];
-};
-
 type BillingPlan = {
   code: string;
   name: string;
@@ -58,9 +55,80 @@ type BillingPlan = {
   stripePriceId: string | null;
 };
 
+type PlansResponse = {
+  personal: BillingPlan[];
+  capsule: BillingPlan[];
+};
+
 type BillingSectionProps = {
   capsules: CapsuleSummary[];
 };
+
+type SubscriptionTier = {
+  id: SubscriptionTierId;
+  name: string;
+  priceLabel: string;
+  tagline: string;
+  planCode?: string | null;
+  highlight?: boolean;
+  features: string[];
+};
+
+const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
+  {
+    id: "free",
+    name: "Free",
+    priceLabel: "$0 / month",
+    tagline: "Explore Capsules and try every core feature.",
+    planCode: "user_free",
+    features: [
+      "Create ladders and tournaments with light monthly usage",
+      "Try AI video editing, image generation, and PDF export",
+      "Chat with the Capsules assistant for planning and ideas",
+      "Starter memory space for your first Capsules and uploads",
+    ],
+  },
+  {
+    id: "creator",
+    name: "Creator",
+    priceLabel: "$15 / month",
+    tagline: "For regular players and creators.",
+    highlight: true,
+    planCode: "user_creator",
+    features: [
+      "Everything in Free, with more room to experiment",
+      "Run more ladders and tournaments at the same time",
+      "More AI video minutes and image generations each month",
+      "Expanded memory space for ongoing Capsules projects",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    priceLabel: "$39 / month",
+    tagline: "Run serious leagues and content workflows.",
+    planCode: "user_pro",
+    features: [
+      "Everything in Creator",
+      "Run many ladders and tournaments concurrently",
+      "Higher AI usage across video, images, PDFs, and chat",
+      "Priority processing during busy hours",
+    ],
+  },
+  {
+    id: "studio",
+    name: "Studio",
+    priceLabel: "$99 / month",
+    tagline: "For studios, teams, and heavy daily use.",
+    planCode: "user_studio",
+    features: [
+      "Everything in Pro",
+      "Built for heavy, daily AI workflows",
+      "Maximum memory space and asset storage",
+      "Priority support and early access features",
+    ],
+  },
+];
 
 function formatBytes(value: number): string {
   if (!Number.isFinite(value)) return "0 B";
@@ -78,6 +146,7 @@ function formatNumber(value: number): string {
 async function startCheckout(params: {
   scope: "user" | "capsule";
   capsuleId?: string | null;
+  planCode?: string | null;
 }): Promise<string> {
   const response = await fetch("/api/billing/checkout", {
     method: "POST",
@@ -86,6 +155,7 @@ async function startCheckout(params: {
     body: JSON.stringify({
       scope: params.scope,
       capsuleId: params.capsuleId ?? null,
+      planCode: params.planCode ?? null,
       successPath: "/settings?tab=billing",
       cancelPath: "/settings?tab=billing",
     }),
@@ -112,6 +182,39 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
   const [donationAmount, setDonationAmount] = React.useState<string>("1000");
   const [donationStatus, setDonationStatus] = React.useState<string | null>(null);
   const [isDonating, setIsDonating] = React.useState<boolean>(false);
+
+  const [view, setView] = React.useState<"overview" | "limits">("overview");
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      const viewParam = (url.searchParams.get("view") ?? "").trim().toLowerCase();
+      if (viewParam === "limits") {
+        setView("limits");
+      }
+    } catch (error) {
+      console.error("billing.view.bootstrap_failed", error);
+    }
+  }, []);
+
+  const updateView = React.useCallback((next: "overview" | "limits") => {
+    setView(next);
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (next === "overview") {
+        if (url.searchParams.has("view")) {
+          url.searchParams.delete("view");
+        }
+      } else {
+        url.searchParams.set("view", next);
+      }
+      window.history.replaceState(window.history.state, "", url.toString());
+    } catch (error) {
+      console.error("billing.view.update_failed", error);
+    }
+  }, []);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -143,10 +246,10 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
     void loadData();
   }, [loadData]);
 
-  const handlePersonalCheckout = React.useCallback(async () => {
+  const handlePersonalCheckout = React.useCallback(async (planCode?: string | null) => {
     setError(null);
     try {
-      const url = await startCheckout({ scope: "user" });
+      const url = await startCheckout({ scope: "user", planCode: planCode ?? null });
       window.location.href = url;
     } catch (err) {
       console.error("billing.checkout.personal.failed", err);
@@ -206,7 +309,11 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
     }
   }, [donationAmount, donationCapsuleId, donationMetric, loadData]);
 
-  const personalPlan = plans?.personal?.[0] ?? null;
+  const personalPlan =
+    plans?.personal?.find((plan) => plan.code === "user_creator") ??
+    plans?.personal?.find((plan) => plan.code === "user_free") ??
+    plans?.personal?.[0] ??
+    null;
   const capsulePlan = plans?.capsule?.[0] ?? null;
 
   const computeRemaining = Math.max(
@@ -221,169 +328,250 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
   return (
     <article className={`${cards.card} ${layout.card}`}>
       <header className={cards.cardHead}>
-        <h3 className={layout.sectionTitle}>Billing & Wallet</h3>
+        <h3 className={layout.sectionTitle}>
+          {view === "limits" ? "Billing limits & wallet" : "Subscriptions"}
+        </h3>
       </header>
       <div className={`${cards.cardBody} ${styles.sectionBody}`}>
         {error ? <p className={styles.error}>{error}</p> : null}
-        <div className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <div>
-                <p className={styles.label}>Personal Wallet</p>
-                <p className={styles.balanceRow}>
-                  Compute: <strong>{formatNumber(wallet?.balance.computeGranted ?? 0)}</strong>{" "}
-                  granted / <strong>{formatNumber(computeRemaining)}</strong> remaining
-                </p>
-                <p className={styles.balanceRow}>
-                  Storage: <strong>{formatBytes(wallet?.balance.storageGranted ?? 0)}</strong> /
-                  remaining <strong>{formatBytes(storageRemaining)}</strong>
-                </p>
-                <p className={styles.subtle}>
-                  Feature tier: {wallet?.balance.featureTier ?? "default"} · Bypass:
-                  {wallet?.bypass ? " enabled" : " off"}
-                </p>
-                {wallet?.subscription ? (
-                  <p className={styles.subtle}>
-                    Subscription: {wallet.subscription.status}
-                    {wallet.subscription.cancelAtPeriodEnd ? " (cancels at period end)" : ""}
-                  </p>
-                ) : null}
-              </div>
-              <div className={styles.actions}>
-                <Button
-                  type="button"
-                  variant="gradient"
-                  size="sm"
-                  onClick={() => {
-                    void handlePersonalCheckout();
-                  }}
-                  loading={loading}
-                >
-                  {personalPlan ? `Upgrade (${personalPlan.name})` : "Upgrade"}
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => void loadData()}>
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
 
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <div>
-                <p className={styles.label}>Donate to a Capsule</p>
-                <p className={styles.subtle}>
-                  Send compute or storage to any capsule you own. Donations move wallet allowances.
-                </p>
-              </div>
-            </div>
-            <div className={styles.formRow}>
-              <label className={styles.formLabel} htmlFor="donation-capsule">
-                Capsule
-              </label>
-              <select
-                id="donation-capsule"
-                className={styles.select}
-                value={donationCapsuleId ?? ""}
-                onChange={(event) => setDonationCapsuleId(event.target.value || null)}
-              >
-                {capsules.map((capsule) => (
-                  <option key={capsule.id} value={capsule.id}>
-                    {capsule.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className={styles.formRow}>
-              <label className={styles.formLabel}>Metric</label>
-              <div className={styles.toggleRow}>
-                <Button
-                  type="button"
-                  variant={donationMetric === "compute" ? "gradient" : "outline"}
-                  size="sm"
-                  onClick={() => setDonationMetric("compute")}
-                >
-                  Compute
-                </Button>
-                <Button
-                  type="button"
-                  variant={donationMetric === "storage" ? "gradient" : "outline"}
-                  size="sm"
-                  onClick={() => setDonationMetric("storage")}
-                >
-                  Storage
-                </Button>
-              </div>
-            </div>
-            <div className={styles.formRow}>
-              <label className={styles.formLabel} htmlFor="donation-amount">
-                Amount
-              </label>
-              <input
-                id="donation-amount"
-                className={styles.input}
-                type="number"
-                min={0}
-                step={donationMetric === "storage" ? 1024 * 1024 : 100}
-                value={donationAmount}
-                onChange={(event) => setDonationAmount(event.target.value)}
-              />
-              <p className={styles.helper}>
-                {donationMetric === "storage"
-                  ? "Bytes to donate (use MB/GB values for large transfers)."
-                  : "Compute units to donate."}
+        {view === "overview" ? (
+          <>
+            <div className={styles.tierIntro}>
+              <p className={styles.tierEyebrow}>Subscriptions</p>
+              <p className={styles.tierTitle}>Start free. Upgrade as you grow.</p>
+              <p className={styles.tierSubtitle}>
+                Every plan can use ladders, tournaments, AI tools, PDFs, chat, and memory; higher tiers simply
+                unlock more of everything.
               </p>
             </div>
-            <div className={styles.actions}>
+
+            <div className={styles.tiersGrid} role="list" aria-label="Subscription plans">
+              {SUBSCRIPTION_TIERS.map((tier) => (
+                <section
+                  key={tier.id}
+                  className={`${styles.tierCard}${tier.highlight ? ` ${styles.tierCardFeatured}` : ""}`}
+                  role="listitem"
+                  aria-label={`${tier.name} plan`}
+                >
+                  <div className={styles.tierHeader}>
+                    <p className={styles.tierName}>{tier.name}</p>
+                    <p className={styles.tierPrice}>{tier.priceLabel}</p>
+                    <p className={styles.tierTagline}>{tier.tagline}</p>
+                  </div>
+                  <ul className={styles.tierFeatures}>
+                    {tier.features.map((feature) => (
+                      <li key={feature} className={styles.tierFeatureItem}>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className={styles.tierFooter}>
+                    <Button
+                      type="button"
+                      variant={tier.highlight ? "gradient" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        void handlePersonalCheckout(tier.planCode ?? null);
+                      }}
+                      loading={loading}
+                    >
+                      {tier.id === "free" ? "Stay on Free" : `Get ${tier.name}`}
+                    </Button>
+                    <button
+                      type="button"
+                      className={styles.limitsLink}
+                      onClick={() => {
+                        updateView("limits");
+                      }}
+                    >
+                      Limits apply
+                    </button>
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.limitsHeaderRow}>
+              <p className={styles.limitsSummary}>
+                Here you can see the raw wallet balances, technical limits, and capsule upgrades behind your
+                subscription.
+              </p>
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
+                size="sm"
                 onClick={() => {
-                  void handleDonation();
+                  updateView("overview");
                 }}
-                loading={isDonating}
               >
-                Send Donation
+                Back to plans
               </Button>
-              {donationStatus ? <p className={styles.status}>{donationStatus}</p> : null}
             </div>
-          </div>
-        </div>
 
-        <div className={styles.capsuleList}>
-          <div className={styles.listHeader}>
-            <p className={styles.label}>Your Capsules</p>
-            <p className={styles.subtle}>Upgrade a capsule’s tier or move allowances into it.</p>
-          </div>
-          <div className={styles.listGrid}>
-            {capsules.map((capsule) => (
-              <div key={capsule.id} className={styles.capsuleCard}>
-                <p className={styles.capsuleName}>{capsule.name}</p>
-                <p className={styles.capsuleSlug}>{capsule.slug ?? capsule.id}</p>
-                <div className={styles.listActions}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      void handleCapsuleCheckout(capsule.id);
-                    }}
-                  >
-                    {capsulePlan ? `Upgrade (${capsulePlan.name})` : "Upgrade Capsule"}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDonationCapsuleId(capsule.id)}
-                  >
-                    Donate to this
-                  </Button>
+            <div className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <p className={styles.label}>Personal Wallet</p>
+                    <p className={styles.balanceRow}>
+                      Compute: <strong>{formatNumber(wallet?.balance.computeGranted ?? 0)}</strong>{" "}
+                      granted / <strong>{formatNumber(computeRemaining)}</strong> remaining
+                    </p>
+                    <p className={styles.balanceRow}>
+                      Storage: <strong>{formatBytes(wallet?.balance.storageGranted ?? 0)}</strong> /
+                      remaining <strong>{formatBytes(storageRemaining)}</strong>
+                    </p>
+                    <p className={styles.subtle}>
+                      Feature tier: {wallet?.balance.featureTier ?? "default"} | Bypass:
+                      {wallet?.bypass ? " enabled" : " off"}
+                    </p>
+                    {wallet?.subscription ? (
+                      <p className={styles.subtle}>
+                        Subscription: {wallet.subscription.status}
+                        {wallet.subscription.cancelAtPeriodEnd ? " (cancels at period end)" : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className={styles.actions}>
+                    <Button
+                      type="button"
+                      variant="gradient"
+                      size="sm"
+                      onClick={() => {
+                        void handlePersonalCheckout(personalPlan?.code);
+                      }}
+                      loading={loading}
+                    >
+                      {personalPlan ? `Upgrade (${personalPlan.name})` : "Upgrade"}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => void loadData()}>
+                      Refresh
+                    </Button>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <p className={styles.label}>Donate to a Capsule</p>
+                    <p className={styles.subtle}>
+                      Send compute or storage to any capsule you own. Donations move wallet allowances.
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label className={styles.formLabel} htmlFor="donation-capsule">
+                    Capsule
+                  </label>
+                  <select
+                    id="donation-capsule"
+                    className={styles.select}
+                    value={donationCapsuleId ?? ""}
+                    onChange={(event) => setDonationCapsuleId(event.target.value || null)}
+                  >
+                    {capsules.map((capsule) => (
+                      <option key={capsule.id} value={capsule.id}>
+                        {capsule.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.formRow}>
+                  <label className={styles.formLabel}>Metric</label>
+                  <div className={styles.toggleRow}>
+                    <Button
+                      type="button"
+                      variant={donationMetric === "compute" ? "gradient" : "outline"}
+                      size="sm"
+                      onClick={() => setDonationMetric("compute")}
+                    >
+                      Compute
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={donationMetric === "storage" ? "gradient" : "outline"}
+                      size="sm"
+                      onClick={() => setDonationMetric("storage")}
+                    >
+                      Storage
+                    </Button>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <label className={styles.formLabel} htmlFor="donation-amount">
+                    Amount
+                  </label>
+                  <input
+                    id="donation-amount"
+                    className={styles.input}
+                    type="number"
+                    min={0}
+                    step={donationMetric === "storage" ? 1024 * 1024 : 100}
+                    value={donationAmount}
+                    onChange={(event) => setDonationAmount(event.target.value)}
+                  />
+                  <p className={styles.helper}>
+                    {donationMetric === "storage"
+                      ? "Bytes to donate (use MB/GB values for large transfers)."
+                      : "Compute units to donate."}
+                  </p>
+                </div>
+                <div className={styles.actions}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      void handleDonation();
+                    }}
+                    loading={isDonating}
+                  >
+                    Send Donation
+                  </Button>
+                  {donationStatus ? <p className={styles.status}>{donationStatus}</p> : null}
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.capsuleList}>
+            <div className={styles.listHeader}>
+              <p className={styles.label}>Your Capsules</p>
+              <p className={styles.subtle}>Upgrade a capsule&apos;s tier or move allowances into it.</p>
+            </div>
+              <div className={styles.listGrid}>
+                {capsules.map((capsule) => (
+                  <div key={capsule.id} className={styles.capsuleCard}>
+                    <p className={styles.capsuleName}>{capsule.name}</p>
+                    <p className={styles.capsuleSlug}>{capsule.slug ?? capsule.id}</p>
+                    <div className={styles.listActions}>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void handleCapsuleCheckout(capsule.id);
+                        }}
+                      >
+                        {capsulePlan ? `Upgrade (${capsulePlan.name})` : "Upgrade Capsule"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDonationCapsuleId(capsule.id)}
+                      >
+                        Donate to this
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </article>
   );

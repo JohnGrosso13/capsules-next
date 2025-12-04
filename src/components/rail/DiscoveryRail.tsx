@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 import { normalizeMediaUrl } from "@/lib/media";
@@ -16,6 +17,7 @@ type Item = {
   href?: string;
   avatarUrl?: string | null;
   avatarInitial?: string | null;
+  date?: string | null;
 };
 
 type SectionAction =
@@ -45,6 +47,72 @@ type LadderSummaryPayload = {
     logoUrl: string | null;
   } | null;
 };
+
+type CalendarEvent = Item & { date: string };
+
+type CalendarDay = {
+  date: Date;
+  label: string;
+  key: string;
+  isToday: boolean;
+  isCurrentMonth: boolean;
+  hasEvents: boolean;
+};
+
+function toDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function parseEventDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const timestamp = Date.parse(iso);
+  if (Number.isNaN(timestamp)) return null;
+  return new Date(timestamp);
+}
+
+function buildCalendarDays(
+  currentMonth: Date,
+  eventsByDay: Map<string, CalendarEvent[]>,
+): CalendarDay[] {
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const startDay = firstOfMonth.getDay(); // 0 (Sun) - 6 (Sat)
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+  const today = new Date();
+  const todayKey = toDateKey(today);
+
+  const days: CalendarDay[] = [];
+  for (let i = 0; i < totalCells; i += 1) {
+    const dayNumber = i - startDay + 1;
+    if (dayNumber < 1 || dayNumber > daysInMonth) {
+      const date = new Date(year, month, 1);
+      days.push({
+        date,
+        label: "",
+        key: `blank-${year}-${month}-${i}`,
+        isToday: false,
+        isCurrentMonth: false,
+        hasEvents: false,
+      });
+      continue;
+    }
+    const date = new Date(year, month, dayNumber);
+    const key = toDateKey(date);
+    const hasEvents = eventsByDay.has(key);
+    days.push({
+      date,
+      label: String(dayNumber),
+      key,
+      isToday: key === todayKey,
+      isCurrentMonth: true,
+      hasEvents,
+    });
+  }
+
+  return days;
+}
 
 function Section({
   title,
@@ -165,11 +233,252 @@ const FALLBACK_EVENTS: Item[] = [
   { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210" },
 ];
 
+function UpcomingEventsCalendarOverlay({
+  events,
+  loading,
+  open,
+  onClose,
+}: {
+  events: CalendarEvent[];
+  loading: boolean;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [monthCursor, setMonthCursor] = React.useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
+
+  const eventsByDay = React.useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const event of events) {
+      const parsed = parseEventDate(event.date);
+      if (!parsed) continue;
+      const key = toDateKey(parsed);
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(event);
+      } else {
+        map.set(key, [event]);
+      }
+    }
+    return map;
+  }, [events]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (selectedKey) return;
+    const todayKey = toDateKey(new Date());
+    if (eventsByDay.has(todayKey)) {
+      setSelectedKey(todayKey);
+      return;
+    }
+    const first = events[0];
+    if (first?.date) {
+      const parsed = parseEventDate(first.date);
+      if (parsed) {
+        setSelectedKey(toDateKey(parsed));
+      }
+    }
+  }, [events, eventsByDay, open, selectedKey]);
+
+  const days = React.useMemo(
+    () => buildCalendarDays(monthCursor, eventsByDay),
+    [monthCursor, eventsByDay],
+  );
+
+  const selectedEvents = React.useMemo(
+    () => (selectedKey ? eventsByDay.get(selectedKey) ?? [] : []),
+    [eventsByDay, selectedKey],
+  );
+
+  const monthFormatter = React.useMemo(
+    () => new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }),
+    [],
+  );
+
+  const handlePrevMonth = () => {
+    setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleToday = () => {
+    const today = new Date();
+    const todayKey = toDateKey(today);
+    setMonthCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedKey(todayKey);
+  };
+
+  const weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+
+  if (!open) return null;
+
+  return (
+    <div className={styles.calendarOverlay} role="dialog" aria-modal="true">
+      <div className={styles.calendarSection}>
+        <div className={styles.calendarTopRow}>
+          <div className={styles.calendarHeaderRow}>
+            <div className={styles.calendarMonthLabel}>{monthFormatter.format(monthCursor)}</div>
+            <div className={styles.calendarNav}>
+              <button
+                type="button"
+                className={styles.calendarNavButton}
+                onClick={handlePrevMonth}
+                aria-label="Previous month"
+              >
+                {"‹"}
+              </button>
+              <button
+                type="button"
+                className={styles.calendarNavButton}
+                onClick={handleToday}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className={styles.calendarNavButton}
+                onClick={handleNextMonth}
+                aria-label="Next month"
+              >
+                {"›"}
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className={styles.calendarCloseButton}
+            onClick={onClose}
+            aria-label="Close calendar"
+          >
+            ×
+          </button>
+        </div>
+        <div className={styles.calendarBody}>
+          <div className={styles.calendarGridShell}>
+            <div className={styles.calendarWeekdays} aria-hidden>
+              {weekdayLabels.map((label) => (
+                <div key={label} className={styles.calendarWeekday}>
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className={styles.calendarGrid}>
+              {days.map((day) => {
+                if (!day.isCurrentMonth) {
+                  return <div key={day.key} className={styles.calendarDayBlank} />;
+                }
+                const key = toDateKey(day.date);
+                const isSelected = selectedKey === key;
+                const classes = [
+                  styles.calendarDay,
+                  day.isToday ? styles.calendarDayToday : "",
+                  day.hasEvents ? styles.calendarDayHasEvents : "",
+                  isSelected ? styles.calendarDaySelected : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+                return (
+                  <button
+                    key={day.key}
+                    type="button"
+                    className={classes}
+                    onClick={() => setSelectedKey(key)}
+                    aria-pressed={isSelected}
+                  >
+                    <span className={styles.calendarDayNumber}>{day.label}</span>
+                    {day.hasEvents ? <span className={styles.calendarDayDot} /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className={styles.calendarEvents}>
+            {loading ? (
+              <div className={styles.calendarEmpty}>Loading ladders...</div>
+            ) : selectedEvents.length ? (
+              <ul className={styles.calendarEventList}>
+                {selectedEvents.map((event) => (
+                  <li key={event.id} className={styles.calendarEventItem}>
+                    {event.href ? (
+                      <Link
+                        href={event.href}
+                        className={styles.calendarEventLink}
+                        prefetch={false}
+                      >
+                        <span className={styles.calendarEventTitle}>{event.title}</span>
+                        {event.subtitle ? (
+                          <span className={styles.calendarEventSub}>{event.subtitle}</span>
+                        ) : null}
+                        {event.meta ? (
+                          <span className={styles.calendarEventMeta}>{event.meta}</span>
+                        ) : null}
+                        {event.badge ? (
+                          <span className={styles.calendarEventBadge}>{event.badge}</span>
+                        ) : null}
+                      </Link>
+                    ) : (
+                      <div className={styles.calendarEventLink}>
+                        <span className={styles.calendarEventTitle}>{event.title}</span>
+                        {event.subtitle ? (
+                          <span className={styles.calendarEventSub}>{event.subtitle}</span>
+                        ) : null}
+                        {event.meta ? (
+                          <span className={styles.calendarEventMeta}>{event.meta}</span>
+                        ) : null}
+                        {event.badge ? (
+                          <span className={styles.calendarEventBadge}>{event.badge}</span>
+                        ) : null}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.calendarEmpty}>No ladders on this date yet.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UpcomingEventsCalendarOverlayPortal(
+  props: React.ComponentProps<typeof UpcomingEventsCalendarOverlay>,
+) {
+  const [mounted, setMounted] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const el = document.createElement("div");
+    el.dataset.calendarOverlayRoot = "true";
+    document.body.appendChild(el);
+    containerRef.current = el;
+    setMounted(true);
+    return () => {
+      if (containerRef.current && containerRef.current.parentNode) {
+        containerRef.current.parentNode.removeChild(containerRef.current);
+      }
+      containerRef.current = null;
+    };
+  }, []);
+
+  if (!mounted || !containerRef.current) return null;
+
+  return createPortal(<UpcomingEventsCalendarOverlay {...props} />, containerRef.current);
+}
+
 export function DiscoveryRail() {
   const [recommendedCapsules, setRecommendedCapsules] = React.useState<Item[]>(FALLBACK_CAPSULES);
   const [loadingCapsules, setLoadingCapsules] = React.useState(true);
   const [upcomingEvents, setUpcomingEvents] = React.useState<Item[]>(FALLBACK_EVENTS);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -308,6 +617,7 @@ export function DiscoveryRail() {
             subtitle,
             meta: metaParts.join(" \u2022 "),
             ...(badge ? { badge } : {}),
+            date: ladder.publishedAt ?? ladder.createdAt,
             href: `/capsule?capsuleId=${encodeURIComponent(ladder.capsuleId)}&ladderId=${encodeURIComponent(ladder.id)}&section=events`,
             avatarUrl: mediaUrl,
             avatarInitial: ladder.name ? ladder.name.trim().slice(0, 1).toUpperCase() : "L",
@@ -360,7 +670,10 @@ export function DiscoveryRail() {
         <Section
           title="Upcoming Events"
           items={upcomingEvents}
-          action={{ label: "Calendar", onClick: () => {} }}
+          action={{
+            label: "Calendar",
+            onClick: () => setCalendarOpen(true),
+          }}
           emptyMessage={loadingEvents ? "Loading ladders..." : "No ladders yet. Create one to see it here."}
         />
         <Section
@@ -369,6 +682,14 @@ export function DiscoveryRail() {
           action={{ label: "More", onClick: () => {} }}
         />
       </div>
+      <UpcomingEventsCalendarOverlayPortal
+        events={upcomingEvents.filter(
+          (event): event is CalendarEvent => !!event.date,
+        )}
+        loading={loadingEvents}
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+      />
     </div>
   );
 }

@@ -1,10 +1,16 @@
 import { z } from "zod";
 
-import { parseJsonBody, validatedJson } from "@/server/validation/http";
+import { parseJsonBody, validatedJson, returnError } from "@/server/validation/http";
 import { detectIntentHeuristically, normalizeIntent } from "@/lib/ai/intent";
 import { hasOpenAIApiKey, postOpenAIJson } from "@/adapters/ai/openai/server";
 import { buildCompletionTokenLimit } from "@/lib/ai/openai";
 import { serverEnv } from "@/lib/env/server";
+import {
+  checkRateLimits,
+  retryAfterSeconds as computeRetryAfterSeconds,
+  type RateLimitDefinition,
+} from "@/server/rate-limit";
+import { resolveClientIp } from "@/server/http/ip";
 
 const requestSchema = z.object({ message: z.string().min(1) });
 
@@ -29,12 +35,39 @@ const FALLBACK_RESPONSE: ClassifiedIntent = {
   reason: "Handing off to AI to infer the right intent.",
 };
 
+const INTENT_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.intent",
+  limit: 60,
+  window: "5 m",
+};
+
+const INTENT_IP_RATE_LIMIT: RateLimitDefinition = {
+  name: "ai.intent.ip",
+  limit: 200,
+  window: "5 m",
+};
+
 function clampConfidence(value: unknown, fallback: number): number {
   const num = typeof value === "number" && Number.isFinite(value) ? value : fallback;
   return Math.max(0, Math.min(1, num));
 }
 
 export async function POST(req: Request) {
+  const clientIp = resolveClientIp(req);
+  const rateLimit = await checkRateLimits([
+    { definition: INTENT_RATE_LIMIT, identifier: "intent:global" },
+    { definition: INTENT_IP_RATE_LIMIT, identifier: clientIp ? `ip:${clientIp}` : null },
+  ]);
+  if (rateLimit && !rateLimit.success) {
+    const retryAfterSeconds = computeRetryAfterSeconds(rateLimit.reset);
+    return returnError(
+      429,
+      "rate_limited",
+      "Too many intent requests. Please wait a moment.",
+      retryAfterSeconds == null ? undefined : { retryAfterSeconds },
+    );
+  }
+
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) return parsed.response;
 

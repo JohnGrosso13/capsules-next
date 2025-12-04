@@ -133,7 +133,12 @@ export async function PATCH(
       params.ladderId,
       params.challengeId,
       parsed.data.outcome,
-      parsed.data.note,
+      {
+        note: parsed.data.note ?? null,
+        proofUrl: parsed.data.proofUrl ?? null,
+        challengerCapsuleId: parsed.data.challengerCapsuleId ?? null,
+        opponentCapsuleId: parsed.data.opponentCapsuleId ?? null,
+      },
     );
     const { challenges, history, ladder } = await listLadderChallengesForViewer(
       params.ladderId,

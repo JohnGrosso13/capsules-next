@@ -197,6 +197,9 @@ describe("challenge lifecycle", () => {
       createdAt: "2024-01-01T00:00:00.000Z",
       createdById: "user-1",
       status: "pending",
+      participantType: "capsule",
+      challengerCapsuleId: "cap-2",
+      opponentCapsuleId: "cap-1",
       note: null,
     };
     ladderStore.set("ladder-1", {
@@ -209,7 +212,10 @@ describe("challenge lifecycle", () => {
       { id: "m3", displayName: "Mid", rank: 2, rating: 1250, wins: 3, losses: 2, draws: 0, streak: 1, userId: null, handle: null, seed: 3, metadata: null, createdAt: "", updatedAt: "" },
     ]);
 
-    const result = await resolveLadderChallenge("user-1", "ladder-1", "challenge-1", "challenger", " gg ");
+    const result = await resolveLadderChallenge("user-1", "ladder-1", "challenge-1", "challenger", {
+      note: " gg ",
+      proofUrl: "https://vod.example/1",
+    });
 
     expect(result.challenge.status).toBe("resolved");
     expect(result.history[0]).toMatchObject({
@@ -254,7 +260,10 @@ describe("challenge lifecycle", () => {
       { id: "m-low", displayName: "Low", rank: 2, rating: 1100, wins: 2, losses: 8, draws: 0, streak: -2, userId: null, handle: null, seed: 2, metadata: null, createdAt: "", updatedAt: "" },
     ]);
 
-    const result = await resolveLadderChallenge("user-1", "ladder-1", "challenge-1", "challenger");
+    const result = await resolveLadderChallenge("user-1", "ladder-1", "challenge-1", "challenger", {
+      challengerCapsuleId: "cap-2",
+      opponentCapsuleId: "cap-1",
+    });
 
     const reordered = memberStore.get("ladder-1")!;
     const low = reordered.find((m) => m.id === "m-low")!;
@@ -265,5 +274,43 @@ describe("challenge lifecycle", () => {
       { memberId: "m-low", from: 1100, to: 1124, delta: 24 },
       { memberId: "m-high", from: 1300, to: 1276, delta: -24 },
     ]);
+  });
+
+  it("requires capsule IDs for capsule_vs_capsule tournaments", async () => {
+    ladderStore.set("ladder-1", { ...baseLadder, meta: { matchMode: "capsule_vs_capsule" } });
+    seedMembers([
+      { id: "m1", displayName: "Capsule A", rank: 1, rating: 1200, wins: 0, losses: 0, draws: 0, streak: 0, userId: null, handle: null, seed: 1, metadata: null, createdAt: "", updatedAt: "" },
+      { id: "m2", displayName: "Capsule B", rank: 2, rating: 1200, wins: 0, losses: 0, draws: 0, streak: 0, userId: null, handle: null, seed: 2, metadata: null, createdAt: "", updatedAt: "" },
+    ]);
+
+    await expect(
+      createLadderChallenge("user-1", "ladder-1", { challengerId: "m1", opponentId: "m2" }),
+    ).rejects.toMatchObject({ code: "invalid" });
+  });
+
+  it("stores capsule IDs when resolving capsule_vs_capsule results", async () => {
+    const pendingChallenge: LadderChallenge = {
+      id: "challenge-1",
+      ladderId: "ladder-1",
+      challengerId: "m2",
+      opponentId: "m1",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      createdById: "user-1",
+      status: "pending",
+      note: null,
+    };
+    ladderStore.set("ladder-1", {
+      ...baseLadder,
+      meta: { matchMode: "capsule_vs_capsule", ladderState: { challenges: [pendingChallenge], history: [] } },
+    });
+    seedMembers([
+      { id: "m1", displayName: "Capsule A", rank: 1, rating: 1200, wins: 0, losses: 0, draws: 0, streak: 0, userId: null, handle: null, seed: 1, metadata: { capsuleId: "cap-1" }, createdAt: "", updatedAt: "" },
+      { id: "m2", displayName: "Capsule B", rank: 2, rating: 1200, wins: 0, losses: 0, draws: 0, streak: 0, userId: null, handle: null, seed: 2, metadata: { capsuleId: "cap-2" }, createdAt: "", updatedAt: "" },
+    ]);
+
+    const result = await resolveLadderChallenge("user-1", "ladder-1", "challenge-1", "challenger");
+
+    expect(result.challenge.participantType).toBeDefined();
+    expect(result.history[0]?.participantType).toBeDefined();
   });
 });

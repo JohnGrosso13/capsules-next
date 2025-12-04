@@ -23,6 +23,7 @@ import {
   type ChatMemorySnippet,
 } from "@/server/chat/retrieval";
 import { getUserCardCached } from "@/server/chat/user-card";
+import { shouldEnableMemoryContext } from "@/server/chat/context-gating";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -181,6 +182,12 @@ export async function POST(req: Request) {
   const historySanitized = history ? sanitizeComposerChatHistory(history) : [];
   const attachmentList = sanitizeAttachments(attachments);
   const contextEnabled = typeof parsed.data.useContext === "boolean" ? parsed.data.useContext : true;
+  const memoryContextEnabled =
+    contextEnabled &&
+    shouldEnableMemoryContext({
+      message,
+      history: historySanitized,
+    });
 
   const contextPrompts: string[] = [];
   let resolvedContextRecords: ContextRecord[] = [];
@@ -222,18 +229,22 @@ export async function POST(req: Request) {
 
   if (contextEnabled) {
     const capsuleHistoryPromise: Promise<ChatMemorySnippet[]> =
-      contextEnabled && capsuleId
+      memoryContextEnabled && capsuleId
         ? getCapsuleHistorySnippets({ capsuleId, viewerId: ownerId, query: message })
         : Promise.resolve<ChatMemorySnippet[]>([]);
 
+    const chatContextPromise = memoryContextEnabled
+      ? getChatContext({
+          ownerId,
+          message,
+          history: historySanitized,
+          origin: requestOrigin ?? null,
+          capsuleId: capsuleId ?? null,
+        })
+      : Promise.resolve(null);
+
     const [contextResult, userCardResult, capsuleHistorySnippets] = await Promise.all([
-      getChatContext({
-        ownerId,
-        message,
-        history: historySanitized,
-        origin: requestOrigin ?? null,
-        capsuleId: capsuleId ?? null,
-      }),
+      chatContextPromise,
       getUserCardCached(ownerId),
       capsuleHistoryPromise,
     ]);

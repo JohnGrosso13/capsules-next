@@ -9,6 +9,7 @@ import type {
   LadderChallengeOutcome,
   LadderChallengeResult,
   LadderMatchRecord,
+  LadderParticipantType,
   LadderStateMeta,
 } from "@/types/ladders";
 
@@ -113,6 +114,69 @@ function toMemberInput(member: CapsuleLadderMember): CapsuleLadderMemberInput {
   return input;
 }
 
+function resolveMatchMode(ladder: CapsuleLadderDetail): string | null {
+  const meta = ladder.meta && typeof ladder.meta === "object" ? (ladder.meta as Record<string, unknown>) : null;
+  const metaMode = typeof meta?.matchMode === "string" ? meta.matchMode.trim() : null;
+  const gameMode =
+    ladder.game && typeof (ladder.game as { mode?: unknown }).mode === "string"
+      ? ((ladder.game as { mode?: string }).mode ?? "").trim()
+      : null;
+  return metaMode || gameMode || null;
+}
+
+function resolveParticipantContext(
+  ladder: CapsuleLadderDetail,
+  members: CapsuleLadderMember[],
+  challengerId: string,
+  opponentId: string,
+  overrides: {
+    participantType?: LadderParticipantType;
+    challengerCapsuleId?: string | null;
+    opponentCapsuleId?: string | null;
+  } = {},
+): { participantType: LadderParticipantType; challengerCapsuleId: string | null; opponentCapsuleId: string | null } {
+  const matchMode = resolveMatchMode(ladder);
+  const participantType: LadderParticipantType =
+    overrides.participantType ?? (matchMode === "capsule_vs_capsule" ? "capsule" : "member");
+
+  const findCapsuleId = (memberId: string): string | null => {
+    const member = members.find((entry) => entry.id === memberId);
+    const metadata = member?.metadata as Record<string, unknown> | null;
+    const capsuleId =
+      metadata && typeof metadata.capsuleId === "string"
+        ? metadata.capsuleId.trim()
+        : null;
+    return normalizeId(capsuleId);
+  };
+
+  const challengerCapsuleId =
+    overrides.challengerCapsuleId !== undefined
+      ? normalizeId(overrides.challengerCapsuleId)
+      : participantType === "capsule"
+        ? findCapsuleId(challengerId)
+        : null;
+  const opponentCapsuleId =
+    overrides.opponentCapsuleId !== undefined
+      ? normalizeId(overrides.opponentCapsuleId)
+      : participantType === "capsule"
+        ? findCapsuleId(opponentId)
+        : null;
+
+  if (participantType === "capsule" && (!challengerCapsuleId || !opponentCapsuleId)) {
+    throw new CapsuleLadderAccessError(
+      "invalid",
+      "Capsule vs Capsule brackets require entrants linked to capsules.",
+      400,
+    );
+  }
+
+  return {
+    participantType,
+    challengerCapsuleId: challengerCapsuleId ?? null,
+    opponentCapsuleId: opponentCapsuleId ?? null,
+  };
+}
+
 export async function listLadderChallengesForViewer(
   ladderId: string,
   viewerId: string | null,
@@ -136,7 +200,14 @@ export async function listLadderChallengesForViewer(
 export async function createLadderChallenge(
   actorId: string,
   ladderId: string,
-  payload: { challengerId: string; opponentId: string; note?: string | null },
+  payload: {
+    challengerId: string;
+    opponentId: string;
+    note?: string | null;
+    participantType?: LadderParticipantType;
+    challengerCapsuleId?: string | null;
+    opponentCapsuleId?: string | null;
+  },
 ): Promise<{ challenge: LadderChallenge; ladder: CapsuleLadderDetail }> {
   const ladder = await getCapsuleLadderRecordById(ladderId);
   if (!ladder) {
@@ -188,12 +259,20 @@ export async function createLadderChallenge(
 
   const now = new Date().toISOString();
   const note = payload.note ? sanitizeText(payload.note, 240, null) : null;
+  const participantContext = resolveParticipantContext(ladder, members, challengerId, opponentId, {
+    ...(payload.participantType ? { participantType: payload.participantType } : {}),
+    ...(payload.challengerCapsuleId !== undefined ? { challengerCapsuleId: payload.challengerCapsuleId } : {}),
+    ...(payload.opponentCapsuleId !== undefined ? { opponentCapsuleId: payload.opponentCapsuleId } : {}),
+  });
 
   const challenge: LadderChallenge = {
     id: randomUUID(),
     ladderId: ladder.id,
     challengerId,
     opponentId,
+    challengerCapsuleId: participantContext.challengerCapsuleId,
+    opponentCapsuleId: participantContext.opponentCapsuleId,
+    participantType: participantContext.participantType,
     createdAt: now,
     createdById: viewer.viewerId,
     status: "pending",
@@ -231,7 +310,12 @@ export async function resolveLadderChallenge(
   ladderId: string,
   challengeId: string,
   outcome: LadderChallengeOutcome,
-  note?: string | null,
+  options: {
+    note?: string | null;
+    proofUrl?: string | null;
+    challengerCapsuleId?: string | null;
+    opponentCapsuleId?: string | null;
+  } = {},
 ): Promise<{
   challenge: LadderChallenge;
   members: CapsuleLadderMember[];
@@ -260,6 +344,19 @@ export async function resolveLadderChallenge(
   }
 
   const members = await listCapsuleLadderMemberRecords(ladder.id);
+  const participantContext = resolveParticipantContext(ladder, members, challenge.challengerId, challenge.opponentId, {
+    ...(challenge.participantType ? { participantType: challenge.participantType } : {}),
+    ...(options.challengerCapsuleId !== undefined
+      ? { challengerCapsuleId: options.challengerCapsuleId }
+      : challenge.challengerCapsuleId !== undefined
+        ? { challengerCapsuleId: challenge.challengerCapsuleId }
+        : {}),
+    ...(options.opponentCapsuleId !== undefined
+      ? { opponentCapsuleId: options.opponentCapsuleId }
+      : challenge.opponentCapsuleId !== undefined
+        ? { opponentCapsuleId: challenge.opponentCapsuleId }
+        : {}),
+  });
   const outcomeResult =
     system === "simple"
       ? applySimpleOutcome(members, challenge.challengerId, challenge.opponentId, outcome)
@@ -280,7 +377,8 @@ export async function resolveLadderChallenge(
   );
 
   const resolvedAt = new Date().toISOString();
-  const sanitizedNote = note ? sanitizeText(note, 240, null) : null;
+  const sanitizedNote = options.note ? sanitizeText(options.note, 240, null) : null;
+  const sanitizedProof = options.proofUrl ? sanitizeText(options.proofUrl, 2048, null) : null;
 
   const historyRecord: LadderMatchRecord = {
     id: randomUUID(),
@@ -288,6 +386,9 @@ export async function resolveLadderChallenge(
     challengeId: challenge.id,
     challengerId: challenge.challengerId,
     opponentId: challenge.opponentId,
+    challengerCapsuleId: participantContext.challengerCapsuleId,
+    opponentCapsuleId: participantContext.opponentCapsuleId,
+    participantType: participantContext.participantType,
     outcome,
     resolvedAt,
     note: sanitizedNote ?? challenge.note ?? null,
@@ -298,10 +399,16 @@ export async function resolveLadderChallenge(
   if (ratingChanges.length) {
     historyRecord.ratingChanges = ratingChanges;
   }
+  if (sanitizedProof) {
+    historyRecord.proofUrl = sanitizedProof;
+  }
 
   snapshot.state.history = [historyRecord, ...snapshot.state.history].slice(0, 50);
   snapshot.state.challenges[challengeIndex] = {
     ...challenge,
+    challengerCapsuleId: participantContext.challengerCapsuleId,
+    opponentCapsuleId: participantContext.opponentCapsuleId,
+    participantType: participantContext.participantType,
     status: "resolved",
     result: {
       outcome,
@@ -315,6 +422,10 @@ export async function resolveLadderChallenge(
   }
   if (ratingChanges.length) {
     snapshot.state.challenges[challengeIndex]!.result!.ratingChanges = ratingChanges;
+  }
+  if (sanitizedProof) {
+    snapshot.state.challenges[challengeIndex]!.result!.proofUrl = sanitizedProof;
+    snapshot.state.challenges[challengeIndex]!.proofUrl = sanitizedProof;
   }
 
   snapshot.metaRoot.ladderState = {

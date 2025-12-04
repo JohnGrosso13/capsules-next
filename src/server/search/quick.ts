@@ -2,6 +2,7 @@ import { getDatabaseAdminClient } from "@/config/database";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { listCapsulesForUser } from "@/server/capsules/repository";
 import type { GlobalSearchResponse, GlobalSearchSection, UserSearchResult, CapsuleSearchResult } from "@/types/search";
+import { sanitizeUserKey } from "@/lib/users/format";
 
 const QUICK_LIMIT = 12;
 const CACHE_TTL_MS = 30_000;
@@ -104,7 +105,7 @@ function buildUserResult(
   if (!id) return null;
 
   const name = profile?.full_name?.trim() || "";
-  const key = profile?.user_key?.trim() || null;
+  const key = sanitizeUserKey(profile?.user_key);
   const avatar = resolveToAbsoluteUrl(profile?.avatar_url ?? null, origin ?? null);
 
   const needle = query.toLowerCase();
