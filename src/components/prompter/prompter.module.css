@@ -223,6 +223,30 @@
     box-shadow: var(--prompter-bar-focus-shadow);
   }
 
+  .promptActions {
+    position: relative;
+  }
+
+  .promptActionsMenu {
+    top: calc(100% + 10px);
+    left: 0;
+    min-width: 220px;
+  }
+
+  .promptActionsMenu [role="menuitem"] {
+    width: 100%;
+    text-align: left;
+  }
+
+  .promptActionsMenu [data-active="true"] {
+    border-color: color-mix(in srgb, var(--color-brand, #6366f1) 55%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand, #6366f1) 24%, transparent),
+      color-mix(in srgb, var(--color-brand, #6366f1) 12%, transparent)
+    );
+  }
+
   .input {
     flex: 1;
     min-width: 0;

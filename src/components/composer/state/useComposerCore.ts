@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { safeRandomUUID } from "@/lib/random";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
-import type { ComposerState } from "../ComposerProvider";
+import type { ComposerState } from "../types";
 import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 

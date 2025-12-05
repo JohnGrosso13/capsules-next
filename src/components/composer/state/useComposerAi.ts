@@ -12,7 +12,7 @@ import type { PromptResponse } from "@/shared/schemas/ai";
 import { safeRandomUUID } from "@/lib/random";
 import { appendCapsuleContext, mergeComposerChatHistory, mergeComposerRawPost } from "./ai-shared";
 import { mergeComposerDrafts } from "./draft-merge";
-import type { ComposerState } from "../ComposerProvider";
+import type { ComposerState } from "../types";
 
 type PromptRunMode = "default" | "chatOnly";
 

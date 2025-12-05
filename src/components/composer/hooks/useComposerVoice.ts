@@ -143,9 +143,9 @@ export function useComposerVoice({
   const isActive = status === "listening" || status === "stopping";
   const buttonLabel = supported
     ? isActive
-      ? "Stop voice capture"
-      : "Start voice capture"
-    : "Voice input isn't supported in this browser.";
+      ? "Stop dictation"
+      : "Dictate message"
+    : "Dictation isn't supported in this browser.";
   const buttonDisabled = loading || attachmentUploading || status === "stopping" || !supported;
 
   const truncatedInterim = voiceState.interim ? truncateVoiceText(voiceState.interim) : null;
@@ -158,7 +158,7 @@ export function useComposerVoice({
   const hint = React.useMemo(() => {
     if (errorMessage) return errorMessage;
     if (isActive) {
-      return truncatedInterim ? `Listening: "${truncatedInterim}"` : "Listening for voice input...";
+      return truncatedInterim ? `Listening: "${truncatedInterim}"` : "Listening for dictation...";
     }
     if (status === "idle" && truncatedResult) {
       return `Captured: "${truncatedResult}"`;

@@ -109,9 +109,11 @@ function AppShellContent({
     isCapsule || layoutVariant === "capsule" || layoutVariant === "studio";
   const [capsuleTab, setCapsuleTab] = React.useState<CapsuleTab>("feed");
   const isCapsuleLiveView = isCapsule && capsuleTab === "live";
-  const shouldShowDiscoveryRail = showDiscoveryRightRail || (isCapsule && !isCapsuleLiveView);
+  const isCapsuleStoreView = isCapsule && capsuleTab === "store";
+  const shouldShowDiscoveryRail =
+    showDiscoveryRightRail || (isCapsule && !isCapsuleLiveView && !isCapsuleStoreView);
   const allowLiveChatRail = showLiveChatRightRail && isCapsuleLiveView;
-  const capsuleHasRightRail = shouldShowDiscoveryRail || allowLiveChatRail;
+  const capsuleHasRightRail = shouldShowDiscoveryRail || allowLiveChatRail || isCapsuleStoreView;
   const effectiveLayout: "default" | "home" | "capsule" | "studio" =
     layoutVariant === "studio"
       ? "studio"
@@ -182,6 +184,10 @@ function AppShellContent({
   }, [isCapsule]);
 
   const capsuleRightRailContent = React.useMemo(() => {
+    if (isCapsuleStoreView) {
+      // Reserve a dedicated root for the capsule store checkout/cart rail.
+      return <div id="capsule-store-cart-rail-root" />;
+    }
     if (shouldShowDiscoveryRail) {
       // Show discovery rail for feed views or when explicitly requested.
       return <DiscoveryRail />;
@@ -190,7 +196,7 @@ function AppShellContent({
       return <LiveChatRail {...liveChatRailProps} />;
     }
     return null;
-  }, [shouldShowDiscoveryRail, allowLiveChatRail, liveChatRailProps]);
+  }, [allowLiveChatRail, isCapsuleStoreView, liveChatRailProps, shouldShowDiscoveryRail]);
 
   const standardRightRailContent = !usesCapsuleLayout
     ? isHome || showDiscoveryRightRail

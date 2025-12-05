@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import styles from "./prompter.module.css";
-import { Plus, Microphone, MicrophoneSlash, ArrowUp } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Microphone, ArrowUp, Paperclip } from "@phosphor-icons/react/dist/ssr";
 import { IntentOverrideMenu } from "@/components/prompter/IntentOverrideMenu";
+import cm from "@/components/ui/context-menu.module.css";
 import type { PromptIntent } from "@/lib/ai/intent";
 import type { RecognitionStatus } from "@/hooks/useSpeechRecognition";
 
@@ -94,30 +95,109 @@ export function PrompterInputBar({
   const computedLabel =
     voiceLabel ??
     (!voiceSupported
-      ? "Voice input not supported in this browser"
+      ? "Dictation not supported in this browser"
       : isListening
-        ? "Stop voice capture"
-        : "Start voice capture");
+        ? "Stop dictation"
+        : "Dictate message");
   const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
   const showSend = isCompact && value.trim().length > 0;
   const useIconSubmit = submitVariant === "icon";
-  const allowVoiceButton = showVoiceButton && !isCompact;
   const showCompactSendButton = isCompact;
   const compactSendDisabled = buttonDisabled || value.trim().length === 0;
+  const [actionsOpen, setActionsOpen] = React.useState(false);
+  const actionsRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!actionsOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (actionsRef.current && target && !actionsRef.current.contains(target)) {
+        setActionsOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActionsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [actionsOpen]);
+
+  React.useEffect(() => {
+    if (uploading) {
+      setActionsOpen(false);
+    }
+  }, [uploading]);
+
+  const handleToggleActions = React.useCallback(() => {
+    if (uploading) return;
+    setActionsOpen((open) => !open);
+  }, [uploading]);
+
+  const handleAttachmentSelect = React.useCallback(() => {
+    setActionsOpen(false);
+    onAttachClick();
+  }, [onAttachClick]);
+
+  const handleVoiceSelect = React.useCallback(() => {
+    setActionsOpen(false);
+    onVoiceToggle();
+  }, [onVoiceToggle]);
+
+  const voiceMenuLabel = isListening ? "Stop dictation" : "Dictate message";
+  const showVoiceAction = showVoiceButton && !isCompact;
 
   return (
     <div className={styles.promptBar}>
-      {showAttachmentButton ? (
+      <div className={styles.promptActions} ref={actionsRef}>
         <button
           type="button"
           className={styles.promptAttachBtn}
-          aria-label="Attach file"
-          onClick={onAttachClick}
+          aria-label="More options"
+          aria-haspopup="menu"
+          aria-expanded={actionsOpen}
+          onClick={handleToggleActions}
           disabled={uploading}
         >
           <Plus size={20} weight="bold" className={styles.promptAttachIcon} />
         </button>
-      ) : null}
+        {actionsOpen ? (
+          <div className={`${cm.menu} ${styles.promptActionsMenu}`.trim()} role="menu">
+            {showAttachmentButton ? (
+              <button
+                type="button"
+                className={cm.item}
+                role="menuitem"
+                onClick={handleAttachmentSelect}
+                disabled={uploading}
+                aria-disabled={uploading}
+              >
+                <Paperclip size={16} weight="bold" /> Upload attachment
+              </button>
+            ) : null}
+            {showVoiceAction ? (
+              <button
+                type="button"
+                className={cm.item}
+                role="menuitem"
+                onClick={handleVoiceSelect}
+                aria-pressed={isListening}
+                aria-label={computedLabel}
+                disabled={voiceButtonDisabled}
+                aria-disabled={voiceButtonDisabled}
+                data-active={isListening ? "true" : undefined}
+              >
+                <Microphone size={16} weight="bold" /> {voiceMenuLabel}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       {multiline ? (
         <textarea
           className={`${styles.input} ${styles.multilineInput}`.trim()}
@@ -162,39 +242,7 @@ export function PrompterInputBar({
           onChange={onFileChange}
         />
       ) : null}
-      {allowVoiceButton ? (
-        showSend ? (
-          <button
-            type="button"
-            className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
-            aria-label="Send"
-            title="Send"
-            onClick={onGenerate}
-            data-status={voiceStatus}
-          >
-            <ArrowUp size={18} weight="bold" className={styles.voiceIcon} />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}
-            aria-label={computedLabel}
-            title={computedLabel}
-            aria-pressed={isListening}
-            onClick={onVoiceToggle}
-            disabled={voiceButtonDisabled}
-            data-status={voiceStatus}
-            data-active={isListening || undefined}
-          >
-            <span className={styles.voicePulse} aria-hidden />
-            {isListening ? (
-              <MicrophoneSlash size={18} weight="fill" className={styles.voiceIcon} />
-            ) : (
-              <Microphone size={18} weight="duotone" className={styles.voiceIcon} />
-            )}
-          </button>
-        )
-      ) : showCompactSendButton ? (
+      {showCompactSendButton ? (
         <button
           type="button"
           className={`${styles.promptAttachBtn} ${styles.voiceBtn}`.trim()}

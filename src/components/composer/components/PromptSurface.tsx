@@ -2,10 +2,10 @@
 
 import * as React from "react";
 
-import { Plus, ArrowUp } from "@phosphor-icons/react/dist/ssr";
+import { Plus, ArrowUp, Paperclip, Microphone } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../styles";
-import { VoiceRecorder } from "./VoiceRecorder";
+import menuStyles from "@/components/ui/context-menu.module.css";
 import type { ComposerVoiceResult } from "../hooks/useComposerVoice";
 
 type PromptOption = { label: string; prompt: string };
@@ -51,6 +51,54 @@ export function PromptSurface({
   voiceControls,
 }: PromptSurfaceProps) {
   const hasQuickPrompts = showQuickPrompts && quickPromptOptions.length > 0;
+  const [actionsOpen, setActionsOpen] = React.useState(false);
+  const actionsRef = React.useRef<HTMLDivElement | null>(null);
+  const { isActive, buttonLabel, buttonDisabled, toggle } = voiceControls;
+
+  React.useEffect(() => {
+    if (!actionsOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (actionsRef.current && target && !actionsRef.current.contains(target)) {
+        setActionsOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActionsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [actionsOpen]);
+
+  React.useEffect(() => {
+    if (loading || attachmentUploading) {
+      setActionsOpen(false);
+    }
+  }, [attachmentUploading, loading]);
+
+  const handleToggleActions = React.useCallback(() => {
+    if (loading || attachmentUploading) return;
+    setActionsOpen((open) => !open);
+  }, [attachmentUploading, loading]);
+
+  const handleAttachmentSelect = React.useCallback(() => {
+    setActionsOpen(false);
+    onAttachClick();
+  }, [onAttachClick]);
+
+  const handleVoiceSelect = React.useCallback(() => {
+    setActionsOpen(false);
+    toggle();
+  }, [toggle]);
+
+  const voiceMenuLabel = isActive ? "Stop dictation" : "Dictate message";
+  const voiceMenuDisabled = buttonDisabled;
 
   return (
     <div
@@ -58,15 +106,49 @@ export function PromptSurface({
       data-has-presets={hasQuickPrompts ? "true" : undefined}
     >
       <div className={styles.promptSurface}>
-        <button
-          type="button"
-          className={styles.promptIconBtn}
-          aria-label="Attach file"
-          onClick={onAttachClick}
-          disabled={loading || attachmentUploading}
-        >
-          <Plus size={18} weight="bold" />
-        </button>
+        <div className={styles.promptActions} ref={actionsRef}>
+          <button
+            type="button"
+            className={styles.promptIconBtn}
+            aria-label="More composer actions"
+            aria-haspopup="menu"
+            aria-expanded={actionsOpen}
+            onClick={handleToggleActions}
+            disabled={loading || attachmentUploading}
+          >
+            <Plus size={18} weight="bold" />
+          </button>
+          {actionsOpen ? (
+            <div
+              className={`${menuStyles.menu} ${styles.promptActionsMenu}`.trim()}
+              role="menu"
+            >
+              <button
+                type="button"
+                className={menuStyles.item}
+                role="menuitem"
+                onClick={handleAttachmentSelect}
+                disabled={loading || attachmentUploading}
+                aria-disabled={loading || attachmentUploading}
+              >
+                <Paperclip size={16} weight="bold" /> Upload attachment
+              </button>
+              <button
+                type="button"
+                className={menuStyles.item}
+                role="menuitem"
+                onClick={handleVoiceSelect}
+                aria-pressed={isActive}
+                aria-label={buttonLabel}
+                disabled={voiceMenuDisabled}
+                aria-disabled={voiceMenuDisabled}
+                data-active={isActive ? "true" : undefined}
+              >
+                <Microphone size={16} weight="bold" /> {voiceMenuLabel}
+              </button>
+            </div>
+          ) : null}
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -89,14 +171,6 @@ export function PromptSurface({
               onPromptSubmit();
             }
           }}
-        />
-        <VoiceRecorder
-          isActive={voiceControls.isActive}
-          status={voiceControls.status}
-          buttonLabel={voiceControls.buttonLabel}
-          buttonDisabled={voiceControls.buttonDisabled}
-          onToggle={voiceControls.toggle}
-          errorMessage={voiceControls.errorMessage}
         />
         <button
           type="button"

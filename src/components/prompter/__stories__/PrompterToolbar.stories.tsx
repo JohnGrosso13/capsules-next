@@ -65,7 +65,7 @@ export function Default() {
         voiceSupported
         voiceStatus="idle"
         onVoiceToggle={() => console.log("voice-toggle")}
-        voiceLabel="Start voice capture"
+        voiceLabel="Dictate message"
         hint="AI will draft this for you."
         attachments={[sampleAttachment]}
         uploadingAttachment={null}

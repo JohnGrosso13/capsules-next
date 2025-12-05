@@ -330,6 +330,20 @@
   box-shadow: var(--card-shadow);
 }
 
+.storeCanvas .heroWrap {
+  position: relative;
+}
+
+.storeCanvas .heroWrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid var(--store-banner-frame-border);
+  box-shadow: 0 0 0 1px var(--store-banner-frame-outline);
+  pointer-events: none;
+}
+
 .heroBanner {
   position: relative;
   width: min(100%, clamp(420px, 68vw, 820px));
@@ -377,13 +391,9 @@
 }
 
 .heroCustomizeGroup {
-  position: absolute;
-  top: clamp(14px, 2vw, 22px);
-  right: clamp(14px, 2vw, 22px);
-  display: grid;
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  justify-items: flex-end;
-  z-index: 2;
 }
 
 .heroCustomizeBtn {
@@ -427,6 +437,44 @@
   background: color-mix(in srgb, rgba(24, 28, 56, 0.46) 90%, transparent);
 }
 
+.heroCustomizeMenuSurface {
+  margin-top: 8px;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, rgba(196, 210, 255, 0.6) 72%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgba(17, 24, 48, 0.98) 96%, transparent),
+    color-mix(in srgb, rgba(12, 18, 40, 0.94) 92%, transparent)
+  );
+  box-shadow:
+    0 18px 42px rgba(5, 10, 30, 0.7),
+    inset 0 0 0 1px color-mix(in srgb, rgba(148, 163, 255, 0.22) 80%, transparent);
+  display: grid;
+  gap: 4px;
+}
+
+.heroCustomizeMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.heroCustomizeMenuItem:hover,
+.heroCustomizeMenuItem:focus-visible {
+  background: color-mix(in srgb, rgba(56, 70, 160, 0.78) 32%, transparent);
+}
+
 .heroBody {
   position: absolute;
   left: clamp(22px, 3vw, 40px);
@@ -438,6 +486,14 @@
   gap: clamp(18px, 3vw, 28px);
   flex-wrap: wrap;
   z-index: 2;
+}
+
+.heroActionsRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: clamp(16px, 2vw, 22px);
 }
 
 .heroDetails {
@@ -462,7 +518,6 @@
   gap: 12px;
   flex-wrap: wrap;
   align-self: flex-start;
-  margin-left: auto;
   max-width: 100%;
   justify-content: flex-end;
 }
@@ -533,8 +588,13 @@
   align-items: center;
   gap: 10px;
   overflow-x: auto;
-  padding: 2px;
-  margin-top: clamp(16px, 2.4vw, 28px);
+  padding: 14px 2px 2px;
+  margin-top: clamp(10px, 1.6vw, 18px);
+  border-top: 1px solid color-mix(
+    in srgb,
+    var(--card-border, rgba(148, 163, 184, 0.4)) 80%,
+    transparent
+  );
 }
 
 .heroTab {
@@ -668,9 +728,9 @@
   gap: clamp(12px, 1.8vw, 24px);
 }
 .liveCanvas {
-  width: 100%;
-  /* Fill the available space between tabs and prompter */
-  height: 100%;
+    width: 100%;
+    /* Fill the available space between tabs and prompter */
+    height: 100%;
   min-height: clamp(360px, 65vh, 980px);
   /* Allow grid area to shrink properly on smaller viewports */
   min-block-size: 0;
@@ -681,12 +741,20 @@
     radial-gradient(1200px 400px at 20% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
     radial-gradient(1200px 400px at 80% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-  box-shadow: var(--card-shadow);
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: clamp(8px, 1.5vw, 22px);
-}
+    box-shadow: var(--card-shadow);
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: clamp(8px, 1.5vw, 22px);
+  }
+
+  /* Store view: remove the outer canvas border so only banner + store shell show */
+  .liveCanvas[data-store-canvas="true"] {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+  }
 
 /* Live view: remove inner padding and stretch canvas fully */
 .liveWrap[data-view="live"] .liveCanvas {
@@ -849,12 +917,23 @@
   flex: 1 1 auto;
 }
 .storeContent {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(18px, 2vw, 26px);
-  width: 100%;
-  max-width: none;
-}
+    display: flex;
+    flex-direction: column;
+    gap: clamp(18px, 2vw, 26px);
+    width: 100%;
+    max-width: none;
+  }
+  .storeShell {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2vw, 22px);
+    padding: clamp(16px, 2vw, 22px);
+    border-radius: clamp(22px, 3vw, 28px);
+    border: 1px solid var(--store-panel-border);
+    background: var(--store-panel-bg);
+    box-shadow: var(--card-shadow);
+  }
 .storeHero {
   position: relative;
   display: flex;
@@ -881,42 +960,42 @@
   isolation: isolate;
 }
 .storeBannerFrame {
-  position: relative;
-  width: min(100%, clamp(640px, 82vw, 980px));
-  border-radius: clamp(20px, 2.8vw, 26px);
-  overflow: hidden;
-  border: 1px solid var(--store-banner-frame-border);
-  background: var(--store-banner-frame-bg);
-  box-shadow:
-    inset 0 0 0 1px var(--store-banner-frame-outline),
-    var(--shadow-lg, 0 18px 38px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 42%, transparent));
-}
+    position: relative;
+    width: min(100%, clamp(420px, 68vw, 820px));
+    aspect-ratio: 16 / 9;
+    height: auto;
+    margin: 0 auto;
+    border-radius: clamp(18px, 3vw, 24px);
+    overflow: hidden;
+    border: none;
+    background-image:
+      var(--store-banner-image, none),
+      radial-gradient(
+        120% 120% at 100% 0%,
+        color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        120% 120% at 0% 100%,
+        color-mix(in srgb, var(--color-accent, #22d3ee) 38%, transparent),
+        transparent 68%
+      ),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%, transparent),
+        color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 72%, transparent)
+      );
+    background-blend-mode: normal, screen, screen, normal;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    filter: saturate(1.1);
+  }
 .storeBannerSurface {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background-image:
-    var(--store-banner-image, none),
-    radial-gradient(
-      120% 120% at 100% 0%,
-      color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent),
-      transparent 62%
-    ),
-    radial-gradient(
-      120% 120% at 0% 100%,
-      color-mix(in srgb, var(--color-accent, #22d3ee) 38%, transparent),
-      transparent 68%
-    ),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 92%, transparent),
-      color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 72%, transparent)
-    );
-  background-blend-mode: normal, screen, screen, normal;
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  filter: saturate(1.1);
-}
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
 .storeBannerOverlay {
   position: absolute;
   inset: 0;
@@ -965,12 +1044,59 @@
   justify-content: flex-end;
 }
 .storeHeroActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    pointer-events: auto;
+  }
+.storeHeroActionsBelow {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 12px;
+  }
+.storeHeroActionsMenu {
+  position: relative;
+}
+.storeHeroActionsMenuSurface {
+  position: absolute;
+  right: 0;
+  margin-top: 8px;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--store-panel-border);
+  background: color-mix(in srgb, var(--store-panel-bg) 96%, transparent);
+  box-shadow: var(--card-shadow);
+  display: grid;
+  gap: 4px;
+  z-index: 10;
+}
+.storeHeroActionsMenuItem {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   align-items: center;
-  justify-content: flex-end;
-  pointer-events: auto;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.storeHeroActionsMenuItem:hover {
+  background: color-mix(in srgb, var(--store-panel-highlight-bg) 24%, transparent);
+}
+.storeHeroActionsMenuItem svg {
+  flex-shrink: 0;
 }
 .storeBadge {
   display: inline-flex;
@@ -1055,6 +1181,9 @@
 	  min-height: 0;
 	  align-items: start;
 	}
+.storeGrid[data-inline-cart="false"] {
+  grid-template-columns: minmax(0, 1fr);
+}
 	.storeHeroFeatured {
 	  display: grid;
 	  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1497,6 +1626,7 @@
   display: grid;
   gap: clamp(18px, 2vw, 24px);
   min-width: 0;
+  min-height: 0;
 }
 	.storeProductCard {
 	  display: flex;
@@ -1572,6 +1702,7 @@
 	  align-items: center;
 	  justify-content: space-between;
 	  gap: 8px;
+	  flex-wrap: wrap;
 	}
 	.storeProductTopLeft {
 	  display: inline-flex;
@@ -1582,7 +1713,8 @@
 	.storeProductTopActions {
 	  display: inline-flex;
 	  align-items: center;
-	  gap: 8px;
+	  gap: 6px;
+	  flex-wrap: wrap;
 	}
 	.storeReorderControls {
 	  display: inline-flex;
@@ -1813,13 +1945,21 @@
     color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 5%, transparent);
 }
 .storeCheckoutCard {
-  background: color-mix(
-    in srgb,
-    var(--surface-overlay, rgba(10, 14, 30, 0.72)) 90%,
-    var(--store-panel-highlight-bg) 30%
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-radius: 20px;
+  border: 1px solid var(--live-chat-border, var(--store-panel-highlight-border));
+  background:
+    radial-gradient(
+      140% 160% at 0% 0%,
+      color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 96%, transparent);
+  box-shadow: var(
+    --live-chat-shadow,
+    var(--capsule-live-chat-shadow, 0 18px 40px rgba(0, 0, 0, 0.32))
   );
-  border: 1px solid var(--store-panel-highlight-border);
-  box-shadow: var(--store-primary-shadow);
 }
 .storeSupportPanel {
   background: color-mix(
@@ -1847,6 +1987,42 @@
   margin: 4px 0 0;
   font-size: 0.85rem;
   color: var(--text-2, rgba(203, 213, 225, 0.8));
+}
+.storeCartBody {
+  padding: 4px 0 10px;
+  min-height: 0;
+  display: grid;
+  gap: 10px;
+}
+.storeCartFooter {
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid
+    var(--live-chat-divider, var(--store-panel-border, rgba(255, 255, 255, 0.12)));
+  display: grid;
+  gap: 10px;
+}
+.storeCartHeaderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: radial-gradient(
+      160% 160% at 0% 0%,
+      color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 80%, transparent);
+  box-shadow:
+    0 14px 30px color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent),
+    0 0 0 1px color-mix(in srgb, rgba(15, 23, 42, 0.9) 70%, transparent);
+  color: var(--text-on-brand, #f8fafc);
+}
+.storeCartHeaderMeta {
+  display: grid;
+  gap: 2px;
 }
 .storeCartList {
   margin: 0;
@@ -1877,8 +2053,15 @@
   color: var(--text, rgba(255, 255, 255, 0.95));
 }
 .storeCartItem {
-  border-bottom: 1px solid color-mix(in srgb, var(--store-panel-border) 80%, transparent);
-  padding-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--store-panel-border, rgba(148, 163, 184, 0.45)) 88%, transparent);
+  background: linear-gradient(
+    180deg,
+    rgba(21, 26, 60, 0.94),
+    rgba(10, 14, 32, 0.96)
+  );
 }
 .storeCartControls {
   display: inline-flex;
@@ -1892,6 +2075,66 @@
   text-align: center;
   font-weight: 700;
   color: var(--text, rgba(255, 255, 255, 0.95));
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(12, 18, 40, 0.9)) 86%,
+    rgba(15, 23, 42, 0.95) 14%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 6px 18px rgba(15, 23, 42, 0.85);
+}
+.storeCartSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  color: var(--text-2, rgba(203, 213, 225, 0.82));
+}
+.storeCartSummary strong {
+  font-size: 1rem;
+  color: var(--text, rgba(255, 255, 255, 0.98));
+}
+.storeCartEmpty {
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  text-align: left;
+  color: var(--live-chat-placeholder-fg, var(--text-2, rgba(203, 213, 225, 0.82)));
+  background: linear-gradient(
+    135deg,
+    rgba(17, 24, 48, 0.95),
+    rgba(8, 12, 30, 0.9)
+  );
+  border: 1px dashed
+    color-mix(in srgb, var(--store-panel-border, rgba(148, 163, 184, 0.45)) 86%, transparent);
+}
+.storeProductTopActionButton {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--store-action-border);
+  background: var(--store-action-bg);
+  color: var(--text-2, rgba(203, 213, 225, 0.9));
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.storeProductTopActionButton:hover {
+  color: var(--text, rgba(255, 255, 255, 0.96));
+  box-shadow: var(--store-action-shadow-hover);
+}
+.storeProductFooter {
+  display: grid;
+  gap: 10px;
+  align-items: flex-start;
+}
+.storeProductStatus {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text-2, rgba(203, 213, 225, 0.8)) 85%, transparent);
 }
 .storePrimaryButton {
   justify-self: stretch;
@@ -2282,9 +2525,9 @@
   .storePrompterWrap {
     width: min(100%, clamp(520px, 82vw, 720px));
   }
-  .storeBannerFrame {
-    width: min(100%, clamp(520px, 90vw, 820px));
-  }
+    .storeBannerFrame {
+      width: min(100%, clamp(520px, 90vw, 820px));
+    }
   .storeBannerActions {
     position: static;
     justify-content: flex-start;
@@ -2314,16 +2557,13 @@
     width: 100%;
     min-width: 0;
   }
-  .storeBannerFrame {
-    width: 100%;
-  }
-  .storeBannerActions {
-    gap: 10px;
-  }
-	  .storeBannerSurface {
-	    aspect-ratio: 16 / 9;
-	    min-height: 180px;
-	  }
+    .storeBannerFrame {
+      width: 100%;
+      min-height: 180px;
+    }
+    .storeBannerActions {
+      gap: 10px;
+    }
 	  .checkoutSheet {
 	    width: 100%;
 	  }

@@ -3,27 +3,26 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import styles from "./styles";
-import lightboxStyles from "@/components/home-feed.module.css";
 import {
   X,
   Sparkle,
   Brain,
-  List,
-  SidebarSimple,
   FileText,
   FolderSimple,
-  MagnifyingGlass,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
+import { ComposerFooter } from "./components/ComposerFooter";
+import { ComposerViewer } from "./components/ComposerViewer";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
+import { ComposerToolbar } from "./components/ComposerToolbar";
 import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
 import { usePollBuilder } from "./features/poll-builder/usePollBuilder";
 import { PollBuilderCard } from "./features/poll-builder/PollBuilderCard";
-import type { ComposerContextSnapshot } from "./ComposerProvider";
+import type { ComposerContextSnapshot, ComposerChoice } from "./types";
 import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
@@ -32,7 +31,6 @@ import type {
   PromptSubmitOptions,
 } from "./types";
 
-import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
 import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
@@ -44,7 +42,7 @@ import type {
   SummaryPresentationOptions,
 } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
-import type { SearchOpenDetail, SearchSelectionPayload } from "@/types/search";
+import type { SearchSelectionPayload } from "@/types/search";
 import { useCurrentUser } from "@/services/auth/client";
 import {
   useAttachmentRail,
@@ -62,15 +60,67 @@ import {
   type SidebarListItem,
   type SidebarTabKey,
 } from "./panes/SidebarPane";
-import {
-  COMPOSER_IMAGE_QUALITY_OPTIONS,
-  titleCaseComposerQuality,
-} from "@/lib/composer/image-settings";
-
-const SEARCH_EVENT_NAME = "capsules:search:open";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
+
+const ASSET_KIND_OPTIONS = [
+  { key: "text", label: "Text" },
+  { key: "image", label: "Image" },
+  { key: "video", label: "Video" },
+  { key: "poll", label: "Poll" },
+];
+
+type MemoryPreset = { key: string; label: string; description: string; prompt: string };
+
+const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
+  {
+    key: "hook",
+    label: "Punchy hook",
+    description: "Start with a scroll-stopping opener.",
+    prompt: "Draft a punchy first line for this update.",
+  },
+  {
+    key: "summary",
+    label: "Quick summary",
+    description: "Condense the draft into a crisp takeaway.",
+    prompt: "Summarize the core idea in two sentences.",
+  },
+  {
+    key: "cta",
+    label: "Call to action",
+    description: "Close with a clear next step for readers.",
+    prompt: "Add a concise call-to-action that fits this draft.",
+  },
+];
+
+const normalizeComposerKind = (kind?: string | null): "text" | "image" | "video" | "poll" => {
+  const normalized = (kind ?? "").toLowerCase();
+  if (normalized === "image" || normalized === "video" || normalized === "poll") return normalized;
+  return "text";
+};
+
+const getPromptPlaceholder = (kind?: string | null): string => {
+  const normalized = normalizeComposerKind(kind);
+  if (normalized === "image") return "Describe the image you want to create.";
+  if (normalized === "video") return "Describe the clip or story you want to capture.";
+  if (normalized === "poll") return "Ask a question and add options.";
+  return "What should we compose?";
+};
+
+const getFooterHint = (kind?: string | null): string => {
+  const normalized = normalizeComposerKind(kind);
+  if (normalized === "image") return "Add a description so we can generate visuals.";
+  if (normalized === "video") return "Add context for the edit or clip you want.";
+  if (normalized === "poll") return "Add a question and options, then share it.";
+  return "Draft your post, then save or publish.";
+};
+
+const resolveKindLabel = (kind?: string | null): string => {
+  const normalized = normalizeComposerKind(kind);
+  const match = ASSET_KIND_OPTIONS.find((option) => option.key === normalized);
+  return match?.label ?? "Text";
+};
 
 const PromptPane = dynamic<PromptPaneProps>(
   () => import("./panes/PromptPane").then((mod) => mod.PromptPane),
@@ -97,532 +147,6 @@ const MobileSidebarMenu = dynamic<MobileSidebarMenuProps>(
   { ssr: false, loading: () => null },
 );
 
-type ComposerToolbarProps = {
-  activeKey: string;
-  onSelectKind: (key: string) => void;
-  onClose: () => void;
-  disabled: boolean;
-  smartContextEnabled: boolean;
-  onToggleContext: () => void;
-  contextActive: boolean;
-  imageQuality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number];
-  onQualityChange: (quality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]) => void;
-  onMenuToggle?: () => void;
-  mobileRailOpen?: boolean;
-  onPreviewToggle?: () => void;
-  previewOpen?: boolean;
-  isMobile?: boolean;
-  onSearchSelect?: (payload: SearchSelectionPayload) => void;
-};
-
-function ComposerToolbar({
-  activeKey: _activeKey,
-  onSelectKind: _onSelectKind,
-  onClose,
-  disabled,
-  smartContextEnabled,
-  onToggleContext,
-  contextActive,
-  imageQuality,
-  onQualityChange,
-  onMenuToggle: _onMenuToggle,
-  mobileRailOpen: _mobileRailOpen,
-  onPreviewToggle,
-  previewOpen,
-  isMobile,
-  onSearchSelect,
-}: ComposerToolbarProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const handleSearchClick = React.useCallback(() => {
-    if (typeof window === "undefined") return;
-    const detail: SearchOpenDetail | undefined =
-      typeof onSearchSelect === "function"
-        ? { mode: "composer", onSelect: onSearchSelect }
-        : undefined;
-    window.dispatchEvent(
-      detail
-        ? new CustomEvent<SearchOpenDetail>(SEARCH_EVENT_NAME, { detail })
-        : new CustomEvent(SEARCH_EVENT_NAME),
-    );
-  }, [onSearchSelect]);
-
-  const cycleQuality = React.useCallback(() => {
-    const options = COMPOSER_IMAGE_QUALITY_OPTIONS;
-    const currentIndex = options.indexOf(imageQuality);
-    const next = options[(currentIndex + 1) % options.length] ?? "standard";
-    onQualityChange(next);
-  }, [imageQuality, onQualityChange]);
-
-  if (isMobile) {
-    const contextLabel = smartContextEnabled ? "Context on" : "Context off";
-    return (
-      <>
-        <button
-          type="button"
-          className={styles.closeIcon}
-          onClick={onClose}
-          aria-label="Close composer"
-        >
-          <X size={18} weight="bold" />
-        </button>
-        <header className={styles.mobileToolbar} aria-label="Composer controls">
-          <div className={styles.mobileMenuWrap}>
-            <button
-              type="button"
-              className={styles.mobileMenuButton}
-              onClick={() => setMobileMenuOpen((open) => !open)}
-              aria-expanded={mobileMenuOpen}
-              aria-haspopup="true"
-              disabled={disabled}
-            >
-              <List size={18} weight="bold" />
-            </button>
-            {mobileMenuOpen ? (
-              <div className={styles.mobileMenuSheet} role="menu">
-                <button
-                  type="button"
-                  className={styles.mobileMenuItem}
-                  onClick={() => setMobileMenuOpen(false)}
-                  role="menuitem"
-                >
-                  <FileText size={18} weight="duotone" />
-                  <span>Recent chats</span>
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileMenuItem}
-                  onClick={() => setMobileMenuOpen(false)}
-                  role="menuitem"
-                >
-                  <FolderSimple size={18} weight="duotone" />
-                  <span>Saved drafts</span>
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileMenuItem}
-                  onClick={() => setMobileMenuOpen(false)}
-                  role="menuitem"
-                >
-                  <SidebarSimple size={18} weight="duotone" />
-                  <span>Projects</span>
-                </button>
-                <button
-                  type="button"
-                  className={styles.mobileMenuItem}
-                  onClick={() => setMobileMenuOpen(false)}
-                  role="menuitem"
-                >
-                  <Sparkle size={18} weight="duotone" />
-                  <span>Memories</span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.mobileMenuItem} ${styles.mobileMenuToggle}`.trim()}
-                  onClick={() => {
-                    onToggleContext();
-                    setMobileMenuOpen(false);
-                  }}
-                  role="menuitemcheckbox"
-                  aria-checked={smartContextEnabled}
-                  disabled={disabled}
-                >
-                  <SidebarSimple size={18} weight="duotone" />
-                  <span>{contextLabel}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.mobileMenuItem} ${styles.mobileMenuToggle}`.trim()}
-                  onClick={cycleQuality}
-                  role="menuitem"
-                  disabled={disabled}
-                >
-                  <Sparkle size={18} weight="duotone" />
-                  <span>Image: {titleCaseComposerQuality(imageQuality)}</span>
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            className={styles.mobileSearch}
-            onClick={handleSearchClick}
-            disabled={disabled}
-            aria-label="Search"
-          >
-            <MagnifyingGlass size={16} weight="duotone" />
-            <span>Search</span>
-          </button>
-
-          {onPreviewToggle ? (
-            <button
-              type="button"
-              className={styles.mobilePreviewBtn}
-              onClick={onPreviewToggle}
-              aria-label="Toggle preview"
-              aria-pressed={previewOpen}
-              data-active={previewOpen ? "true" : undefined}
-              disabled={disabled}
-            >
-              <SidebarSimple size={18} weight="bold" />
-            </button>
-          ) : null}
-        </header>
-      </>
-    );
-  }
-
-  return (
-    <header
-      className={styles.panelToolbar}
-      data-context-active={contextActive ? "true" : undefined}
-    >
-      <div className={styles.toolbarHeading}>
-        <div className={styles.toolbarBrandRow}>
-          <span className={styles.memoryLogo} aria-label="Memory">
-            <Brain size={18} weight="duotone" />
-          </span>
-          <div className={styles.imageControls}>
-            <label className={styles.imageControl}>
-              <span className={styles.imageControlLabel}>Image Quality</span>
-              <select
-                className={styles.imageSelect}
-                value={imageQuality}
-                onChange={(event) =>
-                  onQualityChange(event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number])
-                }
-                disabled={disabled}
-              >
-                {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
-                  <option key={quality} value={quality}>
-                    {titleCaseComposerQuality(quality)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.headerSearch}>
-        <button
-          type="button"
-          className={styles.toolbarSearchBtn}
-          onClick={handleSearchClick}
-          disabled={disabled}
-          aria-label="Open search"
-          title="Search memories, capsules, and more"
-        >
-          <MagnifyingGlass size={18} weight="duotone" />
-          <span className={styles.toolbarSearchLabel}>Search</span>
-        </button>
-      </div>
-
-      <div className={styles.headerActions}>
-        <button
-          type="button"
-          className={styles.smartContextToggle}
-          onClick={onToggleContext}
-          aria-pressed={smartContextEnabled}
-          disabled={disabled}
-          data-active={smartContextEnabled ? "true" : undefined}
-          title={
-            smartContextEnabled
-              ? "Auto context is on. Click to turn off."
-              : "Auto context is off. Click to turn on."
-          }
-        >
-          <span>Auto context</span>
-        </button>
-      </div>
-
-      <button
-        type="button"
-        className={styles.closeIcon}
-        onClick={onClose}
-        aria-label="Close composer"
-      >
-        <X size={18} weight="bold" />
-      </button>
-    </header>
-  );
-}
-
-type ComposerFooterProps = {
-  footerHint: string;
-  privacy: ComposerFormState["privacy"];
-  onPrivacyChange: (value: ComposerFormState["privacy"]) => void;
-  loading: boolean;
-  attachmentUploading: boolean;
-  onClose: () => void;
-  onSave: () => void;
-  onPreviewToggle: () => void;
-  previewOpen: boolean;
-  onPost: () => void;
-  canSave: boolean;
-  canPost: boolean;
-  saving: boolean;
-};
-
-function ComposerFooter({
-  footerHint,
-  privacy,
-  onPrivacyChange,
-  loading,
-  attachmentUploading: _attachmentUploading,
-  onClose,
-  onSave,
-  onPreviewToggle,
-  previewOpen,
-  onPost,
-  canSave,
-  canPost,
-  saving,
-}: ComposerFooterProps) {
-  const showFooterHint = Boolean(footerHint && footerHint.trim().length > 0);
-
-  return (
-    <footer className={styles.panelFooter}>
-      <div className={styles.footerLeft}>
-        {showFooterHint ? <p className={styles.footerHint}>{footerHint}</p> : null}
-        <label className={styles.privacyGroup}>
-          <span className={styles.privacyLabel}>Visibility</span>
-          <select
-            aria-label="Visibility"
-            className={styles.privacySelect}
-            value={privacy}
-            onChange={(event) => {
-              const nextValue = (event.target.value || "public") as ComposerFormState["privacy"];
-              onPrivacyChange(nextValue);
-            }}
-            disabled={loading}
-          >
-            <option value="public">Public</option>
-            <option value="private">Private</option>
-          </select>
-        </label>
-      </div>
-      <div className={styles.footerActions}>
-        <button
-          type="button"
-          className={styles.cancelAction}
-          onClick={onClose}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          className={styles.secondaryAction}
-          onClick={onSave}
-          disabled={!canSave || saving}
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-        <button
-          type="button"
-          className={styles.previewToggle}
-          onClick={onPreviewToggle}
-          aria-pressed={previewOpen}
-          aria-controls="composer-preview-pane"
-        >
-          Preview
-        </button>
-        <button type="button" className={styles.primaryAction} onClick={onPost} disabled={!canPost}>
-          Post
-        </button>
-      </div>
-    </footer>
-  );
-}
-
-type ComposerViewerProps = {
-  open: boolean;
-  attachment: LocalAttachment | null;
-  attachmentKind: string | null;
-  attachmentFullUrl: string | null;
-  attachmentDisplayUrl: string | null;
-  attachmentPreviewUrl: string | null;
-  attachmentCaption: string | null;
-  attachmentMemoryPrompt: string | null;
-  onClose: () => void;
-  onRemoveAttachment: () => void;
-  onSelectSuggestion: (prompt: string) => void;
-  vibeSuggestions: Array<{ label: string; prompt: string }>;
-};
-
-function ComposerViewer({
-  open,
-  attachment,
-  attachmentKind,
-  attachmentFullUrl,
-  attachmentDisplayUrl,
-  attachmentPreviewUrl,
-  attachmentCaption,
-  attachmentMemoryPrompt,
-  onClose,
-  onRemoveAttachment,
-  onSelectSuggestion,
-  vibeSuggestions,
-}: ComposerViewerProps) {
-  if (!open || !attachment || attachment.status !== "ready") {
-    return null;
-  }
-
-  const isVideo = attachmentKind === "video";
-
-  return (
-    <div className={lightboxStyles.lightboxOverlay} role="dialog" aria-modal="true" onClick={onClose}>
-      <div className={lightboxStyles.lightboxContent} onClick={(event) => event.stopPropagation()}>
-        <button
-          type="button"
-          className={lightboxStyles.lightboxClose}
-          aria-label="Close preview"
-          onClick={onClose}
-        >
-          <X size={18} weight="bold" />
-        </button>
-        <div className={lightboxStyles.lightboxBody}>
-          <div className={lightboxStyles.lightboxMedia}>
-            {isVideo ? (
-              <video className={lightboxStyles.lightboxVideo} src={attachmentFullUrl ?? undefined} controls autoPlay />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                className={lightboxStyles.lightboxImage}
-                src={attachmentFullUrl ?? attachmentDisplayUrl ?? attachmentPreviewUrl ?? undefined}
-                alt={attachment.name}
-              />
-            )}
-          </div>
-          <div className={styles.viewerCaption}>{attachmentCaption ?? attachment.name}</div>
-          {attachmentMemoryPrompt ? (
-            <div className={styles.viewerSubcaption}>{attachmentMemoryPrompt}</div>
-          ) : null}
-        </div>
-        <div className={styles.viewerActions}>
-          {vibeSuggestions.map((suggestion) => (
-            <button
-              key={`viewer-${suggestion.prompt}`}
-              type="button"
-              className={styles.viewerActionBtn}
-              onClick={() => {
-                onSelectSuggestion(suggestion.prompt);
-                onClose();
-              }}
-            >
-              {suggestion.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={styles.viewerRemoveBtn}
-            onClick={() => {
-              onRemoveAttachment();
-              onClose();
-            }}
-          >
-            Remove
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type MemoryPreset = {
-  key: string;
-  label: string;
-  description: string;
-  prompt: string;
-};
-
-const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
-  {
-    key: "ai-launch-post",
-    label: "AI Generated Launch Post",
-    description: "Blueprint",
-    prompt: "Write a launch announcement that blends optimism with a daring tone.",
-  },
-  {
-    key: "ai-community-poll",
-    label: "Community Pulse Check",
-    description: "Blueprint",
-    prompt: "Draft a poll that helps us understand what the community wants next.",
-  },
-  {
-    key: "visual-logo",
-    label: "Logo Direction",
-    description: "Blueprint",
-    prompt: "Explore a logo treatment that mixes playful gradients with crisp typography.",
-  },
-  {
-    key: "weekly-recap",
-    label: "Weekly Recap",
-    description: "Blueprint",
-    prompt: "Summarize the weekâ€™s highlights with sections for wins, shoutouts, and next moves.",
-  },
-];
-
-const ASSET_KIND_OPTIONS = [
-  { key: "text", label: "Post" },
-  { key: "poll", label: "Poll" },
-  { key: "image", label: "Visual" },
-  { key: "video", label: "Video" },
-  { key: "document", label: "Document" },
-  { key: "tournament", label: "Tournament" },
-];
-
-const KIND_FALLBACK_LABELS: Record<string, string> = {
-  text: "Post",
-  poll: "Poll",
-  image: "Visual",
-  video: "Video",
-  document: "Document",
-  tournament: "Tournament",
-};
-
-function normalizeComposerKind(value: string | null | undefined): string {
-  const raw = (value ?? "").toLowerCase();
-  if (!raw) return "text";
-  if (raw === "banner" || raw === "visual" || raw === "logo" || raw === "artwork") return "image";
-  if (raw === "reel" || raw === "story" || raw === "clip") return "video";
-  if (raw === "doc" || raw === "deck" || raw === "brief") return "document";
-  if (raw === "tourney" || raw === "bracket") return "tournament";
-  if (raw === "article" || raw === "summary") return "text";
-  return raw;
-}
-
-function resolveKindLabel(kind: string): string {
-  const fallback = KIND_FALLBACK_LABELS[kind];
-  if (fallback) return fallback;
-  if (!kind) return "Post";
-  const first = kind.charAt(0);
-  const rest = kind.slice(1);
-  return `${first.toUpperCase()}${rest}`;
-}
-
-function getPromptPlaceholder(kind: string): string {
-  switch (kind) {
-    case "poll":
-      return "Ask Capsule to craft poll questions or add your own...";
-    case "image":
-      return "Describe the vibe or upload a visual you want to evolve...";
-    case "video":
-      return "Explain the clip, storyboard, or edit youâ€™re dreaming up...";
-    case "document":
-      return "Outline the doc, brief, or playbook you want Capsule AI to draft...";
-    case "tournament":
-      return "Sketch out the tournament structure or let Capsule AI design the bracket...";
-    default:
-      return "Describe what you need Capsule AI to create...";
-  }
-}
-
-function getFooterHint(kind: string): string {
-  void kind;
-  return "";
-}
-
 type MemoryItem = {
   key: string;
   label: string;
@@ -635,7 +159,6 @@ type SaveDialogTarget =
   | { type: "draft" }
   | { type: "attachment"; attachment: ComposerChatAttachment };
 
-export type ComposerChoice = { key: string; label: string };
 function pickFirstMeaningful(...values: Array<string | null | undefined>): string {
   for (const value of values) {
     if (typeof value !== "string") continue;
@@ -2016,7 +1539,7 @@ export function ComposerForm({
       <div className={styles.backdrop} />
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
         <ComposerToolbar
-          activeKey={toggleActiveKey}
+          activeKind={toggleActiveKey}
           onSelectKind={handleKindSelect}
           onClose={onClose}
           disabled={loading}
@@ -2029,7 +1552,6 @@ export function ComposerForm({
           mobileRailOpen={mobileRailOpen}
           onPreviewToggle={handlePreviewToggle}
           previewOpen={previewOpen}
-          isMobile={isMobileLayout}
           onSearchSelect={handleSearchSelection}
         />
 

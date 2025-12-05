@@ -9,9 +9,6 @@ import styles from "./LadderBuilder.module.css";
 import {
   defaultMembersForm,
   defaultSeedForm,
-  defaultRegistrationForm,
-  defaultScheduleForm,
-  defaultScoringForm,
   createEmptyMemberForm,
   SECTION_KEYS,
   type LadderMemberFormValues,
@@ -33,6 +30,7 @@ import {
   type LadderWizardStepId,
 } from "./ladderWizardConfig";
 import { createWizardLifecycleState, msSince, type WizardLifecycleMetrics } from "./lifecycle";
+import { buildGuidedCompletion } from "./guidedCompletion";
 import {
   GUIDED_STEP_ORDER,
   DEFAULT_GUIDED_STEP,
@@ -54,6 +52,7 @@ import {
 import { buildPreviewSnapshot } from "./builderPreview";
 import { useLadderDraft, type PersistedLadderDraft } from "./hooks/useLadderDraft";
 import { createInitialAssistantState, useAssistantState } from "./hooks/useAssistantState";
+import { useGuidedWizardMachine } from "./hooks/useGuidedWizardMachine";
 import { useToastNotifications } from "./hooks/useToastNotifications";
 import LadderWizardView from "./LadderWizardView";
 import type { LadderConfig, LadderSections, LadderVisibility } from "@/types/ladders";
@@ -137,6 +136,20 @@ const parseNumericField = (value: unknown, options?: { min?: number; max?: numbe
 const ASSISTANT_STEPS: GuidedStepId[] = ["blueprint", "title", "summary", "overview", "rules", "shoutouts", "rewards"];
 
 const DEFAULT_WIZARD_START_STEP = (LADDER_WIZARD_STEP_ORDER[0] ?? "basics") as LadderWizardStepId;
+const GUIDED_TO_WIZARD_STEP: Partial<Record<GuidedStepId, LadderWizardStepId>> = {
+  blueprint: "seed",
+  title: "basics",
+  summary: "basics",
+  registration: "format",
+  type: "format",
+  format: "format",
+  overview: "sections",
+  rules: "sections",
+  shoutouts: "sections",
+  rewards: "sections",
+  roster: "roster",
+  review: "review",
+};
 
 export type LadderWizardControllerProps = {
   capsule: CapsuleSummary;
@@ -174,127 +187,6 @@ export function LadderWizardController({
   const offlineToastId = React.useRef<string | null>(null);
   const hasAnnouncedNetwork = React.useRef(false);
   const [isSaving, setSaving] = React.useState(false);
-  const [guidedStep, setGuidedStep] = React.useState<GuidedStepId>(DEFAULT_GUIDED_STEP);
-  const {
-    assistantStateByStep,
-    assistantDraft,
-    assistantIsSending,
-    assistantConversation,
-    createAssistantMessage,
-    updateAssistantState,
-  } = useAssistantState(guidedStep, ASSISTANT_STEPS);
-  const resetBuilderToDefaults = React.useCallback(() => {
-    setForm(createInitialFormState());
-    setMembers(defaultMembersForm());
-    setAiPlan(null);
-    setMeta({ variant: "ladder" });
-    setSeed({ ...defaultSeedForm });
-    setGuidedStep(DEFAULT_GUIDED_STEP);
-    wizardLifecycleRef.current = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
-  }, []);
-  const serializeDraft = React.useCallback(
-    () => ({
-      form,
-      members,
-      seed,
-      meta,
-      guidedStep,
-    }),
-    [form, guidedStep, members, meta, seed],
-  );
-  const hydrateDraft = React.useCallback(
-    (draft: PersistedLadderDraft) => {
-      if (draft.form && typeof draft.form === "object") {
-        const nextForm = draft.form as Partial<LadderBuilderFormState>;
-        setForm((prev) => ({
-          ...prev,
-          ...nextForm,
-          sections: nextForm.sections ?? prev.sections,
-          customSections: Array.isArray(nextForm.customSections) ? nextForm.customSections : prev.customSections,
-          game: nextForm.game ?? prev.game,
-          scoring: nextForm.scoring ?? prev.scoring,
-          schedule: nextForm.schedule ?? prev.schedule,
-          registration: nextForm.registration ?? prev.registration,
-        }));
-      }
-      if (Array.isArray(draft.members)) {
-        setMembers(normalizeMemberList(draft.members));
-      }
-      if (draft.seed && typeof draft.seed === "object") {
-        setSeed({ ...defaultSeedForm, ...draft.seed });
-      }
-      if (draft.meta && typeof draft.meta === "object") {
-        setMeta((prev) => ({ ...prev, ...draft.meta }));
-      }
-      if (
-        draft.guidedStep &&
-        typeof draft.guidedStep === "string" &&
-        GUIDED_STEP_ORDER.includes(draft.guidedStep as GuidedStepId)
-      ) {
-        setGuidedStep(draft.guidedStep as GuidedStepId);
-      }
-    },
-    [setForm, setMembers, setMeta, setGuidedStep, setSeed],
-  );
-  const handleDraftRestored = React.useCallback(
-    (_timestamp: number) => {
-      pushToast({
-        tone: "info",
-        title: "Draft restored",
-        description: "We loaded your latest ladder edits so you can pick up where you left off.",
-      });
-    },
-    [pushToast],
-  );
-  const handleAutosaveError = React.useCallback(
-    (_error?: unknown) => {
-      pushToast({
-        tone: "danger",
-        title: "Autosave failed",
-        description: "We couldn't store the latest draft locally. Review your storage quota and try again.",
-      });
-    },
-    [pushToast],
-  );
-  const { draftRestoredAt, canDiscardDraft, discardDraft } = useLadderDraft({
-    storageKey: draftStorageKey,
-    serializeDraft,
-    hydrateDraft,
-    resetToDefaults: resetBuilderToDefaults,
-    capsuleId: selectedCapsuleId,
-    onDraftRestored: handleDraftRestored,
-    onAutosaveError: handleAutosaveError,
-    tracker: trackLadderEvent,
-  });
-  React.useEffect(() => {
-    const capsuleId = selectedCapsuleId;
-    const lastTracked = lastTrackedCapsuleRef.current;
-    if (lastTracked === capsuleId && lastTracked !== "__init") {
-      return;
-    }
-    lastTrackedCapsuleRef.current = capsuleId;
-    const lifecycle = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
-    lifecycle.currentStepId = DEFAULT_WIZARD_START_STEP;
-    wizardLifecycleRef.current = lifecycle;
-    const action = lastTracked === "__init" ? "initial" : "capsule_switch";
-    trackLadderEvent({
-      event: "ladders.wizard.view",
-      capsuleId,
-      payload: {
-        action,
-        variant: metaVariant,
-        capsulesVisible: capsuleList.length,
-        draftRestored: Boolean(draftRestoredAt),
-        helperDensity: helperDensityVariant,
-      },
-    });
-  }, [capsuleList.length, draftRestoredAt, helperDensityVariant, metaVariant, selectedCapsuleId]);
-  const formContentRef = React.useRef<HTMLDivElement | null>(null);
-  React.useEffect(() => {
-    if (formContentRef.current) {
-      formContentRef.current.focus();
-    }
-  }, [guidedStep]);
   React.useEffect(() => {
     if (!hasAnnouncedNetwork.current) {
       hasAnnouncedNetwork.current = true;
@@ -366,12 +258,6 @@ export function LadderWizardController({
     () => buildPreviewSnapshot(wizardState, selectedCapsule?.id ?? null),
     [selectedCapsule?.id, wizardState],
   );
-  const [guidedVisited, setGuidedVisited] = React.useState<Record<GuidedStepId, boolean>>(() =>
-    GUIDED_STEP_ORDER.reduce((acc, id) => {
-      acc[id] = id === guidedStep;
-      return acc;
-    }, {} as Record<GuidedStepId, boolean>),
-  );
   const stepDefinitionMap = React.useMemo(() => {
     const map = new Map<LadderWizardStepId, (typeof LADDER_WIZARD_STEPS)[number]>();
     LADDER_WIZARD_STEPS.forEach((step) => {
@@ -379,98 +265,6 @@ export function LadderWizardController({
     });
     return map;
   }, []);
-  React.useEffect(() => {
-    setGuidedVisited((prev) => (prev[guidedStep] ? prev : { ...prev, [guidedStep]: true }));
-  }, [guidedStep]);
-
-  const isRegistrationTouched = React.useMemo(() => {
-    const reg = form.registration;
-    const def = defaultRegistrationForm;
-    return (
-      (reg.type && reg.type.trim() && reg.type !== def.type) ||
-      Boolean(reg.maxTeams.trim().length) ||
-      Boolean(reg.requirements?.trim().length) ||
-      Boolean(reg.opensAt?.trim().length) ||
-      Boolean(reg.closesAt?.trim().length)
-    );
-  }, [form.registration]);
-
-  const isBasicsStepTouched = React.useMemo(() => {
-    const game = form.game;
-    const schedule = form.schedule;
-    const scheduleDefaults = defaultScheduleForm;
-    const cadence = schedule.cadence ?? "";
-    const kickoff = schedule.kickoff ?? "";
-    const defCadence = scheduleDefaults.cadence ?? "";
-    const defKickoff = scheduleDefaults.kickoff ?? "";
-    const gameTouched =
-      game.title.trim().length ||
-      game.mode?.trim().length ||
-      game.platform?.trim().length ||
-      game.region?.trim().length;
-    const scheduleTouched =
-      cadence.trim() !== defCadence.trim() ||
-      kickoff.trim() !== defKickoff.trim() ||
-      Boolean(schedule.timezone?.trim().length);
-    return Boolean(gameTouched || scheduleTouched);
-  }, [form.game, form.schedule]);
-
-  const isFormatTouched = React.useMemo(() => {
-    const game = form.game;
-    const scoring = form.scoring;
-    const gameTouched =
-      game.title.trim().length ||
-      game.mode?.trim().length ||
-      game.platform?.trim().length ||
-      game.region?.trim().length;
-    const scoreDefault = defaultScoringForm;
-    const scoringTouched =
-      scoring.system !== scoreDefault.system ||
-      scoring.initialRating.trim() !== scoreDefault.initialRating ||
-      scoring.kFactor.trim() !== scoreDefault.kFactor ||
-      scoring.placementMatches.trim() !== scoreDefault.placementMatches ||
-      Boolean(scoring.decayPerDay?.trim().length) ||
-      Boolean(scoring.bonusForStreak?.trim().length);
-    return Boolean(gameTouched || scoringTouched);
-  }, [form.game, form.scoring]);
-
-  const guidedCompletion = React.useMemo<Record<GuidedStepId, boolean>>(() => {
-    const basicsComplete = {
-      blueprint: guidedVisited.blueprint,
-      title: guidedVisited.title || Boolean(form.name.trim().length),
-      summary: guidedVisited.summary || Boolean(form.summary.trim().length),
-      registration: guidedVisited.registration || isRegistrationTouched,
-      type: guidedVisited.type || isBasicsStepTouched,
-      format: guidedVisited.format || isFormatTouched,
-      overview: guidedVisited.overview || Boolean(form.sections.overview.body?.trim().length),
-      rules: guidedVisited.rules || Boolean(form.sections.rules.body?.trim().length),
-      shoutouts:
-        guidedVisited.shoutouts ||
-        Boolean(
-          form.sections.shoutouts.body?.trim().length || form.sections.shoutouts.bulletsText?.trim().length,
-        ),
-      roster: guidedVisited.roster || members.some((member) => member.displayName.trim().length),
-      rewards: guidedVisited.rewards || Boolean(form.sections.results.body?.trim().length),
-    };
-    const reviewReady = Object.values(basicsComplete).every(Boolean);
-    return {
-      ...basicsComplete,
-      review: reviewReady,
-    };
-  }, [
-    form.name,
-    form.sections.overview.body,
-    form.sections.shoutouts.body,
-    form.sections.shoutouts.bulletsText,
-    form.sections.results.body,
-    form.sections.rules.body,
-    form.summary,
-    members,
-    guidedVisited,
-    isBasicsStepTouched,
-    isFormatTouched,
-    isRegistrationTouched,
-  ]);
   const guidedSummaryIdeas = React.useMemo(() => {
     const summaryOptions: {
       capsuleName?: string | null;
@@ -536,6 +330,135 @@ export function LadderWizardController({
     },
     [pushToast, selectedCapsuleId, stepDefinitionMap, wizardState],
   );
+  const { guidedStep, guidedVisited, selectStep: selectGuidedStep, reset: resetGuidedFlow } = useGuidedWizardMachine({
+    initialStep: DEFAULT_GUIDED_STEP,
+    stepOrder: GUIDED_STEP_ORDER,
+    stepMap: GUIDED_TO_WIZARD_STEP,
+    lifecycleRef: wizardLifecycleRef,
+    validateStep,
+  });
+  const guidedCompletion = React.useMemo(
+    () => buildGuidedCompletion({ form, members, visited: guidedVisited }),
+    [form, members, guidedVisited],
+  );
+  const {
+    assistantStateByStep,
+    assistantDraft,
+    assistantIsSending,
+    assistantConversation,
+    createAssistantMessage,
+    updateAssistantState,
+  } = useAssistantState(guidedStep, ASSISTANT_STEPS);
+  const resetBuilderToDefaults = React.useCallback(() => {
+    setForm(createInitialFormState());
+    setMembers(defaultMembersForm());
+    setAiPlan(null);
+    setMeta({ variant: "ladder" });
+    setSeed({ ...defaultSeedForm });
+    resetGuidedFlow(DEFAULT_GUIDED_STEP);
+    wizardLifecycleRef.current = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
+  }, [resetGuidedFlow]);
+  const serializeDraft = React.useCallback(
+    () => ({
+      form,
+      members,
+      seed,
+      meta,
+      guidedStep,
+    }),
+    [form, guidedStep, members, meta, seed],
+  );
+  const hydrateDraft = React.useCallback(
+    (draft: PersistedLadderDraft) => {
+      if (draft.form && typeof draft.form === "object") {
+        const nextForm = draft.form as Partial<LadderBuilderFormState>;
+        setForm((prev) => ({
+          ...prev,
+          ...nextForm,
+          sections: nextForm.sections ?? prev.sections,
+          customSections: Array.isArray(nextForm.customSections) ? nextForm.customSections : prev.customSections,
+          game: nextForm.game ?? prev.game,
+          scoring: nextForm.scoring ?? prev.scoring,
+          schedule: nextForm.schedule ?? prev.schedule,
+          registration: nextForm.registration ?? prev.registration,
+        }));
+      }
+      if (Array.isArray(draft.members)) {
+        setMembers(normalizeMemberList(draft.members));
+      }
+      if (draft.seed && typeof draft.seed === "object") {
+        setSeed({ ...defaultSeedForm, ...draft.seed });
+      }
+      if (draft.meta && typeof draft.meta === "object") {
+        setMeta((prev) => ({ ...prev, ...draft.meta }));
+      }
+      if (
+        draft.guidedStep &&
+        typeof draft.guidedStep === "string" &&
+        GUIDED_STEP_ORDER.includes(draft.guidedStep as GuidedStepId)
+      ) {
+        resetGuidedFlow(draft.guidedStep as GuidedStepId);
+      } else {
+        resetGuidedFlow(DEFAULT_GUIDED_STEP);
+      }
+    },
+    [resetGuidedFlow, setForm, setMembers, setMeta, setSeed],
+  );
+  const handleDraftRestored = React.useCallback(
+    (_timestamp: number) => {
+      pushToast({
+        tone: "info",
+        title: "Draft restored",
+        description: "We loaded your latest ladder edits so you can pick up where you left off.",
+      });
+    },
+    [pushToast],
+  );
+  const handleAutosaveError = React.useCallback(
+    (_error?: unknown) => {
+      pushToast({
+        tone: "danger",
+        title: "Autosave failed",
+        description: "We couldn't store the latest draft locally. Review your storage quota and try again.",
+      });
+    },
+    [pushToast],
+  );
+  const { draftRestoredAt, canDiscardDraft, discardDraft } = useLadderDraft({
+    storageKey: draftStorageKey,
+    serializeDraft,
+    hydrateDraft,
+    resetToDefaults: resetBuilderToDefaults,
+    capsuleId: selectedCapsuleId,
+    onDraftRestored: handleDraftRestored,
+    onAutosaveError: handleAutosaveError,
+    tracker: trackLadderEvent,
+  });
+  React.useEffect(() => {
+    const capsuleId = selectedCapsuleId;
+    const lastTracked = lastTrackedCapsuleRef.current;
+    if (lastTracked === capsuleId && lastTracked !== "__init") {
+      return;
+    }
+    lastTrackedCapsuleRef.current = capsuleId;
+    const lifecycle = createWizardLifecycleState(DEFAULT_WIZARD_START_STEP);
+    lifecycle.currentStepId = DEFAULT_WIZARD_START_STEP;
+    wizardLifecycleRef.current = lifecycle;
+    resetGuidedFlow(guidedStep);
+    const action = lastTracked === "__init" ? "initial" : "capsule_switch";
+    trackLadderEvent({
+      event: "ladders.wizard.view",
+      capsuleId,
+      payload: {
+        action,
+        variant: metaVariant,
+        capsulesVisible: capsuleList.length,
+        draftRestored: Boolean(draftRestoredAt),
+        helperDensity: helperDensityVariant,
+      },
+    });
+  }, [capsuleList.length, draftRestoredAt, guidedStep, helperDensityVariant, metaVariant, resetGuidedFlow, selectedCapsuleId]);
+  const formContentRef = React.useRef<HTMLDivElement | null>(null);
   const scrollToStepContent = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const node = formContentRef.current;
@@ -543,14 +466,19 @@ export function LadderWizardController({
     const top = node.getBoundingClientRect().top + window.scrollY - 96;
     window.scrollTo({ top, behavior: "smooth" });
   }, []);
+  React.useEffect(() => {
+    if (formContentRef.current) {
+      formContentRef.current.focus();
+    }
+  }, [guidedStep]);
   const handleGuidedStepSelect = React.useCallback(
     (stepId: GuidedStepId) => {
-      setGuidedStep(stepId);
+      selectGuidedStep(stepId);
       if (typeof window !== "undefined") {
         window.requestAnimationFrame(scrollToStepContent);
       }
     },
-    [scrollToStepContent],
+    [scrollToStepContent, selectGuidedStep],
   );
   const handleFormField = React.useCallback(
     (field: "name" | "summary" | "visibility" | "publish", value: string | boolean) => {
@@ -1398,12 +1326,7 @@ export function LadderWizardController({
     );
     if (!confirmDiscard) return;
     discardDraft();
-    setGuidedVisited(
-      GUIDED_STEP_ORDER.reduce((acc, id) => {
-        acc[id] = id === guidedStep;
-        return acc;
-      }, {} as Record<GuidedStepId, boolean>),
-    );
+    resetGuidedFlow(guidedStep);
     pushToast({
       tone: "info",
       title: "Draft cleared",
@@ -1414,7 +1337,7 @@ export function LadderWizardController({
       capsuleId: selectedCapsuleId,
       payload: { action: "discard" },
     });
-  }, [discardDraft, draftStorageKey, guidedStep, pushToast, selectedCapsuleId]);
+  }, [discardDraft, draftStorageKey, guidedStep, pushToast, resetGuidedFlow, selectedCapsuleId]);
 
   React.useEffect(() => {
     void router;

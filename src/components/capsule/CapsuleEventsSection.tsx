@@ -3,6 +3,12 @@
 import * as React from "react";
 
 import { LadderRosterManager } from "@/components/capsule/LadderRosterManager";
+import { LadderReportPanel } from "@/components/capsule/events/LadderReportPanel";
+import { LadderRosterPanel } from "@/components/capsule/events/LadderRosterPanel";
+import { TournamentBracketPanel } from "@/components/capsule/events/TournamentBracketPanel";
+import { buildParticipantPayload } from "@/components/capsule/events/participants";
+import { useLadderReporting } from "@/components/capsule/events/useLadderReporting";
+import { useTournamentBracket } from "@/components/capsule/events/useTournamentBracket";
 import {
   Alert,
   AlertActions,
@@ -19,14 +25,7 @@ import { useLadderChallenges } from "@/hooks/useLadderChallenges";
 import { formatRelativeTime } from "@/lib/composer/sidebar-types";
 import { trackLadderEvent } from "@/lib/telemetry/ladders";
 import { getIdentityAccent } from "@/lib/identity/teams";
-import {
-  buildDoubleEliminationBracket,
-  buildSingleEliminationBracket,
-  type BracketMatch,
-  type BracketRound,
-  type TournamentBracket,
-} from "@/lib/ladders/bracket";
-import type { CapsuleLadderDetail, CapsuleLadderMember, LadderParticipantType } from "@/types/ladders";
+import type { CapsuleLadderDetail, CapsuleLadderMember } from "@/types/ladders";
 import styles from "./CapsuleEventsSection.module.css";
 
 type CapsuleEventsSectionProps = {
@@ -105,13 +104,6 @@ function resolveMatchMode(
   return null;
 }
 
-function extractMemberCapsuleId(member: CapsuleLadderMember | null | undefined): string | null {
-  const metadata = member?.metadata as Record<string, unknown> | null;
-  const capsuleId =
-    metadata && typeof metadata.capsuleId === "string" ? metadata.capsuleId.trim() : null;
-  return capsuleId && capsuleId.length ? capsuleId : null;
-}
-
 function getInitials(name: string): string {
   const trimmed = name.trim();
   if (!trimmed.length) return "??";
@@ -184,16 +176,6 @@ export function CapsuleEventsSection({
   const [activeTab, setActiveTab] = React.useState<LadderTabId>("standings");
   const [selectedLadderId, setSelectedLadderId] = React.useState<string | null>(null);
   const [selectedTournamentId, setSelectedTournamentId] = React.useState<string | null>(null);
-  const [reportStatus, setReportStatus] = React.useState<"idle" | "saving" | "saved">("idle");
-  const [reportForm, setReportForm] = React.useState({
-    ladderId: "",
-    challengeId: "",
-    challengerId: "",
-    opponentId: "",
-    outcome: "challenger",
-    notes: "",
-    proofUrl: "",
-  });
   const [tournamentReportError, setTournamentReportError] = React.useState<string | null>(null);
   const [tournamentReportingMatchId, setTournamentReportingMatchId] = React.useState<string | null>(null);
   const [challengeForm, setChallengeForm] = React.useState({
@@ -201,7 +183,6 @@ export function CapsuleEventsSection({
     opponentId: "",
     note: "",
   });
-  const [challengeMessage, setChallengeMessage] = React.useState<string | null>(null);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [rosterOpen, setRosterOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -232,20 +213,6 @@ export function CapsuleEventsSection({
       return tournamentSummaries[0]?.id ?? null;
     });
   }, [tournamentSummaries]);
-
-  React.useEffect(() => {
-    setReportForm((prev) => ({
-      ...prev,
-      ladderId: selectedLadderId ?? "",
-      challengeId: "",
-      challengerId: "",
-      opponentId: "",
-      proofUrl: "",
-    }));
-    setChallengeForm((prev) => ({ ...prev, challengerId: "", opponentId: "" }));
-    setChallengeMessage(null);
-    setReportStatus("idle");
-  }, [selectedLadderId]);
 
   React.useEffect(() => {
     setTournamentReportError(null);
@@ -351,24 +318,16 @@ export function CapsuleEventsSection({
     membersSnapshot: tournamentMembersSnapshot,
   } = useLadderChallenges({ capsuleId, ladderId: selectedTournamentId });
 
-  const pendingChallenges = React.useMemo(
-    () => challenges.filter((challenge) => challenge.status === "pending"),
-    [challenges],
-  );
-
   const recentHistory = React.useMemo(() => history.slice(0, 4), [history]);
   const tournamentFormat = React.useMemo(
     () => resolveTournamentFormat(selectedTournamentDetail),
     [selectedTournamentDetail],
   );
-  const tournamentBracket: TournamentBracket = React.useMemo(() => {
-    const memberList = tournamentMembers ?? [];
-    const matchHistory = tournamentHistory ?? [];
-    if (tournamentFormat === "double_elimination") {
-      return buildDoubleEliminationBracket(memberList, matchHistory);
-    }
-    return buildSingleEliminationBracket(memberList, matchHistory);
-  }, [tournamentFormat, tournamentHistory, tournamentMembers]);
+  const tournamentBracket = useTournamentBracket({
+    format: tournamentFormat,
+    members: tournamentMembers,
+    history: tournamentHistory,
+  });
 
   const overviewBlock = selectedLadderDetail?.sections?.overview ?? null;
   const rulesBlock = selectedLadderDetail?.sections?.rules ?? null;
@@ -418,25 +377,33 @@ export function CapsuleEventsSection({
       null,
     [tournamentMembers, tournamentMembersSnapshot],
   );
-  const buildParticipantPayload = React.useCallback(
-    (
-      challengerId: string,
-      opponentId: string,
-      mode: string | null,
-      lookup: (memberId: string) => CapsuleLadderMember | null,
-    ): {
-      participantType: LadderParticipantType;
-      challengerCapsuleId?: string | null;
-      opponentCapsuleId?: string | null;
-    } => {
-      const participantType: LadderParticipantType = mode === "capsule_vs_capsule" ? "capsule" : "member";
-      if (participantType !== "capsule") return { participantType };
-      const challengerCapsuleId = extractMemberCapsuleId(lookup(challengerId)) ?? null;
-      const opponentCapsuleId = extractMemberCapsuleId(lookup(opponentId)) ?? null;
-      return { participantType, challengerCapsuleId, opponentCapsuleId };
-    },
-    [],
-  );
+  const {
+    reportForm,
+    reportStatus,
+    challengeMessage,
+    pendingChallenges,
+    setChallengeMessage,
+    handleReportFieldChange,
+    handleSelectChallengeForReport,
+    updateReportForm,
+    handleReportSubmit,
+  } = useLadderReporting({
+    capsuleId,
+    ladderId: selectedLadderId,
+    ladderMatchMode,
+    proofRequired,
+    challenges,
+    createChallenge,
+    resolveChallenge,
+    refreshLadderDetail,
+    findMember,
+    onTrack: trackLadderEvent,
+  });
+
+  React.useEffect(() => {
+    setChallengeForm((prev) => ({ ...prev, challengerId: "", opponentId: "" }));
+    setChallengeMessage(null);
+  }, [selectedLadderId, setChallengeMessage]);
 
   const suggestChallengerId = React.useCallback(
     (opponentId: string) => {
@@ -462,7 +429,7 @@ export function CapsuleEventsSection({
       setActiveNav("ladder");
       setActiveTab("standings");
     },
-    [challengeForm.challengerId, suggestChallengerId],
+    [challengeForm.challengerId, setChallengeMessage, suggestChallengerId],
   );
 
   const handleSelectLadder = React.useCallback(
@@ -545,40 +512,12 @@ export function CapsuleEventsSection({
     selectedLadderSummary?.name,
   ]);
 
-  const handleReportFieldChange = React.useCallback(
-    (name: keyof typeof reportForm, value: string) => {
-      setReportForm((prev) => ({ ...prev, [name]: value }));
-      setReportStatus("idle");
-    },
-    [],
-  );
-
-  const handleSelectChallengeForReport = React.useCallback(
-    (challengeId: string) => {
-      const selected = challenges.find((challenge) => challenge.id === challengeId);
-      if (!selected) {
-        setReportForm((prev) => ({ ...prev, challengeId: "", challengerId: "", opponentId: "", proofUrl: "" }));
-        return;
-      }
-      setReportForm((prev) => ({
-        ...prev,
-        challengeId,
-        challengerId: selected.challengerId,
-        opponentId: selected.opponentId,
-        outcome: "challenger",
-        proofUrl: "",
-      }));
-      setReportStatus("idle");
-    },
-    [challenges],
-  );
-
   const handleChallengeFieldChange = React.useCallback(
     (name: keyof typeof challengeForm, value: string) => {
       setChallengeForm((prev) => ({ ...prev, [name]: value }));
       setChallengeMessage(null);
     },
-    [],
+    [setChallengeMessage],
   );
 
   const handleSubmitChallenge = React.useCallback(
@@ -614,105 +553,30 @@ export function CapsuleEventsSection({
           payload: { action: "challenge_created" },
         });
         setChallengeForm((prev) => ({ ...prev, note: "" }));
-        setReportForm((prev) => ({
-          ...prev,
-          ladderId: selectedLadderId,
+        updateReportForm({
+          ladderId: selectedLadderId ?? "",
           challengerId: challengeForm.challengerId,
           opponentId: challengeForm.opponentId,
           challengeId: "",
-        }));
-      } catch (err) {
-        setChallengeMessage((err as Error).message);
-      }
-    },
-    [
-      buildParticipantPayload,
-      capsuleId,
-      challengeForm.challengerId,
-      challengeForm.note,
-      challengeForm.opponentId,
-      createChallenge,
-      findMember,
-      ladderMatchMode,
-      selectedLadderId,
-    ],
-  );
+        });
+    } catch (err) {
+      setChallengeMessage((err as Error).message);
+    }
+  },
+  [
+    capsuleId,
+    challengeForm.challengerId,
+    challengeForm.note,
+    challengeForm.opponentId,
+    createChallenge,
+    findMember,
+    ladderMatchMode,
+    setChallengeMessage,
+    updateReportForm,
+    selectedLadderId,
+  ],
+);
 
-  const handleReportSubmit = React.useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (!reportForm.ladderId) return;
-      if (!reportForm.challengerId || !reportForm.opponentId) {
-        setReportStatus("idle");
-        setChallengeMessage("Pick both sides for this match.");
-        return;
-      }
-      setReportStatus("saving");
-      try {
-        let challengeId = reportForm.challengeId;
-        const trimmedNotes = reportForm.notes.trim();
-        const trimmedProof = reportForm.proofUrl.trim();
-        const participantPayload = buildParticipantPayload(
-          reportForm.challengerId,
-          reportForm.opponentId,
-          ladderMatchMode,
-          findMember,
-        );
-        if (proofRequired && !trimmedNotes && !trimmedProof) {
-          setReportStatus("idle");
-          setChallengeMessage("Add proof or notes to resolve this match.");
-          return;
-        }
-        if (!challengeId) {
-          const created = await createChallenge({
-            challengerId: reportForm.challengerId,
-            opponentId: reportForm.opponentId,
-            note: trimmedNotes ? trimmedNotes : null,
-            ...participantPayload,
-          });
-          challengeId = created.challenges[0]?.id ?? "";
-        }
-        if (!challengeId) {
-          throw new Error("Unable to create a challenge for this match.");
-        }
-        await resolveChallenge(challengeId, {
-          outcome: reportForm.outcome as "challenger" | "opponent" | "draw",
-          note: trimmedNotes ? trimmedNotes : null,
-          proofUrl: trimmedProof ? trimmedProof : null,
-          ...participantPayload,
-        });
-        trackLadderEvent({
-          event: "ladders.match.report",
-          capsuleId,
-          ladderId: reportForm.ladderId,
-          payload: { outcome: reportForm.outcome, via: reportForm.challengeId ? "challenge" : "ad_hoc" },
-        });
-        await refreshLadderDetail();
-        setReportStatus("saved");
-        setTimeout(() => setReportStatus("idle"), 800);
-      } catch (err) {
-        setReportStatus("idle");
-        setChallengeMessage((err as Error).message);
-      }
-    },
-    [
-      capsuleId,
-      createChallenge,
-      refreshLadderDetail,
-      reportForm.challengeId,
-      reportForm.challengerId,
-      reportForm.ladderId,
-      reportForm.notes,
-      reportForm.proofUrl,
-      reportForm.opponentId,
-      reportForm.outcome,
-      resolveChallenge,
-      proofRequired,
-      buildParticipantPayload,
-      findMember,
-      ladderMatchMode,
-    ],
-  );
   const handleReportTournamentMatch = React.useCallback(
     async (
       match: { id: string; a: CapsuleLadderMember | null; b: CapsuleLadderMember | null },
@@ -763,16 +627,16 @@ export function CapsuleEventsSection({
       } finally {
         setTournamentReportingMatchId(null);
       }
-    },
-    [
-      buildParticipantPayload,
-      createTournamentChallenge,
-      findTournamentMember,
-      refreshTournamentChallenges,
-      refreshTournamentDetail,
-      resolveTournamentChallenge,
-      selectedTournamentId,
-      tournamentChallenges,
+  },
+  [
+    createTournamentChallenge,
+    findTournamentMember,
+    setTournamentReportError,
+    refreshTournamentChallenges,
+    refreshTournamentDetail,
+    resolveTournamentChallenge,
+    selectedTournamentId,
+    tournamentChallenges,
       tournamentMatchMode,
     ],
   );
@@ -1205,177 +1069,6 @@ export function CapsuleEventsSection({
     </div>
   );
 
-  const renderReport = () => (
-    <div className={styles.panelCard}>
-      <div className={styles.reportHeader}>
-        <div>
-          <p className={styles.reportEyebrow}>Match result</p>
-          <h3>Log a match</h3>
-          <p className={styles.reportLead}>
-            Capture a quick result so we can keep ladder standings and streaks in sync.
-          </p>
-        </div>
-        {reportStatus === "saved" ? (
-          <span className={styles.reportStatus} aria-live="polite">
-            Standings updated for this challenge.
-          </span>
-        ) : null}
-      </div>
-      <form className={styles.reportForm} onSubmit={handleReportSubmit}>
-        <div className={styles.reportRow}>
-          <label className={styles.reportField}>
-            <span>Ladder</span>
-            <select
-              value={reportForm.ladderId}
-              onChange={(event) => handleReportFieldChange("ladderId", event.target.value)}
-              required
-            >
-              <option value="" disabled>
-                Select a ladder
-              </option>
-              {ladderSummaries.map((ladder) => (
-                <option key={ladder.id} value={ladder.id}>
-                  {ladder.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.reportField}>
-            <span>Pick a challenge (optional)</span>
-            <select
-              value={reportForm.challengeId}
-              onChange={(event) => handleSelectChallengeForReport(event.target.value)}
-              disabled={!pendingChallenges.length}
-            >
-              <option value="">Ad-hoc result</option>
-              {pendingChallenges.map((challenge) => {
-                const challenger = findMember(challenge.challengerId);
-                const opponent = findMember(challenge.opponentId);
-                return (
-                  <option key={challenge.id} value={challenge.id}>
-                    {challenger?.displayName ?? "Challenger"} vs {opponent?.displayName ?? "Opponent"}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-        </div>
-        <div className={styles.reportRow}>
-          <label className={styles.reportField}>
-            <span>{challengerLabel}</span>
-            <select
-              value={reportForm.challengerId}
-              onChange={(event) => handleReportFieldChange("challengerId", event.target.value)}
-              disabled={Boolean(reportForm.challengeId)}
-              required
-            >
-              <option value="" disabled>
-                Select challenger
-              </option>
-              {sortedStandings.map((member, index) => (
-                <option key={member.id} value={member.id}>
-                  #{member.rank ?? index + 1} {member.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.reportField}>
-            <span>{opponentLabel}</span>
-            <select
-              value={reportForm.opponentId}
-              onChange={(event) => handleReportFieldChange("opponentId", event.target.value)}
-              disabled={Boolean(reportForm.challengeId)}
-              required
-            >
-              <option value="" disabled>
-                Select opponent
-              </option>
-              {sortedStandings.map((member, index) => (
-                <option key={member.id} value={member.id}>
-                  #{member.rank ?? index + 1} {member.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className={styles.reportRow}>
-          <fieldset className={styles.reportOutcome}>
-            <legend>Outcome</legend>
-            <div className={styles.outcomePills}>
-              {[
-                { id: "challenger", label: "Challenger won" },
-                { id: "opponent", label: "Opponent won" },
-                { id: "draw", label: "Draw" },
-              ].map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`${styles.outcomePill} ${reportForm.outcome === option.id ? styles.outcomePillActive : ""}`}
-                  onClick={() => handleReportFieldChange("outcome", option.id)}
-                  aria-pressed={reportForm.outcome === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <label className={styles.reportField} aria-label="Notes">
-            <span>Notes (optional)</span>
-            <textarea
-              value={reportForm.notes}
-              onChange={(event) => handleReportFieldChange("notes", event.target.value)}
-              placeholder="Series score, proof links, or quick context."
-              rows={3}
-            />
-          </label>
-          <label className={styles.reportField} aria-label="Proof link">
-            <span>Proof link{proofRequired ? " (required)" : ""}</span>
-            <Input
-              type="url"
-              inputMode="url"
-              value={reportForm.proofUrl}
-              onChange={(event) => handleReportFieldChange("proofUrl", event.target.value)}
-              placeholder={proofRequired ? "Add a link to match proof" : "Optional proof or VOD link"}
-            />
-            {proofRequired ? (
-              <span className={styles.reportHint}>Proof or notes are required to resolve matches on this ladder.</span>
-            ) : null}
-          </label>
-        </div>
-        {challengeMessage ? (
-          <p className={styles.challengeMessage} role="alert">
-            {challengeMessage}
-          </p>
-        ) : null}
-        <div className={styles.reportActions}>
-          <Button
-            type="submit"
-            size="md"
-            variant="gradient"
-            className={styles.reportPrimaryButton}
-            disabled={
-              !reportForm.ladderId ||
-              reportStatus === "saving" ||
-              !reportForm.challengerId ||
-              !reportForm.opponentId
-            }
-          >
-            {reportStatus === "saving" ? "Saving match..." : "Save match result"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveNav("ladder")}
-            disabled={reportStatus === "saving"}
-          >
-            Back to ladder
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
-
   const renderSearch = () => (
     <div className={styles.panelCard}>
       <div className={styles.searchHeader}>
@@ -1397,205 +1090,6 @@ export function CapsuleEventsSection({
       </div>
     </div>
   );
-
-  const renderRoster = () => (
-    <div className={styles.panelCard}>
-      <div className={styles.searchHeader}>
-        <h3>Manage roster</h3>
-        <p className={styles.sectionEmpty}>
-          Add players, update seeds, and keep standings in sync.
-        </p>
-      </div>
-      <div className={styles.rosterActions}>
-        <Button type="button" size="sm" onClick={() => setRosterOpen(true)} disabled={!selectedLadderSummary}>
-          Open roster manager
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setActiveNav("ladder")}>
-          Back to ladder
-        </Button>
-      </div>
-      <div className={styles.sectionBody}>
-        {selectedLadderSummary ? (
-          <ul className={styles.rosterList}>
-            {sortedStandings.slice(0, 8).map((member) => (
-              <li key={member.id} className={styles.rosterListItem}>
-                <span className={styles.playerName}>{member.displayName}</span>
-                <span className={styles.playerHandle}>
-                  {member.wins}-{member.losses} ({member.rating})
-                </span>
-              </li>
-            ))}
-            {!sortedStandings.length ? <li className={styles.sectionEmpty}>No members yet.</li> : null}
-          </ul>
-        ) : (
-          <p className={styles.sectionEmpty}>Pick a ladder to manage its roster.</p>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderTournaments = () => {
-    if (!tournamentSummaries.length) {
-      return null;
-    }
-    if (tournamentDetailError) {
-      return (
-        <Alert tone="danger">
-          <AlertTitle>Unable to load tournament</AlertTitle>
-          <AlertDescription>{tournamentDetailError}</AlertDescription>
-        </Alert>
-      );
-    }
-    const hasBracket =
-      tournamentBracket.type === "double"
-        ? tournamentBracket.winners.some((round) => round.matches.length) ||
-          tournamentBracket.losers.some((round) => round.matches.length) ||
-          tournamentBracket.finals.some((round) => round.matches.length)
-        : tournamentBracket.rounds.some((round) => round.matches.length);
-    const renderMatchCard = (match: BracketMatch) => {
-      const winnerId = match.winnerId;
-      const reporting = tournamentReportingMatchId === match.id;
-      const canReport = Boolean(match.a && match.b && match.status !== "complete");
-      const aName = match.a?.displayName ?? match.aSource ?? (match.status === "bye" ? "Bye" : "TBD");
-      const bName = match.b?.displayName ?? match.bSource ?? (match.status === "bye" ? "Bye" : "TBD");
-      const aSeed = match.a?.seed ?? null;
-      const bSeed = match.b?.seed ?? null;
-
-      return (
-        <div key={match.id} className={styles.bracketMatch}>
-          <div className={styles.bracketRoundLabel}>
-            Round {match.round} - Match {match.index + 1}
-          </div>
-          <div
-            className={`${styles.bracketSeedRow} ${winnerId && winnerId === match.a?.id ? styles.bracketSeedRowWinner : ""}`}
-          >
-            <span className={styles.bracketSeed}>{aSeed ? `#${aSeed}` : "-"}</span>
-            <span className={styles.bracketTeam}>{aName}</span>
-            {winnerId && winnerId === match.a?.id ? (
-              <span className={styles.bracketStatusPill}>Advances</span>
-            ) : null}
-          </div>
-          <div
-            className={`${styles.bracketSeedRow} ${winnerId && winnerId === match.b?.id ? styles.bracketSeedRowWinner : ""}`}
-          >
-            <span className={styles.bracketSeed}>{bSeed ? `#${bSeed}` : "-"}</span>
-            <span className={styles.bracketTeam}>{bName}</span>
-            {winnerId && winnerId === match.b?.id ? (
-              <span className={styles.bracketStatusPill}>Advances</span>
-            ) : null}
-          </div>
-          {match.history?.note ? <p className={styles.bracketNote}>{match.history.note}</p> : null}
-          <div className={styles.bracketFooter}>
-            <span className={styles.bracketStatusText}>
-              {match.status === "complete"
-                ? "Result saved"
-                : match.status === "bye"
-                  ? "Auto-advance"
-                  : "Awaiting result"}
-            </span>
-            {canReport ? (
-              <div className={styles.bracketActions}>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={reporting || loadingTournamentState}
-                  onClick={() => handleReportTournamentMatch(match, "a")}
-                >
-                  {reporting ? "Saving..." : `${match.a?.displayName ?? "Side A"} wins`}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={reporting || loadingTournamentState}
-                  onClick={() => handleReportTournamentMatch(match, "b")}
-                >
-                  {reporting ? "Saving..." : `${match.b?.displayName ?? "Side B"} wins`}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      );
-    };
-
-    const renderRoundSet = (rounds: BracketRound[], heading?: string) => {
-      const hasRounds = rounds.some((round) => round.matches.length);
-      if (!hasRounds) return null;
-      return (
-        <div className={styles.bracketRounds}>
-          {heading ? <p className={styles.detailEyebrow}>{heading}</p> : null}
-          {rounds.map((round) => (
-            <div key={`round-${heading ?? ""}-${round.round}`} className={styles.bracketRound}>
-              <div className={styles.bracketRoundHeader}>
-                <span>{round.label ?? `Round ${round.round}`}</span>
-              </div>
-              <div className={styles.bracketGrid}>
-                {round.matches.map((match) => renderMatchCard(match))}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    };
-
-    return (
-      <div className={styles.panelCard}>
-        <div className={styles.searchHeader}>
-          <h3>Tournaments</h3>
-          <div className={styles.tournamentSelector}>
-            <select
-              className={styles.ladderSelect}
-              value={selectedTournamentId ?? ""}
-              onChange={(event) => setSelectedTournamentId(event.target.value || null)}
-            >
-              {tournamentSummaries.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name}
-                </option>
-              ))}
-            </select>
-            {selectedTournamentSummary ? (
-              <div className={styles.detailBadges}>
-                <span className={`${styles.statusBadge} ${styles[`tone${statusTone(selectedTournamentSummary.status)}`]}`}>
-                  {formatStatus(selectedTournamentSummary.status)}
-                </span>
-                <span className={styles.badgeSoft}>{formatVisibility(selectedTournamentSummary.visibility)}</span>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        {tournamentDetailLoading ? (
-          <div className={styles.standingsSkeleton} aria-busy="true">
-            <div className={styles.skeletonRow} />
-            <div className={styles.skeletonRow} />
-            <div className={styles.skeletonRow} />
-          </div>
-        ) : tournamentChallengesError ? (
-          <Alert tone="danger">
-            <AlertTitle>Bracket unavailable</AlertTitle>
-            <AlertDescription>{tournamentChallengesError}</AlertDescription>
-          </Alert>
-        ) : hasBracket ? (
-          <>
-            {tournamentBracket.type === "double" ? (
-              <>
-                {renderRoundSet(tournamentBracket.winners, "Winners bracket")}
-                {renderRoundSet(tournamentBracket.losers, "Elimination bracket")}
-                {renderRoundSet(tournamentBracket.finals, "Finals")}
-              </>
-            ) : (
-              renderRoundSet(tournamentBracket.rounds)
-            )}
-          </>
-        ) : (
-          <p className={styles.sectionEmpty}>Add at least two entrants to generate a bracket.</p>
-        )}
-        {tournamentReportError ? <p className={styles.challengeMessage}>{tournamentReportError}</p> : null}
-      </div>
-    );
-  };
   return (
     <>
       <div className={`${styles.shell} ${previewing ? styles.shellPreview : ""}`}>
@@ -1831,7 +1325,22 @@ export function CapsuleEventsSection({
               </div>
             </>
           ) : activeNav === "report" ? (
-            renderReport()
+            <LadderReportPanel
+              ladders={ladderSummaries}
+              sortedStandings={sortedStandings}
+              pendingChallenges={pendingChallenges}
+              reportForm={reportForm}
+              reportStatus={reportStatus}
+              challengeMessage={challengeMessage}
+              challengerLabel={challengerLabel}
+              opponentLabel={opponentLabel}
+              proofRequired={proofRequired}
+              onFieldChange={handleReportFieldChange}
+              onSelectChallenge={handleSelectChallengeForReport}
+              onSubmit={handleReportSubmit}
+              onBackToLadder={() => setActiveNav("ladder")}
+              findMember={findMember}
+            />
           ) : activeNav === "challenges" ? (
             renderActiveChallenges()
           ) : activeNav === "results" ? (
@@ -1839,9 +1348,30 @@ export function CapsuleEventsSection({
           ) : activeNav === "search" ? (
             renderSearch()
           ) : (
-            renderRoster()
+            <LadderRosterPanel
+              selectedLadder={selectedLadderSummary}
+              sortedStandings={sortedStandings}
+              onOpenRoster={() => setRosterOpen(true)}
+              onBackToLadder={() => setActiveNav("ladder")}
+            />
           )}
-        {renderTournaments()}
+        <TournamentBracketPanel
+          tournamentSummaries={tournamentSummaries}
+          selectedTournamentId={selectedTournamentId}
+          selectedTournamentSummary={selectedTournamentSummary}
+          tournamentDetailError={tournamentDetailError}
+          tournamentDetailLoading={tournamentDetailLoading}
+          tournamentChallengesError={tournamentChallengesError}
+          tournamentReportError={tournamentReportError}
+          bracket={tournamentBracket}
+          reportingMatchId={tournamentReportingMatchId}
+          loadingTournamentState={loadingTournamentState}
+          onSelectTournament={(value) => setSelectedTournamentId(value)}
+          onReportMatch={handleReportTournamentMatch}
+          formatStatus={formatStatus}
+          statusTone={statusTone}
+          formatVisibility={formatVisibility}
+        />
         </section>
       </div>
 

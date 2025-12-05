@@ -5,8 +5,7 @@ import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 
 import styles from "./composer/styles";
-import type { ComposerChoice } from "./composer/ComposerForm";
-import type { ComposerContextSnapshot } from "./composer/ComposerProvider";
+import type { ComposerChoice, ComposerContextSnapshot } from "./composer/types";
 import type {
   ComposerVideoStatus,
   ComposerSaveStatus,
