@@ -9,11 +9,13 @@ import {
   type FeedPage,
   type FeedSnapshot,
 } from "@/domain/feed";
+import type { FeedInsert } from "@/domain/feed";
 import { PostsQueryError, queryPosts } from "@/server/posts/services/posts-query";
 import type { PostsQueryInput } from "@/server/posts/types";
 import { ensureUserSession, resolveRequestOrigin } from "@/server/actions/session";
 
-const FEED_LIMIT = 30;
+const INITIAL_FEED_LIMIT = 12;
+const PAGE_FEED_LIMIT = 15;
 
 function computeHydrationKey(posts: FeedPost[], cursor: string | null): string {
   if (cursor) return `cursor:${cursor}`;
@@ -34,7 +36,7 @@ export async function loadHomeFeedAction(): Promise<FeedSnapshot> {
     viewerId: supabaseUserId,
     origin,
     query: {
-      limit: FEED_LIMIT,
+      limit: INITIAL_FEED_LIMIT,
     },
   };
 
@@ -76,7 +78,7 @@ export async function loadHomeFeedPageAction(cursor: string | null): Promise<Fee
     viewerId: supabaseUserId,
     origin,
     query: {
-      limit: FEED_LIMIT,
+      limit: PAGE_FEED_LIMIT,
       before: cursor ?? null,
     },
   };
@@ -84,9 +86,13 @@ export async function loadHomeFeedPageAction(cursor: string | null): Promise<Fee
   try {
     const result = await queryPosts(request);
     const posts = normalizePosts(result.posts ?? []);
+    const inserts = Array.isArray((result as { inserts?: FeedInsert[] | null }).inserts)
+      ? ((result as { inserts?: FeedInsert[] | null }).inserts ?? [])
+      : [];
     return {
       posts,
       cursor: result.cursor ?? null,
+      inserts,
     };
   } catch (error) {
     if (error instanceof PostsQueryError) {
@@ -97,7 +103,7 @@ export async function loadHomeFeedPageAction(cursor: string | null): Promise<Fee
     } else {
       console.error("loadHomeFeedPageAction: posts query failed", error);
     }
-    return { posts: [], cursor: null };
+    return { posts: [], cursor: null, inserts: [] };
   }
 }
 
@@ -110,7 +116,7 @@ export async function fetchHomeFeedSliceAction(
   const limit =
     typeof options.limit === "number" && Number.isFinite(options.limit)
       ? Math.max(1, Math.trunc(options.limit))
-      : FEED_LIMIT;
+      : PAGE_FEED_LIMIT;
 
   const request: PostsQueryInput = {
     viewerId: supabaseUserId,
@@ -128,6 +134,9 @@ export async function fetchHomeFeedSliceAction(
       posts: result.posts ?? [],
       cursor: result.cursor ?? null,
       deleted: result.deleted ?? [],
+      inserts: Array.isArray((result as { inserts?: FeedInsert[] | null }).inserts)
+        ? ((result as { inserts?: FeedInsert[] | null }).inserts ?? [])
+        : [],
     };
   } catch (error) {
     if (error instanceof PostsQueryError) {

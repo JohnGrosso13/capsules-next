@@ -24,6 +24,7 @@ import {
   isLikelyImage,
   normalizeContentType,
   readContentType,
+  extractSafetyDecision,
   type NormalizedAttachment,
 } from "@/server/posts/media";
 import {
@@ -744,6 +745,14 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
                 ? (uploadSessionMap.get(uploadSessionId) ?? null)
                 : null;
               const sessionMetadata = sessionRecord?.metadata ?? null;
+
+              const safetyDecision =
+                extractSafetyDecision(sessionRecord?.metadata) ??
+                extractSafetyDecision(meta) ??
+                extractSafetyDecision(sessionMetadata);
+              if (safetyDecision === "block" || safetyDecision === "review") {
+                return null;
+              }
 
               const storageKey =
                 typeof meta?.storage_key === "string"

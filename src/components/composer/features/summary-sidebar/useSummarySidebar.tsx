@@ -73,18 +73,26 @@ export function useSummarySidebar({
     homeFeedStore.getState,
     homeFeedStore.getState,
   );
+  const feedPosts = React.useMemo(() => {
+    return feedState.items
+      .filter(
+        (item): item is Extract<typeof feedState.items[number], { type: "post"; post: HomeFeedPost }> =>
+          item.type === "post",
+      )
+      .map((item) => item.post);
+  }, [feedState]);
   const summaryPreviewPost = React.useMemo<HomeFeedPost | null>(() => {
     if (!summaryPreviewEntry?.postId) return null;
     const target = summaryPreviewEntry.postId.trim();
     if (!target.length) return null;
-    for (const post of feedState.posts) {
-      if (post.id === target) return post;
+    const found = feedPosts.find((post) => {
+      if (post.id === target) return true;
       const dbId =
         typeof post.dbId === "string" && post.dbId.trim().length ? post.dbId.trim() : null;
-      if (dbId === target) return post;
-    }
-    return null;
-  }, [feedState.posts, summaryPreviewEntry?.postId]);
+      return dbId === target;
+    });
+    return found ?? null;
+  }, [feedPosts, summaryPreviewEntry?.postId]);
 
   const { likePending, memoryPending, isRefreshing } = feedState;
   const previewViewerIdentifiers = React.useMemo(() => new Set<string>(), []);

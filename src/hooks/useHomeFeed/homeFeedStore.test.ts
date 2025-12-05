@@ -48,8 +48,9 @@ describe("homeFeedStore", () => {
     expect(state.hasFetched).toBe(true);
     expect(state.isRefreshing).toBe(false);
     expect(state.cursor).toBe("cursor-1");
-    expect(state.posts).toHaveLength(1);
-    expect(state.posts[0]?.id).toBe("abc");
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0]?.type).toBe("post");
+    expect(state.items[0]?.id).toBe("abc");
     expect(state.isLoadingMore).toBe(false);
   });
 
@@ -77,8 +78,8 @@ describe("homeFeedStore", () => {
     await store.actions.refresh();
 
     const state = store.getState();
-    expect(state.posts).toHaveLength(1);
-    expect(state.posts[0]?.id).toBe("keep");
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0]?.id).toBe("keep");
     expect(state.isLoadingMore).toBe(false);
   });
 
@@ -95,8 +96,8 @@ describe("homeFeedStore", () => {
     await store.actions.refresh();
 
     const state = store.getState();
-    expect(state.posts).toHaveLength(1);
-    expect(state.posts[0]?.id).toBe("fallback");
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0]?.id).toBe("fallback");
   });
 
   it("toggleLike updates state and calls client", async () => {
@@ -111,9 +112,10 @@ describe("homeFeedStore", () => {
 
     expect(toggleLikeMock).toHaveBeenCalledWith({ postId: "remote-1", like: true });
     const state = store.getState();
-    const post = state.posts[0];
-    expect(post?.viewerLiked).toBe(true);
-    expect(post?.likes).toBe(7);
+    const post = state.items[0];
+    expect(post?.type).toBe("post");
+    expect(post && post.type === "post" ? post.post.viewerLiked : null).toBe(true);
+    expect(post && post.type === "post" ? post.post.likes : null).toBe(7);
     expect(state.likePending).toEqual({});
   });
 
@@ -133,9 +135,10 @@ describe("homeFeedStore", () => {
     }
 
     const state = store.getState();
-    const post = state.posts[0];
-    expect(post?.viewerLiked).toBe(false);
-    expect(post?.likes).toBe(4);
+    const post = state.items[0];
+    expect(post?.type).toBe("post");
+    expect(post && post.type === "post" ? post.post.viewerLiked : null).toBe(false);
+    expect(post && post.type === "post" ? post.post.likes : null).toBe(4);
     expect(state.likePending).toEqual({});
   });
 
@@ -164,9 +167,10 @@ describe("homeFeedStore", () => {
     expect(toggleMemoryMock).toHaveBeenCalledWith(
       expect.objectContaining({ postId: "db-post-1", remember: true }),
     );
-    const post = store.getState().posts[0];
-    expect(post?.viewerRemembered).toBe(true);
-    expect(post?.viewer_remembered).toBe(true);
+    const post = store.getState().items[0];
+    expect(post?.type).toBe("post");
+    expect(post && post.type === "post" ? post.post.viewerRemembered : null).toBe(true);
+    expect(post && post.type === "post" ? post.post.viewer_remembered : null).toBe(true);
   });
 
   it("requestFriend sets message and triggers friends refresh", async () => {
@@ -205,20 +209,22 @@ describe("homeFeedStore", () => {
     await store.actions.deletePost("p6");
 
     expect(deleteMock).toHaveBeenCalledWith({ postId: "remote-6" });
-    expect(store.getState().posts).toHaveLength(0);
+    expect(store.getState().items).toHaveLength(0);
   });
 
   it("appendPosts merges posts and updates cursor", () => {
     const store = createHomeFeedStore();
     const initial = store.getState();
-    expect(initial.posts.length).toBeGreaterThan(0);
+    expect(initial.items.length).toBeGreaterThan(0);
 
     const newPost = makePost({ id: "post-2", created_at: "2023-01-03T00:00:00.000Z" });
     store.actions.appendPosts([newPost], "cursor-2");
 
     const state = store.getState();
     expect(state.cursor).toBe("cursor-2");
-    expect(state.posts.some((post) => post.id === "post-2")).toBe(true);
+    expect(
+      state.items.some((item) => item.type === "post" && item.post.id === "post-2"),
+    ).toBe(true);
     expect(state.isLoadingMore).toBe(false);
   });
 

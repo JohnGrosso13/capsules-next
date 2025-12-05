@@ -15,6 +15,48 @@ export type NormalizedAttachment = {
   meta?: Record<string, unknown> | null;
 };
 
+export type SafetyDecision = "allow" | "review" | "block";
+
+function normalizeDecision(value: unknown): SafetyDecision | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "allow" || normalized === "review" || normalized === "block") {
+    return normalized;
+  }
+  return null;
+}
+
+export function extractSafetyDecision(
+  metadata: Record<string, unknown> | null | undefined,
+): SafetyDecision | null {
+  if (!metadata || typeof metadata !== "object") return null;
+
+  const processing = (metadata as { processing?: unknown }).processing;
+  const processingObj =
+    processing && typeof processing === "object" && !Array.isArray(processing)
+      ? (processing as Record<string, unknown>)
+      : null;
+
+  const safetyScan = (metadata as { safety_scan?: unknown }).safety_scan;
+  const safetyScanObj =
+    safetyScan && typeof safetyScan === "object" && !Array.isArray(safetyScan)
+      ? (safetyScan as Record<string, unknown>)
+      : null;
+
+  const candidates = [
+    (metadata as { safety_decision?: unknown }).safety_decision,
+    processingObj ? (processingObj as { safety_decision?: unknown }).safety_decision : null,
+    processingObj ? (processingObj as { decision?: unknown }).decision : null,
+    safetyScanObj ? (safetyScanObj as { decision?: unknown }).decision : null,
+  ];
+
+  for (const candidate of candidates) {
+    const decision = normalizeDecision(candidate);
+    if (decision) return decision;
+  }
+  return null;
+}
+
 export function parsePublicStorageObject(url: string): { bucket: string; key: string } | null {
   try {
     const u = new URL(url);

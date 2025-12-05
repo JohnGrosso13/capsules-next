@@ -20,6 +20,35 @@ export type FeedPoll = {
   userVote?: number | null;
 };
 
+export type FeedInsert = {
+  id: string;
+  type: "promo" | "module" | "post";
+  score?: number | null;
+  slotInterval?: number | null;
+  pinnedAt?: string | null;
+  payload?: Record<string, unknown> | null;
+};
+
+export type FeedItem =
+  | {
+      id: string;
+      type: "post";
+      post: FeedPost;
+      score?: number | null;
+      slotInterval?: number | null;
+      pinnedAt?: string | null;
+      payload?: Record<string, unknown> | null;
+    }
+  | {
+      id: string;
+      type: "promo" | "module";
+      post?: undefined;
+      score?: number | null;
+      slotInterval?: number | null;
+      pinnedAt?: string | null;
+      payload?: Record<string, unknown> | null;
+    };
+
 export type FeedPost = {
   id: string;
   dbId?: string | null;
@@ -62,6 +91,7 @@ export type FeedSnapshot = {
 export type FeedPage = {
   posts: FeedPost[];
   cursor: string | null;
+  inserts?: FeedInsert[] | null;
 };
 
 export type FeedFetchOptions = {
@@ -75,4 +105,5 @@ export type FeedFetchResult = {
   posts: unknown[];
   cursor: string | null;
   deleted: string[];
+  inserts?: FeedInsert[] | null;
 };

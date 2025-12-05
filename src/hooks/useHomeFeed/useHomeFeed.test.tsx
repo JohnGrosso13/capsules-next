@@ -5,7 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { HomeFeedPost } from "./types";
+import type { HomeFeedItem, HomeFeedPost } from "./types";
 
 vi.mock("@/services/auth/client", () => ({
   useCurrentUser: () => ({ user: { id: "user-1" } }),
@@ -37,7 +37,8 @@ vi.mock("@/server/actions/home-feed", () => ({
 }));
 
 let mockState: {
-  posts: HomeFeedPost[];
+  items: HomeFeedItem[];
+  posts?: HomeFeedPost[];
   cursor: string | null;
   likePending: Record<string, boolean>;
   memoryPending: Record<string, boolean>;
@@ -106,6 +107,16 @@ const basePost: HomeFeedPost = {
   attachments: [],
 };
 
+const baseItem: HomeFeedItem = {
+  id: basePost.id,
+  type: "post",
+  post: basePost,
+  score: null,
+  slotInterval: null,
+  pinnedAt: null,
+  payload: null,
+};
+
 let root: Root;
 let container: HTMLElement;
 let latest: ReturnType<typeof useHomeFeed>;
@@ -131,6 +142,7 @@ beforeEach(() => {
   setLoadingMoreMock.mockClear();
   hydrateMock.mockClear();
   mockState = {
+    items: [baseItem],
     posts: [basePost],
     cursor: null,
     likePending: { alpha: true },
@@ -163,9 +175,10 @@ describe("useHomeFeed", () => {
 
     expect(refreshMock).toHaveBeenCalledTimes(1);
     expect(refreshMock).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 30, signal: expect.any(AbortSignal) }),
+      expect.objectContaining({ limit: 15, signal: expect.any(AbortSignal) }),
     );
     expect(latest.posts[0]?.id).toBe("alpha");
+    expect(latest.items[0]?.id).toBe("alpha");
     expect(latest.likePending).toEqual({ alpha: true });
     expect(latest.canRemember).toBe(true);
     expect(typeof latest.refreshPosts).toBe("function");

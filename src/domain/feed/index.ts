@@ -3,6 +3,8 @@ export type {
   FeedFetchOptions,
   FeedFetchResult,
   FeedPage,
+  FeedInsert,
+  FeedItem,
   FeedPoll,
   FeedPost,
   FeedSnapshot,

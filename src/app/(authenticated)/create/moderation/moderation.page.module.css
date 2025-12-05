@@ -222,6 +222,58 @@
     0 8px 20px rgba(15, 23, 42, 0.55);
 }
 
+.queueHeaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.queueBadge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--chip-border);
+  background: linear-gradient(180deg, var(--chip-bg-1), var(--chip-bg-2));
+  box-shadow: var(--chip-shadow);
+}
+
+.queueFilters {
+  margin-top: 8px;
+  padding: 8px 9px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border, var(--surface-outline));
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.queueFilterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filterChip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--chip-border);
+  background: linear-gradient(180deg, var(--chip-bg-1), var(--chip-bg-2));
+  box-shadow: var(--chip-shadow);
+}
+
+.filterChip[data-state="active"] {
+  border-color: var(--chip-active-border);
+  background: linear-gradient(180deg, var(--chip-active-bg-1), var(--chip-active-bg-2));
+  color: var(--text);
+  box-shadow: var(--chip-active-shadow);
+}
+
 .flagList {
   margin-top: 10px;
   display: grid;
@@ -237,8 +289,13 @@
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 253, 0.75);
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(30, 64, 175, 0.4), rgba(15, 23, 42, 0.9));
+    radial-gradient(135% 200% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%), transparent 65%),
+    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+}
+
+.flagTypeColumn {
+  display: grid;
+  gap: 4px;
 }
 
 .flagType {
@@ -248,6 +305,11 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   border: 1px solid rgba(148, 163, 253, 0.9);
+}
+
+.flagMeta {
+  font-size: 0.75rem;
+  color: var(--text-2);
 }
 
 .flagBody {
@@ -263,6 +325,10 @@
 .flagHint {
   font-size: 0.78rem;
   color: var(--text-2);
+}
+
+.flagActor {
+  font-weight: 600;
 }
 
 .flagTags {
@@ -333,161 +399,63 @@
   background: linear-gradient(180deg, rgba(129, 140, 248, 0.18), rgba(79, 70, 229, 0.7));
 }
 
-.presetsRow {
-  margin-top: 10px;
+.flagActionsColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.flagActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
-.presetChip {
+.queueAction,
+.queueActionSecondary {
   padding: 4px 11px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  border: 1px solid rgba(148, 163, 253, 0.8);
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(148, 163, 253, 0.2), rgba(79, 70, 229, 0.2));
+  border: 1px solid var(--chip-border);
+  background: linear-gradient(180deg, var(--chip-bg-1), var(--chip-bg-2));
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
-.presetChip[data-state="active"] {
-  border-color: color-mix(in srgb, var(--color-brand) 65%, var(--color-accent) 35%);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-app) 98%, transparent),
-      color-mix(in srgb, var(--surface-elevated) 94%, transparent)
-    ),
-    radial-gradient(120% 200% at 0% 0%, color-mix(in srgb, var(--color-brand) 25%, var(--color-accent) 25%), transparent 60%);
-  color: var(--text);
-  box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+.queueActionSecondary {
+  border-style: dashed;
 }
 
-.filterGrid {
-  margin-top: 12px;
+.overviewGrid {
+  margin-top: 10px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.filterTile {
+.overviewItem {
   border-radius: 14px;
   padding: 9px 10px;
-  border: 1px solid rgba(148, 163, 253, 0.7);
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
+  border: 1px solid var(--card-border, var(--surface-outline));
+  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
 }
 
-.filterLabel {
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.filterHint {
-  font-size: 0.78rem;
-  color: var(--text-2);
-  margin-top: 3px;
-}
-
-.insightsChart {
-  margin-top: 10px;
-  border-radius: 16px;
-  padding: 10px 12px;
-  position: relative;
-  background:
-    radial-gradient(160% 200% at 0% 0%, color-mix(in srgb, var(--color-brand) 26%, var(--color-accent) 24%), transparent 60%),
-    radial-gradient(160% 200% at 100% 100%, color-mix(in srgb, var(--color-brand-strong) 30%, var(--color-accent) 20%), transparent 60%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
-  box-shadow:
-    0 16px 36px rgba(15, 23, 42, 0.95),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.95);
-}
-
-.insightsGlow {
-  position: absolute;
-  inset: 10px 10px 24px;
-  border-radius: 999px;
-  background: radial-gradient(
-    120% 260% at 0% 0%,
-    color-mix(in srgb, var(--color-brand) 28%, var(--color-accent) 28%),
-    color-mix(in srgb, var(--color-brand-strong) 32%, var(--color-accent) 24%),
-    transparent 70%
-  );
-  opacity: 0.7;
-}
-
-.insightsBars {
-  position: relative;
-  display: flex;
-  gap: 6px;
-  height: 72px;
-  align-items: flex-end;
-}
-
-.insightsBar {
-  flex: 1;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(15, 23, 42, 0.9);
-}
-
-.insightsBar[data-kind="warn"] {
-  height: 32px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-brand) 48%, var(--color-accent) 52%),
-    color-mix(in srgb, var(--color-brand-strong) 62%, var(--color-accent) 38%)
-  );
-  box-shadow:
-    0 0 18px color-mix(in srgb, var(--color-brand) 42%, var(--color-accent) 58%),
-    0 0 30px color-mix(in srgb, var(--color-brand-strong) 48%, var(--color-accent) 52%);
-}
-
-.insightsBar[data-kind="block"] {
-  height: 54px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-brand-strong) 68%, var(--color-accent) 32%),
-    color-mix(in srgb, var(--color-brand-strong) 78%, transparent)
-  );
-  box-shadow:
-    0 0 18px color-mix(in srgb, var(--color-brand-strong) 60%, var(--color-accent) 40%),
-    0 0 30px color-mix(in srgb, var(--color-brand-strong) 70%, transparent);
-}
-
-.insightsAxis {
-  position: relative;
-  margin-top: 6px;
-  display: flex;
-  justify-content: space-between;
+.overviewLabel {
   font-size: 0.72rem;
-}
-
-.insightsRows {
-  margin-top: 10px;
-  display: grid;
-  gap: 4px;
-}
-
-.insightRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 0.78rem;
-}
-
-.insightLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   opacity: 0.8;
 }
 
-.insightValue {
-  text-align: right;
+.overviewValue {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .incidentList {

@@ -31,11 +31,13 @@
   .layout {
     gap: var(--layout-mobile-section-gap);
   }
-  .page[data-layout="home"] {
-    /* Tighten the drop between chips and promo row on mobile */
+  .page[data-layout="home"],
+  .page[data-layout="default"] {
+    /* Tighten the drop between chips and first content row on mobile */
     --layout-prompter-margin-bottom-mobile: clamp(0px, 0.8vw, var(--space-sm));
   }
-  .page[data-layout="home"] .main {
+  .page[data-layout="home"] .main,
+  .page[data-layout="default"] .main {
     gap: clamp(var(--space-sm), 1.6vw, var(--space-md));
   }
 }
@@ -54,8 +56,9 @@
   --app-column-gap: clamp(18px, 2.2vw, 32px);
 }
 
-.page[data-layout="home"] {
-  /* Pull the home prompter closer to the content so the chips sit nearer to the promo row */
+.page[data-layout="home"],
+.page[data-layout="default"] {
+  /* Pull the prompter closer to the content so the chips sit nearer to the first content row */
   --layout-prompter-margin-bottom: clamp(var(--space-xl), 2vw, var(--space-3xl));
   --layout-prompter-margin-bottom-mobile: var(--space-lg-plus);
 }
@@ -85,7 +88,8 @@
 }
 
 @media (min-width: 641px) {
-  .page[data-layout="home"] .main {
+  .page[data-layout="home"] .main,
+  .page[data-layout="default"] .main {
     gap: clamp(var(--space-lg), 1.6vw, var(--space-xl-plus));
   }
   .page[data-layout="capsule"] {
@@ -356,10 +360,12 @@
   .layout {
     gap: var(--layout-mobile-section-gap);
   }
-  .page[data-layout="home"] {
+  .page[data-layout="home"],
+  .page[data-layout="default"] {
     --layout-prompter-margin-bottom-mobile: clamp(0px, 0.8vw, var(--space-sm));
   }
-  .page[data-layout="home"] .main {
+  .page[data-layout="home"] .main,
+  .page[data-layout="default"] .main {
     gap: clamp(var(--space-sm), 1.6vw, var(--space-md));
   }
   .prompterStage {

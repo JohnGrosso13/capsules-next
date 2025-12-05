@@ -54,6 +54,18 @@
   --header-launch-shadow-active: 0 20px 40px
     color-mix(in srgb, var(--header-brand) 45%, transparent);
   --header-launch-text-shadow: 0 1px 1px color-mix(in srgb, var(--app-bg, #050a1b) 60%, transparent);
+  --header-nav-active-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--header-brand) 22%, var(--surface-elevated) 78%),
+    color-mix(in srgb, var(--header-brand-strong) 26%, var(--surface-muted) 74%)
+  );
+  --header-nav-active-border: color-mix(
+    in srgb,
+    var(--header-brand-strong) 72%,
+    var(--header-button-border) 28%
+  );
+  --header-nav-active-glow: 0 10px 28px color-mix(in srgb, var(--header-brand-strong) 32%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--header-brand-strong) 60%, transparent);
   position: fixed;
   inset: 0 auto auto 0;
   top: 0;
@@ -65,19 +77,19 @@
   /* Allow popovers (notifications, menus) to extend outside the header */
   overflow: visible;
   --blur-amount: 14px;
-  /* Softer blend into the app shell: slightly tinted at the top, closer to surface-app at the bottom */
+  /* Keep hue but increase opacity so background content doesn't bleed through */
   --header-glass-top: color-mix(
     in srgb,
-    var(--surface-elevated, rgba(12, 16, 32, 0.92)) 88%,
-    var(--header-brand, #8b5cf6) 12%
+    var(--surface-elevated, rgba(12, 16, 32, 0.98)) 94%,
+    var(--header-brand, #8b5cf6) 6%
   );
   --header-glass-bottom: color-mix(
     in srgb,
-    var(--surface-app, #050a1b) 88%,
-    var(--header-brand-strong, #6366f1) 12%
+    var(--surface-app, #050a1b) 94%,
+    var(--header-brand-strong, #6366f1) 6%
   );
-  --header-tint-from: color-mix(in srgb, var(--header-brand, #8b5cf6) 10%, transparent);
-  --header-tint-to: color-mix(in srgb, var(--header-brand-strong, #6366f1) 8%, transparent);
+  --header-tint-from: color-mix(in srgb, var(--header-brand, #8b5cf6) 8%, transparent);
+  --header-tint-to: color-mix(in srgb, var(--header-brand-strong, #6366f1) 6%, transparent);
   background:
     linear-gradient(180deg, var(--header-glass-top), var(--header-glass-bottom)),
     linear-gradient(180deg, var(--header-tint-from), var(--header-tint-to));
@@ -207,6 +219,7 @@
 }
 
 .navItem {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -223,11 +236,30 @@
     inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 18%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 55%, transparent),
     var(--header-button-shadow);
+  overflow: hidden;
   transition:
     background var(--motion-duration-medium) var(--motion-ease-standard),
     border-color var(--motion-duration-medium) var(--motion-ease-standard),
     color var(--motion-duration-medium) var(--motion-ease-standard),
-    box-shadow var(--motion-duration-medium) var(--motion-ease-standard);
+    box-shadow var(--motion-duration-medium) var(--motion-ease-standard),
+    transform var(--motion-duration-medium) var(--motion-ease-standard);
+}
+.navItem::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    120% 120% at 50% 0%,
+    color-mix(in srgb, var(--header-brand-strong) 35%, transparent),
+    transparent 65%
+  );
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--motion-duration-medium) var(--motion-ease-standard),
+    transform var(--motion-duration-medium) var(--motion-ease-standard);
+  pointer-events: none;
 }
 .navItem:hover {
   background: var(--header-button-hover-bg);
@@ -237,15 +269,29 @@
     inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 24%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 60%, transparent),
     var(--header-button-hover-shadow);
+  transform: translateY(-1px);
+}
+.navItem:hover::after {
+  opacity: 0.28;
+  transform: scale(1);
 }
 .navItemActive {
   color: var(--header-button-hover-text);
-  background: var(--header-button-active-bg);
-  border-color: var(--header-button-active-border);
+  background: var(--header-nav-active-bg);
+  border-color: var(--header-nav-active-border);
   box-shadow:
-    var(--header-button-active-shadow),
-    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 35%, transparent),
+    var(--header-nav-active-glow),
+    inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong) 40%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 55%, transparent);
+}
+.navItemActive::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--header-brand-strong) 70%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--header-brand) 16%, transparent);
+  pointer-events: none;
 }
 
 .actions {
@@ -327,6 +373,7 @@
   transition:
     transform var(--motion-duration-medium) var(--motion-ease-standard),
     opacity var(--motion-duration-medium) var(--motion-ease-standard);
+  animation: none;
   mix-blend-mode: screen;
   pointer-events: none;
 }
@@ -356,8 +403,15 @@
 }
 
 .avatarButton:hover::after {
-  opacity: 0.9;
+  opacity: 1;
   transform: translateX(120%) rotate(4deg);
+  animation: headerAvatarSheen 2.1s ease-in-out 1;
+}
+
+.avatarButton:focus-visible::after {
+  opacity: 1;
+  transform: translateX(120%) rotate(4deg);
+  animation: headerAvatarSheen 2.1s ease-in-out 1;
 }
 
 .clerkAvatarBox {
@@ -388,4 +442,22 @@
 .launchCta:active {
   transform: translateY(0) scale(0.98);
   box-shadow: var(--header-launch-shadow-active) !important;
+}
+
+@keyframes headerAvatarSheen {
+  0% {
+    transform: translateX(-150%) rotate(4deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.8;
+  }
+  40% {
+    transform: translateX(140%) rotate(4deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(160%) rotate(4deg);
+    opacity: 0;
+  }
 }

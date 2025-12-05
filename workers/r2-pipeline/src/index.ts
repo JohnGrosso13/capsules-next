@@ -23,6 +23,26 @@ const MAX_IMAGE_BYTES = 4_500_000;
 const MAX_TEXT_BYTES = 500_000;
 const MAX_AUDIO_BYTES = 25_000_000;
 const SAFETY_JSON_INDENT = 2;
+const EXECUTABLE_EXTENSIONS = new Set([
+  "exe",
+  "dll",
+  "msi",
+  "com",
+  "bat",
+  "cmd",
+  "scr",
+  "pif",
+  "ps1",
+  "psm1",
+  "vbs",
+  "js",
+  "jar",
+  "sh",
+  "run",
+]);
+const ARCHIVE_EXTENSIONS = new Set(["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "zst", "iso"]);
+const EXECUTABLE_MIME_HINTS = ["x-msdownload", "x-msdos-program", "x-msinstaller", "x-executable", "x-dosexec", "x-elf"];
+const ARCHIVE_MIME_HINTS = ["zip", "compressed", "x-7z-compressed", "x-rar-compressed", "x-tar", "x-gtar", "x-bzip2", "x-xz"];
 
 type SafetyDecision = "allow" | "review" | "block";
 type SafetySeverity = "none" | "low" | "medium" | "high";
@@ -356,6 +376,34 @@ async function classifyUploadSafety(
   message: ProcessingTaskMessage,
 ): Promise<SafetyPayload> {
   const contentType = resolveOriginalContentType(message);
+  if (isExecutableLike(message.key, contentType)) {
+    return {
+      status: "succeeded",
+      decision: "block",
+      kind: "unknown",
+      model: null,
+      labels: {},
+      scanned_at: new Date().toISOString(),
+      source: "openai",
+      notes: ["Executable or script file blocked pending malware scan"],
+      reason: "Executable upload blocked",
+      input_bytes: null,
+    };
+  }
+  if (isArchiveLike(message.key, contentType)) {
+    return {
+      status: "succeeded",
+      decision: "review",
+      kind: "unknown",
+      model: null,
+      labels: {},
+      scanned_at: new Date().toISOString(),
+      source: "openai",
+      notes: ["Archive file requires malware scan; defaulting to review"],
+      reason: "Archive upload requires manual review",
+      input_bytes: null,
+    };
+  }
   const normalizedKind = (() => {
     if (contentType?.startsWith("image/")) return "image";
     if (contentType?.startsWith("video/")) return "video";
@@ -1368,6 +1416,29 @@ function decodeBase64(value: string): ArrayBuffer {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes.buffer;
+}
+
+function guessExtensionFromKey(key: string): string | null {
+  const lastDot = key.lastIndexOf(".");
+  if (lastDot === -1) return null;
+  const ext = key.slice(lastDot + 1).toLowerCase();
+  return ext || null;
+}
+
+function isExecutableLike(key: string, contentType: string | null): boolean {
+  const ext = guessExtensionFromKey(key);
+  if (ext && EXECUTABLE_EXTENSIONS.has(ext)) return true;
+  const type = (contentType ?? "").toLowerCase();
+  if (!type) return false;
+  return EXECUTABLE_MIME_HINTS.some((hint) => type.includes(hint));
+}
+
+function isArchiveLike(key: string, contentType: string | null): boolean {
+  const ext = guessExtensionFromKey(key);
+  if (ext && ARCHIVE_EXTENSIONS.has(ext)) return true;
+  const type = (contentType ?? "").toLowerCase();
+  if (!type) return false;
+  return ARCHIVE_MIME_HINTS.some((hint) => type.includes(hint));
 }
 
 export default worker;

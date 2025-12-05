@@ -150,6 +150,22 @@
     z-index: -1;
   }
 
+  .connectionTile::after {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(
+      62% 62% at 50% 50%,
+      color-mix(in srgb, var(--tile-accent-a) 38%, transparent),
+      color-mix(in srgb, var(--tile-accent-b) 28%, transparent) 55%,
+      transparent 78%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+    z-index: -2;
+  }
+
   .connectionTile:hover {
     transform: translateY(-2px);
     border-color: var(
@@ -176,6 +192,11 @@
 
   .connectionTile:hover::before {
     opacity: var(--tile-glow-opacity-hover, 0.5);
+  }
+
+  .connectionTile:hover::after,
+  .connectionTile:focus-visible::after {
+    opacity: var(--tile-hover-halo-opacity, 0.32);
   }
 
   .connectionTileHeader {

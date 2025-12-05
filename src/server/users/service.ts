@@ -2,6 +2,7 @@ import { indexMemory } from "@/server/memories/service";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { serverEnv } from "@/lib/env/server";
+import { enforceSafeText } from "@/server/moderation/text";
 
 import {
   findUserById,
@@ -100,6 +101,17 @@ export async function updateUserProfile(
       name: collapsedName ?? null,
       bio: normalizedBio ?? null,
     };
+  }
+
+  const safetyChecks: Array<{ value: string; field: "name" | "bio"; maxChars: number }> = [];
+  if (typeof collapsedName === "string" && collapsedName.trim().length) {
+    safetyChecks.push({ value: collapsedName, field: "name", maxChars: MAX_DISPLAY_NAME_LENGTH });
+  }
+  if (typeof normalizedBio === "string" && normalizedBio.trim().length) {
+    safetyChecks.push({ value: normalizedBio, field: "bio", maxChars: MAX_BIO_LENGTH });
+  }
+  for (const check of safetyChecks) {
+    await enforceSafeText(check.value, { kind: "profile", maxChars: check.maxChars });
   }
 
   const updated = await updateUserProfileFields({ userId: ownerId, ...payload });

@@ -4,6 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { getUserProfileSummary, updateUserProfile } from "@/server/users/service";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { deriveRequestOrigin } from "@/lib/url";
+import { ModerationError } from "@/server/moderation/text";
 
 const responseSchema = z.object({
   id: z.string(),
@@ -88,6 +89,9 @@ export async function PATCH(req: Request) {
       bio: updated.bio,
     });
   } catch (error) {
+    if (error instanceof ModerationError) {
+      return returnError(error.status, error.code, error.message, error.details);
+    }
     console.error("account.profile update error", error);
     const message =
       error instanceof Error ? error.message : "Failed to update your display name.";

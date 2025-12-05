@@ -7,6 +7,8 @@ import { listCommentsForPost, fetchCommentById } from "@/server/posts/repository
 import { notifyPostComment } from "@/server/notifications/triggers";
 import { CapsuleMembershipError } from "@/server/capsules/domain/common";
 import { ModerationError } from "@/server/moderation/text";
+import { listUploadSessionsByIds } from "@/server/memories/uploads";
+import { extractSafetyDecision } from "@/server/posts/media";
 
 export const runtime = "edge";
 
@@ -35,11 +37,14 @@ function coerceString(value: unknown): string | null {
   return null;
 }
 
-function parseAttachments(value: unknown): CommentAttachmentResponse[] {
+function parseAttachments(
+  value: unknown,
+  safetyDecisions?: Map<string, "allow" | "review" | "block">,
+): CommentAttachmentResponse[] {
   if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
-      return parseAttachments(parsed);
+      return parseAttachments(parsed, safetyDecisions);
     } catch {
       return [];
     }
@@ -82,13 +87,19 @@ function parseAttachments(value: unknown): CommentAttachmentResponse[] {
       source,
     });
   }
-  return attachments;
+  if (!attachments.length || !safetyDecisions?.size) return attachments;
+  return attachments.filter((attachment) => {
+    const decision = attachment.sessionId ? safetyDecisions.get(attachment.sessionId) : null;
+    if (!decision) return true;
+    return decision === "allow";
+  });
 }
 
 function formatCommentRow(
   row: CommentRow,
   rawPostId: string | null,
   resolvedPostId: string | null,
+  safetyDecisions?: Map<string, "allow" | "review" | "block">,
 ) {
   const identifier =
     coerceString(row.client_id) ??
@@ -135,7 +146,10 @@ function formatCommentRow(
         : typeof row.ts === "string"
           ? row.ts
           : new Date().toISOString(),
-    attachments: parseAttachments((row as { attachments?: unknown }).attachments ?? null),
+    attachments: parseAttachments(
+      (row as { attachments?: unknown }).attachments ?? null,
+      safetyDecisions,
+    ),
   };
 }
 
@@ -155,7 +169,34 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to fetch comments" }, { status: 500 });
   }
 
-  const comments = rows.map((row) => formatCommentRow(row as CommentRow, rawPostId, resolved));
+  const sessionIds = new Set<string>();
+  rows.forEach((row) => {
+    const parsed = parseAttachments((row as { attachments?: unknown }).attachments ?? null);
+    parsed.forEach((att) => {
+      if (att.sessionId) sessionIds.add(att.sessionId);
+    });
+  });
+
+  let safetyDecisions: Map<string, "allow" | "review" | "block"> = new Map();
+  if (sessionIds.size) {
+    try {
+      const sessions = await listUploadSessionsByIds(Array.from(sessionIds));
+      safetyDecisions = new Map(
+        sessions
+          .map((session) => {
+            const decision = extractSafetyDecision(session.metadata ?? null);
+            return decision ? ([session.id, decision] as const) : null;
+          })
+          .filter((entry): entry is [string, "allow" | "review" | "block"] => Boolean(entry)),
+      );
+    } catch (sessionError) {
+      console.warn("comments.safety.sessions_lookup_failed", sessionError);
+    }
+  }
+
+  const comments = rows.map((row) =>
+    formatCommentRow(row as CommentRow, rawPostId, resolved, safetyDecisions),
+  );
 
   return NextResponse.json({ success: true, comments });
 }
@@ -176,9 +217,39 @@ export async function POST(req: Request) {
   try {
     const commentId = await persistCommentToDB(comment, userId);
     const persisted = commentId ? await fetchCommentById(commentId) : null;
+
+    const pendingAttachments = persisted
+      ? (persisted as { attachments?: unknown }).attachments
+      : (comment as { attachments?: unknown }).attachments;
+    const parsedAttachments = parseAttachments(pendingAttachments ?? null);
+    const sessionIds = new Set(
+      parsedAttachments.map((att) => att.sessionId).filter((id): id is string => Boolean(id)),
+    );
+    let safetyDecisions: Map<string, "allow" | "review" | "block"> = new Map();
+    if (sessionIds.size) {
+      try {
+        const sessions = await listUploadSessionsByIds(Array.from(sessionIds));
+        safetyDecisions = new Map(
+          sessions
+            .map((session) => {
+              const decision = extractSafetyDecision(session.metadata ?? null);
+              return decision ? ([session.id, decision] as const) : null;
+            })
+            .filter((entry): entry is [string, "allow" | "review" | "block"] => Boolean(entry)),
+        );
+      } catch (sessionError) {
+        console.warn("comments.safety.sessions_lookup_failed", sessionError);
+      }
+    }
+
     const responseComment = persisted
-      ? formatCommentRow(persisted as CommentRow, (comment.postId as string) ?? null, null)
-      : formatCommentRow(comment, (comment.postId as string) ?? null, null);
+      ? formatCommentRow(
+          persisted as CommentRow,
+          (comment.postId as string) ?? null,
+          null,
+          safetyDecisions,
+        )
+      : formatCommentRow(comment, (comment.postId as string) ?? null, null, safetyDecisions);
 
     void notifyPostComment({
       postId: responseComment.postId,

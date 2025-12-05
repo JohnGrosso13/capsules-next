@@ -57,6 +57,7 @@ export function HomeSignedIn({
 
   const {
     posts,
+    items,
     likePending,
     memoryPending,
     friendMessage,
@@ -87,6 +88,25 @@ export function HomeSignedIn({
     }
     return posts;
   }, [externalPost, posts]);
+
+  const itemsWithExternal = useMemo(() => {
+    if (!externalPost) return items;
+    const existing = items ?? [];
+    const alreadyPresent = existing.some(
+      (entry) => entry.type === "post" && entry.post.id === externalPost.id,
+    );
+    if (alreadyPresent) return existing;
+    const injected = {
+      id: externalPost.id,
+      type: "post" as const,
+      post: externalPost,
+      score: null,
+      slotInterval: null,
+      pinnedAt: null,
+      payload: null,
+    };
+    return [injected, ...existing];
+  }, [externalPost, items]);
 
   useEffect(() => {
     const handleLightboxOpen = async (event: Event) => {
@@ -197,7 +217,9 @@ export function HomeSignedIn({
           hasFetched={hasFetched}
           isRefreshing={isRefreshing}
           posts={postsWithExternal}
+          items={itemsWithExternal}
           focusPostId={focusPostId}
+          promoInterval={10}
           onLoadMore={loadMore}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}

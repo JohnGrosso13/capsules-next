@@ -68,6 +68,7 @@ type PostCardProps = {
   onAskDocument(doc: DocumentCardData): void;
   onSummarizeDocument(doc: DocumentCardData): void;
   onCommentClick(post: HomeFeedPost, anchor: HTMLElement): void;
+  priority?: boolean;
 };
 
 export function PostCard({
@@ -96,6 +97,7 @@ export function PostCard({
   onSummarizeDocument,
   onCommentClick,
   variant = "full",
+  priority = false,
 }: PostCardProps) {
   const articleRef = React.useRef<HTMLElement | null>(null);
   const resolvedUserId =
@@ -347,6 +349,7 @@ export function PostCard({
         <FeedMediaGallery
           postId={post.id}
           items={galleryItems}
+          priority={priority}
           onOpenLightbox={onOpenLightbox}
         />
       ) : null}

@@ -4,27 +4,141 @@ import { AppPage } from "@/components/app-page";
 
 import styles from "./insights.page.module.css";
 
-export const metadata: Metadata = {
-  title: "Gaming Insights Studio - Capsules",
-  description:
-    "Upload your matches and let Capsules surface key moments, coaching notes, and a focused practice plan.",
+type SessionMetric = {
+  id: string;
+  label: string;
+  value: string;
+  hint: string;
 };
 
-export default function GamingInsightsPage() {
+type FocusAreaTone = "focus" | "issue";
+
+type FocusArea = {
+  id: string;
+  label: string;
+  hint: string;
+  tone: FocusAreaTone;
+  progress: number;
+};
+
+type PracticeDrill = {
+  id: string;
+  title: string;
+  hint: string;
+  tag: string;
+};
+
+type SessionHistoryItem = {
+  id: string;
+  title: string;
+  hint: string;
+  badgeLabel: string;
+  tone?: "recent";
+};
+
+const SESSION_METRICS: SessionMetric[] = [
+  {
+    id: "sessions",
+    label: "Sessions reviewed",
+    value: "24",
+    hint: "Last 30 days",
+  },
+  {
+    id: "focus",
+    label: "Primary focus",
+    value: "Decision-making",
+    hint: "Confidence under pressure",
+  },
+];
+
+const FOCUS_AREAS: FocusArea[] = [
+  {
+    id: "pace",
+    label: "Pace & energy",
+    hint: "You perform best when you give yourself a beat before big moments instead of rushing in.",
+    tone: "focus",
+    progress: 0.64,
+  },
+  {
+    id: "routines",
+    label: "Daily routines",
+    hint: "You stick to a warmup 2–3 days per week. Extending that streak will make improvements more consistent.",
+    tone: "focus",
+    progress: 0.52,
+  },
+  {
+    id: "communication",
+    label: "Communication & reflection",
+    hint: "You often notice what went wrong after the fact. Short written reflections right after sessions will help.",
+    tone: "issue",
+    progress: 0.38,
+  },
+];
+
+const PRACTICE_DRILLS: PracticeDrill[] = [
+  {
+    id: "drill_anchor",
+    title: "Session 1 – Warmup & focus check-in",
+    hint: "10 minutes of warmup followed by a quick written intention for the session.",
+    tag: "Warmup",
+  },
+  {
+    id: "drill_checkpoints",
+    title: "Session 2 – Decision checkpoints",
+    hint: "Pick two moments where you pause and ask, “What matters most right now?” before you act.",
+    tag: "Mindset",
+  },
+  {
+    id: "drill_reflection",
+    title: "Session 3 – Short reflection loop",
+    hint: "After each game or block, jot down one win, one lesson, and one idea to try next time.",
+    tag: "Reflection",
+  },
+];
+
+const SESSION_HISTORY: SessionHistoryItem[] = [
+  {
+    id: "session_today",
+    title: "Today – Ranked games",
+    hint: "Focus: pacing & pressure moments",
+    badgeLabel: "Today",
+    tone: "recent",
+  },
+  {
+    id: "session_midweek",
+    title: "Midweek – Practice block",
+    hint: "Focus: confidence & voice",
+    badgeLabel: "2 days ago",
+  },
+  {
+    id: "session_last_week",
+    title: "Last week – Coaching session",
+    hint: "Focus: body language & intensity",
+    badgeLabel: "Last week",
+  },
+];
+
+export const metadata: Metadata = {
+  title: "Personal Coach Studio - Capsules",
+  description:
+    "Upload sessions or clips and let Capsules surface key moments, coaching notes, and a focused practice plan.",
+};
+
+export default function PersonalCoachPage() {
   return (
-    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
+    <AppPage activeNav="create" showPrompter layoutVariant="capsule">
       <div className={styles.shell} data-surface="insights">
         <header className={styles.header}>
           <div className={styles.headerMain}>
-            <div className={styles.pill}>Gaming Insights</div>
-            <h1 className={styles.title}>Turn your matches into a personal coach</h1>
+            <div className={styles.pill}>Personal Coach</div>
+            <h1 className={styles.title}>Turn your sessions into a personal coach</h1>
             <p className={styles.subtitle}>
-              Drop in a VOD or clip set. Capsules tags your mistakes, celebrates your best plays, and turns
-              everything into a simple practice plan you can actually follow.
+              Drop in a VOD, recording, or clip set. Capsules tags your habits, celebrates your best moments,
+              and turns everything into a simple practice plan you can actually follow.
             </p>
             <div className={styles.headerActions}>
               <button type="button" className={styles.primaryButton}>
-                Analyze new match
+                Analyze new session
               </button>
               <button type="button" className={styles.secondaryButton}>
                 Import recent stream
@@ -32,39 +146,37 @@ export default function GamingInsightsPage() {
             </div>
           </div>
           <div className={styles.headerMeta}>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Sessions analyzed</div>
-              <div className={styles.metricValue}>24</div>
-              <div className={styles.metricHint}>Last 30 days</div>
-            </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Focus game</div>
-              <div className={styles.metricValue}>VALORANT</div>
-              <div className={styles.metricHint}>Controller · Ascendant lobby</div>
-            </div>
+            {SESSION_METRICS.map((metric) => (
+              <div key={metric.id} className={styles.metricCard}>
+                <div className={styles.metricLabel}>{metric.label}</div>
+                <div className={styles.metricValue}>{metric.value}</div>
+                <div className={styles.metricHint}>{metric.hint}</div>
+              </div>
+            ))}
           </div>
         </header>
 
         <main className={styles.layout}>
-          <section className={styles.columnPrimary} aria-label="Match insights and moments">
-            <section className={styles.cardAccent} aria-label="Match review">
+          <section className={styles.columnPrimary} aria-label="Session insights and focus areas">
+            <section className={styles.cardAccent} aria-label="Latest session review">
               <header className={styles.cardHeaderRow}>
                 <div>
-                  <h2 className={styles.cardTitle}>Latest match review</h2>
+                  <h2 className={styles.cardTitle}>Latest session review</h2>
                   <p className={styles.cardSubtitle}>
-                    A quick snapshot of how the match felt, where you shined, and where you leaked rounds.
+                    A quick snapshot of how the session felt, where you showed up well, and where you leaked
+                    energy or attention.
                   </p>
                 </div>
                 <button type="button" className={styles.chipButton}>
-                  Change match
+                  Change session
                 </button>
               </header>
 
               <div className={styles.matchGrid}>
-                <div className={styles.mapCard} aria-label="Heatmap of deaths and impact plays">
+                <div className={styles.mapCard} aria-label="Timeline of energy and focus">
                   <div className={styles.mapHeader}>
-                    <span className={styles.mapLabel}>Pearl · Defense half</span>
-                    <span className={styles.mapScore}>7 - 5</span>
+                    <span className={styles.mapLabel}>Energy &amp; focus over time</span>
+                    <span className={styles.mapScore}>3 blocks • 90 mins</span>
                   </div>
                   <div className={styles.mapCanvas} aria-hidden="true">
                     <div className={styles.mapGrid} />
@@ -75,216 +187,114 @@ export default function GamingInsightsPage() {
                   </div>
                   <div className={styles.mapLegend}>
                     <span className={styles.legendDot} data-kind="pick" />
-                    <span className={styles.legendLabel}>High impact fights</span>
+                    <span className={styles.legendLabel}>Peak focus moments</span>
                     <span className={styles.legendDot} data-kind="death" />
-                    <span className={styles.legendLabel}>Early deaths</span>
+                    <span className={styles.legendLabel}>Energy dips</span>
                   </div>
                 </div>
 
                 <div className={styles.matchSummary}>
                   <div className={styles.summaryRow}>
-                    <div className={styles.summaryLabel}>Round impact</div>
+                    <div className={styles.summaryLabel}>Overall momentum</div>
                     <div className={styles.summaryValue} data-tone="good">
-                      +11.3
+                      +9.8
                     </div>
                   </div>
                   <p className={styles.summaryText}>
-                    You won most rounds when you anchored B site and lost momentum when rotating early after
-                    utility. Your best moments came from holding space and trusting your crosshair.
+                    You do your best work once you&apos;re warmed up and committed to a plan. Things slip when
+                    you try to multitask or switch goals mid-session.
                   </p>
                   <div className={styles.tagRow}>
-                    <span className={styles.tag}>Positioning</span>
-                    <span className={styles.tag}>Utility timing</span>
-                    <span className={styles.tag}>Trade discipline</span>
+                    <span className={styles.tag}>Pacing</span>
+                    <span className={styles.tag}>Routines</span>
+                    <span className={styles.tag}>Confidence</span>
                   </div>
-                  <div className={styles.timelineStrip} aria-hidden="true">
-                    <div className={styles.timelineLabel}>Key moments</div>
-                    <div className={styles.timelineMarkers}>
-                      <span className={styles.timelineMarker} data-kind="clutch">
-                        03:12
-                      </span>
-                      <span className={styles.timelineMarker} data-kind="mistake">
-                        07:45
-                      </span>
-                      <span className={styles.timelineMarker} data-kind="setup">
-                        11:08
-                      </span>
+                  <div className={styles.summarySubgrid}>
+                    <div className={styles.summaryTile}>
+                      <div className={styles.summaryLabel}>Best block</div>
+                      <div className={styles.summaryMetric}>Block 2</div>
+                      <p className={styles.summaryHint}>Deep focus, clear intentions.</p>
+                    </div>
+                    <div className={styles.summaryTile}>
+                      <div className={styles.summaryLabel}>When you struggled</div>
+                      <div className={styles.summaryMetric}>End of session</div>
+                      <p className={styles.summaryHint}>Energy dip around the 70-minute mark.</p>
                     </div>
                   </div>
                 </div>
               </div>
             </section>
 
-            <section className={styles.card} aria-label="Decision timeline">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Decision timeline</h2>
-                  <p className={styles.cardSubtitle}>
-                    Capsules attaches coaching notes to specific timestamps so you know exactly what to
-                    watch back.
-                  </p>
-                </div>
-                <button type="button" className={styles.chipButton}>
-                  Open in VOD player
-                </button>
-              </header>
-              <ul className={styles.decisionList}>
-                <li className={styles.decisionItem}>
-                  <div className={styles.decisionTime}>02:48 · Round 3</div>
-                  <div className={styles.decisionBody}>
-                    <div className={styles.decisionTitle}>Swinging alone into mid</div>
-                    <p className={styles.decisionHint}>
-                      Your duo is 1.8 seconds behind. Hold the angle and let them take first contact to
-                      avoid trading yourself out early.
-                    </p>
-                  </div>
-                  <span className={styles.decisionTag} data-tone="issue">
-                    Avoidable death
-                  </span>
-                </li>
-                <li className={styles.decisionItem}>
-                  <div className={styles.decisionTime}>06:21 · Round 7</div>
-                  <div className={styles.decisionBody}>
-                    <div className={styles.decisionTitle}>Perfect crossfire on B entry</div>
-                    <p className={styles.decisionHint}>
-                      You and your sentinel set up a clean crossfire that stopped the rush. This is a
-                      pattern worth saving as a default.
-                    </p>
-                  </div>
-                  <span className={styles.decisionTag} data-tone="good">
-                    Save pattern
-                  </span>
-                </li>
-                <li className={styles.decisionItem}>
-                  <div className={styles.decisionTime}>10:14 · Round 12</div>
-                  <div className={styles.decisionBody}>
-                    <div className={styles.decisionTitle}>Rotating off utility sound</div>
-                    <p className={styles.decisionHint}>
-                      You left site after a single piece of utility. Consider holding one more second for
-                      confirmation before giving up map control.
-                    </p>
-                  </div>
-                  <span className={styles.decisionTag} data-tone="focus">
-                    Review angle
-                  </span>
-                </li>
-              </ul>
-            </section>
-          </section>
-
-          <section className={styles.columnSecondary} aria-label="Focus areas and practice plan">
             <section className={styles.card} aria-label="Focus areas">
               <header className={styles.cardHeaderStacked}>
                 <h2 className={styles.cardTitle}>Focus areas</h2>
                 <p className={styles.cardSubtitle}>
-                  Your strengths and leaks for this match, ranked by how often they showed up in the VOD.
+                  A short list of skills your coach is tracking over the next few sessions.
                 </p>
               </header>
               <ul className={styles.focusList}>
-                <li className={styles.focusItem}>
-                  <div className={styles.focusMeta}>
-                    <div className={styles.focusLabel}>Positioning &amp; off-angles</div>
-                    <p className={styles.focusHint}>Strong · keep playing spots that force wide swings.</p>
-                  </div>
-                  <div className={styles.focusMeter} data-tone="good">
-                    <span className={styles.focusFill} style={{ width: "78%" }} />
-                  </div>
-                </li>
-                <li className={styles.focusItem}>
-                  <div className={styles.focusMeta}>
-                    <div className={styles.focusLabel}>Utility timing</div>
-                    <p className={styles.focusHint}>
-                      Mixed · great in executes, early on rotates. Practice holding until you see pressure.
-                    </p>
-                  </div>
-                  <div className={styles.focusMeter} data-tone="focus">
-                    <span className={styles.focusFill} style={{ width: "52%" }} />
-                  </div>
-                </li>
-                <li className={styles.focusItem}>
-                  <div className={styles.focusMeta}>
-                    <div className={styles.focusLabel}>Communication &amp; pings</div>
-                    <p className={styles.focusHint}>
-                      Quiet in mid-round chaos. Shorter, earlier calls will help your team follow up.
-                    </p>
-                  </div>
-                  <div className={styles.focusMeter} data-tone="issue">
-                    <span className={styles.focusFill} style={{ width: "36%" }} />
-                  </div>
-                </li>
+                {FOCUS_AREAS.map((focus) => (
+                  <li key={focus.id} className={styles.focusItem}>
+                    <div className={styles.focusMeta}>
+                      <div className={styles.focusLabel}>{focus.label}</div>
+                      <p className={styles.focusHint}>{focus.hint}</p>
+                    </div>
+                    <div className={styles.focusMeter} data-tone={focus.tone}>
+                      <span
+                        className={styles.focusFill}
+                        style={{ width: `${Math.round(focus.progress * 100)}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
               </ul>
             </section>
 
             <section className={styles.card} aria-label="Practice plan">
               <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>3-match practice plan</h2>
+                <h2 className={styles.cardTitle}>3-session practice plan</h2>
                 <p className={styles.cardSubtitle}>
-                  A short plan you can run in a single session: one skill per match, plus a checklist to
-                  make sure you actually apply it.
+                  A simple plan you can run in a week: one focus per session, plus a checklist to keep things
+                  realistic.
                 </p>
               </header>
               <ul className={styles.planList}>
-                <li className={styles.planItem}>
-                  <div className={styles.planMeta}>
-                    <div className={styles.planTitle}>Match 1 · Anchor discipline</div>
-                    <p className={styles.planHint}>
-                      Stay on your first site until you have 2+ clear signals you&apos;re being hard faked.
-                    </p>
-                  </div>
-                  <span className={styles.planTag}>Drill</span>
-                </li>
-                <li className={styles.planItem}>
-                  <div className={styles.planMeta}>
-                    <div className={styles.planTitle}>Match 2 · Utility checkpoints</div>
-                    <p className={styles.planHint}>
-                      Pre-decide two moments each round to hold utility for, instead of throwing on sound.
-                    </p>
-                  </div>
-                  <span className={styles.planTag}>Routine</span>
-                </li>
-                <li className={styles.planItem}>
-                  <div className={styles.planMeta}>
-                    <div className={styles.planTitle}>Match 3 · Mic reps</div>
-                    <p className={styles.planHint}>
-                      Aim for one short call before contact and one after the fight resolves, every round.
-                    </p>
-                  </div>
-                  <span className={styles.planTag}>Comms</span>
-                </li>
+                {PRACTICE_DRILLS.map((drill) => (
+                  <li key={drill.id} className={styles.planItem}>
+                    <div className={styles.planMeta}>
+                      <div className={styles.planTitle}>{drill.title}</div>
+                      <p className={styles.planHint}>{drill.hint}</p>
+                    </div>
+                    <span className={styles.planTag}>{drill.tag}</span>
+                  </li>
+                ))}
               </ul>
             </section>
+          </section>
 
+          <section className={styles.columnSecondary} aria-label="Session history">
             <section className={styles.card} aria-label="Session history">
               <header className={styles.cardHeaderStacked}>
                 <h2 className={styles.cardTitle}>Session history</h2>
                 <p className={styles.cardSubtitle}>
-                  Recent sessions so you can see patterns across maps, roles, and ranks.
+                  Recent sessions so you can see patterns across days, activities, and energy levels.
                 </p>
               </header>
               <ul className={styles.sessionList}>
-                <li className={styles.sessionItem}>
-                  <div className={styles.sessionMeta}>
-                    <div className={styles.sessionTitle}>Pearl · Ranked · Controller</div>
-                    <p className={styles.sessionHint}>Anchor discipline · Utility timing</p>
-                  </div>
-                  <span className={styles.sessionBadge} data-tone="recent">
-                    Today
-                  </span>
-                </li>
-                <li className={styles.sessionItem}>
-                  <div className={styles.sessionMeta}>
-                    <div className={styles.sessionTitle}>Ascent · Scrim · Flex</div>
-                    <p className={styles.sessionHint}>Trading · Mid-round calls</p>
-                  </div>
-                  <span className={styles.sessionBadge}>2 days ago</span>
-                </li>
-                <li className={styles.sessionItem}>
-                  <div className={styles.sessionMeta}>
-                    <div className={styles.sessionTitle}>Lotus · Ranked · Initiator</div>
-                    <p className={styles.sessionHint}>Utility usage · Site execs</p>
-                  </div>
-                  <span className={styles.sessionBadge}>Last week</span>
-                </li>
+                {SESSION_HISTORY.map((session) => (
+                  <li key={session.id} className={styles.sessionItem}>
+                    <div className={styles.sessionMeta}>
+                      <div className={styles.sessionTitle}>{session.title}</div>
+                      <p className={styles.sessionHint}>{session.hint}</p>
+                    </div>
+                    <span
+                      className={styles.sessionBadge}
+                      data-tone={session.tone === "recent" ? "recent" : undefined}
+                    >
+                      {session.badgeLabel}
+                    </span>
+                  </li>
+                ))}
               </ul>
             </section>
           </section>
@@ -293,4 +303,3 @@ export default function GamingInsightsPage() {
     </AppPage>
   );
 }
-

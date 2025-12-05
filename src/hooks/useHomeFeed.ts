@@ -3,10 +3,10 @@
 import * as React from "react";
 
 import { useCurrentUser } from "@/services/auth/client";
-import type { FeedFetchOptions } from "@/domain/feed";
+import type { FeedFetchOptions, FeedFetchResult } from "@/domain/feed";
 import { fetchHomeFeedSliceAction, loadHomeFeedPageAction } from "@/server/actions/home-feed";
 
-import type { HomeFeedPost } from "./useHomeFeed/types";
+import type { HomeFeedItem, HomeFeedPost } from "./useHomeFeed/types";
 import {
   createHomeFeedStore,
   homeFeedStore,
@@ -17,9 +17,9 @@ import { formatExactTime, formatTimeAgo } from "./useHomeFeed/time";
 import { formatFeedCount } from "./useHomeFeed/utils";
 
 export { formatFeedCount } from "./useHomeFeed/utils";
-export type { HomeFeedAttachment, HomeFeedPost } from "./useHomeFeed/types";
+export type { HomeFeedAttachment, HomeFeedPost, HomeFeedItem } from "./useHomeFeed/types";
 
-const FEED_LIMIT = 30;
+const FEED_LIMIT = 15;
 const MESSAGE_TIMEOUT_MS = 4_000;
 
 type FeedSnapshot = ReturnType<HomeFeedStore["getState"]>;
@@ -89,8 +89,8 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       handleDelete,
       setActiveFriendTarget: setActiveFriendTargetSafe,
       clearFriendMessage,
-      appendPosts: (posts: HomeFeedPost[], cursor: string | null) =>
-        appendPosts(posts, cursor),
+      appendPosts: (posts: HomeFeedPost[], cursor: string | null, inserts?: unknown) =>
+        appendPosts(posts, cursor, inserts as FeedFetchResult["inserts"]),
       setLoadingMore: (value: boolean) => setLoadingMore(value),
       hydrate,
     } satisfies {
@@ -104,7 +104,7 @@ function useFeedActions(store: HomeFeedStore, canRemember: boolean) {
       handleDelete: (postId: string) => Promise<void>;
       setActiveFriendTarget: (next: React.SetStateAction<string | null>) => void;
       clearFriendMessage: () => void;
-      appendPosts: (posts: HomeFeedPost[], cursor: string | null) => void;
+      appendPosts: (posts: HomeFeedPost[], cursor: string | null, inserts?: FeedFetchResult["inserts"]) => void;
       setLoadingMore: (value: boolean) => void;
       hydrate: (snapshot: HomeFeedHydrationSnapshot) => void;
     };
@@ -156,8 +156,19 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
   const state = useFeedData(store);
   const actions = useFeedActions(store, canRemember);
   const [isLoadMorePending, startLoadMore] = React.useTransition();
+  const postItems = React.useMemo(
+    () => state.items.filter((item): item is Extract<HomeFeedItem, { type: "post" }> => item.type === "post"),
+    [state.items],
+  );
+  const posts = React.useMemo(() => postItems.map((item) => item.post), [postItems]);
+  const loadMoreInFlightRef = React.useRef<string | null>(null);
   const hydratedRef = React.useRef<string | null>(null);
   const initialRefreshHandledRef = React.useRef(false);
+  const lastVisibilityRefreshRef = React.useRef<number>(0);
+
+  React.useEffect(() => {
+    initialRefreshHandledRef.current = false;
+  }, [refreshKey]);
 
   React.useEffect(() => {
     if (!initialData) return;
@@ -174,14 +185,22 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
 
   React.useEffect(() => {
     if (!refreshEnabled) return undefined;
-    if (skipInitialRefresh && !initialRefreshHandledRef.current) {
-      initialRefreshHandledRef.current = true;
-      return undefined;
-    }
+    if (initialRefreshHandledRef.current) return undefined;
     initialRefreshHandledRef.current = true;
     const controller = new AbortController();
-    void actions.refreshPosts(controller.signal);
-    return () => controller.abort();
+    const timer =
+      skipInitialRefresh && typeof window !== "undefined"
+        ? window.setTimeout(() => {
+            void actions.refreshPosts(controller.signal);
+          }, 80)
+        : null;
+    if (!timer) {
+      void actions.refreshPosts(controller.signal);
+    }
+    return () => {
+      controller.abort();
+      if (timer) window.clearTimeout(timer);
+    };
   }, [actions, refreshEnabled, refreshKey, skipInitialRefresh]);
 
   React.useEffect(() => {
@@ -192,6 +211,26 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
     window.addEventListener("posts:refresh", handleRefresh);
     return () => {
       window.removeEventListener("posts:refresh", handleRefresh);
+    };
+  }, [actions, refreshEnabled]);
+
+  React.useEffect(() => {
+    if (!refreshEnabled) return undefined;
+    const handleVisibility = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastVisibilityRefreshRef.current < 15_000) return;
+      lastVisibilityRefreshRef.current = now;
+      void actions.refreshPosts();
+    };
+    window.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleVisibility);
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
     };
   }, [actions, refreshEnabled]);
 
@@ -207,21 +246,25 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
     if (!refreshEnabled) return;
     if (!state.cursor) return;
     if (state.isLoadingMore) return;
+    if (loadMoreInFlightRef.current === state.cursor) return;
+    loadMoreInFlightRef.current = state.cursor;
     actions.setLoadingMore(true);
     startLoadMore(async () => {
       try {
         const page = await loadHomeFeedPageAction(state.cursor);
-        actions.appendPosts(page.posts, page.cursor ?? null);
+        actions.appendPosts(page.posts, page.cursor ?? null, page.inserts ?? null);
       } catch (error) {
         console.error("Home feed pagination failed", error);
       } finally {
+        loadMoreInFlightRef.current = null;
         actions.setLoadingMore(false);
       }
     });
   }, [actions, refreshEnabled, state.cursor, state.isLoadingMore]);
 
   return {
-    posts: state.posts,
+    posts,
+    items: state.items,
     likePending: state.likePending,
     memoryPending: state.memoryPending,
     friendMessage: state.friendMessage,
@@ -275,12 +318,14 @@ export function useHomeFeed(options?: UseHomeFeedOptions) {
           options?.initialPosts?.[0]?.id ?? "empty"
         }`
       : null);
+  const skipInitialRefresh =
+    typeof options?.skipInitialRefresh === "boolean" ? options.skipInitialRefresh : false;
 
   return useFeed(homeFeedStore, {
     refreshEnabled: options?.refreshEnabled ?? true,
     initialData,
     hydrationKey,
-    skipInitialRefresh: options?.skipInitialRefresh ?? hasInitialData,
+    skipInitialRefresh,
   });
 }
 

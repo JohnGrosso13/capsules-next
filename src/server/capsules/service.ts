@@ -24,6 +24,7 @@ import { canCustomizeCapsule, resolveCapsuleActor } from "./permissions";
 import { indexMemory } from "@/server/memories/service";
 import { enqueueCapsuleKnowledgeRefresh } from "./knowledge";
 import { listFriendUserIds } from "@/server/friends/repository";
+import { enforceSafeText } from "@/server/moderation/text";
 
 export type { CapsuleSummary, DiscoverCapsuleSummary } from "./repository";
 export type {
@@ -235,6 +236,7 @@ export async function createCapsule(
   ownerId: string,
   params: { name: string },
 ): Promise<CapsuleSummary> {
+  await enforceSafeText(params.name, { kind: "profile", maxChars: 80 });
   return createCapsuleForUser(ownerId, params);
 }
 

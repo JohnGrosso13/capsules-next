@@ -7,7 +7,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import styles from "./home-feed.module.css";
 
-import type { HomeFeedPost } from "@/hooks/useHomeFeed";
+import type { HomeFeedItem, HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizeMediaUrl } from "@/lib/media";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import { buildViewerEnvelope } from "@/lib/feed/viewer-envelope";
@@ -26,6 +26,7 @@ import {
   buildLightboxItemsFromGallery,
   type LightboxImageItem,
 } from "@/components/home-feed/feed-media-gallery";
+import { PromoRow } from "@/components/promo-row";
 import { useCurrentUser } from "@/services/auth/client";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
 
@@ -82,6 +83,13 @@ function buildIdentifierSet(...identifiers: Array<unknown>): Set<string> {
   return result;
 
 }
+
+type FeedRenderItem =
+  | { kind: "post"; post: HomeFeedPost }
+  | { kind: "promo"; id: string; payload?: Record<string, unknown> | null };
+
+const PROMO_INTERVAL_DEFAULT = 10;
+const LOAD_MORE_THRESHOLD = 3;
 type HomeFeedListProps = {
   /** Hide the summary CTA banner (used inside Composer preview). */
   showSummaryCTA?: boolean;
@@ -89,6 +97,10 @@ type HomeFeedListProps = {
   cardVariant?: "full" | "preview";
   /** Optional override to route comment clicks (used in Composer preview). */
   onCommentClickOverride?: (post: HomeFeedPost) => void;
+  /** Insert a promo row every N posts (set to null to disable). */
+  promoInterval?: number | null;
+  /** Pre-typed feed items (supports promos/modules). Falls back to posts if not provided. */
+  items?: HomeFeedItem[] | null;
 
   posts: HomeFeedPost[];
 
@@ -180,6 +192,8 @@ export function HomeFeedList({
 
   focusPostId,
 
+  items,
+
   onLoadMore,
 
   hasMore = false,
@@ -187,6 +201,7 @@ export function HomeFeedList({
   isLoadingMore = false,
 
   showSummaryCTA = true,
+  promoInterval = PROMO_INTERVAL_DEFAULT,
   cardVariant = "full",
   onCommentClickOverride,
 }: HomeFeedListProps) {
@@ -226,106 +241,77 @@ export function HomeFeedList({
 
   const followingIdentifierSet = friendsData?.followingIds ?? null;
 
-  const INITIAL_BATCH = 6;
-
-  const BATCH_SIZE = 6;
-
-  const [visibleCount, setVisibleCount] = React.useState(INITIAL_BATCH);
-
-  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
-
   const showSkeletons = !hasFetched;
-
-  React.useEffect(() => {
-
-    if (!hasFetched) {
-
-      setVisibleCount(INITIAL_BATCH);
-
-      return;
-
-    }
-    setVisibleCount((previous) => {
-
-      const total = posts.length;
-
-      if (total === 0) return 0;
-
-      const baseline = Math.min(INITIAL_BATCH, total);
-
-      if (previous === 0) return baseline;
-
-      const bounded = Math.min(Math.max(previous, baseline), total);
-
-      return bounded;
-
-    });
-
-  }, [hasFetched, posts.length]);
-
-  React.useEffect(() => {
-
-    if (!hasFetched) return;
-
-    if (posts.length <= visibleCount) return;
-
-    const node = sentinelRef.current;
-
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-
-      (entries) => {
-
-        const entry = entries.find((item) => item.isIntersecting);
-
-        if (!entry) return;
-
-        setVisibleCount((previous) => {
-
-          const total = posts.length;
-
-          if (total === 0) return 0;
-
-          if (previous >= total) return previous;
-
-          const next = Math.min(total, previous + BATCH_SIZE);
-
-          return next;
-
-        });
-
-      },
-
-      { rootMargin: "600px 0px" },
-
-    );
-
-    observer.observe(node);
-
-    return () => observer.disconnect();
-
-  }, [hasFetched, posts.length, visibleCount]);
-
-  const visibleLimit = showSkeletons ? 0 : Math.min(visibleCount, posts.length);
-
-  const displayedPosts = React.useMemo(() => {
-
+  const baseItems = React.useMemo<HomeFeedItem[]>(() => {
     if (showSkeletons) return [];
+    if (items && Array.isArray(items)) return items;
+    return posts.map((post) => ({
+      id: post.id,
+      type: "post",
+      post,
+      score: null,
+      slotInterval: null,
+      pinnedAt: null,
+      payload: null,
+    }));
+  }, [items, posts, showSkeletons]);
 
-    return posts.slice(0, visibleLimit || posts.length);
+  const postItems = React.useMemo(
+    () => baseItems.filter((entry): entry is Extract<HomeFeedItem, { type: "post" }> => entry.type === "post").map((entry) => entry.post),
+    [baseItems],
+  );
 
-  }, [showSkeletons, posts, visibleLimit]);
+  const feedItems = React.useMemo<FeedRenderItem[]>(() => {
+    if (showSkeletons) return [];
+    const interval =
+      typeof promoInterval === "number" && promoInterval > 0
+        ? Math.max(1, Math.trunc(promoInterval))
+        : null;
+    const hasSourcePromos = baseItems.some((entry) => entry.type !== "post");
+    let promoCount = 0;
+    let seenPosts = 0;
+    const itemsOut: FeedRenderItem[] = [];
+    baseItems.forEach((entry) => {
+      if (entry.type === "post" && entry.post) {
+        seenPosts += 1;
+        itemsOut.push({ kind: "post", post: entry.post });
+        if (!hasSourcePromos && interval && seenPosts % interval === 0 && seenPosts < postItems.length) {
+          promoCount += 1;
+          itemsOut.push({ kind: "promo", id: `promo-${promoCount}-${entry.post.id}` });
+        }
+      } else {
+        itemsOut.push({ kind: "promo", id: entry.id, payload: entry.payload ?? null });
+      }
+    });
+    return itemsOut;
+  }, [baseItems, postItems.length, promoInterval, showSkeletons]);
 
-  const estimatePostHeight = React.useCallback(() => 520, []);
-  const virtualizationCount = showSkeletons ? 0 : displayedPosts.length;
+  const feedItemIndexByPostId = React.useMemo(() => {
+    const map = new Map<string, number>();
+    feedItems.forEach((item, index) => {
+      if (item.kind === "post") {
+        map.set(item.post.id, index);
+      }
+    });
+    return map;
+  }, [feedItems]);
+
+  const estimateItemHeight = React.useCallback(
+    (index: number) => (feedItems[index]?.kind === "promo" ? 360 : 520),
+    [feedItems],
+  );
+  const virtualizationCount = showSkeletons ? 0 : feedItems.length;
   const windowVirtualizer = useWindowVirtualizer({
     count: virtualizationCount,
-    estimateSize: estimatePostHeight,
+    estimateSize: estimateItemHeight,
     overscan: 8,
     getItemKey: React.useCallback(
-      (index: number) => displayedPosts[index]?.id ?? `feed-item-${index}`,
-      [displayedPosts],
+      (index: number) => {
+        const item = feedItems[index];
+        if (!item) return `feed-item-${index}`;
+        return item.kind === "promo" ? item.id : item.post.id;
+      },
+      [feedItems],
     ),
   });
   const virtualItems = windowVirtualizer.getVirtualItems();
@@ -337,6 +323,84 @@ export function HomeFeedList({
     },
     [windowVirtualizer],
   );
+  const loadMoreTriggerLengthRef = React.useRef<number>(0);
+  const deferredLoadRef = React.useRef(false);
+  const scrollDepthRef = React.useRef<number>(-1);
+
+  React.useEffect(() => {
+    if (!virtualItems.length) return;
+    const maxIndex = Math.max(...virtualItems.map((item) => item.index));
+    if (maxIndex > scrollDepthRef.current) {
+      scrollDepthRef.current = maxIndex;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("feed:scroll-depth", {
+            detail: { lastVisibleIndex: maxIndex, total: feedItems.length },
+          }),
+        );
+      }
+    }
+  }, [feedItems.length, virtualItems]);
+
+  const isSlowConnection = React.useCallback(() => {
+    if (typeof navigator === "undefined") return false;
+    const connection = (navigator as { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+    if (!connection) return false;
+    const saveData = Boolean(connection.saveData);
+    const effectiveType = typeof connection.effectiveType === "string" ? connection.effectiveType : "";
+    return saveData || effectiveType.includes("2g");
+  }, []);
+
+  React.useEffect(() => {
+    if (!onLoadMore || !hasMore || isLoadingMore || showSkeletons) return;
+    const last = virtualItems[virtualItems.length - 1];
+    if (!last) return;
+    const remaining = feedItems.length - 1 - last.index;
+    if (remaining <= LOAD_MORE_THRESHOLD && loadMoreTriggerLengthRef.current !== feedItems.length) {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        deferredLoadRef.current = true;
+        return;
+      }
+      if (isSlowConnection()) {
+        deferredLoadRef.current = true;
+        return;
+      }
+      loadMoreTriggerLengthRef.current = feedItems.length;
+      onLoadMore();
+    }
+  }, [
+    feedItems.length,
+    hasMore,
+    isLoadingMore,
+    isSlowConnection,
+    onLoadMore,
+    showSkeletons,
+    virtualItems,
+  ]);
+
+  React.useEffect(() => {
+    if (
+      !deferredLoadRef.current ||
+      !onLoadMore ||
+      !hasMore ||
+      isLoadingMore ||
+      showSkeletons ||
+      typeof document === "undefined"
+    ) {
+      return;
+    }
+    if (document.visibilityState === "visible" && !isSlowConnection()) {
+      deferredLoadRef.current = false;
+      loadMoreTriggerLengthRef.current = feedItems.length;
+      onLoadMore();
+    }
+  }, [feedItems.length, hasMore, isLoadingMore, isSlowConnection, onLoadMore, showSkeletons]);
+
+  React.useEffect(() => {
+    if (!hasMore) {
+      loadMoreTriggerLengthRef.current = 0;
+    }
+  }, [hasMore]);
 
   const [pendingFocusPostId, setPendingFocusPostId] = React.useState<string | null>(() => {
 
@@ -370,11 +434,11 @@ export function HomeFeedList({
 
     if (!pendingFocusPostId) return;
 
-    if (!displayedPosts.length) return;
+    if (!feedItems.length) return;
 
-    const targetIndex = displayedPosts.findIndex((post) => post.id === pendingFocusPostId);
+    const targetIndex = feedItemIndexByPostId.get(pendingFocusPostId);
 
-    if (targetIndex === -1) return;
+    if (typeof targetIndex !== "number") return;
 
     if (virtualizationCount > 0) {
 
@@ -412,7 +476,7 @@ export function HomeFeedList({
 
     return () => window.cancelAnimationFrame(raf);
 
-  }, [pendingFocusPostId, displayedPosts, windowVirtualizer, virtualizationCount]);
+  }, [pendingFocusPostId, feedItemIndexByPostId, feedItems.length, windowVirtualizer, virtualizationCount]);
 
   const viewerEnvelope = React.useMemo(() => buildViewerEnvelope(currentUser), [currentUser]);
 
@@ -428,7 +492,7 @@ export function HomeFeedList({
     handleCommentButtonClick,
     closeComments,
     highlightPost,
-  } = useFeedCommentUI({ displayedPosts, loadComments });
+  } = useFeedCommentUI({ displayedPosts: postItems, loadComments });
 
   const skeletons = React.useMemo(
 
@@ -492,8 +556,6 @@ export function HomeFeedList({
 
   );
 
-  const shouldShowSentinel = !showSkeletons && displayedPosts.length < posts.length;
-
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
 
   const currentOrigin = React.useMemo(
@@ -543,15 +605,15 @@ export function HomeFeedList({
 
     (startIndex: number, step: number) => {
 
-      if (!displayedPosts.length) return null;
+      if (!postItems.length) return null;
 
       const direction = step >= 0 ? 1 : -1;
 
       let nextIndex = startIndex + direction;
 
-      while (nextIndex >= 0 && nextIndex < displayedPosts.length) {
+      while (nextIndex >= 0 && nextIndex < postItems.length) {
 
-        const candidate = displayedPosts[nextIndex];
+        const candidate = postItems[nextIndex];
 
         if (!candidate) break;
 
@@ -569,9 +631,9 @@ export function HomeFeedList({
 
       return null;
 
-    },
+  },
 
-    [displayedPosts, getLightboxItemsForPost],
+    [getLightboxItemsForPost, postItems],
 
   );
 
@@ -618,7 +680,7 @@ export function HomeFeedList({
 
   } = useFeedSummary({
 
-    displayedPosts,
+    displayedPosts: postItems,
 
     timeAgo,
 
@@ -645,10 +707,10 @@ export function HomeFeedList({
     }
 
     const target = focusPostId.trim();
-    if (!target || !displayedPosts.length) return;
+    if (!target || !postItems.length) return;
     if (openedFocusRef.current === target) return;
 
-    const post = displayedPosts.find((entry) => entry.id === target);
+    const post = postItems.find((entry) => entry.id === target);
     if (!post) return;
 
     const items = getLightboxItemsForPost(post);
@@ -662,7 +724,7 @@ export function HomeFeedList({
     });
 
     openedFocusRef.current = target;
-  }, [displayedPosts, focusPostId, getLightboxItemsForPost, openLightbox]);
+  }, [focusPostId, getLightboxItemsForPost, openLightbox, postItems]);
 
   const handleNavigateAttachment = React.useCallback(
 
@@ -678,7 +740,7 @@ export function HomeFeedList({
 
       if (!lightbox) return;
 
-      const currentIndex = displayedPosts.findIndex((entry) => entry.id === lightbox.postId);
+      const currentIndex = postItems.findIndex((entry) => entry.id === lightbox.postId);
 
       if (currentIndex === -1) return;
 
@@ -702,7 +764,7 @@ export function HomeFeedList({
 
     },
 
-    [displayedPosts, findSiblingPost, lightbox, openLightbox],
+    [findSiblingPost, lightbox, openLightbox, postItems],
 
   );
 
@@ -718,17 +780,17 @@ export function HomeFeedList({
 
       activeComment
 
-        ? posts.find((post) => post.id === activeComment.postId) ?? null
+        ? postItems.find((post) => post.id === activeComment.postId) ?? null
 
         : null,
 
-    [activeComment, posts],
+    [activeComment, postItems],
 
   );
 
   const viewerPost = lightbox
 
-    ? displayedPosts.find((entry) => entry.id === lightbox.postId) ?? lightbox.post ?? null
+    ? postItems.find((entry) => entry.id === lightbox.postId) ?? lightbox.post ?? null
 
     : null;
 
@@ -752,7 +814,7 @@ export function HomeFeedList({
 
     }
 
-    const currentIndex = displayedPosts.findIndex((entry) => entry.id === lightbox.postId);
+    const currentIndex = postItems.findIndex((entry) => entry.id === lightbox.postId);
 
     if (currentIndex === -1) {
 
@@ -768,7 +830,7 @@ export function HomeFeedList({
 
     };
 
-  }, [displayedPosts, findSiblingPost, lightbox]);
+  }, [findSiblingPost, lightbox, postItems]);
 
   const viewerFriendControls = React.useMemo(() => {
 
@@ -990,7 +1052,7 @@ export function HomeFeedList({
         </div>
 
       ) : null}
-      {!showSkeletons && posts.length === 0 ? (
+      {!showSkeletons && postItems.length === 0 ? (
 
         <div className={styles.feedEmpty} role="status">
 
@@ -1012,7 +1074,7 @@ export function HomeFeedList({
 
             pending={feedSummaryPending}
 
-            hasPosts={displayedPosts.length > 0}
+            hasPosts={postItems.length > 0}
 
             onSummarize={handleSummarizeFeed}
 
@@ -1029,10 +1091,27 @@ export function HomeFeedList({
 
             {virtualItems.map((virtualRow) => {
 
-              const post = displayedPosts[virtualRow.index];
+              const item = feedItems[virtualRow.index];
 
-              if (!post) return null;
+              if (!item) return null;
 
+              if (item.kind === "promo") {
+                return (
+                  <div
+                    key={virtualRow.key}
+                    ref={measureVirtualElement}
+                    data-index={virtualRow.index}
+                    className={styles.feedVirtualItem}
+                    style={{
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <PromoRow />
+                  </div>
+                );
+              }
+
+              const post = item.post;
               const resolvedUserId =
 
                 post.owner_user_id ??
@@ -1134,6 +1213,7 @@ export function HomeFeedList({
                   post,
                 });
               };
+              const isPriority = virtualRow.index < 2;
 
               return (
 
@@ -1178,6 +1258,7 @@ export function HomeFeedList({
                     onOpenLightbox={handlePostLightboxOpen}
                     onAskDocument={handleAskDocument}
                     onSummarizeDocument={summarizeDocument}
+                    priority={isPriority}
                     onCommentClick={(currentPost, anchor) => onCommentClickOverride ? onCommentClickOverride(currentPost) : handleCommentButtonClick(currentPost, anchor)}
                   />
 
@@ -1210,11 +1291,6 @@ export function HomeFeedList({
           </button>
 
         </div>
-
-      ) : null}
-      {shouldShowSentinel ? (
-
-        <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden />
 
       ) : null}
       {lightbox ? (

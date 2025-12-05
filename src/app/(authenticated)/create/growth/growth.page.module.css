@@ -13,8 +13,12 @@
   border-radius: var(--card-radius);
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.14), transparent 60%),
-    radial-gradient(1200px 75% at 105% -10%, rgba(59, 130, 246, 0.22), transparent 65%),
+    radial-gradient(1400px 70% at -10% -10%, rgba(248, 250, 252, 0.16), transparent 60%),
+    radial-gradient(
+      1200px 75% at 105% -10%,
+      color-mix(in srgb, var(--color-brand) 28%, var(--color-accent) 22%),
+      transparent 65%
+    ),
     linear-gradient(
       135deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -37,10 +41,14 @@
   align-self: flex-start;
   padding: 4px 12px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(255, 255, 255, 0.32));
+  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(255, 255, 255, 0.8));
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-    radial-gradient(120% 200% at 0% 0%, rgba(59, 130, 246, 0.38), transparent 60%);
+    linear-gradient(180deg, var(--pill-bg-1, rgba(255, 255, 255, 0.12)), var(--pill-bg-2, rgba(255, 255, 255, 0.04))),
+    radial-gradient(
+      120% 200% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 32%, var(--color-accent) 28%),
+      transparent 60%
+    );
   box-shadow:
     0 10px 20px rgba(15, 23, 42, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
@@ -72,9 +80,13 @@
 .metricCard {
   border-radius: 18px;
   padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 70%, rgba(96, 165, 250, 0.5));
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 70%, var(--color-brand));
   background:
-    radial-gradient(160% 180% at 0% 0%, rgba(59, 130, 246, 0.38), transparent 60%),
+    radial-gradient(
+      160% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 26%, var(--color-accent) 22%),
+      transparent 60%
+    ),
     linear-gradient(
       145deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -124,8 +136,12 @@
   padding: 16px 16px 14px;
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(135% 180% at 0% 0%, rgba(148, 163, 253, 0.16), transparent 60%),
-    radial-gradient(130% 200% at 100% -10%, rgba(96, 165, 250, 0.18), transparent 70%),
+    radial-gradient(
+      135% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%),
+      transparent 60%
+    ),
+    radial-gradient(130% 200% at 100% -10%, rgba(148, 163, 253, 0.18), transparent 70%),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -181,14 +197,9 @@
 }
 
 .chipButton[data-variant="ghost"] {
-  border-color: color-mix(in srgb, var(--surface-outline) 85%, rgba(148, 163, 253, 0.5));
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.92)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+  border-color: color-mix(in srgb, var(--surface-outline) 85%, var(--chip-border));
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.8);
 }
 
 .overviewGrid {
@@ -234,12 +245,16 @@
   color: var(--text-2);
 }
 
-.metricTileTrend[data-trend="up"] {
-  color: color-mix(in srgb, var(--color-accent) 72%, var(--text));
+.metricTile[data-tone="up"] .metricTileTrend {
+  color: color-mix(in srgb, var(--color-brand) 70%, var(--color-accent) 30%);
 }
 
-.metricTileTrend[data-trend="down"] {
-  color: color-mix(in srgb, var(--color-brand-strong) 70%, var(--text));
+.metricTile[data-tone="down"] .metricTileTrend {
+  color: rgba(248, 113, 113, 0.9);
+}
+
+.metricTile[data-tone="steady"] .metricTileTrend {
+  color: rgba(129, 140, 248, 0.9);
 }
 
 .miniTimeline {
@@ -271,8 +286,16 @@
   height: 62px;
   border-radius: 16px;
   background:
-    radial-gradient(160% 200% at 0% 0%, rgba(129, 140, 248, 0.4), transparent 60%),
-    radial-gradient(160% 200% at 100% 100%, rgba(56, 189, 248, 0.4), transparent 60%),
+    radial-gradient(
+      160% 200% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 36%, var(--color-accent) 28%),
+      transparent 60%
+    ),
+    radial-gradient(
+      160% 200% at 100% 100%,
+      color-mix(in srgb, var(--color-brand-strong) 36%, var(--color-accent) 22%),
+      transparent 60%
+    ),
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96));
   overflow: hidden;
   box-shadow:
@@ -287,8 +310,8 @@
   border-radius: 999px;
   background: radial-gradient(
     150% 300% at 0% 0%,
-    rgba(129, 140, 248, 0.54),
-    rgba(56, 189, 248, 0.4),
+    color-mix(in srgb, var(--color-brand) 40%, var(--color-accent) 36%),
+    color-mix(in srgb, var(--color-brand-strong) 46%, var(--color-accent) 32%),
     transparent 70%
   );
   opacity: 0.8;
@@ -298,39 +321,12 @@
   position: absolute;
   inset: 22px 14px 18px;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 1), rgba(244, 114, 182, 1));
-  box-shadow: 0 0 20px rgba(129, 140, 248, 0.7);
-}
-
-.miniTimelineDot {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent) 65%, #ffffff);
-  box-shadow:
-    0 0 10px color-mix(in srgb, var(--color-brand) 80%, transparent),
-    0 0 24px color-mix(in srgb, var(--color-accent) 70%, transparent);
-}
-
-.miniTimelineDot[data-pos="start"] {
-  left: 12%;
-  top: 28px;
-}
-
-.miniTimelineDot[data-pos="mid"] {
-  left: 38%;
-  top: 20px;
-}
-
-.miniTimelineDot[data-pos="peak"] {
-  left: 65%;
-  top: 12px;
-}
-
-.miniTimelineDot[data-pos="end"] {
-  left: 88%;
-  top: 26px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand) 80%, var(--color-accent) 20%),
+    color-mix(in srgb, var(--color-accent) 80%, var(--color-brand) 20%)
+  );
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-brand-strong) 60%, var(--color-accent) 40%);
 }
 
 .cardRow {
@@ -349,9 +345,13 @@
 .segmentTile {
   border-radius: 14px;
   padding: 10px 11px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(52, 211, 153, 0.45));
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 253, 0.65));
   background:
-    radial-gradient(150% 180% at 0% 0%, rgba(52, 211, 153, 0.28), transparent 60%),
+    radial-gradient(
+      150% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 26%, var(--color-accent) 18%),
+      transparent 60%
+    ),
     linear-gradient(
       185deg,
       color-mix(in srgb, var(--surface-elevated) 98%, transparent),

@@ -70,12 +70,12 @@ const TILE_META: Record<
   },
   insights: {
     icon: <GameController weight="fill" />,
-    title: "Gaming Insights",
+    title: "Personal Coach",
     bullets: [
-      "Run live match analysis",
-      "Generate strategy plan",
-      "Launch stat integration",
-      "Build coaching plan",
+      "Review a recent session",
+      "Generate a practice plan",
+      "Summarize strengths",
+      "Spot patterns over time",
     ],
   },
   ladders: {

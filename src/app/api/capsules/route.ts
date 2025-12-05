@@ -4,6 +4,7 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { createCapsule, getUserCapsules } from "@/server/capsules/service";
 import { deriveRequestOrigin } from "@/lib/url";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { ModerationError } from "@/server/moderation/text";
 
 const createRequestSchema = z.object({
   name: z
@@ -64,6 +65,9 @@ export async function POST(req: Request) {
     const capsule = await createCapsule(ownerId, { name: parsed.data.name });
     return validatedJson(createResponseSchema, { capsule }, { status: 201 });
   } catch (error) {
+    if (error instanceof ModerationError) {
+      return returnError(error.status, error.code, error.message, error.details);
+    }
     console.error("capsules.create error", error);
     return returnError(500, "capsules_error", "Failed to create capsule.");
   }

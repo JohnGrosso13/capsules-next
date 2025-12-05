@@ -519,9 +519,9 @@
   .chips {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 10px;
-    padding-left: 6px;
+    padding-left: 0;
     width: 100%;
     box-sizing: border-box;
   }

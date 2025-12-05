@@ -4,6 +4,132 @@ import { AppPage } from "@/components/app-page";
 
 import styles from "./content.page.module.css";
 
+type AspectFormatId = "vertical" | "horizontal" | "square";
+
+type AspectFormat = {
+  id: AspectFormatId;
+  label: string;
+  description: string;
+};
+
+type LayoutHelper = {
+  id: string;
+  label: string;
+  hint: string;
+};
+
+type MediaKind = "clip" | "image" | "bumper";
+
+type MediaItem = {
+  id: string;
+  kind: MediaKind;
+  title: string;
+  detail: string;
+  badgeLabel: string;
+};
+
+type PromptDraft = {
+  id: string;
+  label: string;
+  text: string;
+};
+
+type ProjectSummary = {
+  id: string;
+  title: string;
+  subtitle: string;
+  tagline: string;
+  aspect: string;
+  duration: string;
+};
+
+const PROJECT_SUMMARY: ProjectSummary = {
+  id: "proj_01",
+  title: "Ranked clutch montage",
+  subtitle: "Capsule neon • bold captions",
+  tagline: "Match point, one chance.",
+  aspect: "9:16 short",
+  duration: "00:34",
+};
+
+const ASPECT_FORMATS: AspectFormat[] = [
+  {
+    id: "vertical",
+    label: "Vertical",
+    description: "9:16 – Shorts / Reels",
+  },
+  {
+    id: "horizontal",
+    label: "Horizontal",
+    description: "16:9 – YouTube / VODs",
+  },
+  {
+    id: "square",
+    label: "Square",
+    description: "1:1 – Feed posts",
+  },
+];
+
+const LAYOUT_HELPERS: LayoutHelper[] = [
+  {
+    id: "safe-zones",
+    label: "Safe zones",
+    hint: "Ensure overlays avoid platform UI and chat.",
+  },
+  {
+    id: "caption-style",
+    label: "Caption style",
+    hint: "Bold gaming subtitles with subtle outline.",
+  },
+  {
+    id: "transitions",
+    label: "Transitions",
+    hint: "Quick cuts between big reactions and plays.",
+  },
+];
+
+const MEDIA_ITEMS: MediaItem[] = [
+  {
+    id: "media_01",
+    kind: "clip",
+    title: "Ace on Split – Round 11",
+    detail: "0:18 • Auto-clipped from last broadcast",
+    badgeLabel: "Clip",
+  },
+  {
+    id: "media_02",
+    kind: "image",
+    title: "Match MVP screenshot",
+    detail: "PNG • Captured via Capsules overlay",
+    badgeLabel: "Image",
+  },
+  {
+    id: "media_03",
+    kind: "bumper",
+    title: "\"Community night\" intro sting",
+    detail: "0:06 • Animated bumper",
+    badgeLabel: "Bumper",
+  },
+];
+
+const PROMPT_DRAFTS: PromptDraft[] = [
+  {
+    id: "prompt_title",
+    label: "Title & hook",
+    text: "He queued solo, but his aim didn't get the memo.",
+  },
+  {
+    id: "prompt_description",
+    label: "Description",
+    text: "Short recap optimized for YouTube, with timestamps and a soft CTA to follow your Capsule.",
+  },
+  {
+    id: "prompt_cross_post",
+    label: "Cross-post copy",
+    text: "Variants for Discord announcements, Capsule posts, and a quick X / Threads caption.",
+  },
+];
+
 export const metadata: Metadata = {
   title: "Content Studio - Capsules",
   description:
@@ -12,15 +138,15 @@ export const metadata: Metadata = {
 
 export default function ContentStudioPage() {
   return (
-    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
+    <AppPage activeNav="create" showPrompter layoutVariant="capsule">
       <div className={styles.shell} data-surface="content">
         <header className={styles.header}>
           <div className={styles.headerMain}>
             <div className={styles.pill}>Content Studio</div>
             <h1 className={styles.title}>Design highlights, thumbnails, and posts with AI</h1>
             <p className={styles.subtitle}>
-              Drop in your footage and screenshots. Capsules helps you cut, caption, and style content
-              so it feels unmistakably on-brand for your community.
+              Drop in your footage and screenshots. Capsules helps you cut, caption, and style content so it
+              feels unmistakably on-brand for your community.
             </p>
             <div className={styles.headerActions}>
               <button type="button" className={styles.primaryButton}>
@@ -67,11 +193,13 @@ export default function ContentStudioPage() {
               <div className={styles.previewShell}>
                 <div className={styles.previewFrame}>
                   <div className={styles.previewSafeLines} aria-hidden="true" />
-                  <div className={styles.previewBadge}>9:16 Short · 00:34</div>
-                  <div className={styles.previewTagline}>“Match point, one chance.”</div>
+                  <div className={styles.previewBadge}>
+                    {PROJECT_SUMMARY.aspect} • {PROJECT_SUMMARY.duration}
+                  </div>
+                  <div className={styles.previewTagline}>{PROJECT_SUMMARY.tagline}</div>
                   <div className={styles.previewOverlayBottom}>
-                    <div className={styles.previewTitle}>Ranked clutch montage</div>
-                    <div className={styles.previewSubtitle}>Capsule neon · bold captions</div>
+                    <div className={styles.previewTitle}>{PROJECT_SUMMARY.title}</div>
+                    <div className={styles.previewSubtitle}>{PROJECT_SUMMARY.subtitle}</div>
                   </div>
                 </div>
                 <div className={styles.timelineShell} aria-hidden="true">
@@ -104,32 +232,20 @@ export default function ContentStudioPage() {
                 </button>
               </header>
               <div className={styles.formatGrid}>
-                <div className={styles.formatChoice}>
-                  <div className={styles.formatBadge}>Vertical</div>
-                  <div className={styles.formatLabel}>9:16 · Shorts / Reels</div>
-                </div>
-                <div className={styles.formatChoice}>
-                  <div className={styles.formatBadge}>Horizontal</div>
-                  <div className={styles.formatLabel}>16:9 · YouTube / VODs</div>
-                </div>
-                <div className={styles.formatChoice}>
-                  <div className={styles.formatBadge}>Square</div>
-                  <div className={styles.formatLabel}>1:1 · Feed posts</div>
-                </div>
+                {ASPECT_FORMATS.map((format) => (
+                  <div key={format.id} className={styles.formatChoice}>
+                    <div className={styles.formatBadge}>{format.label}</div>
+                    <div className={styles.formatLabel}>{format.description}</div>
+                  </div>
+                ))}
               </div>
               <div className={styles.layoutHelpers}>
-                <div className={styles.layoutHelper}>
-                  <div className={styles.layoutLabel}>Safe zones</div>
-                  <p className={styles.layoutHint}>Ensure overlays avoid platform UI and chat.</p>
-                </div>
-                <div className={styles.layoutHelper}>
-                  <div className={styles.layoutLabel}>Caption style</div>
-                  <p className={styles.layoutHint}>Bold gaming subtitles with subtle outline.</p>
-                </div>
-                <div className={styles.layoutHelper}>
-                  <div className={styles.layoutLabel}>Transitions</div>
-                  <p className={styles.layoutHint}>Quick cuts between big reactions and plays.</p>
-                </div>
+                {LAYOUT_HELPERS.map((helper) => (
+                  <div key={helper.id} className={styles.layoutHelper}>
+                    <div className={styles.layoutLabel}>{helper.label}</div>
+                    <p className={styles.layoutHint}>{helper.hint}</p>
+                  </div>
+                ))}
               </div>
             </section>
           </section>
@@ -148,30 +264,21 @@ export default function ContentStudioPage() {
                 </button>
               </header>
               <ul className={styles.mediaList}>
-                <li className={styles.mediaItem}>
-                  <div className={styles.mediaThumb} />
-                  <div className={styles.mediaMeta}>
-                    <div className={styles.mediaTitle}>Ace on Split · Round 11</div>
-                    <p className={styles.mediaHint}>0:18 · Auto-clipped from last broadcast</p>
-                  </div>
-                  <span className={styles.mediaTag}>Clip</span>
-                </li>
-                <li className={styles.mediaItem}>
-                  <div className={styles.mediaThumb} />
-                  <div className={styles.mediaMeta}>
-                    <div className={styles.mediaTitle}>Match MVP screenshot</div>
-                    <p className={styles.mediaHint}>PNG · Captured via Capsules overlay</p>
-                  </div>
-                  <span className={styles.mediaTag}>Image</span>
-                </li>
-                <li className={styles.mediaItem}>
-                  <div className={styles.mediaThumb} />
-                  <div className={styles.mediaMeta}>
-                    <div className={styles.mediaTitle}>“Community night” intro sting</div>
-                    <p className={styles.mediaHint}>0:06 · Animated bumper</p>
-                  </div>
-                  <span className={styles.mediaTag}>Bumper</span>
-                </li>
+                {MEDIA_ITEMS.map((item) => (
+                  <li
+                    key={item.id}
+                    className={styles.mediaItem}
+                    data-kind={item.kind}
+                    data-media-id={item.id}
+                  >
+                    <div className={styles.mediaThumb} />
+                    <div className={styles.mediaMeta}>
+                      <div className={styles.mediaTitle}>{item.title}</div>
+                      <p className={styles.mediaHint}>{item.detail}</p>
+                    </div>
+                    <span className={styles.mediaTag}>{item.badgeLabel}</span>
+                  </li>
+                ))}
               </ul>
             </section>
 
@@ -183,25 +290,12 @@ export default function ContentStudioPage() {
                 </p>
               </header>
               <ul className={styles.promptList}>
-                <li className={styles.promptItem}>
-                  <div className={styles.promptLabel}>Title &amp; hook</div>
-                  <p className={styles.promptText}>
-                    “He queued solo, but his aim didn&apos;t get the memo.”
-                  </p>
-                </li>
-                <li className={styles.promptItem}>
-                  <div className={styles.promptLabel}>Description</div>
-                  <p className={styles.promptText}>
-                    Short recap optimized for YouTube, with timestamps and a soft CTA to follow your
-                    Capsule.
-                  </p>
-                </li>
-                <li className={styles.promptItem}>
-                  <div className={styles.promptLabel}>Cross-post copy</div>
-                  <p className={styles.promptText}>
-                    Variants for Discord announcements, Capsule posts, and a quick X / Threads caption.
-                  </p>
-                </li>
+                {PROMPT_DRAFTS.map((prompt) => (
+                  <li key={prompt.id} className={styles.promptItem}>
+                    <div className={styles.promptLabel}>{prompt.label}</div>
+                    <p className={styles.promptText}>{prompt.text}</p>
+                  </li>
+                ))}
               </ul>
             </section>
 
@@ -223,9 +317,9 @@ export default function ContentStudioPage() {
                 </div>
                 <div className={styles.brandFonts}>
                   <div className={styles.brandLabel}>Typography</div>
-                  <div className={styles.fontChip}>Headline · Bold</div>
+                  <div className={styles.fontChip}>Headline – Bold</div>
                   <div className={styles.fontChip} data-variant="sub">
-                    Body · Clean
+                    Body – Clean
                   </div>
                 </div>
                 <div className={styles.brandLogos}>
@@ -254,4 +348,3 @@ export default function ContentStudioPage() {
     </AppPage>
   );
 }
-

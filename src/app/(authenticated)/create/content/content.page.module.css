@@ -13,8 +13,12 @@
   border-radius: var(--card-radius);
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(1400px 70% at -10% -10%, rgba(255, 255, 255, 0.12), transparent 60%),
-    radial-gradient(1200px 75% at 110% -10%, rgba(244, 114, 182, 0.24), transparent 65%),
+    radial-gradient(1400px 70% at -10% -10%, rgba(248, 250, 252, 0.16), transparent 60%),
+    radial-gradient(
+      1200px 75% at 110% -10%,
+      color-mix(in srgb, var(--color-brand) 28%, var(--color-accent) 22%),
+      transparent 65%
+    ),
     linear-gradient(
       135deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -37,10 +41,14 @@
   align-self: flex-start;
   padding: 4px 12px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(255, 255, 255, 0.32));
+  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(255, 255, 255, 0.8));
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-    radial-gradient(120% 200% at 0% 0%, rgba(244, 114, 182, 0.4), transparent 60%);
+    linear-gradient(180deg, var(--pill-bg-1, rgba(255, 255, 255, 0.12)), var(--pill-bg-2, rgba(255, 255, 255, 0.04))),
+    radial-gradient(
+      120% 200% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 32%, var(--color-accent) 28%),
+      transparent 60%
+    );
   box-shadow:
     0 10px 20px rgba(15, 23, 42, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
@@ -80,14 +88,18 @@
 }
 
 .primaryButton {
-  border-color: rgba(251, 191, 36, 0.8);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-accent) 30%);
   background:
-    linear-gradient(180deg, rgba(251, 191, 36, 0.96), rgba(245, 158, 11, 0.96)),
-    radial-gradient(160% 200% at 0% 0%, rgba(252, 211, 77, 0.9), transparent 60%);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 82%, var(--color-accent) 18%),
+      color-mix(in srgb, var(--color-brand-strong) 85%, var(--color-accent) 15%)
+    ),
+    radial-gradient(160% 200% at 0% 0%, color-mix(in srgb, var(--color-accent) 32%, transparent), transparent 60%);
   box-shadow:
-    0 16px 32px rgba(146, 64, 14, 0.7),
-    inset 0 1px 0 rgba(254, 243, 199, 0.85),
-    inset 0 -1px 0 rgba(120, 53, 15, 0.9);
+    0 16px 32px color-mix(in srgb, var(--color-brand) 35%, rgba(5, 10, 30, 0.8)),
+    inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
 }
 
 .secondaryButton {
@@ -110,9 +122,13 @@
 .metaCard {
   border-radius: 18px;
   padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 70%, rgba(244, 114, 182, 0.5));
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 70%, var(--color-brand));
   background:
-    radial-gradient(160% 180% at 0% 0%, rgba(244, 114, 182, 0.4), transparent 60%),
+    radial-gradient(
+      160% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 26%, var(--color-accent) 22%),
+      transparent 60%
+    ),
     linear-gradient(
       145deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -162,8 +178,12 @@
   padding: 16px 16px 14px;
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(135% 180% at 0% 0%, rgba(244, 114, 182, 0.16), transparent 60%),
-    radial-gradient(130% 200% at 100% -10%, rgba(129, 140, 248, 0.18), transparent 70%),
+    radial-gradient(
+      135% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%),
+      transparent 60%
+    ),
+    radial-gradient(130% 200% at 100% -10%, rgba(148, 163, 253, 0.18), transparent 70%),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -248,8 +268,16 @@
   border-radius: 22px;
   padding: 16px 14px;
   background:
-    radial-gradient(180% 260% at 0% 0%, rgba(244, 114, 182, 0.5), transparent 60%),
-    radial-gradient(160% 240% at 100% 0%, rgba(56, 189, 248, 0.4), transparent 60%),
+    radial-gradient(
+      180% 260% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 32%, var(--color-accent) 24%),
+      transparent 60%
+    ),
+    radial-gradient(
+      160% 240% at 100% 0%,
+      color-mix(in srgb, var(--color-brand-strong) 40%, var(--color-accent) 26%),
+      transparent 60%
+    ),
     linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
   box-shadow:
     0 24px 64px rgba(15, 23, 42, 0.95),
@@ -316,8 +344,16 @@
   border-radius: 16px;
   padding: 10px 12px;
   background:
-    radial-gradient(160% 220% at 0% 0%, rgba(56, 189, 248, 0.45), transparent 60%),
-    radial-gradient(160% 220% at 100% 100%, rgba(244, 114, 182, 0.45), transparent 60%),
+    radial-gradient(
+      160% 220% at 0% 0%,
+      color-mix(in srgb, var(--color-accent) 36%, var(--color-brand) 16%),
+      transparent 60%
+    ),
+    radial-gradient(
+      160% 220% at 100% 100%,
+      color-mix(in srgb, var(--color-brand-strong) 36%, var(--color-accent) 22%),
+      transparent 60%
+    ),
     linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 1));
   box-shadow:
     0 16px 36px rgba(15, 23, 42, 0.95),
@@ -331,13 +367,12 @@
   background:
     linear-gradient(
       90deg,
-      rgba(59, 130, 246, 0.9),
-      rgba(244, 114, 182, 0.9),
-      rgba(45, 212, 191, 0.9)
+      color-mix(in srgb, var(--color-brand) 80%, var(--color-accent) 20%),
+      color-mix(in srgb, var(--color-accent) 80%, var(--color-brand) 20%)
     );
   box-shadow:
-    0 0 24px rgba(59, 130, 246, 0.9),
-    0 0 40px rgba(244, 114, 182, 0.7);
+    0 0 24px color-mix(in srgb, var(--color-brand) 42%, var(--color-accent) 58%),
+    0 0 40px color-mix(in srgb, var(--color-brand-strong) 48%, var(--color-accent) 52%);
 }
 
 .timelineClips {
@@ -475,8 +510,16 @@
   height: 32px;
   border-radius: 10px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.7), transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.7), transparent 60%);
+    radial-gradient(
+      circle at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 38%, var(--color-accent) 30%),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 100% 100%,
+      color-mix(in srgb, var(--color-brand-strong) 42%, var(--color-accent) 34%),
+      transparent 60%
+    );
 }
 
 .mediaMeta {
@@ -501,8 +544,12 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: linear-gradient(180deg, rgba(96, 165, 250, 0.18), rgba(37, 99, 235, 0.5));
-  border: 1px solid rgba(129, 140, 248, 0.8);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 32%, var(--color-accent) 18%),
+    color-mix(in srgb, var(--color-brand-strong) 52%, var(--color-accent) 28%)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand) 70%, rgba(255, 255, 255, 0.16));
 }
 
 .promptList {
@@ -608,8 +655,16 @@
   height: 34px;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.7), transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.7), transparent 60%);
+    radial-gradient(
+      circle at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 38%, var(--color-accent) 30%),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 100% 100%,
+      color-mix(in srgb, var(--color-brand-strong) 42%, var(--color-accent) 34%),
+      transparent 60%
+    );
   box-shadow:
     0 10px 24px rgba(15, 23, 42, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),

@@ -50,9 +50,10 @@ type FeedMediaGalleryProps = {
   postId: string;
   items: FeedGalleryItem[];
   onOpenLightbox: (payload: { postId: string; index: number; items: LightboxImageItem[] }) => void;
+  priority?: boolean;
 };
 
-export function FeedMediaGallery({ postId, items, onOpenLightbox }: FeedMediaGalleryProps) {
+export function FeedMediaGallery({ postId, items, onOpenLightbox, priority }: FeedMediaGalleryProps) {
   const lightboxItems = React.useMemo<LightboxImageItem[]>(
     () => buildLightboxItemsFromGallery(items),
     [items],
@@ -173,7 +174,8 @@ export function FeedMediaGallery({ postId, items, onOpenLightbox }: FeedMediaGal
               width={imageWidth}
               height={imageHeight}
               sizes={imageSizes}
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
+              priority={Boolean(priority)}
               unoptimized
               style={singleImageMediaStyles}
             />
