@@ -10,8 +10,8 @@
     --cta-gradient,
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--color-brand, #6366f1) 82%, transparent),
-      color-mix(in srgb, var(--color-accent, #22d3ee) 78%, transparent)
+      color-mix(in srgb, var(--color-brand, #7c3aed) 88%, transparent),
+      color-mix(in srgb, var(--color-brand-strong, #4f46e5) 72%, transparent)
     )
   );
   --profile-tab-active-text: var(--text-on-brand, var(--color-brand-foreground, #0e1024));
@@ -398,10 +398,52 @@
   gap: 0.85rem;
 }
 
+.actionMenu {
+  position: relative;
+  width: 100%;
+}
+
 .actionButton {
   width: 100%;
   justify-content: center;
   text-transform: none;
+}
+
+.actionPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  border-radius: 1rem;
+  background: var(--surface-overlay, rgba(8, 12, 24, 0.95));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(0, 0, 0, 0.45));
+  backdrop-filter: blur(18px);
+  z-index: 40;
+  padding: 0.35rem;
+}
+
+.actionPopoverButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text, #f5f8ff);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.actionPopoverButton:hover {
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.06));
+}
+
+.actionDanger {
+  color: color-mix(in srgb, #ff9eb0 92%, #ffdee9 8%);
 }
 
 .tabBar {
@@ -765,4 +807,3 @@
   height: 100%;
   object-fit: cover;
 }
-

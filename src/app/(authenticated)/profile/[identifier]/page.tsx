@@ -50,7 +50,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   });
 
   return (
-    <AppPage showPrompter={true} activeNav="profile">
+    <AppPage showPrompter={true} activeNav="profile" showDiscoveryRightRail={true}>
       <ProfilePageClient data={data} canonicalPath={canonicalPath} />
     </AppPage>
   );

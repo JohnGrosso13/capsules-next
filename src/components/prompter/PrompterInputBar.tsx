@@ -100,7 +100,6 @@ export function PrompterInputBar({
         ? "Stop dictation"
         : "Dictate message");
   const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
-  const showSend = isCompact && value.trim().length > 0;
   const useIconSubmit = submitVariant === "icon";
   const showCompactSendButton = isCompact;
   const compactSendDisabled = buttonDisabled || value.trim().length === 0;
@@ -184,9 +183,9 @@ export function PrompterInputBar({
               <button
                 type="button"
                 className={cm.item}
-                role="menuitem"
+                role="menuitemcheckbox"
                 onClick={handleVoiceSelect}
-                aria-pressed={isListening}
+                aria-checked={isListening}
                 aria-label={computedLabel}
                 disabled={voiceButtonDisabled}
                 aria-disabled={voiceButtonDisabled}

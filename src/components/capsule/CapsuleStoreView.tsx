@@ -139,7 +139,6 @@ function CapsuleStoreView({
     () => [
       { id: "express", label: "Express (2-3 days)", price: 14, detail: "Insured, tracked" },
       { id: "standard", label: "Standard (5-7 days)", price: 6, detail: "Tracked delivery" },
-      { id: "pickup", label: "Pickup", price: 0, detail: "Meet at next event or venue" },
     ],
     [],
   );

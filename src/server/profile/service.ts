@@ -3,6 +3,8 @@ import { getUserProfileSummary } from "@/server/users/service";
 import {
   getFollowStatsSummary,
   getViewerFollowState,
+  getViewerFriendState,
+  type ViewerFriendState,
 } from "@/server/friends/service";
 import { getUserCapsules } from "@/server/capsules/service";
 import type { CapsuleSummary } from "@/server/capsules/repository";
@@ -74,6 +76,7 @@ export type ProfilePageData = {
       isFollowing: boolean;
       canFollow: boolean;
     };
+    friend: ViewerFriendState;
     inviteOptions: CapsuleSummary[];
   };
 };
@@ -209,10 +212,11 @@ export async function loadProfilePageData(params: {
 }): Promise<ProfilePageData> {
   const { viewerId, targetUserId, origin } = params;
   const normalizedOrigin = origin ?? null;
-  const [profile, followStats, viewerFollow, targetCapsules, privacySettings] = await Promise.all([
+  const [profile, followStats, viewerFollow, viewerFriend, targetCapsules, privacySettings] = await Promise.all([
     getUserProfileSummary(targetUserId, { origin: normalizedOrigin }),
     getFollowStatsSummary(targetUserId),
     getViewerFollowState(viewerId, targetUserId),
+    getViewerFriendState(viewerId, targetUserId),
     getUserCapsules(targetUserId, { origin: normalizedOrigin }),
     getProfilePrivacySettings(targetUserId),
   ]);
@@ -268,6 +272,7 @@ export async function loadProfilePageData(params: {
       id: viewerId,
       isSelf: Boolean(viewerId && viewerId === targetUserId),
       follow: viewerFollow,
+      friend: viewerFriend,
       inviteOptions: (viewerCapsules ?? []).filter((capsule) => capsule.ownership === "owner"),
     },
   };

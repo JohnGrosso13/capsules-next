@@ -1162,8 +1162,16 @@ export async function queryPosts(options: PostsQueryInput): Promise<PostsQueryRe
     }
   }
 
+  const lastRow = rows[rows.length - 1] as Record<string, unknown> | undefined;
+  const rowCursor =
+    typeof lastRow?.["created_at"] === "string"
+      ? (lastRow["created_at"] as string)
+      : typeof lastRow?.["ts"] === "string"
+        ? (lastRow["ts"] as string)
+        : null;
+
   const nextCursor =
-    posts.length === limit ? (posts[posts.length - 1]?.ts ?? null) : null;
+    rows.length === limit ? rowCursor ?? (posts[posts.length - 1]?.ts ?? null) : null;
 
   return { posts, deleted: deletedIds, cursor: nextCursor };
 }

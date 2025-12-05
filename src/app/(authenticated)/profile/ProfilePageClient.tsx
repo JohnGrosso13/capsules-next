@@ -2,21 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  Eye,
-  EyeSlash,
-  LockSimple,
-  PaperPlaneTilt,
-  ShareNetwork,
-  Sparkle,
-  UsersThree,
-  UserPlus,
-} from "@phosphor-icons/react/dist/ssr";
+import { Eye, EyeSlash, LockSimple, ShareNetwork, Sparkle, UsersThree, UserPlus } from "@phosphor-icons/react/dist/ssr";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { friendsActions } from "@/lib/friends/store";
-import { requestChatStart } from "@/components/providers/ChatProvider";
+import { friendsActions, friendsStore } from "@/lib/friends/store";
 import type {
   ProfilePageData,
   ProfileClip,
@@ -52,6 +42,7 @@ export function ProfilePageClient({ data, canonicalPath }: ProfilePageClientProp
           value={activeTab}
           onValueChange={setActiveTab}
           className={styles.profileTabs}
+          idPrefix="profile-tabs"
           variant="pill"
           size="md"
         >
@@ -153,12 +144,30 @@ type ProfileActionsProps = {
 };
 
 function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
+  const initialFriendState = React.useMemo(
+    () =>
+      data.viewer.friend ?? {
+        status: "none",
+        requestId: null,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      },
+    [data.viewer.friend],
+  );
+  const [friendState, setFriendState] = React.useState(initialFriendState);
+  React.useEffect(() => {
+    setFriendState(initialFriendState);
+  }, [initialFriendState]);
+
   const [followed, setFollowed] = React.useState(data.viewer.follow.isFollowing);
-  const [pending, setPending] = React.useState<"follow" | "message" | "invite" | "share" | null>(
+  const [pending, setPending] = React.useState<"friend" | "follow" | "invite" | "share" | null>(
     null,
   );
   const [feedback, setFeedback] = React.useState<string | null>(null);
+  const [friendMenuOpen, setFriendMenuOpen] = React.useState(false);
+  const [followMenuOpen, setFollowMenuOpen] = React.useState(false);
   const inviteDisabled = !data.viewer.inviteOptions.length || data.viewer.isSelf;
+  const isSelf = data.viewer.isSelf;
 
   const targetPayload = React.useMemo(
     () => ({
@@ -170,49 +179,241 @@ function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
     [data.user],
   );
 
-  const handleFollow = async () => {
-    if (data.viewer.isSelf) return;
+  const findRequestId = React.useCallback(() => {
+    const snapshot = friendsStore.getSnapshot();
+    const targetId = data.user.id;
+    const incoming = snapshot.graph?.incomingRequests?.find(
+      (request) => request.requesterId === targetId,
+    );
+    if (incoming?.id) return incoming.id;
+    const outgoing = snapshot.graph?.outgoingRequests?.find(
+      (request) => request.recipientId === targetId,
+    );
+    return outgoing?.id ?? null;
+  }, [data.user.id]);
+
+  React.useEffect(() => {
+    if (!friendMenuOpen && !followMenuOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      if (!(event.target instanceof HTMLElement)) return;
+      if (!event.target.closest(`.${styles.actionMenu}`)) {
+        setFriendMenuOpen(false);
+        setFollowMenuOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", handleClick);
+    return () => window.removeEventListener("pointerdown", handleClick);
+  }, [friendMenuOpen, followMenuOpen]);
+
+  const isBlockedByTarget = friendState.isBlockedByTarget;
+  const friendLabel = React.useMemo(() => {
+    switch (friendState.status) {
+      case "friends":
+        return "Friends";
+      case "incoming":
+        return "Accept request";
+      case "outgoing":
+        return "Requested";
+      case "blocked":
+        return friendState.isBlockedByViewer ? "Blocked" : "Blocked";
+      default:
+        return "Add Friend";
+    }
+  }, [friendState]);
+
+  const handleFriendRequest = async () => {
+    if (isSelf || isBlockedByTarget) return;
+    setPending("friend");
+    setFeedback(null);
+    try {
+      await friendsActions.performTargetedMutation("request", targetPayload);
+      const requestId = findRequestId();
+      setFriendState((prev) => ({
+        ...prev,
+        status: "outgoing",
+        requestId: requestId ?? prev.requestId,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      }));
+      setFeedback("Friend request sent.");
+      setFriendMenuOpen(false);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to send friend request.");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const handleAcceptRequest = async () => {
+    const requestId = friendState.requestId ?? findRequestId();
+    if (!requestId) return;
+    setPending("friend");
+    setFeedback(null);
+    try {
+      await friendsActions.acceptRequest(requestId);
+      setFriendState({
+        status: "friends",
+        requestId: null,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      });
+      setFeedback("Friend added.");
+      setFriendMenuOpen(false);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to accept request.");
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const handleDeclineOrCancelRequest = async () => {
+    const requestId = friendState.requestId ?? findRequestId();
+    if (!requestId) {
+      setFriendState({
+        status: "none",
+        requestId: null,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      });
+      setFriendMenuOpen(false);
+      return;
+    }
+    setPending("friend");
+    setFeedback(null);
+    try {
+      if (friendState.status === "incoming") {
+        await friendsActions.declineRequest(requestId);
+        setFeedback("Request declined.");
+      } else {
+        await friendsActions.cancelRequest(requestId);
+        setFeedback("Request cancelled.");
+      }
+      setFriendState({
+        status: "none",
+        requestId: null,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      });
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to update request.");
+    } finally {
+      setPending(null);
+      setFriendMenuOpen(false);
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    setPending("friend");
+    setFeedback(null);
+    try {
+      await friendsActions.performTargetedMutation("remove", targetPayload);
+      setFriendState({
+        status: "none",
+        requestId: null,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      });
+      setFeedback("Removed friend.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to remove friend.");
+    } finally {
+      setPending(null);
+      setFriendMenuOpen(false);
+    }
+  };
+
+  const handleBlock = async () => {
+    if (isSelf) return;
+    setPending("friend");
+    setFeedback(null);
+    try {
+      await friendsActions.performTargetedMutation("block", targetPayload);
+      setFriendState({
+        status: "blocked",
+        requestId: null,
+        isBlockedByViewer: true,
+        isBlockedByTarget: false,
+      });
+      setFollowed(false);
+      setFeedback("Blocked member.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to block member.");
+    } finally {
+      setPending(null);
+      setFriendMenuOpen(false);
+      setFollowMenuOpen(false);
+    }
+  };
+
+  const handleUnblock = async () => {
+    setPending("friend");
+    setFeedback(null);
+    try {
+      await friendsActions.performTargetedMutation("unblock", targetPayload);
+      setFriendState({
+        status: "none",
+        requestId: null,
+        isBlockedByViewer: false,
+        isBlockedByTarget: false,
+      });
+      setFeedback("Unblocked member.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to unblock member.");
+    } finally {
+      setPending(null);
+      setFriendMenuOpen(false);
+    }
+  };
+
+  const handleFriendPrimary = () => {
+    if (isSelf || isBlockedByTarget) return;
+    setFeedback(null);
+    if (friendState.status === "friends" || friendState.status === "outgoing") {
+      setFriendMenuOpen((prev) => !prev);
+      setFollowMenuOpen(false);
+      return;
+    }
+    if (friendState.status === "blocked") {
+      if (friendState.isBlockedByViewer) {
+        void handleUnblock();
+      }
+      return;
+    }
+    if (friendState.status === "incoming") {
+      void handleAcceptRequest();
+      return;
+    }
+    void handleFriendRequest();
+  };
+
+  const handleFollowToggle = async (action: "follow" | "unfollow") => {
+    if (isSelf || isBlockedByTarget) return;
     setPending("follow");
     setFeedback(null);
     try {
-      await friendsActions.performTargetedMutation(
-        followed ? "unfollow" : "follow",
-        targetPayload,
-      );
-      setFollowed((prev) => !prev);
-      setFeedback(followed ? "Unfollowed member." : "Now following.");
+      await friendsActions.performTargetedMutation(action, targetPayload);
+      const isNowFollowing = action === "follow";
+      setFollowed(isNowFollowing);
+      setFeedback(isNowFollowing ? "Now following." : "Unfollowed member.");
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : "Unable to update follow status right now.",
       );
     } finally {
       setPending(null);
+      setFollowMenuOpen(false);
     }
   };
 
-  const handleMessage = async () => {
-    if (data.viewer.isSelf) return;
+  const handleFollowPrimary = () => {
+    if (isSelf || isBlockedByTarget) return;
     setFeedback(null);
-    setPending("message");
-    try {
-      const result = await requestChatStart(
-        {
-          userId: data.user.id,
-          name: data.user.name ?? "Friend",
-          avatar: data.user.avatarUrl ?? null,
-        },
-        { activate: true },
-      );
-      if (!result) {
-        setFeedback("We couldn't open that DM. Try again soon.");
-      } else {
-        setFeedback("Chat opened.");
-      }
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to start chat.");
-    } finally {
-      setPending(null);
+    if (followed) {
+      setFollowMenuOpen((prev) => !prev);
+      setFriendMenuOpen(false);
+      return;
     }
+    void handleFollowToggle("follow");
   };
 
   const handleShare = async () => {
@@ -239,31 +440,134 @@ function ProfileActions({ data, canonicalPath }: ProfileActionsProps) {
   return (
     <>
       <div className={styles.actionBar}>
-        <Button
-          variant="gradient"
-          size="lg"
-          className={styles.actionButton}
-          leftIcon={<UserPlus weight="duotone" />}
-          disabled={data.viewer.isSelf}
-          onClick={handleFollow}
-          loading={pending === "follow"}
-        >
-          {followed ? "Following" : "Follow"}
-        </Button>
+        <div className={styles.actionMenu}>
+          <Button
+            variant="secondary"
+            size="lg"
+            className={styles.actionButton}
+            leftIcon={<UsersThree weight="duotone" />}
+            disabled={isSelf || isBlockedByTarget}
+            onClick={handleFriendPrimary}
+            loading={pending === "friend"}
+            aria-expanded={friendMenuOpen ? "true" : "false"}
+          >
+            {friendLabel}
+          </Button>
+          {friendMenuOpen ? (
+            <div className={styles.actionPopover}>
+              {friendState.status === "friends" ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.actionPopoverButton}
+                    onClick={() => {
+                      void handleRemoveFriend();
+                    }}
+                  >
+                    Remove friend
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.actionPopoverButton} ${styles.actionDanger}`}
+                    onClick={() => {
+                      void handleBlock();
+                    }}
+                  >
+                    Block
+                  </button>
+                </>
+              ) : friendState.status === "outgoing" ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.actionPopoverButton}
+                    onClick={() => {
+                      void handleDeclineOrCancelRequest();
+                    }}
+                  >
+                    Cancel request
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.actionPopoverButton} ${styles.actionDanger}`}
+                    onClick={() => {
+                      void handleBlock();
+                    }}
+                  >
+                    Block
+                  </button>
+                </>
+              ) : friendState.status === "incoming" ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.actionPopoverButton}
+                    onClick={() => {
+                      void handleAcceptRequest();
+                    }}
+                  >
+                    Accept request
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.actionPopoverButton}
+                    onClick={() => {
+                      void handleDeclineOrCancelRequest();
+                    }}
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.actionPopoverButton} ${styles.actionDanger}`}
+                    onClick={() => {
+                      void handleBlock();
+                    }}
+                  >
+                    Block
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
-        <Button
-          variant="secondary"
-          size="lg"
-          className={styles.actionButton}
-          leftIcon={<PaperPlaneTilt weight="duotone" />}
-          onClick={() => {
-            void handleMessage();
-          }}
-          disabled={data.viewer.isSelf}
-          loading={pending === "message"}
-        >
-          Message
-        </Button>
+        <div className={styles.actionMenu}>
+          <Button
+            variant="gradient"
+            size="lg"
+            className={styles.actionButton}
+            leftIcon={<UserPlus weight="duotone" />}
+            disabled={isSelf || isBlockedByTarget || friendState.status === "blocked"}
+            onClick={handleFollowPrimary}
+            loading={pending === "follow"}
+            aria-expanded={followMenuOpen ? "true" : "false"}
+          >
+            {followed ? "Following" : "Follow"}
+          </Button>
+          {followMenuOpen ? (
+            <div className={styles.actionPopover}>
+              <button
+                type="button"
+                className={styles.actionPopoverButton}
+                onClick={() => {
+                  void handleFollowToggle("unfollow");
+                }}
+              >
+                Unfollow
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionPopoverButton} ${styles.actionDanger}`}
+                onClick={() => {
+                  void handleBlock();
+                }}
+              >
+                Block
+              </button>
+            </div>
+          ) : null}
+        </div>
 
         <InviteMenu
           capsules={data.viewer.inviteOptions}
@@ -971,8 +1275,3 @@ function StatsPrivacyControls({
 }
 
 export default ProfilePageClient;
-
-
-
-
-

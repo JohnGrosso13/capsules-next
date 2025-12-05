@@ -32,6 +32,16 @@ type StartChatResult = {
   created: boolean;
 };
 
+type PendingChatStart = {
+  target: ChatFriendTarget;
+  options?: { activate?: boolean } | undefined;
+  resolve?: (result: StartChatResult | null) => void;
+};
+
+type ChatStartQueueHost = {
+  __capsulesChatStartQueue?: PendingChatStart[];
+};
+
 export type CreateGroupChatInput = {
   name?: string;
   participants: ChatFriendTarget[];
@@ -75,6 +85,7 @@ export type ChatContextValue = {
 
 const ChatContext = React.createContext<ChatContextValue | null>(null);
 const CHAT_START_EVENT = "capsules:chat:start";
+const CHAT_START_FLUSH_EVENT = "capsules:chat:start:flush";
 
 type ChatStartEventDetail = {
   target: ChatFriendTarget;
@@ -83,6 +94,15 @@ type ChatStartEventDetail = {
 };
 
 type ChatStartEvent = CustomEvent<ChatStartEventDetail>;
+
+function getChatStartQueue(): PendingChatStart[] {
+  if (typeof window === "undefined") return [];
+  const host = window as typeof window & ChatStartQueueHost;
+  if (!Array.isArray(host.__capsulesChatStartQueue)) {
+    host.__capsulesChatStartQueue = [];
+  }
+  return host.__capsulesChatStartQueue;
+}
 
 export function useChatContext(): ChatContextValue {
   const context = React.useContext(ChatContext);
@@ -110,9 +130,10 @@ export function requestChatStart(
       },
     };
     window.dispatchEvent(new CustomEvent<ChatStartEventDetail>(CHAT_START_EVENT, { detail }));
-    if (!handled) {
-      resolve(null);
-    }
+    if (handled) return;
+    const queue = getChatStartQueue();
+    queue.push({ target, options, resolve });
+    window.dispatchEvent(new Event(CHAT_START_FLUSH_EVENT));
   });
 }
 
@@ -261,6 +282,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    const flushQueuedStarts = () => {
+      const queue = getChatStartQueue();
+      while (queue.length > 0) {
+        const next = queue.shift();
+        if (!next) continue;
+        const result = startChat(next.target, next.options);
+        next.resolve?.(result ?? null);
+      }
+    };
     const handler = (event: Event) => {
       const custom = event as ChatStartEvent;
       const detail = custom.detail;
@@ -268,9 +298,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const result = startChat(detail.target, detail.options);
       detail.resolve?.(result ?? null);
     };
+    flushQueuedStarts();
     window.addEventListener(CHAT_START_EVENT, handler as EventListener);
+    window.addEventListener(CHAT_START_FLUSH_EVENT, flushQueuedStarts as EventListener);
     return () => {
       window.removeEventListener(CHAT_START_EVENT, handler as EventListener);
+      window.removeEventListener(CHAT_START_FLUSH_EVENT, flushQueuedStarts as EventListener);
     };
   }, [startChat]);
 

@@ -598,3 +598,72 @@ export async function getViewerFollowState(
     return { isFollowing: false, canFollow: true };
   }
 }
+
+export type ViewerFriendState = {
+  status: "self" | "friends" | "incoming" | "outgoing" | "blocked" | "none";
+  requestId: string | null;
+  isBlockedByViewer: boolean;
+  isBlockedByTarget: boolean;
+};
+
+export async function getViewerFriendState(
+  viewerId: string | null | undefined,
+  targetUserId: string,
+): Promise<ViewerFriendState> {
+  if (!viewerId) {
+    return { status: "none", requestId: null, isBlockedByViewer: false, isBlockedByTarget: false };
+  }
+  if (viewerId === targetUserId) {
+    return { status: "self", requestId: null, isBlockedByViewer: false, isBlockedByTarget: false };
+  }
+
+  const [blockByViewer, blockByTarget] = await Promise.all([
+    findActiveBlock(viewerId, targetUserId),
+    findActiveBlock(targetUserId, viewerId),
+  ]);
+  if (blockByViewer || blockByTarget) {
+    return {
+      status: "blocked",
+      requestId: null,
+      isBlockedByViewer: Boolean(blockByViewer),
+      isBlockedByTarget: Boolean(blockByTarget),
+    };
+  }
+
+  const friendship = await findFriendshipRow(viewerId, targetUserId);
+  if (friendship) {
+    return {
+      status: "friends",
+      requestId: asString(friendship.request_id),
+      isBlockedByViewer: false,
+      isBlockedByTarget: false,
+    };
+  }
+
+  const incoming = await findPendingRequest(targetUserId, viewerId);
+  if (incoming) {
+    return {
+      status: "incoming",
+      requestId: asString(incoming.id),
+      isBlockedByViewer: false,
+      isBlockedByTarget: false,
+    };
+  }
+
+  const outgoing = await findPendingRequest(viewerId, targetUserId);
+  if (outgoing) {
+    return {
+      status: "outgoing",
+      requestId: asString(outgoing.id),
+      isBlockedByViewer: false,
+      isBlockedByTarget: false,
+    };
+  }
+
+  return {
+    status: "none",
+    requestId: null,
+    isBlockedByViewer: false,
+    isBlockedByTarget: false,
+  };
+}

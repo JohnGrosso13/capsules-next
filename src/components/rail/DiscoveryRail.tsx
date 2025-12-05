@@ -3,6 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
@@ -129,12 +130,39 @@ function Section({
     if (!action) return null;
     if ("href" in action) {
       return (
-        <Link href={action.href} className={styles.actionLink}>
-          {action.label}
+        <Link href={action.href} className={styles.calendarAction}>
+          <span className={styles.calendarActionLabel}>{action.label}</span>
         </Link>
       );
     }
     if ("onClick" in action) {
+      const isUpcomingEventsCalendar = title === "Upcoming Events";
+      const isWhatsHotMore = title === "What's Hot";
+      if (isUpcomingEventsCalendar) {
+        return (
+          <button
+            type="button"
+            className={styles.calendarAction}
+            onClick={action.onClick}
+          >
+            <span className={styles.calendarActionIcon} aria-hidden="true">
+              <CalendarBlank size={16} weight="duotone" />
+            </span>
+            <span className={styles.calendarActionLabel}>{action.label}</span>
+          </button>
+        );
+      }
+      if (isWhatsHotMore) {
+        return (
+          <button
+            type="button"
+            className={styles.calendarAction}
+            onClick={action.onClick}
+          >
+            <span className={styles.calendarActionLabel}>{action.label}</span>
+          </button>
+        );
+      }
       return (
         <button type="button" className={styles.action} onClick={action.onClick}>
           {action.label}
@@ -229,7 +257,7 @@ const FALLBACK_CAPSULES: Item[] = [
 ];
 
 const FALLBACK_EVENTS: Item[] = [
-  { id: "e1", title: "Weekly Capsule Lab", subtitle: "Today 5:00 PM", badge: "LIVE" },
+  { id: "e1", title: "Weekly Capsule Lab", subtitle: "Today 5:00 PM" },
   { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210" },
 ];
 
@@ -605,18 +633,11 @@ export function DiscoveryRail() {
             relative ? (ladder.publishedAt ? `Launched ${relative}` : `Created ${relative}`) : null,
             `${visibilityLabel} ladder`,
           ].filter(Boolean) as string[];
-          const badge =
-            ladder.status === "active"
-              ? "LIVE"
-              : ladder.status === "draft"
-                ? "DRAFT"
-                : null;
           return {
             id: ladder.id,
             title: ladder.name,
             subtitle,
             meta: metaParts.join(" \u2022 "),
-            ...(badge ? { badge } : {}),
             date: ladder.publishedAt ?? ladder.createdAt,
             href: `/capsule?capsuleId=${encodeURIComponent(ladder.capsuleId)}&ladderId=${encodeURIComponent(ladder.id)}&section=events`,
             avatarUrl: mediaUrl,

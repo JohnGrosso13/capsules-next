@@ -2070,6 +2070,26 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.storeCartControls .storeGhostButton {
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 68%, transparent);
+  background:
+    radial-gradient(160% 160% at 30% 10%, color-mix(in srgb, var(--color-brand, #2563eb) 28%, transparent), transparent 60%),
+    color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 85%, rgba(0, 0, 0, 0.4));
+  color: var(--text, rgba(255, 255, 255, 0.96));
+  box-shadow:
+    0 10px 24px rgba(5, 10, 30, 0.42),
+    0 0 0 1px color-mix(in srgb, var(--color-brand, #2563eb) 32%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 10%, transparent);
+}
+.storeCartControls .storeGhostButton:hover {
+  border-color: color-mix(in srgb, var(--color-accent, #22d3ee) 55%, transparent);
+  background:
+    radial-gradient(160% 160% at 30% 10%, color-mix(in srgb, var(--color-accent, #22d3ee) 32%, transparent), transparent 60%),
+    color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 92%, rgba(0, 0, 0, 0.35));
+  box-shadow:
+    0 14px 28px color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-accent, #22d3ee) 35%, transparent);
+}
 .storeQuantity {
   min-width: 28px;
   text-align: center;
@@ -2096,6 +2116,21 @@
 .storeCartSummary strong {
   font-size: 1rem;
   color: var(--text, rgba(255, 255, 255, 0.98));
+}
+.storeCartFooter .storePrimaryButton {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #2563eb) 98%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 88%, transparent)
+  );
+  box-shadow:
+    0 18px 38px color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-accent, #22d3ee) 40%, transparent);
+}
+.storeCartFooter .storePrimaryButton:hover {
+  box-shadow:
+    0 22px 44px color-mix(in srgb, var(--color-brand, #2563eb) 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-accent, #22d3ee) 50%, transparent);
 }
 .storeCartEmpty {
   border-radius: 14px;
@@ -2183,34 +2218,60 @@
 	.checkoutOverlay {
 	  position: fixed;
 	  inset: 0;
-	  background: color-mix(in srgb, rgba(4, 6, 14, 0.86) 90%, rgba(0, 0, 0, 0.5) 10%);
-	  backdrop-filter: blur(10px);
-	  z-index: 200;
+	  background:
+	    radial-gradient(140% 120% at 12% -8%, color-mix(in srgb, var(--color-brand, #2563eb) 16%, transparent), transparent 42%),
+	    radial-gradient(120% 120% at 92% 0%, color-mix(in srgb, var(--color-accent, #22d3ee) 12%, transparent), transparent 58%),
+	    color-mix(in srgb, rgba(4, 6, 14, 0.9) 88%, rgba(0, 0, 0, 0.55) 12%);
+	  backdrop-filter: blur(18px) saturate(120%);
+	  isolation: isolate;
+	  z-index: 1200;
 	  display: flex;
 	  justify-content: center;
 	  align-items: flex-start;
-	  padding: clamp(16px, 3vw, 28px);
+	  padding: clamp(16px, 3vw, 32px);
 	  overflow: auto;
 	}
 	.checkoutSheet {
-	  width: min(1100px, 96vw);
-	  background: color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 92%, transparent);
-	  border-radius: 20px;
-	  border: 1px solid var(--store-panel-border);
-	  box-shadow: var(--store-primary-shadow);
-	  padding: clamp(16px, 2vw, 20px);
+	  position: relative;
+	  width: min(1120px, 96vw);
+	  background:
+	    linear-gradient(140deg, color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 86%, transparent), color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 72%, transparent)),
+	    color-mix(in srgb, var(--glass-bg-1, rgba(255, 255, 255, 0.04)) 70%, transparent);
+	  border-radius: 22px;
+	  border: 1px solid color-mix(in srgb, var(--store-panel-border) 70%, transparent);
+	  box-shadow:
+	    0 24px 80px rgba(5, 10, 30, 0.55),
+	    0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 6%, transparent),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 4%, transparent);
+	  padding: clamp(18px, 2.4vw, 22px);
 	  display: grid;
-	  gap: 16px;
+	  gap: 18px;
+	  overflow: hidden;
+	}
+	.checkoutSheet::before {
+	  content: "";
+	  position: absolute;
+	  inset: 0;
+	  pointer-events: none;
+	  background:
+	    radial-gradient(80% 120% at 10% 10%, color-mix(in srgb, var(--color-brand, #2563eb) 12%, transparent), transparent 55%),
+	    radial-gradient(70% 120% at 86% 10%, color-mix(in srgb, var(--color-accent, #22d3ee) 12%, transparent), transparent 60%);
+	  opacity: 0.9;
 	}
 	.checkoutHeader {
 	  display: flex;
 	  justify-content: space-between;
 	  align-items: center;
 	  gap: 12px;
+	  padding: 6px 8px;
+	  border-radius: 14px;
+	  background: color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.8)) 45%, transparent);
+	  border: 1px solid color-mix(in srgb, var(--store-panel-border) 60%, transparent);
+	  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.85)) 6%, transparent);
 	}
 	.checkoutHeader h3 {
 	  margin: 4px 0 0;
-	  font-size: 1.2rem;
+	  font-size: 1.28rem;
 	  color: var(--text, rgba(255, 255, 255, 0.95));
 	}
 	.checkoutEyebrow {
@@ -2223,14 +2284,14 @@
  }
  .checkoutLayout {
 	  display: grid;
-	  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
-	  gap: clamp(14px, 2vw, 18px);
+	  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+	  gap: clamp(16px, 2vw, 20px);
 	  align-items: start;
  }
 	.checkoutStepper {
 	  display: grid;
-	  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-	  gap: 10px;
+	  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+	  gap: 12px;
 	}
 	.checkoutStepBadge {
 	  display: grid;
@@ -2238,16 +2299,29 @@
 	  gap: 10px;
 	  align-items: center;
 	  padding: 10px 12px;
-	  border-radius: 12px;
-	  border: 1px solid var(--store-panel-border);
-	  background: color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 78%, transparent);
+	  border-radius: 14px;
+	  border: 1px solid color-mix(in srgb, var(--store-panel-border) 70%, transparent);
+	  background:
+	    linear-gradient(135deg, color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.72)) 82%, transparent), color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.82)) 65%, transparent));
+	  box-shadow:
+	    0 12px 30px rgba(5, 10, 30, 0.4),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 7%, transparent);
+	  transition:
+	    transform 140ms ease,
+	    border-color 160ms ease,
+	    box-shadow 160ms ease;
 	}
 	.checkoutStepBadge[data-status="active"] {
 	  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
-	  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+	  box-shadow:
+	    0 12px 36px rgba(37, 99, 235, 0.35),
+	    0 10px 30px rgba(5, 10, 30, 0.4),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 10%, transparent);
+	  transform: translateY(-1px);
 	}
 	.checkoutStepBadge[data-status="done"] {
-	  background: color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent);
+	  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent), color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.82)) 80%, transparent));
+	  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent);
 	}
 	.checkoutStepBadge[data-muted="true"] {
 	  opacity: 0.6;
@@ -2263,16 +2337,25 @@
 	  background: var(--color-brand, #2563eb);
 	  color: var(--text-on-brand, #f8fafc);
 	  font-size: 0.82rem;
+	  box-shadow:
+	    0 8px 16px rgba(37, 99, 235, 0.35),
+	    inset 0 1px 0 color-mix(in srgb, var(--text-on-brand, #f8fafc) 16%, transparent);
 	}
 	.checkoutSection {
 	  display: grid;
-	  gap: 14px;
+	  gap: 16px;
 	}
 	.checkoutGroup {
-	  border: 1px solid var(--store-panel-border);
-	  border-radius: 14px;
-	  padding: 12px;
-	  background: var(--store-panel-bg);
+	  position: relative;
+	  border: 1px solid color-mix(in srgb, var(--store-panel-border) 72%, transparent);
+	  border-radius: 16px;
+	  padding: 14px;
+	  background:
+	    linear-gradient(160deg, color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 86%, transparent), color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.82)) 72%, transparent));
+	  backdrop-filter: blur(12px) saturate(115%);
+	  box-shadow:
+	    0 16px 32px rgba(5, 10, 30, 0.42),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 6%, transparent);
 	  display: grid;
 	  gap: 10px;
 	}
@@ -2281,6 +2364,7 @@
 	  align-items: center;
 	  gap: 10px;
 	  color: var(--text, rgba(255, 255, 255, 0.95));
+	  padding: 2px 0 4px;
 	}
 	.checkoutGroupHeader h4 {
 	  margin: 0;
@@ -2295,7 +2379,7 @@
 	.checkoutFieldRow {
 	  display: grid;
 	  gap: 10px;
-	  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	}
 	.checkoutToggle {
 	  display: inline-flex;
@@ -2306,17 +2390,32 @@
 	}
 	.checkoutOptions {
 	  display: grid;
-	  gap: 8px;
+	  gap: 10px;
 	}
 	.checkoutOptionCard {
 	  display: grid;
 	  grid-template-columns: auto 1fr;
 	  gap: 10px;
 	  align-items: center;
-	  padding: 10px 12px;
-	  border-radius: 12px;
-	  border: 1px solid var(--store-product-card-border);
-	  background: color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 85%, transparent);
+	  padding: 12px 14px;
+	  border-radius: 14px;
+	  border: 1px solid color-mix(in srgb, var(--store-product-card-border) 80%, transparent);
+	  background:
+	    linear-gradient(145deg, color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 88%, transparent), color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 78%, transparent));
+	  box-shadow:
+	    0 14px 28px rgba(5, 10, 30, 0.34),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 6%, transparent);
+	  transition:
+	    transform 120ms ease,
+	    box-shadow 160ms ease,
+	    border-color 160ms ease;
+	}
+	.checkoutOptionCard:hover {
+	  transform: translateY(-1px);
+	  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 36%, transparent);
+	  box-shadow:
+	    0 18px 36px rgba(5, 10, 30, 0.48),
+	    0 10px 28px color-mix(in srgb, var(--color-brand, #2563eb) 14%, transparent);
 	}
 	.checkoutOptionCard input {
 	  width: 18px;
@@ -2341,17 +2440,23 @@
 	  font-size: 0.9rem;
 	}
 	.checkoutSummary {
-	  border: 1px solid var(--store-panel-highlight-border);
-	  border-radius: 16px;
-	  padding: 14px;
-	  background: var(--store-panel-highlight-bg);
+	  position: sticky;
+	  top: 8px;
+	  border: 1px solid color-mix(in srgb, var(--store-panel-highlight-border) 80%, transparent);
+	  border-radius: 18px;
+	  padding: 16px;
+	  background:
+	    linear-gradient(150deg, color-mix(in srgb, var(--store-panel-highlight-bg, rgba(24, 28, 68, 0.7)) 90%, transparent), color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 70%, transparent));
+	  box-shadow:
+	    0 20px 48px rgba(5, 10, 30, 0.48),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 6%, transparent);
 	  display: grid;
 	  gap: 12px;
 	}
 	.checkoutActions {
 	  display: flex;
 	  justify-content: space-between;
-	  gap: 10px;
+	  gap: 12px;
 	  align-items: center;
 	  flex-wrap: wrap;
 	}
@@ -2359,10 +2464,11 @@
 	  display: flex;
 	  justify-content: space-between;
 	  align-items: center;
+	  gap: 10px;
 	}
 	.checkoutSummaryHeader h4 {
 	  margin: 0;
-	  font-size: 1rem;
+	  font-size: 1.02rem;
 	  font-weight: 800;
 	}
 	.checkoutSummaryHeader span {
@@ -2380,8 +2486,8 @@
 	  display: flex;
 	  justify-content: space-between;
 	  gap: 12px;
-	  padding-bottom: 10px;
-	  border-bottom: 1px solid color-mix(in srgb, var(--store-panel-border) 80%, transparent);
+	  padding: 8px 0 12px;
+	  border-bottom: 1px dashed color-mix(in srgb, var(--store-panel-border) 70%, transparent);
 	}
 	.checkoutLineItem p {
 	  margin: 4px 0;
@@ -2399,6 +2505,11 @@
 	  display: flex;
 	  gap: 8px;
 	  align-items: center;
+	  background: color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.82)) 55%, transparent);
+	  border: 1px solid color-mix(in srgb, var(--store-panel-border) 70%, transparent);
+	  border-radius: 12px;
+	  padding: 6px;
+	  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.9)) 4%, transparent);
 	}
 	.checkoutPromoRow input {
 	  flex: 1;
@@ -2409,10 +2520,11 @@
 	  gap: 12px;
 	}
 	.checkoutReviewCard {
-	  border: 1px solid var(--store-panel-border);
-	  border-radius: 14px;
+	  border: 1px solid color-mix(in srgb, var(--store-panel-border) 70%, transparent);
+	  border-radius: 15px;
 	  padding: 12px;
-	  background: var(--store-panel-bg);
+	  background:
+	    linear-gradient(150deg, color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 84%, transparent), color-mix(in srgb, var(--surface-muted, rgba(17, 22, 45, 0.82)) 70%, transparent));
 	  display: grid;
 	  gap: 8px;
 	}
@@ -2428,10 +2540,11 @@
 	  line-height: 1.4;
 	}
 	.checkoutConfirmation {
-	  border: 1px solid var(--store-panel-highlight-border);
-	  border-radius: 14px;
+	  border: 1px solid color-mix(in srgb, var(--store-panel-highlight-border) 80%, transparent);
+	  border-radius: 16px;
 	  padding: 16px;
-	  background: var(--store-panel-highlight-bg);
+	  background:
+	    linear-gradient(150deg, color-mix(in srgb, var(--store-panel-highlight-bg, rgba(24, 28, 68, 0.7)) 90%, transparent), color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.82)) 70%, transparent));
 	  text-align: center;
 	  display: grid;
 	  gap: 8px;
@@ -2446,6 +2559,9 @@
 	  justify-content: center;
 	  background: color-mix(in srgb, var(--color-brand, #2563eb) 26%, transparent);
 	  color: var(--text-on-brand, #f8fafc);
+	  box-shadow:
+	    0 10px 24px rgba(37, 99, 235, 0.4),
+	    inset 0 1px 0 color-mix(in srgb, var(--text-on-brand, #f8fafc) 12%, transparent);
 	}
 	.checkoutTotals {
 	  display: grid;
@@ -2463,8 +2579,8 @@
 	  font-weight: 600;
 	}
 	.checkoutTotalRow {
-	  border-top: 1px solid var(--store-panel-border);
-	  padding-top: 8px;
+	  border-top: 1px solid color-mix(in srgb, var(--store-panel-border) 80%, transparent);
+	  padding-top: 10px;
 	}
 	.checkoutFooter {
 	  display: grid;
@@ -2486,6 +2602,24 @@
 	  font-size: 0.85rem;
 	  font-weight: 600;
 	}
+	.checkoutSheet .storeField input,
+	.checkoutSheet .storeField textarea,
+	.checkoutSheet .storeFieldInline input {
+	  background:
+	    linear-gradient(145deg, color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.03)) 90%, transparent), color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 75%, transparent));
+	  border: 1px solid color-mix(in srgb, var(--store-product-card-border) 78%, transparent);
+	  box-shadow:
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent),
+	    0 12px 28px rgba(5, 10, 30, 0.36);
+	}
+	.checkoutSheet .storeField input:focus-visible,
+	.checkoutSheet .storeField textarea:focus-visible,
+	.checkoutSheet .storeFieldInline input:focus-visible {
+	  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
+	  box-shadow:
+	    0 16px 32px color-mix(in srgb, var(--color-brand, #2563eb) 18%, rgba(5, 10, 30, 0.3)),
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 10%, transparent);
+	}
 	.storeField[data-invalid="true"] input,
 	.storeField[data-invalid="true"] textarea,
 	.storeFieldInline[data-invalid="true"] input,
@@ -2504,6 +2638,9 @@
 	  }
 	  .checkoutLayout {
 	    grid-template-columns: minmax(0, 1fr);
+	  }
+	  .checkoutSummary {
+	    position: static;
 	  }
 	  .storeCartColumn {
 	    grid-column: auto;

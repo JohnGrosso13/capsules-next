@@ -323,6 +323,7 @@ export function ConnectionsRail() {
     addParticipantsToGroup,
     sessions: chatSessions,
     closeSession: closeChatSession,
+    openSession,
   } = useChatContext();
   const {
     session: partySession,
@@ -861,6 +862,22 @@ export function ConnectionsRail() {
     },
     [setActiveRailTab, setRailMode, startChatSession],
   );
+
+  React.useEffect(() => {
+    const handleOpenChat = (event: Event) => {
+      const detail = (event as CustomEvent<{ conversationId?: unknown }>).detail;
+      const conversationId =
+        typeof detail?.conversationId === "string" ? detail.conversationId.trim() : "";
+      if (!conversationId) return;
+      openSession(conversationId);
+      setRailMode("connections");
+      setActiveRailTab("chats");
+    };
+    window.addEventListener("capsules:connections:open-chat", handleOpenChat);
+    return () => {
+      window.removeEventListener("capsules:connections:open-chat", handleOpenChat);
+    };
+  }, [openSession]);
 
   const runRequestAction = React.useCallback(
     async (

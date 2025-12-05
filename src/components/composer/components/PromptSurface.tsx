@@ -136,9 +136,9 @@ export function PromptSurface({
               <button
                 type="button"
                 className={menuStyles.item}
-                role="menuitem"
+                role="menuitemcheckbox"
                 onClick={handleVoiceSelect}
-                aria-pressed={isActive}
+                aria-checked={isActive}
                 aria-label={buttonLabel}
                 disabled={voiceMenuDisabled}
                 aria-disabled={voiceMenuDisabled}

@@ -1,5 +1,6 @@
 import { getDatabaseAdminClient } from "@/config/database";
 import { resolveToAbsoluteUrl } from "@/lib/url";
+import { buildProfileHref } from "@/lib/profile/routes";
 import { listCapsulesForUser } from "@/server/capsules/repository";
 import type { GlobalSearchResponse, GlobalSearchSection, UserSearchResult, CapsuleSearchResult } from "@/types/search";
 import { sanitizeUserKey } from "@/lib/users/format";
@@ -107,6 +108,8 @@ function buildUserResult(
   const name = profile?.full_name?.trim() || "";
   const key = sanitizeUserKey(profile?.user_key);
   const avatar = resolveToAbsoluteUrl(profile?.avatar_url ?? null, origin ?? null);
+  const profileHref = buildProfileHref({ userId: id, userKey: key }) ??
+    `/profile/${encodeURIComponent(key ?? id)}`;
 
   const needle = query.toLowerCase();
   const score =
@@ -123,7 +126,7 @@ function buildUserResult(
     avatarUrl: avatar,
     userKey: key,
     relation: "friend",
-    url: `/friends?tab=friends&focus=${encodeURIComponent(id)}`,
+    url: profileHref,
     highlight: null,
     subtitle: key ? `@${key}` : "Friend",
     relevanceScore: score,

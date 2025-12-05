@@ -10,13 +10,20 @@ export function ConnectionsRailIsland() {
 
   const rail = (
     <PartyProvider>
-      <ChatProvider>
-        <ConnectionsRail />
-      </ChatProvider>
+      <ConnectionsRail />
     </PartyProvider>
   );
 
-  return friendsContext ? rail : <FriendsDataProvider>{rail}</FriendsDataProvider>;
+  if (friendsContext) {
+    return rail;
+  }
+
+  // Fallback for surfaces that don't already provide friends/chat context.
+  return (
+    <FriendsDataProvider>
+      <ChatProvider>{rail}</ChatProvider>
+    </FriendsDataProvider>
+  );
 }
 
 export default ConnectionsRailIsland;

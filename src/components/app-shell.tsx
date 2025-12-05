@@ -11,6 +11,7 @@ import {
   useComposerActions,
 } from "@/components/composer/ComposerProvider";
 import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
+import { ChatProvider } from "@/components/providers/ChatProvider";
 import { PrimaryHeader } from "@/components/primary-header";
 import { MobileHeader } from "@/components/mobile-header";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
@@ -272,8 +273,10 @@ export function AppShell(props: AppShellProps) {
   return (
     <ComposerProvider>
       <FriendsDataProvider>
-        <AppShellContent {...props} />
-        <AiComposerRoot />
+        <ChatProvider>
+          <AppShellContent {...props} />
+          <AiComposerRoot />
+        </ChatProvider>
       </FriendsDataProvider>
     </ComposerProvider>
   );

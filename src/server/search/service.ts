@@ -20,6 +20,7 @@ import {
   type StructuredRecord,
 } from "@/server/capsules/structured";
 import { sanitizeUserKey } from "@/lib/users/format";
+import { buildProfileHref } from "@/lib/profile/routes";
 
 const USER_SECTION_LIMIT = 6;
 const CAPSULE_SECTION_LIMIT = 6;
@@ -242,6 +243,8 @@ async function searchFriendsForUser(
     const name = profile?.full_name ?? "";
     const key = sanitizeUserKey(profile?.user_key);
     const avatar = resolveToAbsoluteUrl(profile?.avatar_url ?? null, origin ?? null);
+    const profileHref =
+      buildProfileHref({ userId: id, userKey: key }) ?? `/profile/${encodeURIComponent(key ?? id)}`;
 
     const nameScore = computeMatchScore(name, needle, tokens);
     const keyScore = computeMatchScore(key, needle, tokens);
@@ -262,7 +265,7 @@ async function searchFriendsForUser(
       avatarUrl: avatar,
       userKey: key,
       relation: "friend",
-      url: `/friends?tab=friends&focus=${encodeURIComponent(id)}`,
+      url: profileHref,
       highlight,
       subtitle: subtitleParts.join(" | "),
       score,

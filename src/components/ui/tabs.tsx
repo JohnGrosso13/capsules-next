@@ -82,6 +82,7 @@ export interface TabsProps extends HTMLAttributes<HTMLDivElement> {
   orientation?: TabsOrientation;
   variant?: TabsVariant;
   size?: TabsSize;
+  idPrefix?: string;
 }
 
 export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
@@ -95,6 +96,7 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
       size = "md",
       className,
       children,
+      idPrefix,
       ...props
     },
     ref,
@@ -104,7 +106,8 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
     const [registeredValues, setRegisteredValues] = useState<string[]>([]);
 
     const activeValue = (isControlled ? value : internalValue) ?? null;
-    const reactId = useId();
+    const generatedId = useId();
+    const reactId = idPrefix ?? generatedId;
 
     const select = useCallback(
       (val: string) => {
