@@ -76,7 +76,7 @@ function TaskThreadCard({
                       className={styles.primaryButton}
                       onClick={() => onOpenConversation(recipient.userId, recipient.conversationId, recipient.name)}
                     >
-                      Open thread
+                      Open chat
                     </button>
                   </div>
                 </li>
@@ -149,9 +149,9 @@ function TaskDetailInner() {
       <header className={styles.pageHeader}>
         <div>
           <p className={styles.kicker}>Capsules Assistant</p>
-          <h2 className={styles.pageTitle}>Task thread</h2>
+          <h2 className={styles.pageTitle}>Assistant task</h2>
           <p className={styles.pageSubhead}>
-            Each task has its own labeled thread. Open a recipient thread or hop into the assistant chat to adjust the plan.
+            See who the assistant contacted for this task and jump into any conversation, or return to the Assistant tab.
           </p>
         </div>
         <button type="button" className={styles.secondaryButton} onClick={handleOpenAssistant}>

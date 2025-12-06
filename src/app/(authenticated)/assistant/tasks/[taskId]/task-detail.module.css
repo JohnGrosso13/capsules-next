@@ -1,8 +1,10 @@
 .shell {
-  padding: 16px;
+  padding: 20px 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  max-width: 880px;
+  margin: 0 auto;
 }
 
 .pageHeader {

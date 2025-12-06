@@ -5,6 +5,8 @@ export type StoreProductVariant = {
   label: string;
   price: number | null;
   inventoryCount: number | null;
+  sku?: string | null;
+  printfulVariantId?: string | null;
 };
 
 export type StoreProduct = {
@@ -12,6 +14,7 @@ export type StoreProduct = {
   title: string;
   description: string;
   price: number;
+  currency: string;
   imageUrl: string | null;
   memoryId?: string | null;
   featured: boolean;
@@ -23,6 +26,7 @@ export type StoreProduct = {
   fulfillmentKind: "download" | "ship" | "external";
   inventoryCount: number | null;
   fulfillmentUrl: string | null;
+  sku?: string | null;
   variants: StoreProductVariant[];
 };
 
@@ -31,6 +35,7 @@ export type StoreProductDraft = {
   title: string;
   description: string;
   price: string;
+  currency: string;
   imageUrl: string | null;
   memoryId: string | null;
   active: boolean;
@@ -39,6 +44,7 @@ export type StoreProductDraft = {
   fulfillmentKind: StoreProduct["fulfillmentKind"];
   inventoryCount: number | null;
   fulfillmentUrl: string | null;
+  sku?: string | null;
   variants: StoreProductVariant[];
 };
 
@@ -48,7 +54,12 @@ export type ShippingOption = {
   id: string;
   label: string;
   price: number;
+  currency: string;
   detail: string;
+  etaMinDays?: number | null;
+  etaMaxDays?: number | null;
+  active?: boolean;
+  sortOrder?: number;
 };
 
 export type PaymentOption = {
@@ -84,6 +95,7 @@ export type CheckoutDetails = {
   billingRegion: string;
   billingPostal: string;
   billingCountry: string;
+  billingPhone?: string;
 };
 
 export type StoreCartItem = {

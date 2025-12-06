@@ -2,19 +2,13 @@
 
 import * as React from "react";
 import {
-  X,
-  Sparkle,
   Brain,
-  List,
-  SidebarSimple,
-  FileText,
-  FolderSimple,
+  DotsThree,
   MagnifyingGlass,
-  Play,
-  ImageSquare,
 } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "../styles";
+import menuStyles from "@/components/ui/context-menu.module.css";
 import type { SearchOpenDetail, SearchSelectionPayload } from "@/types/search";
 import {
   COMPOSER_IMAGE_QUALITY_OPTIONS,
@@ -22,8 +16,6 @@ import {
 } from "@/lib/composer/image-settings";
 
 type ComposerToolbarProps = {
-  activeKind: string;
-  onSelectKind: (key: string) => void;
   onClose: () => void;
   disabled: boolean;
   smartContextEnabled: boolean;
@@ -31,18 +23,12 @@ type ComposerToolbarProps = {
   contextActive: boolean;
   imageQuality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number];
   onQualityChange: (quality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]) => void;
-  onMenuToggle?: () => void;
-  mobileRailOpen?: boolean;
-  onPreviewToggle?: () => void;
-  previewOpen?: boolean;
   onSearchSelect?: (payload: SearchSelectionPayload) => void;
 };
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
 
 export function ComposerToolbar({
-  activeKind,
-  onSelectKind,
   onClose,
   disabled,
   smartContextEnabled,
@@ -50,12 +36,32 @@ export function ComposerToolbar({
   contextActive,
   imageQuality,
   onQualityChange,
-  onMenuToggle,
-  mobileRailOpen,
-  onPreviewToggle,
-  previewOpen,
   onSearchSelect,
 }: ComposerToolbarProps) {
+  const [optionsOpen, setOptionsOpen] = React.useState(false);
+  const optionsRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!optionsOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (optionsRef.current && target && !optionsRef.current.contains(target)) {
+        setOptionsOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOptionsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [optionsOpen]);
+
   const handleSearchClick = React.useCallback(() => {
     if (typeof window === "undefined") return;
     const detail: SearchOpenDetail | undefined =
@@ -69,36 +75,35 @@ export function ComposerToolbar({
     );
   }, [onSearchSelect]);
 
-  const cycleQuality = React.useCallback(() => {
-    const options = COMPOSER_IMAGE_QUALITY_OPTIONS;
-    const currentIndex = options.indexOf(imageQuality);
-    const next = options[(currentIndex + 1) % options.length] ?? "standard";
-    onQualityChange(next);
-  }, [imageQuality, onQualityChange]);
+  const handleToggleOptions = React.useCallback(() => {
+    if (disabled) return;
+    setOptionsOpen((open) => !open);
+  }, [disabled]);
 
-  const modeOptions = React.useMemo(
-    () => [
-      { key: "text", label: "Text", Icon: FileText },
-      { key: "image", label: "Image", Icon: ImageSquare },
-      { key: "video", label: "Video", Icon: Play },
-      { key: "poll", label: "Poll", Icon: List },
-      { key: "project", label: "Project", Icon: FolderSimple },
-    ],
-    [],
+  const handleToggleContext = React.useCallback(() => {
+    if (disabled) return;
+    onToggleContext();
+  }, [disabled, onToggleContext]);
+
+  const handleSelectQuality = React.useCallback(
+    (quality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]) => {
+      if (disabled) return;
+      if (quality === imageQuality) return;
+      onQualityChange(quality);
+      setOptionsOpen(false);
+    },
+    [disabled, imageQuality, onQualityChange],
   );
 
   return (
     <div className={styles.panelToolbar}>
-      <div className={styles.toolbarHeading}>
-        <div className={styles.toolbarBrandRow}>
-          <div className={styles.memoryLogo} aria-hidden="true">
-            AI
-          </div>
-          <div>
-            <div className={styles.toolbarBadge}>Capsule Composer</div>
-            <p className={styles.toolbarTitle}>Create in any mode</p>
-            <p className={styles.toolbarSubtitle}>Search memories, pick a format, and ship fast.</p>
-          </div>
+      <div className={styles.toolbarBrandRow}>
+        <div
+          className={styles.memoryLogo}
+          data-active={contextActive ? "true" : undefined}
+          aria-hidden="true"
+        >
+          <Brain weight={contextActive ? "fill" : "duotone"} />
         </div>
       </div>
 
@@ -115,78 +120,59 @@ export function ComposerToolbar({
         </button>
       </div>
 
-      <div className={styles.toolbarModes} role="group" aria-label="Composer modes">
-        {modeOptions.map(({ key, label, Icon }) => (
+      <div className={styles.headerActions}>
+        <div className={styles.toolbarOptions} ref={optionsRef}>
           <button
-            key={key}
             type="button"
-            className={styles.modeToggle}
-            data-selected={activeKind === key ? "true" : undefined}
-            onClick={() => onSelectKind(key)}
+            className={styles.headerIconBtn}
+            aria-haspopup="menu"
+            aria-expanded={optionsOpen}
+            aria-label="Open composer options"
+            onClick={handleToggleOptions}
             disabled={disabled}
           >
-            <Icon size={16} weight={activeKind === key ? "fill" : "regular"} />
-            <span>{label}</span>
+            <DotsThree weight="bold" />
           </button>
-        ))}
-      </div>
-
-      <div className={styles.headerActions}>
-        <button
-          type="button"
-          className={styles.smartContextToggle}
-          aria-pressed={contextActive}
-          aria-label={contextActive ? "Turn off smart context" : "Turn on smart context"}
-          onClick={onToggleContext}
-          disabled={disabled}
-          data-active={contextActive ? "true" : undefined}
-        >
-          <Brain weight={contextActive ? "fill" : "duotone"} />
-          <span>{smartContextEnabled ? "Context on" : "Context off"}</span>
-        </button>
-
-        <button
-          type="button"
-          className={styles.toolbarIconBtn}
-          aria-label="Change image quality"
-          onClick={cycleQuality}
-          disabled={disabled}
-        >
-          <Sparkle />
-          <span className={styles.toolbarIconLabel}>{titleCaseComposerQuality(imageQuality)}</span>
-        </button>
-
-        <button
-          type="button"
-          className={styles.toolbarIconBtn}
-          aria-pressed={previewOpen}
-          aria-label={previewOpen ? "Hide preview" : "Show preview"}
-          onClick={() => onPreviewToggle?.()}
-          disabled={disabled}
-        >
-          <SidebarSimple weight={previewOpen ? "fill" : "duotone"} />
-          <span className={styles.toolbarIconLabel}>{previewOpen ? "Hide preview" : "Show preview"}</span>
-        </button>
-
-        <button
-          type="button"
-          className={styles.toolbarIconBtn}
-          aria-label="Toggle library sidebar"
-          onClick={() => onMenuToggle?.()}
-          disabled={disabled}
-        >
-          <SidebarSimple weight={mobileRailOpen ? "fill" : "duotone"} />
-          <span className={styles.toolbarIconLabel}>Library</span>
-        </button>
-
-        <button
-          type="button"
-          className={styles.headerIconBtn}
-          aria-label="Close Composer"
-          onClick={onClose}
-        >
-          <X />
-        </button>
+          {optionsOpen ? (
+            <div
+              className={`${menuStyles.menu} ${styles.toolbarOptionsMenu}`.trim()}
+              role="menu"
+            >
+              <div className={menuStyles.sectionLabel}>Composer options</div>
+              <button
+                type="button"
+                className={menuStyles.item}
+                role="menuitemcheckbox"
+                aria-checked={smartContextEnabled}
+                aria-label={smartContextEnabled ? "Turn off context" : "Turn on context"}
+                onClick={handleToggleContext}
+                disabled={disabled}
+                aria-disabled={disabled}
+                data-active={contextActive ? "true" : undefined}
+              >
+                <Brain weight={contextActive ? "fill" : "duotone"} />
+                <span>{smartContextEnabled ? "Context on" : "Context off"}</span>
+              </button>
+              <div className={menuStyles.separator} aria-hidden="true" />
+              <div className={menuStyles.sectionLabel}>Image quality</div>
+              {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
+                <button
+                  key={quality}
+                  type="button"
+                  className={menuStyles.item}
+                  role="menuitemradio"
+                  aria-checked={imageQuality === quality}
+                  data-active={imageQuality === quality ? "true" : undefined}
+                  onClick={() => handleSelectQuality(quality)}
+                  disabled={disabled}
+                  aria-disabled={disabled}
+                >
+                  <span>{titleCaseComposerQuality(quality)}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

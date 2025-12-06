@@ -4,17 +4,19 @@
   max-width: 100%;
   margin: 0;
   padding: 0;
-  /* Lock settings to the Capsule blues instead of the legacy purple */
-  --settings-accent: #2f5fd7;
-  --settings-accent-strong: #19a1e6;
-  --settings-accent-soft: #1f3c78;
-  --color-brand: var(--settings-accent);
-  --color-brand-strong: var(--settings-accent-strong);
-  --color-accent: var(--settings-accent-strong);
-  --brand-gradient: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
-  --gradient-brand: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
-  --cta-button-gradient: linear-gradient(135deg, var(--settings-accent) 0%, var(--settings-accent-strong) 100%);
-  --cta-button-text: #ffffff;
+  /* Settings accents: derive from shared brand + accent tokens so the page
+     tracks the overall capsule/store palette instead of a separate blue theme. */
+  --settings-accent: var(--settings-color-brand-base, var(--color-brand, #6366f1));
+  --settings-accent-strong: color-mix(
+    in srgb,
+    var(--settings-color-brand-strong-base, var(--color-brand-strong, #4f46e5)) 72%,
+    var(--settings-color-accent-base, var(--color-accent, #22d3ee))
+  );
+  --settings-accent-soft: color-mix(
+    in srgb,
+    var(--settings-accent) 22%,
+    var(--surface-overlay, rgba(10, 14, 30, 0.72))
+  );
 }
 
 /* Outer container reminiscent of the previous glass/neumorphic shell */
@@ -194,11 +196,19 @@
   text-align: left;
 }
 .menuItemActive {
-  border-color: color-mix(in srgb, var(--color-brand, #2f5fd7) 70%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--settings-accent, var(--color-brand, #6366f1)) 70%,
+    transparent
+  );
   background: var(--brand-gradient);
   color: var(--text-on-brand, #0e1024);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-brand, #2f5fd7) 40%, transparent),
+    0 0 0 1px color-mix(
+      in srgb,
+      var(--settings-accent, var(--color-brand, #6366f1)) 45%,
+      transparent
+    ),
     0 10px 24px rgba(5, 10, 30, 0.35);
 }
 .menuItemDisabled {
@@ -254,7 +264,8 @@
   color: #ffffff;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 16px 32px rgba(22, 76, 176, 0.45);
+    0 16px 32px
+      color-mix(in srgb, var(--settings-accent-strong, var(--color-brand-strong, #4f46e5)) 40%, rgba(5, 10, 30, 0.55));
 }
 
 .settingsCtaPrimary:hover {

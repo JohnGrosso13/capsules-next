@@ -110,7 +110,7 @@ export const metadata: Metadata = {
 
 export default function ModerationStudioPage() {
   return (
-    <AppPage activeNav="create" showPrompter layoutVariant="capsule">
+    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.shell} data-surface="moderation">
         <header className={styles.header}>
           <div className={styles.headerMain}>
@@ -309,4 +309,3 @@ export default function ModerationStudioPage() {
     </AppPage>
   );
 }
-

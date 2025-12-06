@@ -110,8 +110,8 @@
 }
 
 .privacyOptionActive {
-  border-color: color-mix(in srgb, var(--color-brand, #2f5fd7) 70%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand, #2f5fd7) 30%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 70%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand, #6366f1) 30%, transparent);
 }
 
 .privacyText {
@@ -153,8 +153,8 @@
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-brand, #2f5fd7) 20%, rgba(255, 255, 255, 0.08));
-  border: 1px solid color-mix(in srgb, var(--color-brand, #2f5fd7) 30%, transparent);
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 20%, rgba(255, 255, 255, 0.08));
+  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 30%, transparent);
   display: grid;
   place-items: center;
   color: #fff;

@@ -138,7 +138,7 @@ export const metadata: Metadata = {
 
 export default function ContentStudioPage() {
   return (
-    <AppPage activeNav="create" showPrompter layoutVariant="capsule">
+    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.shell} data-surface="content">
         <header className={styles.header}>
           <div className={styles.headerMain}>

@@ -126,7 +126,7 @@ export const metadata: Metadata = {
 
 export default function PersonalCoachPage() {
   return (
-    <AppPage activeNav="create" showPrompter layoutVariant="capsule">
+    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.shell} data-surface="insights">
         <header className={styles.header}>
           <div className={styles.headerMain}>

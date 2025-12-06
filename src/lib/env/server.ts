@@ -178,6 +178,9 @@ const serverEnvSchema = z.object({
   STRIPE_PRICE_CREATOR: optionalString,
   STRIPE_PRICE_PRO: optionalString,
   STRIPE_PRICE_STUDIO: optionalString,
+  PRINTFUL_API_KEY: optionalString,
+  PRINTFUL_STORE_ID: optionalString,
+  PRINTFUL_WEBHOOK_SECRET: optionalString,
 });
 
 const rawServerEnv = {
@@ -291,6 +294,9 @@ const rawServerEnv = {
   STRIPE_PRICE_CREATOR: readEnv("STRIPE_PRICE_CREATOR"),
   STRIPE_PRICE_PRO: readEnv("STRIPE_PRICE_PRO"),
   STRIPE_PRICE_STUDIO: readEnv("STRIPE_PRICE_STUDIO"),
+  PRINTFUL_API_KEY: readEnv("PRINTFUL_API_KEY"),
+  PRINTFUL_STORE_ID: readEnv("PRINTFUL_STORE_ID"),
+  PRINTFUL_WEBHOOK_SECRET: readEnv("PRINTFUL_WEBHOOK_SECRET"),
 } satisfies Record<string, string | undefined>;
 
 const parsedServerEnv = serverEnvSchema.safeParse(rawServerEnv);

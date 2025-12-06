@@ -173,7 +173,7 @@ export const metadata: Metadata = {
 
 export default function CommunityGrowthPage() {
   return (
-    <AppPage activeNav="create" showPrompter layoutVariant="capsule">
+    <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.shell} data-surface="growth">
         <header className={styles.header}>
             <div className={styles.headerMain}>

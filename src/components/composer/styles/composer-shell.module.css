@@ -133,11 +133,11 @@
 
 .panelToolbar {
   display: grid;
-  grid-template-columns: auto minmax(440px, 1fr) auto auto;
+  grid-template-columns: auto minmax(440px, 1fr) auto;
   align-items: center;
   gap: clamp(0.7rem, 1.5vw, 1.5rem);
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   padding: 0.65rem clamp(0.8rem, 1.6vw, 1.25rem);
   border-radius: 18px;
@@ -161,7 +161,7 @@
 
 @media (max-width: 1280px) {
   .panelToolbar {
-    grid-template-columns: auto minmax(360px, 1fr) auto auto;
+    grid-template-columns: auto minmax(360px, 1fr) auto;
     gap: clamp(0.6rem, 1.2vw, 1.1rem);
   }
   .headerSearch {
@@ -171,7 +171,7 @@
 
 @media (max-width: 1100px) {
   .panelToolbar {
-    grid-template-columns: auto minmax(320px, 1fr) auto auto;
+    grid-template-columns: auto minmax(320px, 1fr) auto;
   }
   .headerSearch {
     min-width: 220px;
@@ -195,10 +195,10 @@
 }
 
 .headerSearch {
-  flex: none;
+  flex: 1 1 auto;
   display: flex;
   justify-content: center;
-  min-width: 320px;
+  min-width: 240px;
   width: 100%;
   justify-self: center;
 }
@@ -327,8 +327,8 @@
 }
 
 .memoryLogo {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -342,6 +342,11 @@
     0 12px 28px color-mix(in srgb, var(--header-brand, #6f7cff) 32%, transparent),
     inset 0 1px 0 color-mix(in srgb, var(--header-foreground-strong, #f8fafc) 28%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--app-bg, #050a1b) 35%, transparent);
+}
+
+.memoryLogo svg {
+  width: 18px;
+  height: 18px;
 }
 
 .imageControls {
@@ -445,6 +450,20 @@
 .toolbarIconLabel {
   font-size: 0.92rem;
   line-height: 1;
+}
+
+.toolbarOptions {
+  position: relative;
+}
+
+.toolbarOptionsMenu {
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  z-index: 3000;
+  position: absolute;
+  background:
+    linear-gradient(180deg, rgb(15, 18, 42), rgb(11, 14, 34));
 }
 
 .toolbarSearchBtn {

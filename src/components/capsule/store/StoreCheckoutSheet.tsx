@@ -36,6 +36,17 @@ type StoreCheckoutSheetProps = {
   needsBillingAddress: boolean;
   billingSnapshot: BillingSnapshot;
   maskedCardSummary: string;
+  paymentElement?: React.ReactNode;
+  paymentError?: string | null;
+  checkoutBusy?: boolean;
+  orderSummary?: {
+    status: string;
+    tracking?: string | null;
+    carrier?: string | null;
+    totalCents: number;
+    currency: string;
+    items: { title: string; quantity: number; unitPriceCents: number }[];
+  } | null;
   cartItems: StoreCartItem[];
   subtotal: number;
   shippingCost: number;
@@ -44,10 +55,10 @@ type StoreCheckoutSheetProps = {
   canPlaceOrder: boolean;
   errorFor: (key: string) => string | undefined;
   onUpdateField: (field: keyof CheckoutDetails, value: string | boolean) => void;
-  onNextStep: () => void;
+  onNextStep: () => void | Promise<void>;
   onBackStep: () => void;
   onJumpToStep: (step: CheckoutStep) => void;
-  onPlaceOrder: () => void;
+  onPlaceOrder: () => void | Promise<void>;
   onClose: () => void;
   onIncrement: (cartKey: string) => void;
   onDecrement: (cartKey: string) => void;
@@ -71,6 +82,10 @@ function StoreCheckoutSheet({
   needsBillingAddress,
   billingSnapshot,
   maskedCardSummary,
+  paymentElement,
+  paymentError,
+  checkoutBusy,
+  orderSummary,
   cartItems,
   subtotal,
   shippingCost,
@@ -310,11 +325,11 @@ function StoreCheckoutSheet({
                       <p>Select your payment method.</p>
                     </div>
                   </div>
-                  <div className={capTheme.checkoutOptions}>
-                    {paymentOptions.map((option) => (
-                      <label key={option.id} className={capTheme.checkoutOptionCard}>
-                        <input
-                          type="radio"
+                <div className={capTheme.checkoutOptions}>
+                  {paymentOptions.map((option) => (
+                    <label key={option.id} className={capTheme.checkoutOptionCard}>
+                      <input
+                        type="radio"
                           name="payment-option"
                           value={option.id}
                           checked={details.paymentMethod === option.id}
@@ -327,54 +342,14 @@ function StoreCheckoutSheet({
                       </label>
                     ))}
                   </div>
-                  <label className={capTheme.storeField} data-invalid={errorFor("cardName") ? "true" : undefined}>
-                    <span>Name on card</span>
-                    <input
-                      type="text"
-                      value={details.cardName}
-                      onChange={(event) => onUpdateField("cardName", event.target.value)}
-                    />
-                    {errorFor("cardName") ? <p className={capTheme.checkoutError}>{errorFor("cardName")}</p> : null}
-                  </label>
-                  <div className={capTheme.checkoutFieldRow}>
-                    <label className={capTheme.storeField} data-invalid={errorFor("cardNumber") ? "true" : undefined}>
-                      <span>Card number</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={details.cardNumber}
-                        onChange={(event) => onUpdateField("cardNumber", event.target.value)}
-                        placeholder="4242 4242 4242 4242"
-                      />
-                      {errorFor("cardNumber") ? (
-                        <p className={capTheme.checkoutError}>{errorFor("cardNumber")}</p>
-                      ) : null}
-                    </label>
-                    <label className={capTheme.storeField} data-invalid={errorFor("cardExpiry") ? "true" : undefined}>
-                      <span>Expiry</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={details.cardExpiry}
-                        onChange={(event) => onUpdateField("cardExpiry", event.target.value)}
-                        placeholder="MM/YY"
-                      />
-                      {errorFor("cardExpiry") ? (
-                        <p className={capTheme.checkoutError}>{errorFor("cardExpiry")}</p>
-                      ) : null}
-                    </label>
-                    <label className={capTheme.storeField} data-invalid={errorFor("cardCvc") ? "true" : undefined}>
-                      <span>CVC</span>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={details.cardCvc}
-                        onChange={(event) => onUpdateField("cardCvc", event.target.value)}
-                        placeholder="123"
-                      />
-                      {errorFor("cardCvc") ? <p className={capTheme.checkoutError}>{errorFor("cardCvc")}</p> : null}
-                    </label>
+                  <div className={capTheme.storeField} data-full-width="true">
+                    {paymentElement ? (
+                      paymentElement
+                    ) : (
+                      <p className={capTheme.checkoutError}>Payment is not available. Configure Stripe.</p>
+                    )}
                   </div>
+                  {paymentError ? <p className={capTheme.checkoutError}>{paymentError}</p> : null}
                   <label className={capTheme.storeField}>
                     <span>Order notes (optional)</span>
                     <textarea
@@ -712,6 +687,40 @@ function StoreCheckoutSheet({
               </div>
             </div>
 
+            {step === "confirmation" && orderSummary ? (
+              <div className={capTheme.checkoutGroup}>
+                <div className={capTheme.checkoutGroupHeader}>
+                  <CheckCircle size={16} weight="bold" />
+                  <div>
+                    <h4>Order details</h4>
+                    <p>Status: {orderSummary.status}</p>
+                  </div>
+                </div>
+                <ul className={capTheme.checkoutReviewList}>
+                  {orderSummary.items.map((item) => (
+                    <li key={item.title} className={capTheme.checkoutReviewCard}>
+                      <div>
+                        <strong>{item.title}</strong>
+                        <p>Quantity: {item.quantity}</p>
+                      </div>
+                      <div>
+                        <span>{formatCurrency(item.unitPriceCents / 100)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {orderSummary.tracking ? (
+                  <p className={capTheme.checkoutHint}>
+                    Tracking:{" "}
+                    <a href={orderSummary.tracking} target="_blank" rel="noreferrer">
+                      {orderSummary.tracking}
+                    </a>
+                    {orderSummary.carrier ? ` (${orderSummary.carrier})` : ""}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             {step === "review" ? (
               <div className={capTheme.checkoutFooter}>
                 <label className={capTheme.checkoutTerms} data-invalid={errorFor("terms") ? "true" : undefined}>
@@ -727,7 +736,12 @@ function StoreCheckoutSheet({
             ) : null}
 
             <div className={capTheme.checkoutActions}>
-              <button type="button" className={capTheme.storeGhostButton} onClick={onBackStep}>
+              <button
+                type="button"
+                className={capTheme.storeGhostButton}
+                onClick={onBackStep}
+                disabled={checkoutBusy}
+              >
                 {step === "shipping" ? "Back to cart" : "Back"}
               </button>
               {step === "confirmation" ? (
@@ -738,15 +752,28 @@ function StoreCheckoutSheet({
                 <button
                   type="button"
                   className={capTheme.storePrimaryButton}
-                  disabled={!canPlaceOrder}
-                  aria-disabled={!canPlaceOrder}
-                  onClick={onPlaceOrder}
+                  disabled={!canPlaceOrder || checkoutBusy}
+                  aria-disabled={!canPlaceOrder || checkoutBusy}
+                  onClick={() => {
+                    void onPlaceOrder();
+                  }}
                 >
-                  Place order
+                  {checkoutBusy ? "Processing..." : "Place order"}
                 </button>
               ) : (
-                <button type="button" className={capTheme.storePrimaryButton} onClick={onNextStep}>
-                  {step === "shipping" ? "Next: Billing" : "Next: Review"}
+                <button
+                  type="button"
+                  className={capTheme.storePrimaryButton}
+                  onClick={() => {
+                    void onNextStep();
+                  }}
+                  disabled={checkoutBusy}
+                >
+                  {checkoutBusy
+                    ? "Working..."
+                    : step === "shipping"
+                      ? "Next: Billing"
+                      : "Next: Review"}
                 </button>
               )}
             </div>

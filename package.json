@@ -44,6 +44,8 @@
         "@pinecone-database/pinecone": "^6.1.2",
         "@radix-ui/react-slot": "^1.1.1",
         "@sentry/nextjs": "^8.52.1",
+        "@stripe/react-stripe-js": "^5.4.1",
+        "@stripe/stripe-js": "^8.5.3",
         "@supabase/functions-js": "^2.5.0",
         "@supabase/supabase-js": "^2.57.4",
         "@tanstack/react-virtual": "^3.0.0",

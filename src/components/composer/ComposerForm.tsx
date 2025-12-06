@@ -3,19 +3,16 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import styles from "./styles";
-import {
-  X,
-  Sparkle,
-  Brain,
-  FileText,
-  FolderSimple,
-} from "@phosphor-icons/react/dist/ssr";
 
 import { ComposerLayout } from "./components/ComposerLayout";
 import { ComposerFooter } from "./components/ComposerFooter";
 import { ComposerViewer } from "./components/ComposerViewer";
 import { ComposerMemoryPicker, type MemoryPickerTab } from "./components/ComposerMemoryPicker";
 import { ComposerToolbar } from "./components/ComposerToolbar";
+import { ComposerMobileSettings } from "./components/ComposerMobileSettings";
+import { ComposerMobilePreview } from "./components/ComposerMobilePreview";
+import { ComposerSaveDialog } from "./components/ComposerSaveDialog";
+import { ThemePreviewBanner } from "./components/ThemePreviewBanner";
 import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
@@ -32,7 +29,7 @@ import type {
 } from "./types";
 
 import type { PrompterAttachment } from "@/components/ai-prompter-stage";
-import { ensurePollStructure, isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
+import { isComposerDraftReady, type ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerSidebarData } from "@/lib/composer/sidebar-types";
 import type { ComposerChatMessage, ComposerChatAttachment } from "@/lib/composer/chat-types";
 import { extractFileFromDataTransfer } from "@/lib/clipboard/files";
@@ -53,13 +50,15 @@ import { usePromptSurface } from "./features/prompt-surface/usePromptSurface";
 import { useSummarySidebar } from "./features/summary-sidebar/useSummarySidebar";
 import type { PromptPaneProps, PromptPaneSurfaceProps } from "./panes/PromptPane";
 import type { PreviewPaneProps } from "./panes/PreviewPane";
+import { useComposerSidebar } from "./hooks/useComposerSidebar";
 import {
   type SidebarRailProps,
   type SidebarSectionProps,
   type MobileSidebarMenuProps,
-  type SidebarListItem,
   type SidebarTabKey,
 } from "./panes/SidebarPane";
+import { useComposerSaveDialog } from "./hooks/useComposerSaveDialog";
+import { useComposerMobileLayout } from "./hooks/useComposerMobileLayout";
 
 const PANEL_WELCOME =
   "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
@@ -154,10 +153,6 @@ type MemoryItem = {
   prompt: string | null;
   kind: "choice" | "preset";
 };
-
-type SaveDialogTarget =
-  | { type: "draft" }
-  | { type: "attachment"; attachment: ComposerChatAttachment };
 
 function pickFirstMeaningful(...values: Array<string | null | undefined>): string {
   for (const value of values) {
@@ -400,36 +395,31 @@ export function ComposerForm({
   const canRemember = Boolean(currentUser);
   const columnsRef = React.useRef<HTMLDivElement | null>(null);
   const mainRef = React.useRef<HTMLDivElement | null>(null);
-  const [recentModalOpen, setRecentModalOpen] = React.useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = React.useState<SidebarTabKey>("recent");
-  const [isMobileLayout, setIsMobileLayout] = React.useState(false);
-  const mobileMenuCloseRef = React.useRef<HTMLButtonElement | null>(null);
-  const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
-  const [saveDialogOpen, setSaveDialogOpen] = React.useState(false);
-  const [saveDialogTarget, setSaveDialogTarget] = React.useState<SaveDialogTarget | null>(null);
-  const [saveTitle, setSaveTitle] = React.useState("");
-  const [saveDescription, setSaveDescription] = React.useState("");
-  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const {
+    saveDialogOpen,
+    setSaveDialogOpen,
+    saveDialogTarget,
+    setSaveDialogTarget,
+    saveTitle,
+    setSaveTitle,
+    saveDescription,
+    setSaveDescription,
+    saveError,
+    setSaveError,
+  } = useComposerSaveDialog(saveStatus);
+  const {
+    isMobileLayout,
+    mobileMenuCloseRef,
+    mobilePreviewCloseRef,
+  } = useComposerMobileLayout({
+    actions,
+    mobileRailOpen,
+    previewOpen,
+    closeMobileRail: () => actions.setMobileRailOpen(false),
+  });
 
-  React.useEffect(() => {
-    if (!saveDialogOpen) return;
-    if (saveStatus.state === "succeeded") {
-      setSaveDialogOpen(false);
-      setSaveDialogTarget(null);
-      setSaveTitle("");
-      setSaveDescription("");
-      setSaveError(null);
-    } else if (saveStatus.state === "failed" && saveStatus.message) {
-      setSaveError(saveStatus.message);
-    }
-  }, [saveDialogOpen, saveStatus]);
 
-
-  React.useEffect(() => {
-    if (activeSidebarTab !== "recent" && recentModalOpen) {
-      setRecentModalOpen(false);
-    }
-  }, [activeSidebarTab, recentModalOpen]);
   const handlePromptPaste = React.useCallback(
     (event: React.ClipboardEvent<HTMLInputElement>) => {
       const file = extractFileFromDataTransfer(event.clipboardData);
@@ -449,69 +439,6 @@ export function ComposerForm({
   const closeMobileRail = React.useCallback(() => actions.setMobileRailOpen(false), [actions]);
   useResponsiveRail({ open: mobileRailOpen, onClose: closeMobileRail });
 
-  React.useEffect(() => {
-    if (!mobileRailOpen || !isMobileLayout) return;
-    const closeButton = mobileMenuCloseRef.current;
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButton?.focus();
-    return () => {
-      previouslyFocused?.focus?.();
-    };
-  }, [isMobileLayout, mobileRailOpen]);
-
-  React.useEffect(() => {
-    if (!mobileRailOpen) return undefined;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMobileRail();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeMobileRail, mobileRailOpen]);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const media = window.matchMedia("(max-width: 900px)");
-    const apply = (matches: boolean) => {
-      setIsMobileLayout(matches);
-      actions.setPreviewOpen(matches ? false : true);
-    };
-    apply(media.matches);
-    const handleChange = (event: MediaQueryListEvent) => apply(event.matches);
-    if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", handleChange);
-      return () => media.removeEventListener("change", handleChange);
-    }
-    media.addListener(handleChange);
-    return () => media.removeListener(handleChange);
-  }, [actions]);
-
-  React.useEffect(() => {
-    if (!isMobileLayout || !previewOpen) return;
-    const closeButton = mobilePreviewCloseRef.current;
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButton?.focus();
-    return () => {
-      previouslyFocused?.focus?.();
-    };
-  }, [isMobileLayout, previewOpen]);
-
-  React.useEffect(() => {
-    if (!isMobileLayout || !previewOpen) return undefined;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        actions.setPreviewOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [actions, isMobileLayout, previewOpen]);
-
   const activeKind = React.useMemo(() => {
     const normalized = normalizeComposerKind(workingDraft.kind);
     if ((normalized === "text" || !normalized) && attachmentKind) {
@@ -519,11 +446,6 @@ export function ComposerForm({
     }
     return normalized;
   }, [attachmentKind, workingDraft.kind]);
-
-  const toggleActiveKey = React.useMemo(
-    () => (ASSET_KIND_OPTIONS.some((option) => option.key === activeKind) ? activeKind : "text"),
-    [activeKind],
-  );
 
   const promptPlaceholder = React.useMemo(() => getPromptPlaceholder(activeKind), [activeKind]);
   const currentPromptPlaceholder = promptPlaceholder;
@@ -815,17 +737,24 @@ export function ComposerForm({
     [actions.layout, setActiveSidebarTab],
   );
 
-  const handleKindSelect = React.useCallback(
-    (nextKind: string) => {
-      const normalized = normalizeComposerKind(nextKind);
-      const partial: Partial<ComposerDraft> = { kind: normalized };
-      if (normalized === "poll") {
-        partial.poll = ensurePollStructure(workingDraft);
-      }
-      updateDraft(partial);
-    },
-    [updateDraft, workingDraft],
-  );
+  const {
+    recentSidebarItems,
+    sidebarContent,
+    mobileSections,
+    mobileMemoriesSection,
+    recentModalOpen,
+    closeRecentModal,
+  } = useComposerSidebar({
+    activeSidebarTab,
+    sidebar,
+    onSelectRecentChat,
+    onSelectDraft,
+    onSelectProject,
+    onCreateProject,
+    onForceChoice,
+    onMemoryPickerOpen: handleMemoryPickerOpen,
+    SidebarSectionComponent: SidebarSection,
+  });
 
   const {
     previewState,
@@ -962,7 +891,7 @@ export function ComposerForm({
     setSaveDialogOpen(false);
     setSaveDialogTarget(null);
     setSaveError(null);
-  }, [savingCreation]);
+  }, [savingCreation, setSaveDialogOpen, setSaveDialogTarget, setSaveError]);
 
   const handleSaveClick = React.useCallback(() => {
     if (onSave) {
@@ -1028,6 +957,11 @@ export function ComposerForm({
     workingDraft.content,
     workingDraft.mediaPrompt,
     workingDraft.title,
+    setSaveDialogOpen,
+    setSaveDialogTarget,
+    setSaveDescription,
+    setSaveError,
+    setSaveTitle,
   ]);
 
   const handleSaveConfirm = React.useCallback(async () => {
@@ -1147,6 +1081,7 @@ export function ComposerForm({
     saveTitle,
     videoStatus.prompt,
     videoStatus.runId,
+    setSaveError,
     workingDraft.content,
     workingDraft.kind,
     workingDraft.mediaDurationSeconds,
@@ -1167,258 +1102,18 @@ export function ComposerForm({
     actions.layout.setLeftCollapsed(!layout.leftCollapsed);
   }, [actions.layout, layout.leftCollapsed]);
 
-  const handleRecentModalClose = React.useCallback(() => {
-    setRecentModalOpen(false);
-  }, []);
-
-  const recentSidebarItems: SidebarListItem[] = React.useMemo(
-    () =>
-      sidebar.recentChats.map((item) => ({
-        id: item.id,
-        title: item.title,
-        subtitle: item.caption,
-        onClick: () => {
-          onSelectRecentChat(item.id);
-          handleRecentModalClose();
-        },
-      })),
-    [handleRecentModalClose, onSelectRecentChat, sidebar.recentChats],
-  );
-
-  const draftSidebarItems: SidebarListItem[] = React.useMemo(() => {
-    const seenDraftIds = new Set<string>();
-    const seenDraftSignatures = new Set<string>();
-    const seenChoiceKeys = new Set<string>();
-    const items: SidebarListItem[] = [];
-
-    for (const item of sidebar.drafts) {
-      if (item.kind === "draft") {
-        const normalizedId = (item.id ?? "").trim();
-        if (normalizedId && seenDraftIds.has(normalizedId)) continue;
-
-        const signature = `${(item.projectId ?? "none").trim().toLowerCase()}|${(
-          item.title ?? ""
-        )
-          .trim()
-          .toLowerCase()}|${(item.caption ?? "").trim().toLowerCase()}`;
-        if (signature && seenDraftSignatures.has(signature)) continue;
-
-        if (normalizedId) seenDraftIds.add(normalizedId);
-        if (signature) seenDraftSignatures.add(signature);
-
-        items.push({
-          id: item.id,
-          title: item.title,
-          subtitle: item.caption,
-          onClick: () => onSelectDraft(item.id),
-          active:
-            Boolean(sidebar.selectedProjectId) &&
-            Boolean(item.projectId) &&
-            sidebar.selectedProjectId === item.projectId,
-          icon: <FileText size={18} weight="duotone" />,
-        });
-        continue;
-      }
-
-      if (seenChoiceKeys.has(item.key)) continue;
-      seenChoiceKeys.add(item.key);
-      items.push({
-        id: `choice-${item.key}`,
-        title: item.title,
-        subtitle: item.caption,
-        onClick: () => {
-          if (onForceChoice) onForceChoice(item.key);
-        },
-        disabled: !onForceChoice,
-        icon: <Sparkle size={18} weight="fill" />,
-      });
-    }
-
-    return items;
-  }, [onForceChoice, onSelectDraft, sidebar.drafts, sidebar.selectedProjectId]);
-
-  const projectSidebarItems: SidebarListItem[] = React.useMemo(
-    () =>
-      sidebar.projects.map((project) => {
-        const isActive = sidebar.selectedProjectId === project.id;
-        return {
-          id: project.id,
-          title: project.name,
-          subtitle: project.caption,
-          active: isActive,
-          onClick: () => onSelectProject(isActive ? null : project.id),
-          icon: <FolderSimple size={18} weight="duotone" />,
-        };
-      }),
-    [onSelectProject, sidebar.projects, sidebar.selectedProjectId],
-  );
-
-  const RECENT_VISIBLE_LIMIT = 6;
-  const recentHasOverflow = recentSidebarItems.length > RECENT_VISIBLE_LIMIT;
-  const handleShowRecentModal = React.useCallback(() => {
-    setRecentModalOpen(true);
-  }, []);
-  const recentActionProps = React.useMemo(
-    () =>
-      recentHasOverflow
-        ? {
-            actionLabel: "See all" as const,
-            onAction: handleShowRecentModal,
-          }
-        : null,
-    [recentHasOverflow, handleShowRecentModal],
-  );
-
-  const handleCreateProjectClick = React.useCallback(() => {
-    if (typeof window === "undefined") return;
-    const input = window.prompt("Name your project");
-    if (!input) return;
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    onCreateProject(trimmed);
-  }, [onCreateProject]);
-
-  const sidebarContent = React.useMemo(() => {
-    switch (activeSidebarTab) {
-        case "recent":
-          return (
-            <SidebarSection
-              title="Recent chats"
-              items={recentSidebarItems}
-            emptyMessage="No chats yet"
-            thumbClassName={styles.memoryThumbChat ?? ""}
-            maxVisible={RECENT_VISIBLE_LIMIT}
-            {...(recentActionProps ?? {})}
-          />
-        );
-      case "drafts":
-        return (
-          <SidebarSection
-            title="Saved drafts"
-            description="Continue refining drafts or jump into AI suggestions."
-            items={draftSidebarItems}
-            emptyMessage="No drafts saved yet"
-            itemIcon={<FileText size={18} weight="duotone" />}
-            thumbClassName={styles.memoryThumbDraft ?? ""}
-          />
-        );
-      case "projects":
-        return (
-          <SidebarSection
-            title="Projects"
-            description="Organize drafts and ideas into collections."
-            items={projectSidebarItems}
-            emptyMessage="Create a project to organize drafts"
-            itemIcon={<FolderSimple size={18} weight="duotone" />}
-            thumbClassName={styles.memoryThumbProject ?? ""}
-            actionLabel="New project"
-            onAction={handleCreateProjectClick}
-          />
-        );
-      case "memories":
-        return (
-          <div className={styles.sidebarMemories}>
-            <div className={styles.sidebarMemoriesCopy}>
-              <span className={styles.memoryTitle}>Memories</span>
-              <p className={styles.memorySubtitle}>Open your stored assets and brand visuals.</p>
-            </div>
-            <button
-              type="button"
-              className={styles.sidebarMemoriesButton}
-              onClick={() => handleMemoryPickerOpen("uploads")}
-            >
-              <span className={`${styles.memoryThumb} ${styles.memoryThumbMemory}`}>
-                <Brain size={18} weight="fill" />
-              </span>
-              <span>Browse memories</span>
-            </button>
-          </div>
-        );
-      default:
-        return null;
-    }
-  }, [
-    activeSidebarTab,
-    draftSidebarItems,
-    handleCreateProjectClick,
-    handleMemoryPickerOpen,
-    projectSidebarItems,
-    recentActionProps,
-    recentSidebarItems,
-  ]);
-
-  const mobileSections = React.useMemo<MobileSidebarMenuProps["sections"]>(
-    () => [
-      {
-        title: "Recent chats",
-        items: recentSidebarItems,
-        emptyMessage: "No chats yet",
-        ...(recentActionProps?.actionLabel
-          ? { actionLabel: recentActionProps.actionLabel }
-          : {}),
-        ...(recentActionProps ? { onAction: () => recentActionProps.onAction() } : {}),
-      },
-      {
-        title: "Saved drafts",
-        items: draftSidebarItems,
-        emptyMessage: "No drafts saved yet",
-      },
-      {
-        title: "Projects",
-        items: projectSidebarItems,
-        emptyMessage: "Create a project to organize drafts",
-        actionLabel: "New project",
-        onAction: () => handleCreateProjectClick(),
-      },
-    ],
-    [draftSidebarItems, projectSidebarItems, recentActionProps, recentSidebarItems, handleCreateProjectClick],
-  );
-
-  const mobileMemoriesSection = React.useMemo(
-    () => ({
-      title: "Memories",
-      buttonLabel: "Browse memories",
-      description: "Open your stored assets and brand visuals.",
-      onBrowse: () => handleMemoryPickerOpen("uploads"),
-    }),
-    [handleMemoryPickerOpen],
-  );
-
   const mobileSettingsSection = (
-    <section className={styles.mobileSheetSection}>
-      <header>
-        <span className={styles.mobileSheetSectionTitle}>Settings</span>
-      </header>
-      <div className={styles.privacyGroup}>
-        <span className={styles.privacyLabel}>Visibility</span>
-        <select
-          aria-label="Visibility"
-          className={styles.privacySelect}
-          value={privacy}
-          onChange={(event) => {
-            const nextValue = (event.target.value || "public") as ComposerFormState["privacy"];
-            actions.setPrivacy(nextValue);
-          }}
-          disabled={loading}
-        >
-          <option value="public">Public</option>
-          <option value="private">Private</option>
-        </select>
-      </div>
-      <div>
-        <button
-          type="button"
-          className={styles.secondaryAction}
-          onClick={() => {
-            handleSaveClick();
-            closeMobileRail();
-          }}
-          disabled={!canSave}
-        >
-          {savingCreation ? "Saving..." : "Save"}
-        </button>
-      </div>
-    </section>
+    <ComposerMobileSettings
+      privacy={privacy}
+      loading={loading}
+      canSave={canSave}
+      saving={savingCreation}
+      onPrivacyChange={(nextValue) => actions.setPrivacy(nextValue)}
+      onSave={() => {
+        handleSaveClick();
+        closeMobileRail();
+      }}
+    />
   );
 
 
@@ -1455,7 +1150,7 @@ export function ComposerForm({
             recentModal: {
               open: true,
               items: recentSidebarItems,
-              onClose: handleRecentModalClose,
+              onClose: closeRecentModal,
             },
           }
         : {})}
@@ -1515,7 +1210,7 @@ export function ComposerForm({
             closeButtonRef={mobileMenuCloseRef}
             onItemSelect={closeMobileRail}
             sections={mobileSections}
-            memoriesSection={mobileMemoriesSection}
+            {...(mobileMemoriesSection ? { memoriesSection: mobileMemoriesSection } : {})}
             extraSections={mobileSettingsSection}
           />
         );
@@ -1539,8 +1234,6 @@ export function ComposerForm({
       <div className={styles.backdrop} />
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
         <ComposerToolbar
-          activeKind={toggleActiveKey}
-          onSelectKind={handleKindSelect}
           onClose={onClose}
           disabled={loading}
           smartContextEnabled={smartContextEnabled}
@@ -1548,40 +1241,17 @@ export function ComposerForm({
           contextActive={smartContextEnabled && hasContextSnippets}
           imageQuality={imageSettings.quality}
           onQualityChange={(quality) => updateImageSettings({ quality })}
-          onMenuToggle={() => actions.setMobileRailOpen(!mobileRailOpen)}
-          mobileRailOpen={mobileRailOpen}
-          onPreviewToggle={handlePreviewToggle}
-          previewOpen={previewOpen}
           onSearchSelect={handleSearchSelection}
         />
 
         <div className={styles.panelBody}>
           {themePreview ? (
-            <div className={styles.themePreviewBanner} role="status" aria-live="polite">
-              <div className={styles.themePreviewCopy}>
-                <p className={styles.themePreviewLabel}>Previewing theme</p>
-                <p className={styles.themePreviewSummary}>{themePreview.summary}</p>
-                {themePreview.details ? (
-                  <p className={styles.themePreviewDetails}>{themePreview.details}</p>
-                ) : null}
-              </div>
-              <div className={styles.themePreviewActions}>
-                <button
-                  type="button"
-                  className={styles.themePreviewApply}
-                  onClick={onApplyThemePreview}
-                >
-                  Apply theme
-                </button>
-                <button
-                  type="button"
-                  className={styles.themePreviewCancel}
-                  onClick={onCancelThemePreview}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            <ThemePreviewBanner
+              summary={themePreview.summary}
+              details={themePreview.details ?? null}
+              onApply={onApplyThemePreview}
+              onCancel={onCancelThemePreview}
+            />
           ) : null}
           <ComposerLayout
             columnsRef={columnsRef}
@@ -1599,47 +1269,12 @@ export function ComposerForm({
             onRightResizeStart={startRightResize}
           />
 
-          {isMobileLayout && previewOpen ? (
-            <>
-              <div
-                className={styles.mobilePreviewBackdrop}
-                onClick={() => actions.setPreviewOpen(false)}
-              />
-              <div
-                id="composer-mobile-preview"
-                className={styles.mobilePreviewOverlay}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="composer-mobile-preview-title"
-                onClick={() => actions.setPreviewOpen(false)}
-              >
-                <div
-                  className={styles.mobilePreviewDialog}
-                  role="document"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className={styles.mobilePreviewHeader}>
-                    <span
-                      className={styles.mobileSheetTitle}
-                      id="composer-mobile-preview-title"
-                    >
-                      Preview
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.mobilePreviewClose}
-                      onClick={() => actions.setPreviewOpen(false)}
-                      ref={mobilePreviewCloseRef}
-                      aria-label="Close preview"
-                    >
-                      <X size={16} weight="bold" />
-                    </button>
-                  </div>
-                  <div className={styles.mobilePreviewContent}>{previewContent}</div>
-                </div>
-              </div>
-            </>
-          ) : null}
+          <ComposerMobilePreview
+            open={isMobileLayout && previewOpen}
+            onClose={() => actions.setPreviewOpen(false)}
+            closeButtonRef={mobilePreviewCloseRef}
+            content={previewContent}
+          />
         </div>
 
         <ComposerFooter
@@ -1658,81 +1293,17 @@ export function ComposerForm({
           saving={savingCreation}
         />
 
-        {saveDialogOpen ? (
-          <div
-            className={styles.saveDialogOverlay}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="composer-save-dialog-title"
-            onClick={handleSaveDialogClose}
-          >
-            <div
-              className={styles.saveDialog}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className={styles.saveDialogHeader}>
-                <h3 id="composer-save-dialog-title">Save to Memory</h3>
-                <button
-                  type="button"
-                  className={styles.saveDialogClose}
-                  onClick={handleSaveDialogClose}
-                  aria-label="Close save dialog"
-                  disabled={savingCreation}
-                >
-                  <X size={16} weight="bold" />
-                </button>
-              </div>
-              <div className={styles.saveDialogBody}>
-                <label className={styles.saveDialogLabel} htmlFor="composer-save-title">
-                  Title
-                </label>
-                <input
-                  id="composer-save-title"
-                  className={styles.saveDialogInput}
-                  value={saveTitle}
-                  onChange={(event) => setSaveTitle(event.target.value)}
-                  placeholder="Describe this creation"
-                  disabled={savingCreation}
-                />
-                <label className={styles.saveDialogLabel} htmlFor="composer-save-description">
-                  Description
-                </label>
-                <textarea
-                  id="composer-save-description"
-                  className={styles.saveDialogTextarea}
-                  value={saveDescription}
-                  onChange={(event) => setSaveDescription(event.target.value)}
-                  rows={4}
-                  placeholder="Capsule uses this description for recall."
-                  disabled={savingCreation}
-                />
-                {(saveError ?? saveFailureMessage) ? (
-                  <p className={styles.saveDialogError} role="alert">
-                    {saveError ?? saveFailureMessage}
-                  </p>
-                ) : null}
-              </div>
-              <div className={styles.saveDialogActions}>
-                <button
-                  type="button"
-                  className={styles.saveDialogSecondary}
-                  onClick={handleSaveDialogClose}
-                  disabled={savingCreation}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={styles.saveDialogPrimary}
-                  onClick={handleSaveConfirm}
-                  disabled={savingCreation}
-                >
-                  {savingCreation ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <ComposerSaveDialog
+          open={saveDialogOpen}
+          saving={savingCreation}
+          title={saveTitle}
+          description={saveDescription}
+          error={saveError ?? saveFailureMessage}
+          onTitleChange={setSaveTitle}
+          onDescriptionChange={setSaveDescription}
+          onClose={handleSaveDialogClose}
+          onConfirm={handleSaveConfirm}
+        />
 
         <ComposerMemoryPicker
           open={memoryPickerOpen}

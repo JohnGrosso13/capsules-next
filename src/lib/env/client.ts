@@ -18,6 +18,7 @@ const clientEnvSchema = z.object({
     .min(1, "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY cannot be empty"),
   TURNSTILE_SITE_KEY: optionalPublicString,
   R2_PUBLIC_BASE_URL: optionalPublicUrl,
+  STRIPE_PUBLISHABLE_KEY: optionalPublicString,
 });
 
 const rawClientEnv = {
@@ -26,6 +27,7 @@ const rawClientEnv = {
   CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   R2_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL,
+  STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
 };
 
 const parsedClientEnv = clientEnvSchema.safeParse(rawClientEnv);

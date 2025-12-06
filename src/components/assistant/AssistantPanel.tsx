@@ -217,10 +217,6 @@ export function AssistantPanel({
     ? "System contacts can't receive assistant tasks. Choose a real friend."
     : "Add a friend before assigning an assistant task.";
 
-  const handleRefresh = React.useCallback(() => {
-    void onRefresh();
-  }, [onRefresh]);
-
   const openAssistantChat = React.useCallback(async () => {
     setCreateError(null);
     try {
@@ -308,8 +304,11 @@ export function AssistantPanel({
     [sortedTasks],
   );
 
-  const completedTasks = React.useMemo(
-    () => sortedTasks.filter((task) => !isTaskActive(task)),
+  const recentTasks = React.useMemo(
+    () =>
+      sortedTasks.filter(
+        (task) => !isTaskActive(task) && task.status !== "canceled",
+      ),
     [sortedTasks],
   );
 
@@ -391,7 +390,7 @@ export function AssistantPanel({
                 href={`/assistant/tasks/${task.id}`}
                 className={`${styles.linkButton} ${styles.inlineLink}`}
               >
-                View task thread
+                View task
               </Link>
               {canCancel ? (
                 <button
@@ -526,30 +525,23 @@ export function AssistantPanel({
         <>
           <CollapsibleSection
             id="assistant-tasks"
-            title="In progress"
-            eyebrow="Active tasks"
+            title="Assistant tasks"
+            eyebrow="Assistant"
             status={
               activeTasks.length
-                ? `${activeTasks.length} open${completedTasks.length ? ` / ${completedTasks.length} past` : ""}`
-                : "No active tasks"
+                ? `${activeTasks.length} active`
+                : recentTasks.length
+                  ? "No active · recent below"
+                  : "No active tasks"
             }
             open={tasksExpanded}
             onToggle={setTasksExpanded}
           >
             <div id={tasksBodyId}>
-              <div className={styles.tasksToolbar}>
-                <button
-                  type="button"
-                  className={styles.refresh}
-                  onClick={handleRefresh}
-                  disabled={loading}
-                >
-                  {loading ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
               {!activeTasks.length ? (
                 <div className={styles.state}>
-                  No active tasks. Create one above to start outreach or planning.
+                  Nothing in progress. Create a task above to have the assistant message friends or
+                  help plan something for you.
                 </div>
               ) : (
                 <ul className={styles.tasks} aria-live="polite">
@@ -557,19 +549,14 @@ export function AssistantPanel({
                 </ul>
               )}
 
-              {completedTasks.length ? (
+              {recentTasks.length ? (
                 <section className={styles.taskSection}>
                   <div className={styles.sectionHeader}>
-                    <div>
-                      <p className={styles.kicker}>History</p>
-                      <h4 className={styles.sectionTitle}>Recently completed</h4>
-                    </div>
-                    <span className={styles.sectionHint}>
-                      Showing {Math.min(completedTasks.length, 5)} of {completedTasks.length}
-                    </span>
+                    <p className={styles.kicker}>Recent</p>
+                    <h4 className={styles.sectionTitle}>Recent tasks</h4>
                   </div>
                   <ul className={styles.tasks} aria-live="polite">
-                    {completedTasks.slice(0, 5).map((task) => renderTaskCard(task))}
+                    {recentTasks.slice(0, 3).map((task) => renderTaskCard(task))}
                   </ul>
                 </section>
               ) : null}

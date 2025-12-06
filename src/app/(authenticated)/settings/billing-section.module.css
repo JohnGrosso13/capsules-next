@@ -48,7 +48,7 @@
   background:
     radial-gradient(
       160% 130% at 0% 0%,
-      color-mix(in srgb, var(--color-brand, #2f5fd7) 16%, transparent),
+      color-mix(in srgb, var(--color-brand, #6366f1) 16%, transparent),
       transparent 60%
     ),
     linear-gradient(
@@ -62,9 +62,9 @@
 }
 
 .tierCardFeatured {
-  border-color: color-mix(in srgb, var(--color-brand, #2f5fd7) 80%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 80%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-brand, #2f5fd7) 36%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand, #6366f1) 36%, transparent),
     0 18px 40px rgba(12, 28, 70, 0.55);
 }
 
@@ -85,7 +85,7 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 750;
-  color: color-mix(in srgb, var(--color-brand, #2f5fd7) 80%, var(--text, #ffffff));
+  color: color-mix(in srgb, var(--color-brand, #6366f1) 80%, var(--text, #ffffff));
 }
 
 .tierTagline {

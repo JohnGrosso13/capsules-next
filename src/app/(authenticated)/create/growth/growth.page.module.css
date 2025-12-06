@@ -141,7 +141,11 @@
       color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%),
       transparent 60%
     ),
-    radial-gradient(130% 200% at 100% -10%, rgba(148, 163, 253, 0.18), transparent 70%),
+    radial-gradient(
+      130% 200% at 100% -10%,
+      color-mix(in srgb, var(--color-brand) 26%, transparent),
+      transparent 70%
+    ),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -212,9 +216,18 @@
 .metricTile {
   border-radius: 14px;
   padding: 10px 11px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(129, 140, 248, 0.45));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--surface-outline) 80%,
+      color-mix(in srgb, var(--color-brand) 52%, transparent)
+    );
   background:
-    radial-gradient(150% 180% at 0% 0%, rgba(79, 70, 229, 0.35), transparent 60%),
+    radial-gradient(
+      150% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand-strong) 46%, var(--color-accent) 18%),
+      transparent 60%
+    ),
     linear-gradient(
       185deg,
       color-mix(in srgb, var(--surface-elevated) 98%, transparent),
@@ -254,13 +267,14 @@
 }
 
 .metricTile[data-tone="steady"] .metricTileTrend {
-  color: rgba(129, 140, 248, 0.9);
+  color: color-mix(in srgb, var(--color-brand) 65%, var(--text-2));
 }
 
 .miniTimeline {
   margin-top: 14px;
   padding-top: 6px;
-  border-top: 1px solid rgba(148, 163, 253, 0.4);
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-brand) 56%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
 }
 
 .miniTimelineHeader {
@@ -345,7 +359,12 @@
 .segmentTile {
   border-radius: 14px;
   padding: 10px 11px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 253, 0.65));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--surface-outline) 80%,
+      color-mix(in srgb, var(--color-brand) 58%, transparent)
+    );
   background:
     radial-gradient(
       150% 180% at 0% 0%,
@@ -396,8 +415,13 @@
   border-radius: 13px;
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.92)),
-    linear-gradient(180deg, rgba(148, 163, 253, 0.22), rgba(79, 70, 229, 0.14));
-  border: 1px solid rgba(148, 163, 253, 0.45);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 26%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 18%, transparent)
+    );
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 58%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
   box-shadow:
     0 10px 24px rgba(15, 23, 42, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -448,8 +472,13 @@
   border-radius: 14px;
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(59, 130, 246, 0.25), rgba(129, 140, 248, 0.25));
-  border: 1px solid rgba(129, 140, 248, 0.7);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 32%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 24%, transparent)
+    );
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 70%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
   box-shadow:
     0 12px 26px rgba(15, 23, 42, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -497,10 +526,15 @@
   align-items: flex-start;
   padding: 9px 10px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 253, 0.6);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 64%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(129, 140, 248, 0.25), rgba(79, 70, 229, 0.25));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 28%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 22%, transparent)
+    );
   box-shadow:
     0 12px 26px rgba(15, 23, 42, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),

@@ -103,10 +103,14 @@
 }
 
 .secondaryButton {
-  border-color: rgba(148, 163, 253, 0.7);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(129, 140, 248, 0.25), rgba(79, 70, 229, 0.25));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 30%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 26%, transparent)
+    );
   box-shadow:
     0 10px 22px rgba(15, 23, 42, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
@@ -122,7 +126,8 @@
 .metricCard {
   border-radius: 18px;
   padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 70%, var(--color-brand));
+  border: 1px solid
+    color-mix(in srgb, var(--surface-outline) 72%, color-mix(in srgb, var(--color-brand) 60%, transparent));
   background:
     radial-gradient(
       160% 180% at 0% 0%,
@@ -183,7 +188,11 @@
       color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%),
       transparent 60%
     ),
-    radial-gradient(130% 200% at 100% -10%, rgba(148, 163, 253, 0.18), transparent 70%),
+    radial-gradient(
+      130% 200% at 100% -10%,
+      color-mix(in srgb, var(--color-brand) 26%, transparent),
+      transparent 70%
+    ),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -248,7 +257,12 @@
 .mapCard {
   border-radius: 18px;
   padding: 10px 11px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 253, 0.7));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--surface-outline) 78%,
+      color-mix(in srgb, var(--color-brand) 50%, transparent)
+    );
   background:
     radial-gradient(
       circle at 0% 0%,
@@ -310,12 +324,12 @@
   inset: 0;
   background-image: linear-gradient(
       90deg,
-      rgba(148, 163, 253, 0.35) 1px,
+      color-mix(in srgb, var(--color-brand) 56%, rgba(148, 163, 253, 0.18)) 1px,
       transparent 1px
     ),
     linear-gradient(
       180deg,
-      rgba(148, 163, 253, 0.35) 1px,
+      color-mix(in srgb, var(--color-brand) 56%, rgba(148, 163, 253, 0.18)) 1px,
       transparent 1px
     );
   background-size: 22px 22px;
@@ -396,7 +410,8 @@
 .matchSummary {
   border-radius: 18px;
   padding: 10px 11px;
-  border: 1px solid rgba(148, 163, 253, 0.75);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 65%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(
@@ -461,7 +476,7 @@
 .timelineStrip {
   margin-top: 10px;
   padding-top: 6px;
-  border-top: 1px solid rgba(129, 140, 248, 0.6);
+  border-top: 1px solid color-mix(in srgb, var(--color-brand) 58%, transparent);
 }
 
 .timelineLabel {
@@ -480,10 +495,15 @@
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 0.72rem;
-  border: 1px solid rgba(148, 163, 253, 0.85);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 66%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(129, 140, 248, 0.3), rgba(79, 70, 229, 0.25));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 32%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 26%, transparent)
+    );
 }
 
 .timelineMarker[data-kind="clutch"] {
@@ -507,7 +527,8 @@
 .focusItem {
   padding: 8px 9px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 253, 0.7);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 60%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
@@ -631,7 +652,8 @@
   align-items: center;
   padding: 8px 9px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 253, 0.7);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 60%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
@@ -659,7 +681,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border: 1px solid rgba(148, 163, 253, 0.8);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 68%, color-mix(in srgb, var(--card-border, #ffffff) 45%, transparent));
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
 }
 

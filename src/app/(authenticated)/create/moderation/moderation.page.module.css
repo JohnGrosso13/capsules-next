@@ -95,10 +95,14 @@
 }
 
 .secondaryButton {
-  border-color: rgba(148, 163, 253, 0.7);
+  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(129, 140, 248, 0.25), rgba(79, 70, 229, 0.25));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 30%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 26%, transparent)
+    );
   box-shadow:
     0 10px 22px rgba(15, 23, 42, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
@@ -167,7 +171,11 @@
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
     radial-gradient(135% 180% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%), transparent 60%),
-    radial-gradient(130% 200% at 100% -10%, rgba(148, 163, 253, 0.32), transparent 70%),
+    radial-gradient(
+      130% 200% at 100% -10%,
+      color-mix(in srgb, var(--color-brand) 32%, transparent),
+      transparent 70%
+    ),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-elevated) 96%, transparent),
@@ -287,7 +295,8 @@
   align-items: flex-start;
   padding: 8px 9px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 253, 0.75);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 72%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     radial-gradient(135% 200% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%), transparent 65%),
     linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
@@ -304,7 +313,8 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border: 1px solid rgba(148, 163, 253, 0.9);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 76%, color-mix(in srgb, var(--card-border, #ffffff) 44%, transparent));
 }
 
 .flagMeta {
@@ -342,10 +352,15 @@
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 0.72rem;
-  border: 1px solid rgba(148, 163, 253, 0.85);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 72%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(129, 140, 248, 0.3), rgba(79, 70, 229, 0.25));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 30%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 24%, transparent)
+    );
 }
 
 .flagTag[data-tone="issue"] {
@@ -371,7 +386,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border: 1px solid rgba(148, 163, 253, 0.9);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 76%, color-mix(in srgb, var(--card-border, #ffffff) 44%, transparent));
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
 }
 
@@ -395,8 +411,12 @@
 }
 
 .flagStatus[data-tone="blocked"] {
-  border-color: rgba(148, 163, 253, 0.9);
-  background: linear-gradient(180deg, rgba(129, 140, 248, 0.18), rgba(79, 70, 229, 0.7));
+  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 24%, transparent),
+    color-mix(in srgb, var(--color-brand-strong) 72%, transparent)
+  );
 }
 
 .flagActionsColumn {
@@ -467,7 +487,8 @@
 .incidentItem {
   padding: 8px 9px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 253, 0.7);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 70%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
@@ -503,13 +524,18 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border: 1px solid rgba(148, 163, 253, 0.8);
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand) 72%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
 }
 
 .incidentBadge[data-tone="blocked"] {
-  border-color: rgba(148, 163, 253, 0.9);
-  background: linear-gradient(180deg, rgba(129, 140, 248, 0.18), rgba(79, 70, 229, 0.7));
+  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 24%, transparent),
+    color-mix(in srgb, var(--color-brand-strong) 72%, transparent)
+  );
 }
 
 .incidentBadge[data-tone="urgent"] {

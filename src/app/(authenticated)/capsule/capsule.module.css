@@ -728,9 +728,9 @@
   gap: clamp(12px, 1.8vw, 24px);
 }
 .liveCanvas {
-    width: 100%;
-    /* Fill the available space between tabs and prompter */
-    height: 100%;
+  width: 100%;
+  /* Fill the available space between tabs and prompter */
+  height: 100%;
   min-height: clamp(360px, 65vh, 980px);
   /* Allow grid area to shrink properly on smaller viewports */
   min-block-size: 0;
@@ -740,13 +740,13 @@
   background:
     radial-gradient(1200px 400px at 20% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
     radial-gradient(1200px 400px at 80% -10%, color-mix(in srgb, var(--color-fg) 6%, transparent), transparent 60%),
-    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-    box-shadow: var(--card-shadow);
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    padding: clamp(8px, 1.5vw, 22px);
-  }
+      linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
+  box-shadow: var(--card-shadow);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: clamp(8px, 1.5vw, 22px);
+}
 
   /* Store view: remove the outer canvas border so only banner + store shell show */
   .liveCanvas[data-store-canvas="true"] {
@@ -754,6 +754,12 @@
     box-shadow: none;
     background: transparent;
     padding: 0;
+    position: relative;
+    /* Allow dropdown menus inside the store canvas to escape its bounds */
+    overflow-x: visible;
+    overflow-y: auto;
+    /* Sit above the prompter row so store dropdowns are never obscured */
+    z-index: 350;
   }
 
 /* Live view: remove inner padding and stretch canvas fully */
@@ -912,7 +918,9 @@
   display: flex;
   flex-direction: column;
   gap: clamp(18px, 2vw, 28px);
-  overflow: auto;
+  /* Allow store dropdowns to extend horizontally beyond the canvas while preserving vertical scroll */
+  overflow-x: visible;
+  overflow-y: auto;
   width: 100%;
   flex: 1 1 auto;
 }
@@ -1066,17 +1074,26 @@
 }
 .storeHeroActionsMenuSurface {
   position: absolute;
-  right: 0;
+  /* Anchor to the trigger's left edge so the menu grows rightward and stays visible */
+  left: 0;
   margin-top: 8px;
   min-width: 200px;
   padding: 6px;
   border-radius: 12px;
   border: 1px solid var(--store-panel-border);
-  background: color-mix(in srgb, var(--store-panel-bg) 96%, transparent);
-  box-shadow: var(--card-shadow);
+    /* Use a fully opaque surface so underlying content never shows through */
+    background: linear-gradient(
+      180deg,
+      rgba(17, 24, 48, 0.98),
+      rgba(9, 13, 30, 0.98)
+    );
+  box-shadow:
+    0 18px 42px rgba(5, 10, 30, 0.8),
+    inset 0 0 0 1px color-mix(in srgb, rgba(148, 163, 255, 0.24) 80%, transparent);
   display: grid;
   gap: 4px;
-  z-index: 10;
+  /* Ensure the Store actions menu is above nearby overlays like the prompter */
+  z-index: 1200;
 }
 .storeHeroActionsMenuItem {
   display: flex;
