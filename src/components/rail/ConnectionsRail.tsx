@@ -33,6 +33,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter } from "next/navigation";
 import { buildProfileHref } from "@/lib/profile/routes";
+import tileStyles from "./connection-tiles.module.css";
 
 type RailTab = "friends" | "party" | "chats" | "requests" | "assistant";
 
@@ -1089,8 +1090,8 @@ export function ConnectionsRail() {
       data-mode={railMode}
     >
       {railMode === "tiles" ? (
-        <div className={styles.connectionTilesShell}>
-          <div className={styles.connectionTiles}>
+        <div className={tileStyles.connectionTilesShell}>
+          <div className={tileStyles.connectionTiles}>
             {connectionTiles.map((tile) => {
               const isLiveParty = tile.key === "party" && Boolean(partySession);
               return (
@@ -1099,29 +1100,29 @@ export function ConnectionsRail() {
                   type="button"
                   data-tile={tile.key}
                   data-live={isLiveParty ? "true" : undefined}
-                  className={styles.connectionTile}
+                  className={tileStyles.connectionTile}
                   onClick={() => {
                     setActiveRailTab(tile.key);
                     setRailMode("connections");
                   }}
                 >
-                  <div className={styles.connectionTileHeader}>
-                    <div className={styles.connectionTileMeta}>
-                      <span className={styles.connectionTileIcon} aria-hidden>
+                  <div className={tileStyles.connectionTileHeader}>
+                    <div className={tileStyles.connectionTileMeta}>
+                      <span className={tileStyles.connectionTileIcon} aria-hidden>
                         {tile.icon}
                       </span>
-                      <span className={styles.connectionTileTitle}>{tile.title}</span>
+                      <span className={tileStyles.connectionTileTitle}>{tile.title}</span>
                     </div>
                     {tile.badge !== null ? (
                       <span
-                        className={`${styles.connectionTileBadge} ${
-                          tile.badgeIcon ? styles.connectionTileBadgeToken : ""
+                        className={`${tileStyles.connectionTileBadge} ${
+                          tile.badgeIcon ? tileStyles.connectionTileBadgeToken : ""
                         }`.trim()}
                       >
                         {tile.badgeIcon ? (
-                          <span className={styles.connectionTileBadgeIcon} aria-hidden>
+                          <span className={tileStyles.connectionTileBadgeIcon} aria-hidden>
                             {React.cloneElement(tile.badgeIcon, {
-                              className: `${styles.connectionTileBadgeGlyph} ${
+                              className: `${tileStyles.connectionTileBadgeGlyph} ${
                                 tile.badgeIcon.props.className ?? ""
                               }`.trim(),
                               focusable: "false",
@@ -1129,11 +1130,11 @@ export function ConnectionsRail() {
                             })}
                           </span>
                         ) : null}
-                        <span className={styles.connectionTileBadgeCount}>{tile.badge}</span>
+                        <span className={tileStyles.connectionTileBadgeCount}>{tile.badge}</span>
                       </span>
                     ) : null}
                   </div>
-                  <p className={styles.connectionTileDescription}>{tile.description}</p>
+                  <p className={tileStyles.connectionTileDescription}>{tile.description}</p>
                 </button>
               );
             })}

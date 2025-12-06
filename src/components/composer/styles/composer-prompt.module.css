@@ -317,10 +317,10 @@
   width: 46px;
   height: 42px;
   border-radius: 999px;
-  border: 1px solid var(--composer-send-btn-border);
-  background: var(--composer-send-btn-bg);
+  border: 1px solid var(--card-border, var(--color-border));
+  background: var(--cta-button-gradient, var(--cta-gradient));
   color: var(--composer-send-btn-text);
-  box-shadow: var(--composer-send-btn-shadow);
+  box-shadow: var(--shadow-md, 0 12px 26px rgba(5, 10, 30, 0.34));
   transition:
     transform 140ms ease,
     box-shadow 140ms ease,
@@ -330,7 +330,7 @@
 .promptSendBtn:hover:not(:disabled),
 .promptSendBtn:focus-visible:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: var(--composer-send-btn-hover-shadow, var(--composer-send-btn-shadow));
+  box-shadow: var(--shadow-lg, 0 16px 32px rgba(5, 10, 30, 0.4));
 }
 
 .promptSendBtn:disabled {
@@ -378,21 +378,21 @@
 .voiceStatus {
   font-size: 0.88rem;
   line-height: 1.5;
-  color: var(--composer-voice-status);
+  color: var(--color-info, #38bdf8);
   padding: 0 clamp(28px, 4.5vw, 48px);
   min-height: 1.4em;
 }
 
 .voiceStatus[data-state="active"] {
-  color: var(--composer-voice-status-active, var(--composer-voice-status));
+  color: var(--color-brand, #6366f1);
 }
 
 .voiceStatus[data-state="error"] {
-  color: var(--composer-voice-status-error, var(--composer-status-error, #f87171));
+  color: var(--composer-status-error, var(--color-danger, #f87171));
 }
 
 .voiceStatus[data-state="result"] {
-  color: var(--composer-voice-status-result, var(--composer-voice-status));
+  color: var(--color-success, #22c55e);
 }
 
 .composerFootnote {
@@ -529,7 +529,7 @@
 .vibeAction:focus-visible {
   transform: translateY(-1px);
   border-color: var(--composer-rail-button-active-border, var(--composer-vibe-btn-border));
-  box-shadow: var(--composer-vibe-btn-shadow);
+  box-shadow: var(--shadow-sm, 0 6px 14px rgba(5, 10, 30, 0.28));
 }
 
 .vibeAction:active {
@@ -579,7 +579,7 @@
 .quickPromptChip:focus-visible {
   transform: translateY(-1px);
   border-color: var(--composer-quick-chip-hover-border, var(--composer-quick-chip-border));
-  box-shadow: var(--composer-quick-chip-hover-shadow, var(--composer-shadow));
+  box-shadow: var(--shadow-sm, 0 8px 18px rgba(5, 10, 30, 0.26));
 }
 
 .quickPromptChip:disabled {

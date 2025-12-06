@@ -6,12 +6,8 @@
   padding: 0;
   /* Settings accents: derive from shared brand + accent tokens so the page
      tracks the overall capsule/store palette instead of a separate blue theme. */
-  --settings-accent: var(--settings-color-brand-base, var(--color-brand, #6366f1));
-  --settings-accent-strong: color-mix(
-    in srgb,
-    var(--settings-color-brand-strong-base, var(--color-brand-strong, #4f46e5)) 72%,
-    var(--settings-color-accent-base, var(--color-accent, #22d3ee))
-  );
+  --settings-accent: var(--color-brand, #6366f1);
+  --settings-accent-strong: var(--color-brand-strong, #4f46e5);
   --settings-accent-soft: color-mix(
     in srgb,
     var(--settings-accent) 22%,
@@ -75,16 +71,14 @@
   border-radius: 12px;
   font-weight: 700;
   color: var(--text-2);
-  border: 1px solid var(--settings-nav-item-border, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--rail-border, var(--card-border, var(--color-border)));
   background: var(
-    --settings-nav-item-background,
+    --side-item-bg,
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04))
   );
-  box-shadow: var(
-    --settings-nav-item-shadow,
+  box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.45)
-  );
+    inset 0 -1px 0 rgba(2, 6, 23, 0.45);
 }
 
 .sideItem[aria-disabled="true"],
@@ -97,12 +91,10 @@
   /* Use app brand gradient with fallback */
   background: var(--brand-gradient, var(--gradient-brand));
   border-color: color-mix(in srgb, var(--settings-accent) 70%, transparent);
-  box-shadow: var(
-    --settings-nav-item-active-shadow,
+  box-shadow:
     0 0 18px var(--accent-glow, rgba(37, 99, 235, 0.34)),
     0 6px 12px rgba(2, 6, 23, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45)
-  );
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 /* Content */

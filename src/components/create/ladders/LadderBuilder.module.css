@@ -15,13 +15,10 @@
   background: transparent;
   /* Local tokens so prompts/steps can inherit theme without changing visuals */
   --ladder-step-active-text: var(--text-on-brand, #ffffff);
-  --ladder-prompter-send-text: var(--text-on-brand, #090d1c);
   --ladder-prompter-status: var(--color-success, #7df7c5);
   --ladder-surface: var(--composer-panel-background);
   --ladder-surface-strong: var(--composer-panel-background);
   --ladder-surface-soft: var(--composer-rail-background, var(--composer-panel-background));
-  --ladder-border: var(--composer-rail-tab-border, var(--composer-border, var(--card-border)));
-  --ladder-shadow: var(--composer-shadow);
   --ladder-glow-brand: var(--accent-glow, rgba(99, 102, 241, 0.34));
   --ladder-chip-bg: var(--composer-rail-tab-bg);
   --ladder-chip-border: var(--composer-rail-tab-border);
@@ -151,9 +148,9 @@
   gap: 16px;
   padding: 18px 22px;
   border-radius: 20px;
-  border: 1px solid var(--ladder-border);
+  border: 1px solid var(--card-border);
   background: var(--ladder-surface-strong, var(--ladder-surface));
-  box-shadow: var(--ladder-shadow);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
 }
 
@@ -2510,7 +2507,7 @@
   border-radius: 50%;
   border: none;
   background: linear-gradient(135deg, var(--ladder-accent-1), var(--ladder-accent-2));
-  color: var(--ladder-prompter-send-text);
+  color: var(--text-on-brand);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }

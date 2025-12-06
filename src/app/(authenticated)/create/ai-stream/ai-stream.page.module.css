@@ -173,14 +173,14 @@
     color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent)
   );
   opacity: 0.42; /* subtle default */
-  box-shadow: var(--studio-glow-soft);
+  box-shadow: var(--shadow-sm, 0 8px 18px rgba(5, 10, 30, 0.28));
   transition: opacity 0.2s ease, box-shadow 0.2s ease;
 }
 
 .resizeHandle:hover::before,
 .resizeHandle:focus-visible::before {
   opacity: 1;
-  box-shadow: var(--studio-glow-strong);
+  box-shadow: var(--shadow-md, 0 12px 26px rgba(5, 10, 30, 0.32));
 }
 
 .resizeHandle[data-panel-group-direction="horizontal"]::before {

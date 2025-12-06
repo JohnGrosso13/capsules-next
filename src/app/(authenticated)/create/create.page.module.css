@@ -207,13 +207,13 @@
   align-items: center;
   justify-content: center;
   padding: 0.55rem 1.3rem;
-  border-radius: var(--cta-radius, 999px);
+  border-radius: var(--radius-pill, 999px);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--cta-button-text, var(--text));
   background: var(--cta-button-gradient, var(--cta-gradient));
   border: none;
-  box-shadow: var(--cta-button-shadow, 0 16px 32px rgba(79, 70, 229, 0.32));
+  box-shadow: var(--shadow-lg, 0 16px 32px rgba(79, 70, 229, 0.32));
   transition:
     transform 0.16s ease,
     box-shadow 0.16s ease;

@@ -88,7 +88,6 @@
     --cta-gradient: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
     --cta-button-text: #ffffff;
     --cta-chip-gradient: linear-gradient(95deg, #a855f7 0%, #6366f1 48%, #22d3ee 100%);
-    --cta-chip-text: var(--cta-button-text, #ffffff);
     --cta-chip-border: rgba(180, 175, 255, 0.65);
     --cta-chip-shadow: 0 18px 36px rgba(88, 74, 204, 0.38);
     --cta-chip-border-hover: rgba(200, 195, 255, 0.8);
@@ -157,7 +156,6 @@
     /* CTA & gradients */
     --brand-gradient: var(--gradient-brand);
     --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
-    --cta-radius: var(--radius-pill, 999px);
     /* Card surfaces */
     --card-radius: var(--radius-lg, 1rem);
     /* Base card tones tuned darker to avoid always-on highlight */
@@ -590,15 +588,6 @@
       in srgb,
       var(--text) 90%,
       var(--text-on-brand, #ffffff) 10%
-    );
-    --friends-presence-neutral-dot: var(
-      --presence-offline-dot,
-      color-mix(in srgb, var(--color-fg-muted) 45%, transparent)
-    );
-    --friends-presence-neutral-dot-muted: color-mix(
-      in srgb,
-      var(--friends-presence-neutral-dot) 60%,
-      transparent
     );
     --friends-menu-trigger-background: linear-gradient(
       180deg,
@@ -1418,7 +1407,7 @@
   }
   .btn-gradient {
     background: var(--cta-button-gradient, var(--cta-chip-gradient, var(--gradient-brand)));
-    color: var(--cta-button-text, var(--cta-chip-text, var(--text-on-brand, var(--text))));
+    color: var(--cta-button-text, var(--text-on-brand, var(--text)));
     border: 1px solid color-mix(in srgb, var(--color-brand) 55%, var(--color-border, #ffffff));
     box-shadow: var(
       --cta-chip-shadow,

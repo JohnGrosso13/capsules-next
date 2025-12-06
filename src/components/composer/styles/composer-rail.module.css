@@ -75,7 +75,7 @@
 }
 
 .sidebarTab:focus-visible {
-  box-shadow: var(--composer-rail-tab-focus-shadow);
+  box-shadow: var(--shadow-sm, 0 6px 14px rgba(5, 10, 30, 0.28));
 }
 
 .sidebarTabActive {

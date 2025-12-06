@@ -2,17 +2,6 @@
   display: grid;
   gap: clamp(18px, 2.6vw, 28px);
   /* Platform chips and alerts tokens */
-  --encoder-twitch-fg: var(--color-brand, #9146ff);
-  --encoder-twitch-bg: rgba(145, 70, 255, 0.18);
-  --encoder-youtube-fg: var(--color-danger, #ef4444);
-  --encoder-youtube-bg: rgba(239, 68, 68, 0.18);
-  --encoder-facebook-fg: var(--color-brand, #3b82f6);
-  --encoder-facebook-bg: rgba(59, 130, 246, 0.18);
-  --encoder-kick-fg: var(--color-success, #22c55e);
-  --encoder-kick-bg: rgba(34, 197, 94, 0.18);
-  --encoder-warning-fg: var(--color-warning, #f59e0b);
-  --encoder-success-fg: var(--color-success, #16a34a);
-  --encoder-danger-fg: var(--color-danger, #f87171);
 }
 
 .encoderGrid {
@@ -654,23 +643,23 @@
 }
 
 .destinationIconTwitch {
-  background: var(--encoder-twitch-bg);
-  color: var(--encoder-twitch-fg);
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent);
+  color: var(--text-on-brand, #f8fafc);
 }
 
 .destinationIconYoutube {
-  background: var(--encoder-youtube-bg);
-  color: var(--encoder-youtube-fg);
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 18%, transparent);
+  color: var(--text-on-brand, #f8fafc);
 }
 
 .destinationIconFacebook {
-  background: var(--encoder-facebook-bg);
-  color: var(--encoder-facebook-fg);
+  background: color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent);
+  color: var(--text-on-brand, #f8fafc);
 }
 
 .destinationIconKick {
-  background: var(--encoder-kick-bg);
-  color: var(--encoder-kick-fg);
+  background: color-mix(in srgb, var(--color-success, #22c55e) 18%, transparent);
+  color: var(--text-on-brand, #f8fafc);
 }
 
 .destinationIconCustom {
@@ -681,14 +670,14 @@
 .encoderDestinationAlert {
   margin-top: 12px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--encoder-warning-fg) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--encoder-warning-fg) 28%, transparent);
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 28%, transparent);
   padding: 10px 12px;
   display: flex;
   align-items: flex-start;
   gap: 8px;
   font-size: 0.8rem;
-  color: var(--encoder-warning-fg);
+  color: var(--color-warning, #f59e0b);
 }
 
 .encoderDestinationAlert svg {
@@ -704,12 +693,11 @@
 .encoderWebhookTestSuccess {
   margin-left: 6px;
   font-size: 0.78rem;
-  color: var(--encoder-success-fg);
+  color: var(--color-success, #22c55e);
 }
 
 .encoderWebhookTestError {
   margin-left: 6px;
   font-size: 0.78rem;
-  color: var(--encoder-danger-fg);
+  color: var(--color-danger, #f87171);
 }
-

@@ -58,21 +58,6 @@ const SUMMER_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-border-color": "rgba(233, 161, 107, 0.34)",
   "--header-shadow": "0 20px 45px rgba(212, 126, 66, 0.28)",
   "--header-scrim": "rgba(20, 15, 8, 0.82)",
-  "--dock-bg-1": "rgba(255, 238, 212, 0.95)",
-  "--dock-bg-2": "rgba(255, 226, 194, 0.92)",
-  "--dock-border": "rgba(240, 176, 116, 0.42)",
-  "--dock-shadow": "0 -1px 0 rgba(222, 166, 112, 0.2), 0 20px 48px rgba(210, 130, 64, 0.28)",
-  "--dock-btn-bg-1": "rgba(255, 217, 180, 0.86)",
-  "--dock-btn-bg-2": "rgba(255, 205, 160, 0.82)",
-  "--dock-btn-border": "rgba(234, 152, 80, 0.48)",
-  "--dock-btn-hover-border": "rgba(218, 128, 56, 0.6)",
-  "--dock-active-shadow": "0 18px 36px rgba(215, 122, 58, 0.4)",
-  "--dock-active-glow": "rgba(249, 169, 92, 0.32)",
-  "--dock-text-muted": "rgba(76, 52, 34, 0.72)",
-  "--dock-sheet-border": "rgba(236, 167, 100, 0.42)",
-  "--dock-sheet-shadow": "0 24px 52px rgba(215, 130, 60, 0.32)",
-  "--background-fx-mist":
-    "linear-gradient(180deg, rgba(255, 236, 210, 0.6) 0%, rgba(254, 226, 194, 0.35) 40%, rgba(254, 241, 222, 0) 100%)",
 };
 
 const FALL_DARK_OVERRIDES: Record<string, string> = {
@@ -120,21 +105,6 @@ const FALL_DARK_OVERRIDES: Record<string, string> = {
   "--header-border-color": "rgba(204, 120, 64, 0.34)",
   "--header-shadow": "0 20px 48px rgba(14, 6, 3, 0.66)",
   "--header-scrim": "rgba(8, 5, 3, 0.86)",
-  "--dock-bg-1": "rgba(42, 22, 12, 0.94)",
-  "--dock-bg-2": "rgba(32, 16, 8, 0.92)",
-  "--dock-border": "rgba(176, 96, 40, 0.4)",
-  "--dock-shadow": "0 -1px 0 rgba(26, 12, 6, 0.6), 0 18px 44px rgba(18, 8, 4, 0.6)",
-  "--dock-btn-bg-1": "rgba(71, 36, 18, 0.88)",
-  "--dock-btn-bg-2": "rgba(60, 30, 15, 0.86)",
-  "--dock-btn-border": "rgba(204, 120, 64, 0.46)",
-  "--dock-btn-hover-border": "rgba(234, 144, 60, 0.54)",
-  "--dock-active-shadow": "0 18px 36px rgba(176, 96, 40, 0.5)",
-  "--dock-active-glow": "rgba(248, 156, 66, 0.28)",
-  "--dock-text-muted": "rgba(242, 198, 160, 0.72)",
-  "--dock-sheet-border": "rgba(176, 96, 40, 0.4)",
-  "--dock-sheet-shadow": "0 22px 54px rgba(12, 6, 3, 0.64)",
-  "--background-fx-mist":
-    "radial-gradient(560px 480px at 12% 8%, rgba(208, 104, 46, 0.34), transparent 70%), radial-gradient(520px 420px at 82% 12%, rgba(255, 186, 92, 0.22), transparent 72%), linear-gradient(120deg, rgba(41, 18, 8, 0.92) 0%, rgba(26, 12, 6, 0.94) 45%, rgba(18, 8, 4, 0.96) 100%)",
 };
 
 const WINTER_DARK_OVERRIDES: Record<string, string> = {
@@ -182,19 +152,6 @@ const WINTER_DARK_OVERRIDES: Record<string, string> = {
   "--header-border-color": "rgba(96, 165, 250, 0.32)",
   "--header-shadow": "0 22px 48px rgba(4, 12, 34, 0.62)",
   "--header-scrim": "rgba(4, 10, 22, 0.84)",
-  "--dock-bg-1": "rgba(22, 40, 70, 0.92)",
-  "--dock-bg-2": "rgba(18, 36, 64, 0.9)",
-  "--dock-border": "rgba(76, 146, 230, 0.32)",
-  "--dock-shadow": "0 -1px 0 rgba(8, 18, 34, 0.6), 0 20px 44px rgba(6, 16, 34, 0.62)",
-  "--dock-btn-bg-1": "rgba(44, 76, 130, 0.9)",
-  "--dock-btn-bg-2": "rgba(36, 62, 108, 0.88)",
-  "--dock-btn-border": "rgba(118, 181, 255, 0.36)",
-  "--dock-btn-hover-border": "rgba(148, 203, 255, 0.46)",
-  "--dock-active-shadow": "0 18px 36px rgba(40, 88, 156, 0.48)",
-  "--dock-active-glow": "rgba(96, 165, 250, 0.32)",
-  "--dock-text-muted": "rgba(183, 208, 242, 0.74)",
-  "--dock-sheet-border": "rgba(84, 152, 236, 0.32)",
-  "--dock-sheet-shadow": "0 24px 54px rgba(6, 16, 34, 0.64)",
 };
 
 const SPRING_LIGHT_OVERRIDES: Record<string, string> = {
@@ -242,21 +199,6 @@ const SPRING_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-border-color": "rgba(126, 209, 170, 0.34)",
   "--header-shadow": "0 20px 45px rgba(60, 168, 126, 0.26)",
   "--header-scrim": "rgba(8, 26, 20, 0.82)",
-  "--dock-bg-1": "rgba(226, 252, 240, 0.95)",
-  "--dock-bg-2": "rgba(212, 246, 228, 0.93)",
-  "--dock-border": "rgba(118, 204, 164, 0.4)",
-  "--dock-shadow": "0 -1px 0 rgba(164, 226, 198, 0.28), 0 20px 46px rgba(76, 182, 136, 0.22)",
-  "--dock-btn-bg-1": "rgba(245, 255, 248, 0.88)",
-  "--dock-btn-bg-2": "rgba(224, 250, 234, 0.86)",
-  "--dock-btn-border": "rgba(118, 204, 164, 0.44)",
-  "--dock-btn-hover-border": "rgba(94, 188, 150, 0.5)",
-  "--dock-active-shadow": "0 18px 34px rgba(64, 176, 132, 0.32)",
-  "--dock-active-glow": "rgba(120, 214, 176, 0.3)",
-  "--dock-text-muted": "rgba(40, 90, 66, 0.72)",
-  "--dock-sheet-border": "rgba(118, 204, 164, 0.4)",
-  "--dock-sheet-shadow": "0 22px 50px rgba(74, 185, 140, 0.24)",
-  "--background-fx-mist":
-    "radial-gradient(520px 520px at 12% -6%, rgba(163, 230, 216, 0.35), transparent 70%), radial-gradient(520px 520px at 88% -6%, rgba(132, 225, 188, 0.3), transparent 68%), linear-gradient(180deg, rgba(244, 255, 247, 0.82) 0%, rgba(228, 252, 238, 0.6) 42%, rgba(240, 255, 248, 0) 100%)",
 };
 
 const SUMMER_DARK_OVERRIDES: Record<string, string> = {
@@ -290,13 +232,6 @@ const SUMMER_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(20, 38, 62, 0.78)",
   "--header-border-color": "rgba(251, 146, 60, 0.35)",
   "--header-shadow": "0 22px 48px rgba(6, 12, 24, 0.6)",
-  "--dock-bg-1": "rgba(24, 42, 68, 0.92)",
-  "--dock-bg-2": "rgba(20, 38, 60, 0.9)",
-  "--dock-border": "rgba(15, 136, 185, 0.32)",
-  "--dock-shadow": "0 -1px 0 rgba(4, 12, 24, 0.6), 0 20px 44px rgba(6, 14, 28, 0.58)",
-  "--dock-active-glow": "rgba(251, 146, 60, 0.34)",
-  "--background-fx-mist":
-    "linear-gradient(180deg, rgba(18, 40, 68, 0.84) 0%, rgba(12, 28, 54, 0.7) 50%, rgba(6, 14, 30, 0.9) 100%)",
 };
 
 const FALL_LIGHT_OVERRIDES: Record<string, string> = {
@@ -326,10 +261,6 @@ const FALL_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(255, 230, 202, 0.82)",
   "--header-border-color": "rgba(214, 140, 74, 0.34)",
   "--header-shadow": "0 20px 44px rgba(156, 84, 42, 0.24)",
-  "--dock-bg-1": "rgba(255, 241, 220, 0.94)",
-  "--dock-bg-2": "rgba(255, 232, 202, 0.92)",
-  "--dock-border": "rgba(214, 140, 74, 0.4)",
-  "--dock-shadow": "0 -1px 0 rgba(222, 166, 112, 0.2), 0 18px 40px rgba(176, 96, 52, 0.22)",
 };
 
 const WINTER_LIGHT_OVERRIDES: Record<string, string> = {
@@ -359,10 +290,6 @@ const WINTER_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(214, 228, 255, 0.8)",
   "--header-border-color": "rgba(120, 180, 255, 0.34)",
   "--header-shadow": "0 20px 44px rgba(94, 146, 214, 0.24)",
-  "--dock-bg-1": "rgba(236, 244, 255, 0.95)",
-  "--dock-bg-2": "rgba(224, 236, 255, 0.92)",
-  "--dock-border": "rgba(120, 180, 255, 0.42)",
-  "--dock-shadow": "0 -1px 0 rgba(172, 208, 255, 0.24), 0 18px 40px rgba(98, 148, 214, 0.22)",
 };
 
 const SPRING_DARK_OVERRIDES: Record<string, string> = {
@@ -392,12 +319,6 @@ const SPRING_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(20, 46, 34, 0.78)",
   "--header-border-color": "rgba(48, 168, 132, 0.32)",
   "--header-shadow": "0 22px 48px rgba(6, 24, 18, 0.58)",
-  "--dock-bg-1": "rgba(22, 48, 36, 0.9)",
-  "--dock-bg-2": "rgba(18, 42, 32, 0.88)",
-  "--dock-border": "rgba(34, 197, 94, 0.34)",
-  "--dock-shadow": "0 -1px 0 rgba(4, 18, 12, 0.62), 0 20px 44px rgba(6, 22, 16, 0.6)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 14% -4%, rgba(48, 168, 132, 0.3), transparent 72%), radial-gradient(460px 460px at 86% -2%, rgba(20, 148, 120, 0.28), transparent 72%), linear-gradient(180deg, rgba(18, 48, 36, 0.76) 0%, rgba(12, 34, 24, 0.72) 48%, rgba(8, 24, 18, 0.88) 100%)",
 };
 
 const HALLOWEEN_LIGHT_OVERRIDES: Record<string, string> = {
@@ -427,10 +348,6 @@ const HALLOWEEN_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(236, 216, 253, 0.82)",
   "--header-border-color": "rgba(178, 132, 255, 0.34)",
   "--header-shadow": "0 20px 44px rgba(124, 72, 180, 0.24)",
-  "--dock-bg-1": "rgba(244, 228, 255, 0.95)",
-  "--dock-bg-2": "rgba(236, 216, 253, 0.92)",
-  "--dock-border": "rgba(178, 132, 255, 0.34)",
-  "--dock-shadow": "0 -1px 0 rgba(208, 174, 255, 0.24), 0 18px 40px rgba(124, 72, 180, 0.24)",
 };
 
 const HALLOWEEN_DARK_OVERRIDES: Record<string, string> = {
@@ -460,10 +377,6 @@ const HALLOWEEN_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(26, 14, 48, 0.78)",
   "--header-border-color": "rgba(249, 115, 22, 0.38)",
   "--header-shadow": "0 24px 50px rgba(6, 2, 18, 0.64)",
-  "--dock-bg-1": "rgba(32, 18, 60, 0.9)",
-  "--dock-bg-2": "rgba(26, 14, 48, 0.88)",
-  "--dock-border": "rgba(146, 64, 255, 0.34)",
-  "--dock-shadow": "0 -1px 0 rgba(8, 3, 20, 0.64), 0 20px 46px rgba(6, 2, 18, 0.64)",
 };
 
 const HOLIDAY_LIGHT_OVERRIDES: Record<string, string> = {
@@ -493,10 +406,6 @@ const HOLIDAY_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(220, 246, 234, 0.82)",
   "--header-border-color": "rgba(94, 190, 140, 0.36)",
   "--header-shadow": "0 20px 44px rgba(70, 154, 112, 0.22)",
-  "--dock-bg-1": "rgba(232, 255, 244, 0.95)",
-  "--dock-bg-2": "rgba(222, 248, 236, 0.92)",
-  "--dock-border": "rgba(94, 190, 140, 0.38)",
-  "--dock-shadow": "0 -1px 0 rgba(166, 217, 190, 0.26), 0 18px 40px rgba(70, 154, 112, 0.22)",
 };
 
 const HOLIDAY_DARK_OVERRIDES: Record<string, string> = {
@@ -526,10 +435,6 @@ const HOLIDAY_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(18, 36, 26, 0.78)",
   "--header-border-color": "rgba(248, 113, 113, 0.32)",
   "--header-shadow": "0 24px 48px rgba(6, 12, 10, 0.6)",
-  "--dock-bg-1": "rgba(24, 44, 32, 0.9)",
-  "--dock-bg-2": "rgba(18, 36, 26, 0.88)",
-  "--dock-border": "rgba(56, 189, 148, 0.32)",
-  "--dock-shadow": "0 -1px 0 rgba(4, 12, 8, 0.64), 0 20px 44px rgba(6, 12, 10, 0.62)",
 };
 
 const SPACE_LIGHT_OVERRIDES: Record<string, string> = {
@@ -559,10 +464,6 @@ const SPACE_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(220, 232, 255, 0.82)",
   "--header-border-color": "rgba(129, 140, 248, 0.36)",
   "--header-shadow": "0 20px 44px rgba(96, 110, 255, 0.2)",
-  "--dock-bg-1": "rgba(230, 238, 255, 0.95)",
-  "--dock-bg-2": "rgba(220, 232, 255, 0.92)",
-  "--dock-border": "rgba(129, 140, 248, 0.36)",
-  "--dock-shadow": "0 -1px 0 rgba(176, 190, 255, 0.24), 0 18px 40px rgba(96, 110, 255, 0.2)",
 };
 
 const SPACE_DARK_OVERRIDES: Record<string, string> = {
@@ -592,10 +493,6 @@ const SPACE_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(16, 26, 52, 0.78)",
   "--header-border-color": "rgba(37, 99, 235, 0.36)",
   "--header-shadow": "0 24px 52px rgba(3, 6, 18, 0.62)",
-  "--dock-bg-1": "rgba(16, 24, 52, 0.9)",
-  "--dock-bg-2": "rgba(12, 20, 44, 0.88)",
-  "--dock-border": "rgba(37, 99, 235, 0.34)",
-  "--dock-shadow": "0 -1px 0 rgba(3, 6, 18, 0.68), 0 20px 46px rgba(4, 8, 22, 0.64)",
 };
 
 const OCEAN_LIGHT_OVERRIDES: Record<string, string> = {
@@ -625,12 +522,6 @@ const OCEAN_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(207, 242, 255, 0.82)",
   "--header-border-color": "rgba(56, 189, 248, 0.36)",
   "--header-shadow": "0 20px 44px rgba(14, 99, 156, 0.2)",
-  "--dock-bg-1": "rgba(219, 248, 255, 0.95)",
-  "--dock-bg-2": "rgba(207, 242, 255, 0.92)",
-  "--dock-border": "rgba(56, 189, 248, 0.36)",
-  "--dock-shadow": "0 -1px 0 rgba(166, 227, 255, 0.24), 0 18px 40px rgba(14, 99, 156, 0.2)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 14% -4%, rgba(134, 206, 255, 0.32), transparent 72%), radial-gradient(440px 440px at 84% -2%, rgba(59, 174, 233, 0.3), transparent 70%), linear-gradient(180deg, rgba(219, 248, 255, 0.74) 0%, rgba(207, 242, 255, 0.5) 48%, rgba(227, 250, 255, 0) 100%)",
 };
 
 const OCEAN_DARK_OVERRIDES: Record<string, string> = {
@@ -660,12 +551,6 @@ const OCEAN_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(10, 32, 46, 0.78)",
   "--header-border-color": "rgba(20, 184, 166, 0.34)",
   "--header-shadow": "0 24px 48px rgba(2, 12, 20, 0.66)",
-  "--dock-bg-1": "rgba(10, 34, 48, 0.9)",
-  "--dock-bg-2": "rgba(8, 30, 42, 0.88)",
-  "--dock-border": "rgba(20, 184, 166, 0.32)",
-  "--dock-shadow": "0 -1px 0 rgba(1, 9, 14, 0.66), 0 20px 46px rgba(2, 12, 20, 0.66)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 16% -2%, rgba(14, 165, 233, 0.28), transparent 72%), radial-gradient(420px 420px at 84% 0%, rgba(13, 148, 136, 0.26), transparent 70%), linear-gradient(180deg, rgba(6, 32, 44, 0.82) 0%, rgba(4, 24, 34, 0.82) 48%, rgba(2, 12, 20, 0.9) 100%)",
 };
 
 const FOREST_LIGHT_OVERRIDES: Record<string, string> = {
@@ -695,12 +580,6 @@ const FOREST_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(214, 246, 226, 0.82)",
   "--header-border-color": "rgba(74, 222, 128, 0.34)",
   "--header-shadow": "0 20px 44px rgba(56, 168, 108, 0.24)",
-  "--dock-bg-1": "rgba(226, 252, 235, 0.95)",
-  "--dock-bg-2": "rgba(214, 246, 226, 0.92)",
-  "--dock-border": "rgba(74, 222, 128, 0.34)",
-  "--dock-shadow": "0 -1px 0 rgba(174, 233, 200, 0.24), 0 18px 40px rgba(60, 168, 108, 0.24)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 12% -4%, rgba(167, 243, 208, 0.3), transparent 72%), radial-gradient(420px 420px at 84% -2%, rgba(134, 239, 172, 0.28), transparent 70%), linear-gradient(180deg, rgba(232, 255, 243, 0.74) 0%, rgba(214, 246, 226, 0.5) 46%, rgba(232, 255, 243, 0) 100%)",
 };
 
 const FOREST_DARK_OVERRIDES: Record<string, string> = {
@@ -730,12 +609,6 @@ const FOREST_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(14, 34, 22, 0.78)",
   "--header-border-color": "rgba(72, 222, 128, 0.3)",
   "--header-shadow": "0 24px 48px rgba(4, 18, 10, 0.64)",
-  "--dock-bg-1": "rgba(12, 36, 20, 0.9)",
-  "--dock-bg-2": "rgba(10, 32, 18, 0.88)",
-  "--dock-border": "rgba(34, 197, 94, 0.3)",
-  "--dock-shadow": "0 -1px 0 rgba(2, 14, 8, 0.66), 0 20px 46px rgba(3, 16, 10, 0.64)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 18% -4%, rgba(22, 163, 74, 0.26), transparent 72%), radial-gradient(400px 400px at 82% -2%, rgba(34, 197, 94, 0.24), transparent 70%), linear-gradient(180deg, rgba(10, 32, 18, 0.82) 0%, rgba(8, 26, 16, 0.82) 46%, rgba(4, 16, 12, 0.9) 100%)",
 };
 
 const CYBERPUNK_LIGHT_OVERRIDES: Record<string, string> = {
@@ -765,10 +638,6 @@ const CYBERPUNK_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(235, 242, 255, 0.82)",
   "--header-border-color": "rgba(241, 171, 255, 0.32)",
   "--header-shadow": "0 20px 44px rgba(180, 120, 226, 0.24)",
-  "--dock-bg-1": "rgba(242, 234, 255, 0.95)",
-  "--dock-bg-2": "rgba(235, 242, 255, 0.92)",
-  "--dock-border": "rgba(241, 171, 255, 0.32)",
-  "--dock-shadow": "0 -1px 0 rgba(212, 188, 248, 0.24), 0 18px 40px rgba(180, 120, 226, 0.24)",
 };
 
 const CYBERPUNK_DARK_OVERRIDES: Record<string, string> = {
@@ -798,10 +667,6 @@ const CYBERPUNK_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(30, 8, 50, 0.78)",
   "--header-border-color": "rgba(22, 211, 238, 0.32)",
   "--header-shadow": "0 24px 52px rgba(12, 2, 28, 0.66)",
-  "--dock-bg-1": "rgba(34, 10, 54, 0.9)",
-  "--dock-bg-2": "rgba(26, 8, 44, 0.88)",
-  "--dock-border": "rgba(22, 211, 238, 0.3)",
-  "--dock-shadow": "0 -1px 0 rgba(6, 1, 18, 0.7), 0 20px 46px rgba(12, 2, 28, 0.68)",
 };
 
 const RETRO_LIGHT_OVERRIDES: Record<string, string> = {
@@ -831,10 +696,6 @@ const RETRO_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(246, 232, 206, 0.82)",
   "--header-border-color": "rgba(246, 202, 112, 0.34)",
   "--header-shadow": "0 20px 44px rgba(199, 144, 60, 0.22)",
-  "--dock-bg-1": "rgba(252, 242, 218, 0.95)",
-  "--dock-bg-2": "rgba(246, 232, 206, 0.92)",
-  "--dock-border": "rgba(244, 187, 68, 0.36)",
-  "--dock-shadow": "0 -1px 0 rgba(224, 198, 140, 0.26), 0 18px 40px rgba(199, 144, 60, 0.22)",
 };
 
 const RETRO_DARK_OVERRIDES: Record<string, string> = {
@@ -864,10 +725,6 @@ const RETRO_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(34, 28, 14, 0.78)",
   "--header-border-color": "rgba(16, 185, 129, 0.26)",
   "--header-shadow": "0 24px 48px rgba(12, 10, 4, 0.64)",
-  "--dock-bg-1": "rgba(34, 28, 14, 0.9)",
-  "--dock-bg-2": "rgba(28, 22, 12, 0.88)",
-  "--dock-border": "rgba(245, 158, 11, 0.26)",
-  "--dock-shadow": "0 -1px 0 rgba(10, 8, 4, 0.7), 0 20px 46px rgba(12, 10, 4, 0.66)",
 };
 
 const MINIMAL_LIGHT_OVERRIDES: Record<string, string> = {
@@ -897,12 +754,6 @@ const MINIMAL_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(236, 238, 244, 0.86)",
   "--header-border-color": "rgba(148, 154, 170, 0.28)",
   "--header-shadow": "0 20px 44px rgba(23, 30, 48, 0.14)",
-  "--dock-bg-1": "rgba(248, 249, 253, 0.98)",
-  "--dock-bg-2": "rgba(242, 244, 250, 0.96)",
-  "--dock-border": "rgba(148, 154, 170, 0.26)",
-  "--dock-shadow": "0 -1px 0 rgba(207, 212, 224, 0.3), 0 18px 40px rgba(28, 34, 52, 0.14)",
-  "--background-fx-mist":
-    "linear-gradient(180deg, rgba(248, 249, 253, 0.8) 0%, rgba(238, 240, 246, 0.6) 50%, rgba(248, 249, 253, 0) 100%)",
 };
 
 const MINIMAL_DARK_OVERRIDES: Record<string, string> = {
@@ -932,12 +783,6 @@ const MINIMAL_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(20, 24, 36, 0.78)",
   "--header-border-color": "rgba(72, 80, 102, 0.3)",
   "--header-shadow": "0 24px 52px rgba(4, 6, 12, 0.7)",
-  "--dock-bg-1": "rgba(22, 26, 40, 0.9)",
-  "--dock-bg-2": "rgba(18, 22, 34, 0.88)",
-  "--dock-border": "rgba(72, 80, 102, 0.28)",
-  "--dock-shadow": "0 -1px 0 rgba(4, 6, 12, 0.72), 0 20px 46px rgba(4, 6, 12, 0.7)",
-  "--background-fx-mist":
-    "linear-gradient(180deg, rgba(22, 26, 40, 0.82) 0%, rgba(18, 22, 34, 0.82) 50%, rgba(10, 12, 20, 0.9) 100%)",
 };
 
 const VAPORWAVE_LIGHT_OVERRIDES: Record<string, string> = {
@@ -967,12 +812,6 @@ const VAPORWAVE_LIGHT_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(240, 228, 255, 0.82)",
   "--header-border-color": "rgba(250, 164, 255, 0.32)",
   "--header-shadow": "0 20px 44px rgba(180, 120, 226, 0.24)",
-  "--dock-bg-1": "rgba(250, 236, 255, 0.95)",
-  "--dock-bg-2": "rgba(240, 228, 255, 0.92)",
-  "--dock-border": "rgba(250, 164, 255, 0.32)",
-  "--dock-shadow": "0 -1px 0 rgba(222, 188, 255, 0.24), 0 18px 40px rgba(180, 120, 226, 0.24)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 12% -4%, rgba(255, 176, 222, 0.32), transparent 72%), radial-gradient(420px 420px at 84% -2%, rgba(150, 222, 255, 0.3), transparent 70%), linear-gradient(180deg, rgba(250, 236, 255, 0.74) 0%, rgba(240, 228, 255, 0.5) 46%, rgba(250, 236, 255, 0) 100%)",
 };
 
 const VAPORWAVE_DARK_OVERRIDES: Record<string, string> = {
@@ -1002,12 +841,6 @@ const VAPORWAVE_DARK_OVERRIDES: Record<string, string> = {
   "--header-glass-bottom": "rgba(30, 14, 54, 0.78)",
   "--header-border-color": "rgba(56, 189, 248, 0.3)",
   "--header-shadow": "0 24px 52px rgba(12, 4, 28, 0.66)",
-  "--dock-bg-1": "rgba(32, 14, 60, 0.9)",
-  "--dock-bg-2": "rgba(26, 10, 48, 0.88)",
-  "--dock-border": "rgba(56, 189, 248, 0.28)",
-  "--dock-shadow": "0 -1px 0 rgba(6, 2, 22, 0.7), 0 20px 46px rgba(12, 4, 28, 0.68)",
-  "--background-fx-mist":
-    "radial-gradient(420px 420px at 18% -4%, rgba(244, 114, 182, 0.28), transparent 72%), radial-gradient(420px 420px at 82% -2%, rgba(56, 189, 248, 0.26), transparent 70%), linear-gradient(180deg, rgba(30, 12, 58, 0.82) 0%, rgba(20, 8, 46, 0.82) 46%, rgba(12, 4, 28, 0.9) 100%)",
 };
 
 export const PRESET_THEME_CONFIGS: PresetThemeConfig[] = [
@@ -1276,3 +1109,4 @@ export const PRESET_THEME_CONFIGS: PresetThemeConfig[] = [
 export const PRESET_THEME_CONFIG_BY_ID = new Map(
   PRESET_THEME_CONFIGS.map((config) => [config.id, config] as const),
 );
+

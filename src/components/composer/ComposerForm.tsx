@@ -1234,7 +1234,6 @@ export function ComposerForm({
       <div className={styles.backdrop} />
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
         <ComposerToolbar
-          onClose={onClose}
           disabled={loading}
           smartContextEnabled={smartContextEnabled}
           onToggleContext={() => onSmartContextChange(!smartContextEnabled)}

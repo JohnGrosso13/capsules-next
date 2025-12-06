@@ -5,18 +5,6 @@
   flex-direction: column;
   gap: 1.5rem;
   color: var(--text, var(--color-fg, #f4f7ff));
-  /* Local tab theming tokens to ensure brand overrides propagate */
-  --profile-tab-active-bg: var(
-    --cta-gradient,
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand, #7c3aed) 88%, transparent),
-      color-mix(in srgb, var(--color-brand-strong, #4f46e5) 72%, transparent)
-    )
-  );
-  --profile-tab-active-text: var(--text-on-brand, var(--color-brand-foreground, #0e1024));
-  --profile-tab-track-bg: var(--glass-bg-1, rgba(255, 255, 255, 0.05));
-  --profile-tab-track-border: var(--color-border, rgba(255, 255, 255, 0.05));
 }
 
 .profileSurface {
@@ -472,9 +460,9 @@
   gap: 0.35rem;
   padding: 0.35rem;
   border-radius: 999px;
-  background: var(--profile-tab-track-bg);
-  border: 1px solid var(--profile-tab-track-border);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--profile-tab-track-border) 80%, transparent);
+  background: var(--glass-bg-1, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.05)) 80%, transparent);
 }
 
 .tabTrigger {
@@ -489,8 +477,8 @@
 }
 
 .tabTrigger[data-state="active"] {
-  color: var(--profile-tab-active-text);
-  background: var(--profile-tab-active-bg) !important;
+  color: var(--text-on-brand, var(--color-brand-foreground, #0e1024));
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 82%, transparent) !important;
   box-shadow: var(
     --shadow-md,
     0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 48%, transparent)

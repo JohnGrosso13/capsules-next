@@ -1,0 +1,394 @@
+@layer components {
+  .connectionTilesShell {
+    border: 1px solid var(--card-border, var(--color-border));
+    border-radius: var(--card-radius, 16px);
+    background: linear-gradient(
+      180deg,
+      var(--glass-bg-1, color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 18%, transparent)),
+      var(--glass-bg-2, color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 10%, transparent))
+    );
+    box-shadow: var(--card-shadow, var(--shadow-lg));
+    backdrop-filter: blur(var(--glass-blur, 14px)) saturate(125%);
+    -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(125%);
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .connectionTiles {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1fr;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .connectionTile {
+    --tile-accent-a: color-mix(in srgb, var(--color-brand) 60%, var(--color-accent, var(--color-info)));
+    --tile-accent-b: color-mix(in srgb, var(--color-accent, var(--color-info)) 55%, var(--color-brand));
+    --tile-accent-c: color-mix(in srgb, var(--color-info, var(--color-accent)) 40%, transparent);
+    --tile-glow-opacity: 0.22;
+    --tile-glow-opacity-hover: 0.32;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    padding: 20px 22px;
+    border-radius: 20px;
+    border: 1px solid
+      var(
+        --tile-border-final,
+        var(--tile-border-base, color-mix(in srgb, var(--card-border, var(--color-border)) 88%, transparent))
+      );
+    background: var(
+      --tile-bg-final,
+      var(--tile-bg-base, color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 82%, transparent))
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 12%, transparent),
+      var(--tile-shadow-final, var(--tile-shadow-base, var(--card-shadow, var(--shadow-md))));
+    color: var(--tile-text-final, var(--tile-text-base, var(--color-fg, var(--text))));
+    text-decoration: none;
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      border-color 0.16s ease;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .connectionTile::before {
+    content: "";
+    position: absolute;
+    inset: -60%;
+    background: radial-gradient(
+      70% 70% at 50% 50%,
+      color-mix(in srgb, var(--tile-accent-a) var(--tile-glow-opacity, 0.22), transparent),
+      color-mix(in srgb, var(--tile-accent-b) var(--tile-glow-opacity, 0.22), transparent) 60%,
+      transparent 80%
+    );
+    opacity: 0.28;
+    transform: translate3d(-2%, -2%, 0) scale(1);
+    transition: opacity 0.16s ease;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .connectionTile::after {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background: radial-gradient(
+      62% 62% at 50% 50%,
+      color-mix(in srgb, var(--tile-accent-a) 26%, transparent),
+      color-mix(in srgb, var(--tile-accent-b) 20%, transparent) 55%,
+      transparent 78%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+    z-index: -2;
+  }
+
+  .connectionTile:hover {
+    transform: translateY(-2px);
+    border-color: var(
+      --tile-border-hover,
+      var(--tile-border-hover-base, color-mix(in srgb, var(--tile-accent-a) 46%, transparent))
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent),
+      var(--tile-shadow-hover, var(--tile-shadow-hover-base));
+  }
+
+  .connectionTile:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+    outline-offset: 2px;
+    transform: translateY(-2px);
+    border-color: var(
+      --tile-border-hover,
+      var(--tile-border-hover-base, color-mix(in srgb, var(--tile-accent-a) 46%, transparent))
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent),
+      var(--tile-shadow-hover, var(--tile-shadow-hover-base));
+  }
+
+  .connectionTile:hover::before {
+    opacity: var(--tile-glow-opacity-hover, 0.32);
+  }
+
+  .connectionTile:hover::after,
+  .connectionTile:focus-visible::after {
+    opacity: var(--tile-hover-halo-opacity, 0.32);
+  }
+
+  .connectionTileHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    justify-content: space-between;
+  }
+
+  .connectionTileMeta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .connectionTileIcon {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    isolation: isolate;
+    background: var(
+      --tile-icon-bg-final,
+      color-mix(in srgb, var(--tile-accent-a) 24%, transparent)
+    );
+    color: var(--tile-icon-color-final, var(--tile-text-base, var(--color-fg)));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-fg, var(--text)) 18%, transparent),
+      0 6px 14px color-mix(in srgb, var(--tile-accent-a) 24%, transparent);
+  }
+
+  .connectionTileIcon::before {
+    content: "";
+    position: absolute;
+    inset: -30%;
+    border-radius: inherit;
+    background: radial-gradient(
+      70% 70% at 50% 35%,
+      color-mix(in srgb, var(--tile-accent-a) 40%, transparent) 0%,
+      color-mix(in srgb, var(--tile-accent-b) 30%, transparent) 45%,
+      transparent 80%
+    );
+    filter: blur(12px);
+    opacity: 0.22;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .connectionTileIcon svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .connectionTileTitle {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--tile-title-color, var(--text-on-brand, #f9fafb));
+  }
+
+  .connectionTileBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill, 999px);
+    border: 1px solid var(--tile-badge-border, var(--pill-border, var(--color-border)));
+    background: var(
+      --tile-badge-bg-final,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 32%, transparent)
+    );
+    color: var(--tile-badge-color-final, var(--text-on-brand, var(--color-fg)));
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .connectionTileBadgeToken {
+    background: var(
+      --tile-badge-token-bg,
+      color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 86%, transparent)
+    );
+    color: var(--tile-badge-token-color, var(--color-fg));
+    border-color: var(--tile-badge-token-border, color-mix(in srgb, var(--color-brand) 48%, transparent));
+  }
+
+  .connectionTileBadgeIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 0;
+  }
+
+  .connectionTileBadgeGlyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: inherit;
+  }
+
+  .connectionTileBadgeCount {
+    line-height: 1;
+  }
+
+  .connectionTileDescription {
+    color: var(--tile-desc-final, var(--color-fg-muted));
+    font-size: 0.9rem;
+  }
+
+  .connectionTile[data-tile="friends"] {
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-final: color-mix(
+      in srgb,
+      #6366f1 24%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-icon-bg-final: linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%);
+    --tile-icon-color-final: #e8f3ff;
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: color-mix(
+      in srgb,
+      #2f6bff 14%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+    --tile-badge-color-final: #eef6ff;
+    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
+    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
+    --tile-accent-a: #6366f1;
+    --tile-accent-b: #22c4ff;
+    --tile-accent-c: #4f46e5;
+    --tile-glow-opacity: 0.24;
+    --tile-glow-opacity-hover: 0.34;
+    --tile-hover-halo-opacity: 0.3;
+  }
+
+  .connectionTile[data-tile="party"] {
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-final: color-mix(
+      in srgb,
+      #6366f1 24%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-icon-bg-final: linear-gradient(135deg, #4f46e5 0%, #22c4ff 100%);
+    --tile-icon-color-final: #f8edff;
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: color-mix(
+      in srgb,
+      #6366f1 12%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+    --tile-badge-color-final: #fef7ff;
+    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
+    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
+    --tile-accent-a: #6366f1;
+    --tile-accent-b: #22c4ff;
+    --tile-accent-c: #4f46e5;
+    --tile-glow-opacity: 0.24;
+    --tile-glow-opacity-hover: 0.34;
+    --tile-hover-halo-opacity: 0.3;
+  }
+
+  .connectionTile[data-tile="chats"] {
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-final: color-mix(
+      in srgb,
+      #6366f1 24%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-icon-bg-final: linear-gradient(135deg, #1d4ed8 0%, #22c4ee 100%);
+    --tile-icon-color-final: #e8f4ff;
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: color-mix(
+      in srgb,
+      #1f6bff 12%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+    --tile-badge-color-final: #f3f8ff;
+    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
+    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
+    --tile-accent-a: #6366f1;
+    --tile-accent-b: #22c4ff;
+    --tile-accent-c: #4f46e5;
+    --tile-glow-opacity: 0.24;
+    --tile-glow-opacity-hover: 0.34;
+    --tile-hover-halo-opacity: 0.3;
+  }
+
+  .connectionTile[data-tile="requests"] {
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-final: color-mix(
+      in srgb,
+      #6366f1 24%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-icon-bg-final: linear-gradient(
+      135deg,
+      #1d4ed8 0%,
+      #38bdf8 100%
+    );
+    --tile-icon-color-final: var(--text-on-brand, #f9fafb);
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: color-mix(
+      in srgb,
+      #38bdf8 14%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+    --tile-badge-color-final: var(--text-on-brand, #f8fafc);
+    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
+    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
+    --tile-accent-a: #6366f1;
+    --tile-accent-b: #22c4ff;
+    --tile-accent-c: #4f46e5;
+    --tile-glow-opacity: 0.24;
+    --tile-glow-opacity-hover: 0.34;
+    --tile-hover-halo-opacity: 0.3;
+  }
+
+  .connectionTile[data-tile="assistant"] {
+    --tile-bg-final: var(--tile-bg-base);
+    --tile-border-final: color-mix(
+      in srgb,
+      #6366f1 24%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-icon-bg-final: linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%);
+    --tile-icon-color-final: #eef2ff;
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: color-mix(
+      in srgb,
+      #60a5fa 14%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+    --tile-badge-color-final: #f8fafc;
+    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
+    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
+    --tile-accent-a: #6366f1;
+    --tile-accent-b: #22c4ff;
+    --tile-accent-c: #4f46e5;
+    --tile-glow-opacity: 0.24;
+    --tile-glow-opacity-hover: 0.34;
+    --tile-hover-halo-opacity: 0.3;
+  }
+
+  .connectionTile[data-tile="party"][data-live="true"] {
+    --tile-border-final: color-mix(
+      in srgb,
+      var(--header-brand, var(--color-brand)) 72%,
+      var(--tile-border-base, var(--card-border, var(--color-border)))
+    );
+    --tile-shadow-final: 0 0 0 1px
+        color-mix(in srgb, var(--header-brand, var(--color-brand)) 55%, transparent),
+      0 16px 32px
+        color-mix(
+          in srgb,
+          var(--header-brand-strong, var(--color-brand-strong)) 30%,
+          color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 40%, transparent)
+        );
+    --tile-glow-opacity: 0;
+    --tile-glow-opacity-hover: 0;
+    --tile-hover-halo-opacity: 0;
+  }
+
+  .connectionTile[data-tile="party"][data-live="true"]::before {
+    opacity: 0;
+  }
+}

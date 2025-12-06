@@ -1430,38 +1430,31 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border: 1px solid
-    var(
-      --badge-border,
-      color-mix(in srgb, var(--color-info, #38bdf8) 40%, transparent)
-    );
-  background: var(
-    --badge-surface,
-    color-mix(in srgb, var(--color-info, #38bdf8) 16%, transparent)
-  );
-  color: var(--badge-color, var(--text-on-brand, #c7d4ff));
-  box-shadow: 0 10px 24px var(--badge-glow, color-mix(in srgb, var(--color-info, #38bdf8) 28%, transparent));
+  border: 1px solid color-mix(in srgb, var(--color-info, #38bdf8) 40%, transparent);
+  background: color-mix(in srgb, var(--color-info, #38bdf8) 16%, transparent);
+  color: var(--text-on-brand, #c7d4ff);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-info, #38bdf8) 28%, transparent);
 }
 
 .toneSuccess {
-  --badge-surface: color-mix(in srgb, var(--color-success, #22c55e) 18%, transparent);
-  --badge-border: color-mix(in srgb, var(--color-success, #22c55e) 46%, transparent);
-  --badge-color: color-mix(in srgb, var(--color-success, #22c55e) 82%, #ffffff);
-  --badge-glow: color-mix(in srgb, var(--color-success, #22c55e) 25%, transparent);
+  background: color-mix(in srgb, var(--color-success, #22c55e) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 46%, transparent);
+  color: color-mix(in srgb, var(--color-success, #22c55e) 82%, #ffffff);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-success, #22c55e) 25%, transparent);
 }
 
 .toneNeutral {
-  --badge-surface: color-mix(in srgb, var(--color-info, #38bdf8) 14%, transparent);
-  --badge-border: color-mix(in srgb, var(--color-info, #38bdf8) 38%, transparent);
-  --badge-color: color-mix(in srgb, var(--color-info, #38bdf8) 76%, #e6f4ff);
-  --badge-glow: color-mix(in srgb, var(--color-info, #38bdf8) 22%, transparent);
+  background: color-mix(in srgb, var(--color-info, #38bdf8) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-info, #38bdf8) 38%, transparent);
+  color: color-mix(in srgb, var(--color-info, #38bdf8) 76%, #e6f4ff);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-info, #38bdf8) 22%, transparent);
 }
 
 .toneWarn {
-  --badge-surface: color-mix(in srgb, var(--color-warning, #fbbf24) 18%, transparent);
-  --badge-border: color-mix(in srgb, var(--color-warning, #fbbf24) 46%, transparent);
-  --badge-color: color-mix(in srgb, var(--color-warning, #fbbf24) 80%, #fff8eb);
-  --badge-glow: color-mix(in srgb, var(--color-warning, #fbbf24) 28%, transparent);
+  background: color-mix(in srgb, var(--color-warning, #fbbf24) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning, #fbbf24) 46%, transparent);
+  color: color-mix(in srgb, var(--color-warning, #fbbf24) 80%, #fff8eb);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-warning, #fbbf24) 28%, transparent);
 }
 
 .identityChip {

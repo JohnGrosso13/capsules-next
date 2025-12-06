@@ -16,7 +16,6 @@ import {
 } from "@/lib/composer/image-settings";
 
 type ComposerToolbarProps = {
-  onClose: () => void;
   disabled: boolean;
   smartContextEnabled: boolean;
   onToggleContext: () => void;
@@ -29,7 +28,6 @@ type ComposerToolbarProps = {
 const SEARCH_EVENT_NAME = "capsules:search:open";
 
 export function ComposerToolbar({
-  onClose,
   disabled,
   smartContextEnabled,
   onToggleContext,
