@@ -16,51 +16,19 @@
     "exposeToStyler": true
   },
   {
-    "id": "feedback.alert.accent",
-    "cssVar": "--alert-accent",
-    "label": "Feedback / Alert Accent",
-    "category": "feedback",
-    "valueKind": "color",
+    "id": "accessibility.text-scale",
+    "cssVar": "--accessibility-text-scale",
+    "label": "Accessibility / Text Scale",
+    "category": "utility",
+    "valueKind": "other",
     "tags": [
-      "alert",
-      "accent"
+      "accessibility",
+      "text",
+      "scale"
     ],
-    "semantics": "Feedback / Alert Accent",
-    "layer": "component",
-    "fallback": "var(--color-brand)",
-    "lightFallback": "var(--color-brand)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "feedback.alert.bg",
-    "cssVar": "--alert-bg",
-    "label": "Feedback / Alert Background",
-    "category": "feedback",
-    "valueKind": "color",
-    "tags": [
-      "alert",
-      "background"
-    ],
-    "semantics": "Feedback / Alert Background",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--color-brand) 12%, var(--surface-muted))",
-    "lightFallback": "color-mix(in srgb, rgba(37, 99, 235, 0.12), rgba(255, 255, 255, 0.9))",
-    "exposeToStyler": false
-  },
-  {
-    "id": "feedback.alert.border",
-    "cssVar": "--alert-border",
-    "label": "Feedback / Alert Border",
-    "category": "feedback",
-    "valueKind": "color",
-    "tags": [
-      "alert",
-      "border"
-    ],
-    "semantics": "Feedback / Alert Border",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--color-brand) 30%, transparent)",
-    "lightFallback": "color-mix(in srgb, rgba(37, 99, 235, 0.26), transparent)",
+    "semantics": "Accessibility / Text Scale",
+    "layer": "foundation",
+    "fallback": "1",
     "exposeToStyler": false
   },
   {
@@ -270,40 +238,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "layout.capsule-logo.radius-lg",
-    "cssVar": "--capsule-logo-radius-lg",
-    "label": "Layout / Capsule Logo Radius LG",
-    "category": "layout",
-    "valueKind": "dimension",
-    "tags": [
-      "capsule",
-      "logo",
-      "radius",
-      "lg"
-    ],
-    "semantics": "Layout / Capsule Logo Radius LG",
-    "layer": "foundation",
-    "fallback": "18px",
-    "exposeToStyler": true
-  },
-  {
-    "id": "layout.capsule-logo.radius-md",
-    "cssVar": "--capsule-logo-radius-md",
-    "label": "Layout / Capsule Logo Radius MD",
-    "category": "layout",
-    "valueKind": "dimension",
-    "tags": [
-      "capsule",
-      "logo",
-      "radius",
-      "md"
-    ],
-    "semantics": "Layout / Capsule Logo Radius MD",
-    "layer": "foundation",
-    "fallback": "12px",
-    "exposeToStyler": true
-  },
-  {
     "id": "shadow.capsule-logo",
     "cssVar": "--capsule-logo-shadow",
     "label": "Shadow / Capsule Logo",
@@ -333,23 +267,6 @@
     "semantics": "Layout / Capsule Logo Size",
     "layer": "foundation",
     "fallback": "var(--capsule-logo-size-md)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "layout.capsule-logo.size-md",
-    "cssVar": "--capsule-logo-size-md",
-    "label": "Layout / Capsule Logo Size MD",
-    "category": "layout",
-    "valueKind": "dimension",
-    "tags": [
-      "capsule",
-      "logo",
-      "size",
-      "md"
-    ],
-    "semantics": "Layout / Capsule Logo Size MD",
-    "layer": "foundation",
-    "fallback": "40px",
     "exposeToStyler": true
   },
   {
@@ -646,58 +563,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "brand.chat.color.accent.base",
-    "cssVar": "--chat-color-accent-base",
-    "label": "Chat Color Accent Base",
-    "category": "brand",
-    "valueKind": "color",
-    "tags": [
-      "chat",
-      "color",
-      "accent",
-      "base"
-    ],
-    "semantics": "Chat Color Accent Base",
-    "layer": "foundation",
-    "fallback": "var(--color-accent)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "brand.chat.color.brand.base",
-    "cssVar": "--chat-color-brand-base",
-    "label": "Chat Color Brand Base",
-    "category": "brand",
-    "valueKind": "color",
-    "tags": [
-      "chat",
-      "color",
-      "brand",
-      "base"
-    ],
-    "semantics": "Chat Color Brand Base",
-    "layer": "foundation",
-    "fallback": "var(--color-brand)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "brand.chat.color.brand.strong.base",
-    "cssVar": "--chat-color-brand-strong-base",
-    "label": "Chat Color Brand Strong Base",
-    "category": "brand",
-    "valueKind": "color",
-    "tags": [
-      "chat",
-      "color",
-      "brand",
-      "strong",
-      "base"
-    ],
-    "semantics": "Chat Color Brand Strong Base",
-    "layer": "foundation",
-    "fallback": "var(--color-brand-strong)",
-    "exposeToStyler": true
-  },
-  {
     "id": "text.chats.control",
     "cssVar": "--chats-control-text",
     "label": "Chats / Control Text",
@@ -713,6 +578,22 @@
     "fallback": "transparent",
     "lightFallback": "var(--text-on-brand, #041021)",
     "exposeToStyler": true
+  },
+  {
+    "id": "effect.chats.emoji-button-glyph-filter",
+    "cssVar": "--chats-emoji-button-glyph-filter",
+    "label": "Effect / Chats Emoji Button Glyph Filter",
+    "category": "utility",
+    "valueKind": "other",
+    "tags": [
+      "chats",
+      "emoji",
+      "filter"
+    ],
+    "semantics": "Chats / Emoji Button Glyph Filter",
+    "layer": "component",
+    "fallback": "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35))",
+    "exposeToStyler": false
   },
   {
     "id": "text.chats.gif.empty.text",
@@ -784,41 +665,6 @@
     "layer": "utility",
     "fallback": "initial",
     "lightFallback": "drop-shadow(0 6px 12px rgba(37, 99, 235, 0.16))",
-    "exposeToStyler": true
-  },
-  {
-    "id": "shadow.chats.panel",
-    "cssVar": "--chats-panel-shadow",
-    "label": "Shadow / Chats Panel",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "chats",
-      "panel",
-      "shadow"
-    ],
-    "semantics": "Shadow / Chats Panel",
-    "layer": "foundation",
-    "fallback": "0 18px 40px rgba(0, 0, 0, 0.35)",
-    "lightFallback": "0 18px 40px rgba(15, 23, 42, 0.18)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "shadow.chats.reaction-picker",
-    "cssVar": "--chats-reaction-picker-shadow",
-    "label": "Shadow / Chats Reaction Picker",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "chats",
-      "reaction",
-      "picker",
-      "shadow"
-    ],
-    "semantics": "Shadow / Chats Reaction Picker",
-    "layer": "foundation",
-    "fallback": "0 20px 32px color-mix(in srgb, rgba(0, 0, 0, 0.65) 80%, transparent)",
-    "lightFallback": "0 20px 32px rgba(15, 23, 42, 0.16)",
     "exposeToStyler": true
   },
   {
@@ -1450,18 +1296,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "composer.radius",
-    "cssVar": "--composer-radius",
-    "label": "Composer Radius",
-    "category": "radius",
-    "valueKind": "radius",
-    "tags": [],
-    "semantics": "Composer Radius",
-    "layer": "component",
-    "fallback": "var(--card-radius, var(--radius-lg, 1rem))",
-    "exposeToStyler": false
-  },
-  {
     "id": "surface.composer.rail",
     "cssVar": "--composer-rail-background",
     "label": "Composer / Rail Background",
@@ -1662,18 +1496,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "composer.send.btn.shadow",
-    "cssVar": "--composer-send-btn-shadow",
-    "label": "Composer Send Btn Shadow",
-    "category": "shadow",
-    "valueKind": "color",
-    "tags": [],
-    "semantics": "Composer Send Btn Shadow",
-    "layer": "semantic",
-    "fallback": "0 18px 36px\n    color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 40%, transparent)",
-    "exposeToStyler": true
-  },
-  {
     "id": "composer.shadow",
     "cssVar": "--composer-shadow",
     "label": "Composer Shadow",
@@ -1699,18 +1521,6 @@
     "semantics": "Composer / Status Error",
     "layer": "component",
     "fallback": "var(--color-danger, #dc2626)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "composer.surface",
-    "cssVar": "--composer-surface",
-    "label": "Composer Surface",
-    "category": "surface",
-    "valueKind": "other",
-    "tags": [],
-    "semantics": "Composer Surface",
-    "layer": "component",
-    "fallback": "var(--composer-panel-background)",
     "exposeToStyler": false
   },
   {
@@ -2087,30 +1897,6 @@
         "sans"
       ]
     }
-  },
-  {
-    "id": "friends.presence.away",
-    "cssVar": "--friends-presence-away",
-    "label": "Friends Presence Away",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [],
-    "semantics": "Friends Presence Away",
-    "layer": "foundation",
-    "fallback": "var(--presence-away-dot, var(--color-warning, #fbbf24))",
-    "exposeToStyler": true
-  },
-  {
-    "id": "friends.presence.offline",
-    "cssVar": "--friends-presence-offline",
-    "label": "Friends Presence Offline",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [],
-    "semantics": "Friends Presence Offline",
-    "layer": "foundation",
-    "fallback": "var(\n    --presence-offline-dot,\n    color-mix(in srgb, var(--text-2, #b8c1d8) 62%, transparent)\n  )",
-    "exposeToStyler": true
   },
   {
     "id": "glass.bg-1",
@@ -2569,23 +2355,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "text.home.poll.footer",
-    "cssVar": "--home-poll-footer",
-    "label": "Home Poll Footer",
-    "category": "text",
-    "valueKind": "color",
-    "tags": [
-      "home",
-      "poll",
-      "footer"
-    ],
-    "semantics": "Home Poll Footer",
-    "layer": "component",
-    "fallback": "var(--text-3)",
-    "lightFallback": "var(--color-fg-subtle)",
-    "exposeToStyler": false
-  },
-  {
     "id": "home.railtab.accent-color",
     "cssVar": "--home-railtab-accent",
     "label": "Home / Rail Tab Accent",
@@ -2668,28 +2437,36 @@
     "exposeToStyler": true
   },
   {
-    "id": "ladder.border",
-    "cssVar": "--ladder-border",
-    "label": "Ladder Border",
-    "category": "border",
-    "valueKind": "other",
-    "tags": [],
-    "semantics": "Ladder Border",
-    "layer": "semantic",
-    "fallback": "var(--composer-rail-tab-border, var(--composer-border, var(--card-border)))",
-    "exposeToStyler": true
+    "id": "layout.ladder.preview.basis",
+    "cssVar": "--ladder-preview-basis",
+    "label": "Layout / Ladder Preview Basis",
+    "category": "layout",
+    "valueKind": "dimension",
+    "tags": [
+      "layout",
+      "ladder",
+      "preview"
+    ],
+    "semantics": "Layout / Ladder Preview Basis",
+    "layer": "component",
+    "fallback": "260px",
+    "exposeToStyler": false
   },
   {
-    "id": "ladder.prompter.send.text",
-    "cssVar": "--ladder-prompter-send-text",
-    "label": "Ladder Prompter Send Text",
-    "category": "text",
-    "valueKind": "color",
-    "tags": [],
-    "semantics": "Ladder Prompter Send Text",
-    "layer": "foundation",
-    "fallback": "var(--text-on-brand, #090d1c)",
-    "exposeToStyler": true
+    "id": "layout.ladder.preview.fr",
+    "cssVar": "--ladder-preview-fr",
+    "label": "Layout / Ladder Preview Fraction",
+    "category": "layout",
+    "valueKind": "dimension",
+    "tags": [
+      "layout",
+      "ladder",
+      "preview"
+    ],
+    "semantics": "Layout / Ladder Preview Fraction",
+    "layer": "component",
+    "fallback": "0.32fr",
+    "exposeToStyler": false
   },
   {
     "id": "ladder.prompter.status",
@@ -2704,16 +2481,36 @@
     "exposeToStyler": true
   },
   {
-    "id": "ladder.shadow",
-    "cssVar": "--ladder-shadow",
-    "label": "Ladder Shadow",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [],
-    "semantics": "Ladder Shadow",
-    "layer": "semantic",
-    "fallback": "var(--composer-shadow)",
-    "exposeToStyler": true
+    "id": "layout.ladder.stepper.basis",
+    "cssVar": "--ladder-stepper-basis",
+    "label": "Layout / Ladder Stepper Basis",
+    "category": "layout",
+    "valueKind": "dimension",
+    "tags": [
+      "layout",
+      "ladder",
+      "stepper"
+    ],
+    "semantics": "Layout / Ladder Stepper Basis",
+    "layer": "component",
+    "fallback": "160px",
+    "exposeToStyler": false
+  },
+  {
+    "id": "layout.ladder.stepper.fr",
+    "cssVar": "--ladder-stepper-fr",
+    "label": "Layout / Ladder Stepper Fraction",
+    "category": "layout",
+    "valueKind": "dimension",
+    "tags": [
+      "layout",
+      "ladder",
+      "stepper"
+    ],
+    "semantics": "Layout / Ladder Stepper Fraction",
+    "layer": "component",
+    "fallback": "0.14fr",
+    "exposeToStyler": false
   },
   {
     "id": "layout.column-gap",
@@ -2794,6 +2591,22 @@
     "layer": "foundation",
     "fallback": "var(--space-xl)",
     "exposeToStyler": true
+  },
+  {
+    "id": "layout.mobile.top-offset",
+    "cssVar": "--layout-mobile-top-offset",
+    "label": "Layout / Mobile Top Offset",
+    "category": "layout",
+    "valueKind": "dimension",
+    "tags": [
+      "layout",
+      "mobile",
+      "offset"
+    ],
+    "semantics": "Layout / Mobile Top Offset",
+    "layer": "component",
+    "fallback": "var(--space-md)",
+    "exposeToStyler": false
   },
   {
     "id": "layout.prompter-margin-bottom",
@@ -3148,40 +2961,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "surface.party.code-background",
-    "cssVar": "--party-code-background",
-    "label": "Party / Code Background",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "code",
-      "background"
-    ],
-    "semantics": "Party / Code Background",
-    "layer": "component",
-    "fallback": "linear-gradient(180deg, var(--glass-bg-1), var(--glass-bg-2))",
-    "lightFallback": "linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2))",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.party.code",
-    "cssVar": "--party-code-border",
-    "label": "Party / Code Border",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "code",
-      "border"
-    ],
-    "semantics": "Party / Code Border",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--card-border) 80%, transparent)",
-    "lightFallback": "color-mix(in srgb, var(--card-border) 85%, transparent)",
-    "exposeToStyler": false
-  },
-  {
     "id": "border.party.control-hover",
     "cssVar": "--party-control-hover-border",
     "label": "Party / Control Hover Border",
@@ -3197,23 +2976,6 @@
     "layer": "component",
     "fallback": "color-mix(in srgb, var(--color-brand) 60%, transparent)",
     "lightFallback": "color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--card-border))",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.party.empty",
-    "cssVar": "--party-empty-border",
-    "label": "Party / Empty State Border",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "empty",
-      "border"
-    ],
-    "semantics": "Party / Empty State Border",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--card-border) 70%, transparent)",
-    "lightFallback": "color-mix(in srgb, var(--card-border) 60%, transparent)",
     "exposeToStyler": false
   },
   {
@@ -3252,23 +3014,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "border.party.participant",
-    "cssVar": "--party-participant-border",
-    "label": "Party / Participant Border",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "participant",
-      "border"
-    ],
-    "semantics": "Party / Participant Border",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--card-border) 78%, transparent)",
-    "lightFallback": "color-mix(in srgb, var(--card-border) 75%, transparent)",
-    "exposeToStyler": false
-  },
-  {
     "id": "shadow.party.participant.speaking.shadow",
     "cssVar": "--party-participant-speaking-shadow",
     "label": "Party Participant Speaking Shadow",
@@ -3284,57 +3029,6 @@
     "layer": "component",
     "fallback": "0 12px 26px color-mix(in srgb, var(--color-brand) 20%, transparent)",
     "lightFallback": "0 10px 20px rgba(37, 99, 235, 0.18)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "surface.party.startaudio-background",
-    "cssVar": "--party-startaudio-background",
-    "label": "Party / Start Audio Background",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "audio",
-      "background"
-    ],
-    "semantics": "Party / Start Audio Background",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--color-brand) 20%, transparent)",
-    "lightFallback": "color-mix(\r\n      in srgb,\r\n      var(--header-brand, #0ea5e9) 20%,\r\n      transparent\r\n    )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "surface.party.status-background",
-    "cssVar": "--party-status-background",
-    "label": "Party / Status Background",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "status",
-      "background"
-    ],
-    "semantics": "Party / Status Background",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--color-accent) 20%, transparent)",
-    "lightFallback": "color-mix(in srgb, var(--header-brand, var(--color-brand)) 12%, transparent)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.party.status",
-    "cssVar": "--party-status-border",
-    "label": "Party / Status Border",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "party",
-      "status",
-      "border"
-    ],
-    "semantics": "Party / Status Border",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--color-brand) 52%, transparent)",
-    "lightFallback": "color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 35%, transparent)",
     "exposeToStyler": false
   },
   {
@@ -3696,22 +3390,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "text.quick-action",
-    "cssVar": "--quick-action-text",
-    "label": "Quick Action Text",
-    "category": "text",
-    "valueKind": "color",
-    "tags": [
-      "quick",
-      "action",
-      "text"
-    ],
-    "semantics": "Quick Action Text",
-    "layer": "foundation",
-    "fallback": "var(--text-on-brand, #f8fbff)",
-    "exposeToStyler": true
-  },
-  {
     "id": "radius.2xl",
     "cssVar": "--radius-2xl",
     "label": "Radius / 2XL",
@@ -3879,23 +3557,6 @@
     "layer": "component",
     "fallback": "transparent",
     "lightFallback": "color-mix(\r\n      in srgb,\r\n      var(--header-brand-strong, #2563eb) 62%,\r\n      transparent\r\n    )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.settings.nav-item",
-    "cssVar": "--settings-nav-item-border",
-    "label": "Border / Settings Nav Item",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "settings",
-      "nav",
-      "border"
-    ],
-    "semantics": "Border / Settings Nav Item",
-    "layer": "component",
-    "fallback": "rgba(255, 255, 255, 0.16)",
-    "lightFallback": "rgba(148, 163, 184, 0.24)",
     "exposeToStyler": false
   },
   {
@@ -4130,6 +3791,37 @@
     }
   },
   {
+    "id": "spacing.lg",
+    "cssVar": "--space-lg",
+    "label": "Spacing / Large",
+    "category": "spacing",
+    "valueKind": "dimension",
+    "tags": [
+      "spacing",
+      "lg"
+    ],
+    "semantics": "Spacing / Large",
+    "layer": "foundation",
+    "fallback": "1rem",
+    "exposeToStyler": false
+  },
+  {
+    "id": "spacing.lg-plus",
+    "cssVar": "--space-lg-plus",
+    "label": "Spacing / Large Plus",
+    "category": "spacing",
+    "valueKind": "dimension",
+    "tags": [
+      "spacing",
+      "lg",
+      "plus"
+    ],
+    "semantics": "Spacing / Large Plus",
+    "layer": "foundation",
+    "fallback": "1.125rem",
+    "exposeToStyler": false
+  },
+  {
     "id": "space.md-plus",
     "cssVar": "--space-md-plus",
     "label": "Space / MD Plus",
@@ -4272,55 +3964,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "shadow.store.action-hover",
-    "cssVar": "--store-action-shadow-hover",
-    "label": "Store / Action Hover Shadow",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "store",
-      "action",
-      "hover",
-      "shadow"
-    ],
-    "semantics": "Store / Action Hover Shadow",
-    "layer": "component",
-    "fallback": "0 10px 28px\r\n    color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "surface.store.control-bg",
-    "cssVar": "--store-control-bg",
-    "label": "Store / Control Background",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "store",
-      "control",
-      "background"
-    ],
-    "semantics": "Store / Control Background",
-    "layer": "component",
-    "fallback": "color-mix(\r\n    in srgb,\r\n    var(--surface-elevated, rgba(17, 22, 45, 0.86)) 82%,\r\n    var(--surface-muted, rgba(17, 22, 45, 0.8)) 48%\r\n  )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "surface.store.control-highlight",
-    "cssVar": "--store-control-highlight",
-    "label": "Store / Control Highlight",
-    "category": "surface",
-    "valueKind": "gradient",
-    "tags": [
-      "store",
-      "control",
-      "highlight"
-    ],
-    "semantics": "Store / Control Highlight",
-    "layer": "component",
-    "fallback": "color-mix(in srgb, var(--color-brand, #2563eb) 26%, transparent)",
-    "exposeToStyler": false
-  },
-  {
     "id": "surface.store.filter-pill-bg",
     "cssVar": "--store-filter-pill-bg",
     "label": "Store / Filter Pill Background",
@@ -4335,22 +3978,6 @@
     "semantics": "Store / Filter Pill Background",
     "layer": "component",
     "fallback": "color-mix(\r\n    in srgb,\r\n    var(--surface-muted, rgba(17, 22, 45, 0.8)) 80%,\r\n    transparent\r\n  )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "shadow.store.hero",
-    "cssVar": "--store-hero-shadow",
-    "label": "Store / Hero Shadow",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "store",
-      "hero",
-      "shadow"
-    ],
-    "semantics": "Store / Hero Shadow",
-    "layer": "component",
-    "fallback": "var(--shadow-xl, 0 32px 60px rgba(9, 13, 28, 0.45))",
     "exposeToStyler": false
   },
   {
@@ -4387,22 +4014,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "surface.store.primary-bg",
-    "cssVar": "--store-primary-bg",
-    "label": "Store / Primary Action Background",
-    "category": "surface",
-    "valueKind": "gradient",
-    "tags": [
-      "store",
-      "primary",
-      "background"
-    ],
-    "semantics": "Store / Primary Action Background",
-    "layer": "component",
-    "fallback": "linear-gradient(\r\n    135deg,\r\n    color-mix(in srgb, var(--color-brand, #2563eb) 95%, transparent),\r\n    color-mix(in srgb, var(--color-accent, #22d3ee) 85%, transparent)\r\n  )",
-    "exposeToStyler": false
-  },
-  {
     "id": "shadow.store.primary",
     "cssVar": "--store-primary-shadow",
     "label": "Store / Primary Shadow",
@@ -4419,23 +4030,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "shadow.store.primary-hover",
-    "cssVar": "--store-primary-shadow-hover",
-    "label": "Store / Primary Hover Shadow",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "store",
-      "primary",
-      "hover",
-      "shadow"
-    ],
-    "semantics": "Store / Primary Hover Shadow",
-    "layer": "component",
-    "fallback": "0 20px 38px\r\n    color-mix(in srgb, var(--color-brand, #2563eb) 42%, transparent)",
-    "exposeToStyler": false
-  },
-  {
     "id": "shadow.store.product-card",
     "cssVar": "--store-product-shadow",
     "label": "Store / Product Card Shadow",
@@ -4449,22 +4043,6 @@
     "semantics": "Store / Product Card Shadow",
     "layer": "component",
     "fallback": "inset 0 1px 0\r\n    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.studio.dashed",
-    "cssVar": "--studio-border-dashed",
-    "label": "Studio / Border Dashed",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "studio",
-      "border",
-      "dashed"
-    ],
-    "semantics": "Studio / Border Dashed",
-    "layer": "component",
-    "fallback": "color-mix(\r\n    in srgb,\r\n    var(--card-border, rgba(146, 156, 255, 0.2)) 65%,\r\n    transparent\r\n  )",
     "exposeToStyler": false
   },
   {
@@ -4500,53 +4078,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "border.studio.divider",
-    "cssVar": "--studio-divider",
-    "label": "Studio / Divider",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "studio",
-      "divider"
-    ],
-    "semantics": "Studio / Divider",
-    "layer": "component",
-    "fallback": "color-mix(\r\n    in srgb,\r\n    var(--card-border, rgba(136, 150, 255, 0.22)) 70%,\r\n    transparent\r\n  )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "shadow.studio.glow-soft",
-    "cssVar": "--studio-glow-soft",
-    "label": "Studio / Glow Soft",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "studio",
-      "glow",
-      "soft"
-    ],
-    "semantics": "Studio / Glow Soft",
-    "layer": "component",
-    "fallback": "0 0 10px color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent)",
-    "exposeToStyler": false
-  },
-  {
-    "id": "shadow.studio.glow-strong",
-    "cssVar": "--studio-glow-strong",
-    "label": "Studio / Glow Strong",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "studio",
-      "glow",
-      "strong"
-    ],
-    "semantics": "Studio / Glow Strong",
-    "layer": "component",
-    "fallback": "0 0 18px color-mix(in srgb, var(--color-brand, #2563eb) 68%, transparent)",
-    "exposeToStyler": false
-  },
-  {
     "id": "surface.studio.pill-bg",
     "cssVar": "--studio-pill-bg",
     "label": "Studio / Pill Background",
@@ -4560,38 +4091,6 @@
     "semantics": "Studio / Pill Background",
     "layer": "component",
     "fallback": "color-mix(\r\n    in srgb,\r\n    var(--surface-muted, rgba(24, 28, 68, 0.8)) 70%,\r\n    transparent\r\n  )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.studio.pill",
-    "cssVar": "--studio-pill-border",
-    "label": "Studio / Pill Border",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "studio",
-      "pill",
-      "border"
-    ],
-    "semantics": "Studio / Pill Border",
-    "layer": "component",
-    "fallback": "color-mix(\r\n    in srgb,\r\n    var(--card-border, rgba(142, 154, 255, 0.2)) 80%,\r\n    transparent\r\n  )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "text.studio.pill",
-    "cssVar": "--studio-pill-text",
-    "label": "Studio / Pill Text",
-    "category": "text",
-    "valueKind": "color",
-    "tags": [
-      "studio",
-      "pill",
-      "text"
-    ],
-    "semantics": "Studio / Pill Text",
-    "layer": "component",
-    "fallback": "var(--studio-text-primary)",
     "exposeToStyler": false
   },
   {
@@ -4640,22 +4139,6 @@
     "semantics": "Studio / Status Background",
     "layer": "component",
     "fallback": "color-mix(\r\n    in srgb,\r\n    var(--surface-muted, rgba(28, 32, 74, 0.6)) 68%,\r\n    transparent\r\n  )",
-    "exposeToStyler": false
-  },
-  {
-    "id": "border.studio.status",
-    "cssVar": "--studio-status-border",
-    "label": "Studio / Status Border",
-    "category": "border",
-    "valueKind": "color",
-    "tags": [
-      "studio",
-      "status",
-      "border"
-    ],
-    "semantics": "Studio / Status Border",
-    "layer": "component",
-    "fallback": "color-mix(\r\n    in srgb,\r\n    var(--card-border, rgba(146, 156, 255, 0.2)) 75%,\r\n    transparent\r\n  )",
     "exposeToStyler": false
   },
   {
@@ -4787,74 +4270,6 @@
     "exposeToStyler": false
   },
   {
-    "id": "surface.style.chats-badge-bg",
-    "cssVar": "--style-chats-badge-bg",
-    "label": "Surface Style / Chats Badge Background",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "style",
-      "chats",
-      "badge"
-    ],
-    "semantics": "Surface Style / Chats Badge Background",
-    "layer": "foundation",
-    "fallback": "var(--tile-badge-bg-base)",
-    "lightFallback": "var(--tile-badge-bg-base)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "surface.style.chats-badge-color",
-    "cssVar": "--style-chats-badge-color",
-    "label": "Surface Style / Chats Badge Color",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "style",
-      "chats",
-      "badge"
-    ],
-    "semantics": "Surface Style / Chats Badge Color",
-    "layer": "foundation",
-    "fallback": "var(--tile-badge-color-base)",
-    "lightFallback": "var(--tile-badge-color-base)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "surface.style.chats-bg",
-    "cssVar": "--style-chats-bg",
-    "label": "Surface Style / Chats Background",
-    "category": "surface",
-    "valueKind": "color",
-    "tags": [
-      "style",
-      "chats",
-      "background"
-    ],
-    "semantics": "Surface Style / Chats Background",
-    "layer": "foundation",
-    "fallback": "var(--tile-bg-base)",
-    "lightFallback": "var(--tile-bg-base)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "text.style.chats-desc",
-    "cssVar": "--style-chats-desc",
-    "label": "Text Style / Chats Description",
-    "category": "text",
-    "valueKind": "color",
-    "tags": [
-      "style",
-      "chats",
-      "text"
-    ],
-    "semantics": "Text Style / Chats Description",
-    "layer": "foundation",
-    "fallback": "var(--tile-desc-base)",
-    "lightFallback": "var(--tile-desc-base)",
-    "exposeToStyler": true
-  },
-  {
     "id": "surface.style.chats-icon-bg",
     "cssVar": "--style-chats-icon-bg",
     "label": "Surface Style / Chats Icon Background",
@@ -4869,24 +4284,6 @@
     "layer": "foundation",
     "fallback": "var(--tile-icon-bg-base)",
     "lightFallback": "var(--tile-icon-bg-base)",
-    "exposeToStyler": true
-  },
-  {
-    "id": "shadow.style.chats-hover",
-    "cssVar": "--style-chats-shadow-hover",
-    "label": "Shadow Style / Chats Hover",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "style",
-      "chats",
-      "shadow",
-      "hover"
-    ],
-    "semantics": "Shadow Style / Chats Hover",
-    "layer": "foundation",
-    "fallback": "var(--tile-shadow-hover-base)",
-    "lightFallback": "var(--tile-shadow-hover-base)",
     "exposeToStyler": true
   },
   {
@@ -5258,22 +4655,6 @@
     "exposeToStyler": true
   },
   {
-    "id": "shadow.tile.final",
-    "cssVar": "--tile-shadow-final",
-    "label": "Shadow / Tile Final",
-    "category": "shadow",
-    "valueKind": "shadow",
-    "tags": [
-      "tile",
-      "shadow"
-    ],
-    "semantics": "Shadow / Tile Final",
-    "layer": "foundation",
-    "fallback": "var(--tile-shadow-base)",
-    "lightFallback": "var(--tile-shadow-base)",
-    "exposeToStyler": true
-  },
-  {
     "id": "shadow.tile.hover-base",
     "cssVar": "--tile-shadow-hover-base",
     "label": "Shadow / Tile Hover Base",
@@ -5288,22 +4669,6 @@
     "layer": "foundation",
     "fallback": "var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34))",
     "lightFallback": "var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.2))",
-    "exposeToStyler": true
-  },
-  {
-    "id": "text.tile.final",
-    "cssVar": "--tile-text-final",
-    "label": "Text / Tile Final",
-    "category": "text",
-    "valueKind": "color",
-    "tags": [
-      "tile",
-      "text"
-    ],
-    "semantics": "Text / Tile Final",
-    "layer": "foundation",
-    "fallback": "var(--tile-text-base)",
-    "lightFallback": "var(--tile-text-base)",
     "exposeToStyler": true
   },
   {

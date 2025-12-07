@@ -3,6 +3,15 @@
   flex-direction: column;
   gap: 18px;
   padding: 12px 4px 32px;
+  --insight-ink: var(--surface-overlay, rgba(15, 23, 42, 0.9));
+  --insight-ink-strong: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 104%, transparent);
+  --insight-ink-stronger: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 112%, transparent);
+  --insight-ink-max: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 125%, transparent);
+  --insight-sheen: color-mix(in srgb, var(--text-on-brand, #ffffff) 16%, transparent);
+  --insight-shadow-hero: var(--shadow-lg, 0 26px 72px rgba(5, 10, 30, 0.7));
+  --insight-shadow-card: var(--shadow-lg, 0 20px 48px rgba(5, 10, 30, 0.5));
+  --insight-shadow-map: var(--shadow-lg, 0 20px 48px rgba(15, 23, 42, 0.9));
+  --insight-shadow-pill: var(--shadow-md, 0 10px 20px rgba(15, 23, 42, 0.7));
 }
 
 .header {
@@ -13,7 +22,7 @@
   border-radius: var(--card-radius);
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    radial-gradient(1400px 70% at -10% -10%, rgba(248, 250, 252, 0.16), transparent 60%),
+    radial-gradient(1400px 70% at -10% -10%, var(--insight-sheen), transparent 60%),
     radial-gradient(
       1200px 75% at 110% -10%,
       color-mix(in srgb, var(--color-brand) 28%, var(--color-accent) 22%),
@@ -25,9 +34,9 @@
       color-mix(in srgb, var(--surface-app) 82%, transparent)
     );
   box-shadow:
-    0 26px 72px rgba(5, 10, 30, 0.7),
+    var(--insight-shadow-hero),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.6);
+    inset 0 -1px 0 color-mix(in srgb, var(--surface-app, rgba(2, 6, 23, 0.6)) 100%, transparent);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
@@ -50,9 +59,9 @@
       transparent 60%
     );
   box-shadow:
-    0 10px 20px rgba(15, 23, 42, 0.7),
+    var(--insight-shadow-pill),
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 var(--insight-ink);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -105,16 +114,16 @@
 .secondaryButton {
   border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong)),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 30%, transparent),
       color-mix(in srgb, var(--color-brand-strong) 26%, transparent)
     );
   box-shadow:
-    0 10px 22px rgba(15, 23, 42, 0.9),
+    0 10px 22px var(--insight-ink),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 var(--insight-ink);
 }
 
 .headerMeta {
@@ -140,9 +149,9 @@
       color-mix(in srgb, var(--surface-app) 86%, transparent)
     );
   box-shadow:
-    0 18px 36px rgba(5, 10, 30, 0.5),
+    var(--insight-shadow-card),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7);
+    inset 0 -1px 0 var(--insight-ink);
 }
 
 .metricLabel {
@@ -199,9 +208,9 @@
       color-mix(in srgb, var(--surface-app) 86%, transparent)
     );
   box-shadow:
-    0 20px 48px rgba(5, 10, 30, 0.5),
+    var(--insight-shadow-card),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7);
+    inset 0 -1px 0 var(--insight-ink);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
 }
@@ -274,11 +283,11 @@
       color-mix(in srgb, var(--color-brand-strong) 40%, var(--color-accent) 26%),
       transparent 60%
     ),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
+    linear-gradient(180deg, var(--insight-ink-strong), var(--insight-ink-max));
   box-shadow:
-    0 20px 48px rgba(15, 23, 42, 0.9),
+    var(--insight-shadow-map),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 var(--insight-ink);
 }
 
 .mapHeader {
@@ -316,7 +325,7 @@
       color-mix(in srgb, var(--color-accent) 55%, var(--color-brand-strong) 45%),
       transparent 60%
     ),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
+    linear-gradient(180deg, var(--insight-ink-strong), var(--insight-ink-max));
 }
 
 .mapGrid {
@@ -413,16 +422,16 @@
   border: 1px solid
     color-mix(in srgb, var(--color-brand) 65%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong)),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 55%, transparent),
       color-mix(in srgb, var(--color-brand-strong) 72%, transparent)
     );
   box-shadow:
-    0 16px 36px rgba(15, 23, 42, 0.95),
+    var(--shadow-lg, 0 16px 36px var(--insight-ink)),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.95);
+    inset 0 -1px 0 var(--insight-ink-strong);
 }
 
 .summaryRow {
@@ -498,7 +507,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-brand) 66%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong)),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 32%, transparent),
@@ -530,8 +539,8 @@
   border: 1px solid
     color-mix(in srgb, var(--color-brand) 60%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong)),
+    linear-gradient(180deg, color-mix(in srgb, var(--insight-ink) 50%, transparent), color-mix(in srgb, var(--insight-ink-strong) 70%, transparent));
   display: grid;
   gap: 6px;
 }
@@ -555,7 +564,7 @@
   position: relative;
   height: 6px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--insight-ink-strong);
   overflow: hidden;
 }
 
@@ -601,7 +610,7 @@
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-brand) 35%);
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong)),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-accent) 32%, transparent),
@@ -655,8 +664,8 @@
   border: 1px solid
     color-mix(in srgb, var(--color-brand) 60%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong)),
+    linear-gradient(180deg, color-mix(in srgb, var(--insight-ink) 50%, transparent), color-mix(in srgb, var(--insight-ink-strong) 70%, transparent));
 }
 
 .sessionMeta {
@@ -683,7 +692,7 @@
   letter-spacing: 0.08em;
   border: 1px solid
     color-mix(in srgb, var(--color-brand) 68%, color-mix(in srgb, var(--card-border, #ffffff) 45%, transparent));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  background: linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong));
 }
 
 .sessionBadge[data-tone="recent"] {

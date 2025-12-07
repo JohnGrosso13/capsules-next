@@ -2,9 +2,6 @@
 @layer base {
   :root[data-theme="light"] {
     --accent-glow: rgba(37, 99, 235, 0.18);
-    --alert-accent: var(--color-brand);
-    --alert-bg: color-mix(in srgb, rgba(37, 99, 235, 0.12), rgba(255, 255, 255, 0.9));
-    --alert-border: color-mix(in srgb, rgba(37, 99, 235, 0.26), transparent);
     --alert-fg: rgba(14, 16, 36, 0.96);
     --app-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.92));
     --brand-gradient: var(--gradient-brand);
@@ -30,8 +27,6 @@
       rgba(24, 32, 62, 0.92)
     );
     --chats-message-emoji-filter: drop-shadow(0 6px 12px rgba(37, 99, 235, 0.16));
-    --chats-panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-    --chats-reaction-picker-shadow: 0 20px 32px rgba(15, 23, 42, 0.16);
     --chats-send-button-background: var(
       --cta-button-gradient,
       linear-gradient(
@@ -82,7 +77,6 @@
     --header-scrim: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
     --header-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
     --header-tint-from: rgba(255, 255, 255, 0);
-    --home-poll-footer: var(--color-fg-subtle);
     --home-railtab-accent: var(--header-brand-strong, #2563eb);
     --icon-plate-bg-1: rgba(255, 255, 255, 0.9);
     --icon-plate-bg-2: rgba(255, 255, 255, 0.8);
@@ -91,21 +85,10 @@
     --live-chat-border: rgba(148, 163, 184, 0.22);
     --live-chat-divider: rgba(148, 163, 184, 0.26);
     --live-chat-send-disabled-opacity: 0.6;
-    --party-code-background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-    --party-code-border: color-mix(in srgb, var(--card-border) 85%, transparent);
     --party-control-hover-border: color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--card-border));
-    --party-empty-border: color-mix(in srgb, var(--card-border) 60%, transparent);
     --party-input-focus-border: color-mix(in srgb, var(--header-brand, var(--color-brand)) 55%, transparent);
     --party-panel-border: var(--card-border);
-    --party-participant-border: color-mix(in srgb, var(--card-border) 75%, transparent);
     --party-participant-speaking-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
-    --party-startaudio-background: color-mix(
-      in srgb,
-      var(--header-brand, #0ea5e9) 20%,
-      transparent
-    );
-    --party-status-background: color-mix(in srgb, var(--header-brand, var(--color-brand)) 12%, transparent);
-    --party-status-border: color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 35%, transparent);
     --party-status-pill-background: color-mix(in srgb, var(--header-brand, var(--color-brand)) 18%, transparent);
     --party-status-pill-border: color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 35%, transparent);
     --party-tile-shadow: var(--card-shadow);
@@ -147,13 +130,7 @@
       var(--header-brand-strong, #2563eb) 62%,
       transparent
     );
-    --settings-nav-item-border: rgba(148, 163, 184, 0.24);
-    --style-chats-badge-bg: var(--tile-badge-bg-base);
-    --style-chats-badge-color: var(--tile-badge-color-base);
-    --style-chats-bg: var(--tile-bg-base);
-    --style-chats-desc: var(--tile-desc-base);
     --style-chats-icon-bg: var(--tile-icon-bg-base);
-    --style-chats-shadow-hover: var(--tile-shadow-hover-base);
     --surface-elevated: rgba(255, 255, 255, 0.92);
     --surface-muted: rgba(255, 255, 255, 0.86);
     --surface-outline: rgba(14, 23, 42, 0.12);
@@ -175,8 +152,6 @@
     --tile-icon-bg-base: rgba(14, 23, 42, 0.06);
     --tile-icon-color-base: rgba(14, 16, 36, 0.82);
     --tile-shadow-base: var(--shadow-sm, 0 4px 12px rgba(15, 23, 42, 0.16));
-    --tile-shadow-final: var(--tile-shadow-base);
     --tile-shadow-hover-base: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.2));
-    --tile-text-final: var(--tile-text-base);
   }
 }
