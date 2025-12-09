@@ -21,6 +21,7 @@ export type { HomeFeedAttachment, HomeFeedPost, HomeFeedItem } from "./useHomeFe
 
 const FEED_LIMIT = 15;
 const MESSAGE_TIMEOUT_MS = 4_000;
+const VISIBILITY_REFRESH_MIN_INTERVAL_MS = 15 * 60_000; // 15 minutes
 
 type FeedSnapshot = ReturnType<HomeFeedStore["getState"]>;
 
@@ -185,6 +186,12 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
 
   React.useEffect(() => {
     if (!refreshEnabled) return undefined;
+    // If we already have initial data (e.g. from SSR), skip the
+    // automatic initial refresh to avoid double-fetching on load.
+    if (initialData) {
+      initialRefreshHandledRef.current = true;
+      return undefined;
+    }
     if (initialRefreshHandledRef.current) return undefined;
     initialRefreshHandledRef.current = true;
     const controller = new AbortController();
@@ -201,7 +208,7 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
       controller.abort();
       if (timer) window.clearTimeout(timer);
     };
-  }, [actions, refreshEnabled, refreshKey, skipInitialRefresh]);
+  }, [actions, initialData, refreshEnabled, refreshKey, skipInitialRefresh]);
 
   React.useEffect(() => {
     if (!refreshEnabled) return undefined;
@@ -216,13 +223,16 @@ function useFeed(store: HomeFeedStore, options: UseFeedOptions = {}) {
 
   React.useEffect(() => {
     if (!refreshEnabled) return undefined;
+    // Treat the mount time as a "recent" refresh so that the first
+    // focus/visibility event doesn't immediately trigger another refresh.
+    lastVisibilityRefreshRef.current = Date.now();
     const handleVisibility = () => {
       if (typeof document === "undefined") return;
       if (document.visibilityState !== "visible") {
         return;
       }
       const now = Date.now();
-      if (now - lastVisibilityRefreshRef.current < 15_000) return;
+      if (now - lastVisibilityRefreshRef.current < VISIBILITY_REFRESH_MIN_INTERVAL_MS) return;
       lastVisibilityRefreshRef.current = now;
       void actions.refreshPosts();
     };

@@ -34,7 +34,16 @@ export type DoubleEliminationBracket = {
   championId: string | null;
 };
 
-export type TournamentBracket = SingleEliminationBracket | DoubleEliminationBracket;
+export type RoundRobinBracket = {
+  type: "round_robin";
+  rounds: BracketRound[];
+  championId: string | null;
+};
+
+export type TournamentBracket =
+  | SingleEliminationBracket
+  | DoubleEliminationBracket
+  | RoundRobinBracket;
 
 type SlotRef = { member: CapsuleLadderMember | null; source: string; sourceId: string };
 
@@ -436,4 +445,87 @@ export function buildDoubleEliminationBracket(
   }
 
   return { type: "double", winners, losers, finals, championId };
+}
+
+export function buildRoundRobinBracket(
+  members: CapsuleLadderMember[],
+  history: LadderMatchRecord[],
+): RoundRobinBracket {
+  if (!members.length) return { type: "round_robin", rounds: [], championId: null };
+
+  const seeded = [...members].sort(bySeed);
+  const lookup = new Map<string, CapsuleLadderMember>(members.map((member) => [member.id, member]));
+
+  // Prepare slots for round-robin "circle method" scheduling.
+  const slots: Array<CapsuleLadderMember | null> = [...seeded];
+  if (slots.length % 2 !== 0) {
+    slots.push(null);
+  }
+  const teamCount = slots.length;
+  const rounds: BracketRound[] = [];
+
+  // If only one entrant, treat as champion with no matches.
+  if (teamCount <= 1) {
+    return {
+      type: "round_robin",
+      rounds: [],
+      championId: seeded[0]?.id ?? null,
+    };
+  }
+
+  // Circle method: one fixed, rotate the rest.
+  let currentSlots = [...slots];
+  const totalRounds = teamCount - 1;
+
+  for (let round = 1; round <= totalRounds; round += 1) {
+    const matches: BracketMatch[] = [];
+    const half = teamCount / 2;
+
+    for (let i = 0; i < half; i += 1) {
+      const aMember = currentSlots[i] ?? null;
+      const bMember = currentSlots[teamCount - 1 - i] ?? null;
+
+      const aRef: SlotRef | null = aMember
+        ? {
+            member: aMember,
+            source: aMember.displayName || "TBD",
+            sourceId: `rr-${round}-a-${i}`,
+          }
+        : null;
+      const bRef: SlotRef | null = bMember
+        ? {
+            member: bMember,
+            source: bMember.displayName || "TBD",
+            sourceId: `rr-${round}-b-${i}`,
+          }
+        : null;
+
+      const { match } = createMatchFromRefs({
+        prefix: "r",
+        round,
+        index: i,
+        bracket: "winners",
+        aRef,
+        bRef,
+        history,
+        lookup,
+      });
+
+      matches.push(match);
+    }
+
+    rounds.push({
+      round,
+      label: `Round ${round}`,
+      matches,
+    });
+
+    // Rotate all but the first slot.
+    const fixed = currentSlots[0] ?? null;
+    const rotating = currentSlots.slice(1);
+    const last = rotating.length ? rotating.pop() ?? null : null;
+    currentSlots = [fixed, last, ...rotating];
+  }
+
+  return { type: "round_robin", rounds, championId: null };
 }

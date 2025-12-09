@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { CapsuleLadderSummary } from "@/hooks/useCapsuleLadders";
+import type { CapsuleLadderMember, LadderMatchRecord } from "@/types/ladders";
 import type { BracketMatch, BracketRound, TournamentBracket } from "@/lib/ladders/bracket";
 import styles from "../CapsuleEventsSection.module.css";
 
@@ -19,6 +20,8 @@ type TournamentBracketPanelProps = {
   tournamentChallengesError: string | null;
   tournamentReportError: string | null;
   bracket: TournamentBracket;
+  members: CapsuleLadderMember[];
+  history: LadderMatchRecord[];
   reportingMatchId: string | null;
   loadingTournamentState: boolean;
   onSelectTournament: (tournamentId: string | null) => void;
@@ -37,6 +40,8 @@ export function TournamentBracketPanel({
   tournamentChallengesError,
   tournamentReportError,
   bracket,
+  members,
+  history,
   reportingMatchId,
   loadingTournamentState,
   onSelectTournament,
@@ -45,6 +50,65 @@ export function TournamentBracketPanel({
   statusTone,
   formatVisibility,
 }: TournamentBracketPanelProps) {
+  const roundRobinStandings = React.useMemo(() => {
+    if (bracket.type !== "round_robin" || !members.length) return [];
+    const stats = new Map<
+      string,
+      {
+        memberId: string;
+        name: string;
+        wins: number;
+        draws: number;
+        losses: number;
+        matches: number;
+        points: number;
+        rating: number;
+      }
+    >();
+
+    members.forEach((member) => {
+      stats.set(member.id, {
+        memberId: member.id,
+        name: member.displayName,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        matches: 0,
+        points: 0,
+        rating: member.rating,
+      });
+    });
+
+    history.forEach((record) => {
+      const a = stats.get(record.challengerId);
+      const b = stats.get(record.opponentId);
+      if (!a || !b) return;
+      a.matches += 1;
+      b.matches += 1;
+      if (record.outcome === "draw") {
+        a.draws += 1;
+        b.draws += 1;
+        a.points += 1;
+        b.points += 1;
+      } else if (record.outcome === "challenger") {
+        a.wins += 1;
+        b.losses += 1;
+        a.points += 3;
+      } else if (record.outcome === "opponent") {
+        b.wins += 1;
+        a.losses += 1;
+        b.points += 3;
+      }
+    });
+
+    return Array.from(stats.values()).sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return a.name.localeCompare(b.name);
+    });
+  }, [bracket.type, history, members]);
+
   if (!tournamentSummaries.length) return null;
   if (tournamentDetailError) {
     return (
@@ -191,6 +255,43 @@ export function TournamentBracketPanel({
           ) : (
             renderRoundSet(bracket.rounds)
           )}
+          {bracket.type === "round_robin" && roundRobinStandings.length ? (
+            <div className={styles.standingsCard}>
+              <div className={styles.standingsHeader}>
+                <div>
+                  <h3 className={styles.detailTitle}>Round robin standings</h3>
+                </div>
+              </div>
+              <table className={styles.standingsTable}>
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Entrant</th>
+                    <th scope="col">MP</th>
+                    <th scope="col">W</th>
+                    <th scope="col">D</th>
+                    <th scope="col">L</th>
+                    <th scope="col">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roundRobinStandings.map((row, index) => (
+                    <tr key={row.memberId}>
+                      <td>
+                        <span className={styles.rankBadge}>#{index + 1}</span>
+                      </td>
+                      <td>{row.name}</td>
+                      <td>{row.matches}</td>
+                      <td>{row.wins}</td>
+                      <td>{row.draws}</td>
+                      <td>{row.losses}</td>
+                      <td>{row.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </>
       ) : (
         <p className={styles.sectionEmpty}>Add at least two entrants to generate a bracket.</p>

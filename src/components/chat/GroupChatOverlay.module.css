@@ -8,7 +8,7 @@
   padding: 24px;
   --chat-overlay-strong: color-mix(
     in srgb,
-    var(--surface-overlay, rgba(6, 8, 18, 0.92)) 25%,
+    var(--surface-overlay) 25%,
     rgba(5, 7, 16, 0.98)
   );
 }
@@ -63,7 +63,7 @@
 
 .closeButton {
   border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
-  background: color-mix(in srgb, var(--surface-overlay, rgba(16, 18, 32, 0.84)) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay) 70%, transparent);
   color: var(--text);
   border-radius: 12px;
   width: 34px;
@@ -105,7 +105,7 @@
   border: 1px solid color-mix(in srgb, var(--pill-border) 75%, transparent);
   border-radius: 14px;
   padding: 10px 14px;
-  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay) 82%, transparent);
   color: var(--text);
   font-size: 0.95rem;
 }
@@ -136,7 +136,7 @@
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
-  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 17, 33, 0.65)) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay) 75%, transparent);
   transition:
     transform 160ms ease,
     border-color 160ms ease;
@@ -217,7 +217,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay) 75%, transparent);
   color: var(--text);
   font-weight: 600;
   transition:
@@ -259,7 +259,7 @@
 
 .secondaryButton {
   border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
-  background: color-mix(in srgb, var(--surface-overlay, rgba(14, 16, 30, 0.86)) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay) 72%, transparent);
   color: var(--text);
   padding: 10px 18px;
   border-radius: 14px;
@@ -307,7 +307,7 @@
   border: 1px solid color-mix(in srgb, var(--pill-border) 78%, transparent);
   border-radius: 14px;
   padding: 10px 12px;
-  background: color-mix(in srgb, var(--surface-overlay, rgba(16, 18, 34, 0.84)) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay) 76%, transparent);
   color: var(--text);
 }
 

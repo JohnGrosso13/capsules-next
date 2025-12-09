@@ -6,7 +6,7 @@ import styles from "./growth.page.module.css";
 
 type TrendTone = "up" | "down" | "steady";
 
-type GrowthMetric = {
+type StoreMetric = {
   id: string;
   label: string;
   value: string;
@@ -14,199 +14,162 @@ type GrowthMetric = {
   tone: TrendTone;
 };
 
-type SegmentMetric = {
+type OrdersSummary = {
+  id: string;
+  label: string;
+  count: string;
+  hint: string;
+};
+
+type CatalogItem = {
+  id: string;
+  name: string;
+  status: "live" | "draft" | "paused";
+  price: string;
+};
+
+type PayoutSummary = {
   id: string;
   label: string;
   value: string;
   hint: string;
 };
 
-type ContentHighlightKind = "clip" | "post" | "event";
-
-type ContentHighlight = {
-  id: string;
-  kind: ContentHighlightKind;
-  title: string;
-  detail: string;
-};
-
-type GrowthPlaybook = {
-  id: string;
-  title: string;
-  hint: string;
-  ctaLabel: string;
-};
-
-type GrowthTask = {
-  id: string;
-  title: string;
-  hint: string;
-  category: string;
-};
-
-const OVERVIEW_METRICS: GrowthMetric[] = [
+const OVERVIEW_METRICS: StoreMetric[] = [
   {
-    id: "members",
-    label: "Members",
-    value: "2,430",
-    detail: "+9.2% vs last 30 days",
+    id: "revenue_today",
+    label: "Today&apos;s revenue",
+    value: "$1,240",
+    detail: "+18% vs last 7 days",
     tone: "up",
   },
   {
-    id: "active",
-    label: "Active this week",
-    value: "648",
-    detail: "Steady engagement",
+    id: "open_orders",
+    label: "Open orders",
+    value: "12",
+    detail: "3 need fulfillment today",
     tone: "steady",
   },
   {
-    id: "posts",
-    label: "Posts & clips",
-    value: "312",
-    detail: "+21% content volume",
+    id: "conversion_rate",
+    label: "Conversion rate",
+    value: "3.4%",
+    detail: "+0.6 pts vs last week",
     tone: "up",
   },
   {
-    id: "events",
-    label: "Streams & events",
-    value: "11",
-    detail: "Slightly fewer than last month",
-    tone: "down",
+    id: "avg_order",
+    label: "Avg. order value",
+    value: "$42.80",
+    detail: "Across the last 30 days",
+    tone: "steady",
   },
 ];
 
-const SEGMENT_METRICS: SegmentMetric[] = [
+const ORDERS_SUMMARY: OrdersSummary[] = [
   {
-    id: "new",
-    label: "New members",
-    value: "184",
-    hint: "Welcome flows, first wins, & orientation.",
+    id: "pending_fulfillment",
+    label: "Pending fulfillment",
+    count: "5",
+    hint: "Packed but not yet shipped.",
   },
   {
-    id: "lurkers",
-    label: "Lurkers",
-    value: "1,120",
-    hint: "Low-friction polls and highlight recaps.",
+    id: "awaiting_payment",
+    label: "Awaiting payment",
+    count: "2",
+    hint: "Authorized but not yet captured.",
   },
   {
-    id: "regulars",
-    label: "Regulars",
-    value: "320",
-    hint: "Co-host streams, community nights, & ladders.",
-  },
-  {
-    id: "core",
-    label: "Core",
-    value: "42",
-    hint: "Mods, staff, and most-engaged supporters.",
+    id: "in_transit",
+    label: "In transit",
+    count: "9",
+    hint: "On the way to buyers.",
   },
 ];
 
-const CONTENT_HIGHLIGHTS: ContentHighlight[] = [
+const CATALOG_ITEMS: CatalogItem[] = [
   {
-    id: "clip_01",
-    kind: "clip",
-    title: "Overtime clutch on Pearl",
-    detail: "3.4x average watch time • viewers shared it 18 times.",
+    id: "jersey",
+    name: "Team jersey (home)",
+    status: "live",
+    price: "$65.00",
   },
   {
-    id: "post_01",
-    kind: "post",
-    title: "\"Rate my crosshair\" poll",
-    detail: "62% of lurkers engaged • great candidate for weekly polls.",
+    id: "mousepad",
+    name: "Capsules desk mat",
+    status: "live",
+    price: "$28.00",
   },
   {
-    id: "event_01",
-    kind: "event",
-    title: "Coaching VOD review night",
-    detail: "Highest chat participation this month • schedule a recurring series.",
-  },
-];
-
-const GROWTH_PLAYBOOKS: GrowthPlaybook[] = [
-  {
-    id: "playbook_lurker_to_regular",
-    title: "&quot;Lurker to Regular&quot; arc",
-    hint: "3-part sequence: low-pressure poll, highlight recap, and a casual community night.",
-    ctaLabel: "Preview flow",
-  },
-  {
-    id: "playbook_season_launch",
-    title: "Season launch with ladders",
-    hint: "Kick off a 4-week ladder, stream the finals, and auto-generate recaps.",
-    ctaLabel: "Open ladder builder",
-  },
-  {
-    id: "playbook_digest",
-    title: "Weekly &quot;best of&quot; digest",
-    hint: "Summarize top clips, posts, and VODs into a digest Capsule post.",
-    ctaLabel: "Draft digest post",
+    id: "coaching",
+    name: "1:1 coaching session",
+    status: "draft",
+    price: "$95.00",
   },
 ];
 
-const GROWTH_TASKS: GrowthTask[] = [
+const PAYOUT_SUMMARY: PayoutSummary[] = [
   {
-    id: "task_vod_review",
-    title: "Schedule a community VOD review night",
-    hint: "Use Coaching Insights clips and invite your regulars as co-hosts.",
-    category: "Events",
+    id: "next_payout",
+    label: "Next payout",
+    value: "$2,480.20",
+    hint: "Scheduled for Friday via Stripe.",
   },
   {
-    id: "task_low_friction_poll",
-    title: "Post a low-friction poll",
-    hint: "Target lurkers with a one-tap question tied to your main game.",
-    category: "Engagement",
+    id: "last_30_days",
+    label: "Last 30 days",
+    value: "$7,920.40",
+    hint: "Net after fees and refunds.",
   },
   {
-    id: "task_ladder_promo",
-    title: "Promote your next ladder",
-    hint: "Share a hype post with last season's champion clip as a teaser.",
-    category: "Ladders",
+    id: "refunds",
+    label: "Refund rate",
+    value: "1.2%",
+    hint: "Below marketplace average.",
   },
 ];
 
 export const metadata: Metadata = {
-  title: "Community Growth Studio - Capsules",
+  title: "My Store - Capsules",
   description:
-    "Understand your Capsule&apos;s health, see what content resonates, and get AI-powered playbooks to grow your community.",
+    "Analytics for your Capsule storefront: revenue, orders, products, and payouts in one place.",
 };
 
-export default function CommunityGrowthPage() {
+export default function MyStorePage() {
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
-      <div className={styles.shell} data-surface="growth">
+      <div className={styles.shell} data-surface="store">
         <header className={styles.header}>
-            <div className={styles.headerMain}>
-              <div className={styles.pill}>Growth Studio</div>
-              <h1 className={styles.title}>Grow a thriving Capsule community</h1>
-              <p className={styles.subtitle}>
-                Track momentum, see what&apos;s working, and let AI turn your data into concrete campaigns, content
-              ideas, and next steps for your members.
+          <div className={styles.headerMain}>
+            <div className={styles.pill}>My Store</div>
+            <h1 className={styles.title}>Run your Capsule storefront</h1>
+            <p className={styles.subtitle}>
+              Track revenue, manage orders, and keep your products, payouts, and store settings in one place.
             </p>
           </div>
           <div className={styles.headerMeta}>
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>This week&apos;s trend</div>
-              <div className={styles.metricValue}>+18%</div>
-              <div className={styles.metricHint}>Active members vs last week</div>
+              <div className={styles.metricLabel}>Store status</div>
+              <div className={styles.metricValue}>Live</div>
+              <div className={styles.metricHint}>Visible to buyers on Market</div>
             </div>
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>AI suggestions</div>
-              <div className={styles.metricValue}>3 ready</div>
-              <div className={styles.metricHint}>Campaigns to launch today</div>
+              <div className={styles.metricLabel}>Fulfillment queue</div>
+              <div className={styles.metricValue}>5 orders</div>
+              <div className={styles.metricHint}>Pack and ship today</div>
             </div>
           </div>
         </header>
 
         <main className={styles.layout}>
-          <section className={styles.columnPrimary} aria-label="Community overview and actions">
-            <section className={styles.cardAccent} aria-label="Capsule overview">
+          <section className={styles.columnPrimary} aria-label="Store overview and commerce surface">
+            <section className={styles.cardAccent} aria-label="Store overview">
               <header className={styles.cardHeaderRow}>
                 <div>
-                  <h2 className={styles.cardTitle}>Capsule overview</h2>
+                  <h2 className={styles.cardTitle}>Overview</h2>
                   <p className={styles.cardSubtitle}>
-                    High-level health across members, posts, and live events. Use this to feel the pulse of
-                    your community at a glance.
+                    High-level performance across revenue, orders, and conversion. Use this to understand how your
+                    store is performing at a glance.
                   </p>
                 </div>
                 <button type="button" className={styles.chipButton}>
@@ -230,7 +193,7 @@ export default function CommunityGrowthPage() {
 
               <div className={styles.miniTimeline}>
                 <div className={styles.miniTimelineHeader}>
-                  <span className={styles.miniTimelineLabel}>Engagement over time</span>
+                  <span className={styles.miniTimelineLabel}>Revenue over time</span>
                   <div className={styles.miniTimelineFilters}>
                     <button type="button" className={styles.chipButton} data-variant="ghost">
                       7 days
@@ -250,51 +213,56 @@ export default function CommunityGrowthPage() {
               </div>
             </section>
 
-            <section className={styles.card} aria-label="Segments and top content">
+            <section className={styles.card} aria-label="Orders and catalog summary">
               <div className={styles.cardRow}>
-                <section className={styles.cardColumn} aria-label="Audience segments">
-                  <header className={styles.cardHeaderStacked}>
-                    <h2 className={styles.cardTitle}>Audience segments</h2>
-                    <p className={styles.cardSubtitle}>
-                      See who&apos;s joining, who&apos;s lurking, and who&apos;s driving the culture of your Capsule.
-                    </p>
+                <section className={styles.cardColumn} aria-label="Orders overview">
+                  <header className={styles.cardHeaderRow}>
+                    <div>
+                      <h2 className={styles.cardTitle}>Orders</h2>
+                      <p className={styles.cardSubtitle}>
+                        Keep an eye on what needs attention &mdash; fulfillment, payment, and shipping state.
+                      </p>
+                    </div>
+                    <a href="/orders?capsuleId=" className={styles.chipButton}>
+                      View all
+                    </a>
                   </header>
                   <div className={styles.segmentGrid}>
-                    {SEGMENT_METRICS.map((segment) => (
-                      <div key={segment.id} className={styles.segmentTile}>
-                        <div className={styles.segmentLabel}>{segment.label}</div>
-                        <div className={styles.segmentValue}>{segment.value}</div>
-                        <p className={styles.segmentHint}>{segment.hint}</p>
+                    {ORDERS_SUMMARY.map((entry) => (
+                      <div key={entry.id} className={styles.segmentTile}>
+                        <div className={styles.segmentLabel}>{entry.label}</div>
+                        <div className={styles.segmentValue}>{entry.count}</div>
+                        <p className={styles.segmentHint}>{entry.hint}</p>
                       </div>
                     ))}
                   </div>
                 </section>
 
-                <section className={styles.cardColumn} aria-label="Top content">
+                <section className={styles.cardColumn} aria-label="Catalog highlights">
                   <header className={styles.cardHeaderRow}>
                     <div>
-                      <h2 className={styles.cardTitle}>Top content</h2>
+                      <h2 className={styles.cardTitle}>Catalog</h2>
                       <p className={styles.cardSubtitle}>
-                        Posts, clips, and streams that are resonating with your community right now.
+                        A quick snapshot of featured products and their current status.
                       </p>
                     </div>
                     <button type="button" className={styles.chipButton}>
-                      Generate more like this
+                      Manage products
                     </button>
                   </header>
-                  <ul className={styles.contentList}>
-                    {CONTENT_HIGHLIGHTS.map((item) => (
+                  <ul className={styles.catalogList}>
+                    {CATALOG_ITEMS.map((item) => (
                       <li
                         key={item.id}
-                        className={styles.contentItem}
-                        data-kind={item.kind}
-                        data-content-id={item.id}
+                        className={styles.catalogItem}
+                        data-status={item.status}
+                        data-product-id={item.id}
                       >
-                        <span className={styles.contentBadge}>{item.kind.toUpperCase()}</span>
-                        <div className={styles.contentMeta}>
-                          <div className={styles.contentTitle}>{item.title}</div>
-                          <p className={styles.contentHint}>{item.detail}</p>
+                        <div className={styles.catalogMeta}>
+                          <div className={styles.catalogName}>{item.name}</div>
+                          <p className={styles.catalogPrice}>{item.price}</p>
                         </div>
+                        <span className={styles.catalogStatus}>{item.status}</span>
                       </li>
                     ))}
                   </ul>
@@ -303,49 +271,24 @@ export default function CommunityGrowthPage() {
             </section>
           </section>
 
-          <section className={styles.columnSecondary} aria-label="AI playbooks and weekly actions">
-            <section className={styles.card} aria-label="AI growth playbooks">
+          <section className={styles.columnSecondary} aria-label="Payouts and balances">
+            <section className={styles.card} aria-label="Payouts and balances">
               <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>AI growth playbooks</h2>
+                <h2 className={styles.cardTitle}>Payouts &amp; balances</h2>
                 <p className={styles.cardSubtitle}>
-                  Capsules turns your data into ready-to-run campaigns across streams, ladders, and posts.
+                  High-level view of what&apos;s on the way to you and how your store is performing financially.
                 </p>
               </header>
               <ul className={styles.playbookList}>
-                {GROWTH_PLAYBOOKS.map((playbook) => (
-                  <li
-                    key={playbook.id}
-                    className={styles.playbookItem}
-                    data-playbook-id={playbook.id}
-                  >
+                {PAYOUT_SUMMARY.map((entry) => (
+                  <li key={entry.id} className={styles.playbookItem}>
                     <div className={styles.playbookMeta}>
-                      <div className={styles.playbookTitle}>{playbook.title}</div>
-                      <p className={styles.playbookHint}>{playbook.hint}</p>
+                      <div className={styles.playbookTitle}>{entry.label}</div>
+                      <p className={styles.playbookHint}>{entry.hint}</p>
                     </div>
                     <button type="button" className={styles.playbookCta}>
-                      {playbook.ctaLabel}
+                      {entry.value}
                     </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className={styles.card} aria-label="This week&apos;s action list">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>This week&apos;s action list</h2>
-                <p className={styles.cardSubtitle}>
-                  A short list of high-impact tasks. Check them off as you go.
-                </p>
-              </header>
-              <ul className={styles.taskList}>
-                {GROWTH_TASKS.map((task) => (
-                  <li key={task.id} className={styles.taskItem} data-task-id={task.id}>
-                    <button type="button" className={styles.taskCheckbox} aria-hidden="true" />
-                    <div className={styles.taskBody}>
-                      <div className={styles.taskTitle}>{task.title}</div>
-                      <p className={styles.taskHint}>{task.hint}</p>
-                    </div>
-                    <span className={styles.taskTag}>{task.category}</span>
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, CaretLeft, CaretRight, Confetti } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, CaretLeft, CaretRight, ChartBar } from "@phosphor-icons/react/dist/ssr";
 
 import { Button, ButtonLink } from "@/components/ui/button";
 
@@ -9,13 +9,18 @@ import { useMemoryUploads } from "./use-memory-uploads";
 import type { MemoryUploadItem } from "./uploads-types";
 import styles from "./party-recaps-carousel.module.css";
 
-type RecapCard = {
+type PollOption = {
+  label: string;
+  votes: number;
+};
+
+export type PollCard = {
   id: string;
-  title: string;
-  summary: string;
-  createdAt: string | null;
-  topic: string | null;
-  highlights: string[];
+  question: string;
+  summary: string | null;
+  updatedAt: string | null;
+  totalVotes: number;
+  options: PollOption[];
   memoryId: string;
 };
 
@@ -51,40 +56,38 @@ function formatTimestamp(iso: string | null | undefined): string | null {
   }
 }
 
-function truncate(value: string, limit = 260): string {
-  if (value.length <= limit) return value;
-  return `${value.slice(0, limit - 1).trimEnd()}...`;
-}
-
-function buildRecaps(items: MemoryUploadItem[]): RecapCard[] {
+export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
   return items
     .map((item) => {
       const meta = toMetaObject(item.meta);
-      const rawSummary =
-        (typeof item.description === "string" ? item.description.trim() : "") ||
-        (typeof (meta as { summary_text?: unknown })?.summary_text === "string"
-          ? ((meta as { summary_text: string }).summary_text ?? "").trim()
-          : "");
-      if (!rawSummary.length) return null;
+      const question =
+        (typeof meta?.poll_question === "string" && meta.poll_question.trim()) ||
+        (typeof item.title === "string" && item.title.trim()) ||
+        "Poll";
+      const summary =
+        (typeof item.description === "string" && item.description.trim()) ||
+        (typeof meta?.post_excerpt === "string" && meta.post_excerpt.trim()) ||
+        null;
 
-      const topicCandidate =
-        (typeof (meta as { party_topic?: unknown })?.party_topic === "string"
-          ? ((meta as { party_topic: string }).party_topic ?? "").trim()
-          : "") || null;
+      const optionsRaw = Array.isArray(meta?.poll_options) ? meta?.poll_options : [];
+      const countsRaw = Array.isArray(meta?.poll_counts) ? meta?.poll_counts : [];
+      const options: PollOption[] = optionsRaw
+        .map((opt, index) => {
+          const label = typeof opt === "string" ? opt.trim() : "";
+          const votesRaw = countsRaw[index];
+          const votes = typeof votesRaw === "number" ? votesRaw : 0;
+          return label.length ? { label, votes } : null;
+        })
+        .filter((opt): opt is PollOption => opt !== null);
 
-      const titleCandidate = typeof item.title === "string" ? item.title.trim() : "";
-      const title = titleCandidate || (topicCandidate ? `Party recap - ${topicCandidate}` : "Party recap");
+      const totalVotes =
+        typeof meta?.poll_total_votes === "number"
+          ? meta.poll_total_votes
+          : options.reduce((sum, opt) => sum + opt.votes, 0);
 
-      const highlightsRaw = (meta as { summary_highlights?: unknown })?.summary_highlights;
-      const highlights = Array.isArray(highlightsRaw)
-        ? highlightsRaw
-            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-            .filter((entry) => entry.length)
-        : [];
-
-      const createdAt =
+      const updatedAt =
         formatTimestamp(
-          (meta as { summary_generated_at?: unknown })?.summary_generated_at as string | undefined,
+          typeof meta?.poll_updated_at === "string" ? (meta.poll_updated_at as string) : null,
         ) ?? formatTimestamp(item.created_at ?? null);
 
       const memoryId =
@@ -95,16 +98,16 @@ function buildRecaps(items: MemoryUploadItem[]): RecapCard[] {
             : "unknown";
 
       return {
-        id: item.id as string,
-        title,
-        summary: truncate(rawSummary, 320),
-        createdAt,
-        topic: topicCandidate,
-        highlights,
+        id: memoryId,
+        question,
+        summary,
+        updatedAt,
+        totalVotes,
+        options,
         memoryId,
       };
     })
-    .filter((recap): recap is RecapCard => recap !== null);
+    .filter((poll): poll is PollCard => Boolean(poll.question));
 }
 
 function getSlidesPerView(): number {
@@ -115,16 +118,16 @@ function getSlidesPerView(): number {
   return 1;
 }
 
-export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
-  const { user, items, loading, error } = useMemoryUploads("party_summary", {
+export function PollsCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
+  const { user, items, loading, error } = useMemoryUploads("poll", {
     initialPage: initialItems ? { items: initialItems, hasMore: false } : undefined,
   });
-  const recaps = React.useMemo(() => buildRecaps(items), [items]);
+  const polls = React.useMemo(() => buildPolls(items), [items]);
 
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
   const [offset, setOffset] = React.useState(0);
 
-  const totalItems = recaps.length;
+  const totalItems = polls.length;
   const pageSize = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
 
   React.useEffect(() => {
@@ -144,18 +147,18 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
     setOffset((current) => current % totalItems);
   }, [totalItems]);
 
-  const visibleRecaps = React.useMemo(() => {
+  const visiblePolls = React.useMemo(() => {
     if (pageSize === 0) return [];
-    const result: RecapCard[] = [];
+    const result: PollCard[] = [];
     for (let index = 0; index < pageSize; index += 1) {
-      const item = recaps[(offset + index) % totalItems];
+      const item = polls[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, pageSize, recaps, totalItems]);
+  }, [offset, pageSize, polls, totalItems]);
 
   const hasRotation = pageSize > 0 && totalItems > pageSize;
-  const navDisabled = loading || !hasRotation || visibleRecaps.length === 0;
+  const navDisabled = loading || !hasRotation || visiblePolls.length === 0;
 
   const handlePrev = React.useCallback(() => {
     if (!hasRotation) return;
@@ -180,17 +183,18 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <div className={styles.icon}>
-            <Confetti size={18} weight="fill" />
+            <ChartBar size={18} weight="fill" />
           </div>
           <div>
-            <h3 className={styles.title}>Party recaps</h3>
+            <h3 className={styles.title}>Poll snapshots</h3>
+            <p className={styles.subtitle}>Results from polls you saved to Memory.</p>
           </div>
         </div>
         <div className={styles.actions}>
           <ButtonLink
             variant="ghost"
             size="sm"
-            href="/memory/uploads?tab=party-recaps"
+            href="/memory/uploads?tab=polls"
             rightIcon={<ArrowRight size={16} weight="bold" />}
           >
             View All
@@ -204,48 +208,48 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
           size="icon"
           className={styles.navButton}
           data-side="prev"
-          data-hidden={!visibleRecaps.length}
+          data-hidden={!visiblePolls.length}
           leftIcon={<CaretLeft size={18} weight="bold" />}
           onClick={handlePrev}
-          aria-label="Previous party recap"
+          aria-label="Previous poll"
           disabled={navDisabled}
         />
 
-        {!user ? <div className={styles.empty}>Sign in to view party recaps.</div> : null}
+        {!user ? <div className={styles.empty}>Sign in to view poll snapshots.</div> : null}
         {user && error ? <div className={styles.empty}>{error}</div> : null}
 
         {user ? (
-          loading && !recaps.length ? (
-            <div className={styles.empty}>Loading party recaps...</div>
-          ) : !recaps.length ? (
-            <div className={styles.empty}>
-              No party recaps yet. Enable summaries in a live party and generate a recap to see it here.
-            </div>
+          loading && !polls.length ? (
+            <div className={styles.empty}>Loading poll snapshots...</div>
+          ) : !polls.length ? (
+            <div className={styles.empty}>No polls saved yet. Save a poll to Memory to see it.</div>
           ) : (
             <div className={styles.viewport}>
               <div className={styles.container} style={containerStyle}>
-                {visibleRecaps.map((recap) => (
-                  <article key={recap.id} className={styles.card}>
+                {visiblePolls.map((poll) => (
+                  <article key={poll.id} className={styles.card}>
                     <div className={styles.cardHeader}>
-                      <span className={styles.badge}>Party recap</span>
-                      {recap.createdAt ? (
-                        <span className={styles.timestamp}>{recap.createdAt}</span>
-                      ) : null}
+                      <span className={styles.badge}>Poll</span>
+                      {poll.updatedAt ? <span className={styles.timestamp}>{poll.updatedAt}</span> : null}
                     </div>
-                    <h4 className={styles.cardTitle}>{recap.title}</h4>
-                    {recap.topic ? <p className={styles.topic}>Topic: {recap.topic}</p> : null}
-                    <p className={styles.summary}>{recap.summary}</p>
-                    {recap.highlights.length ? (
+                    <h4 className={styles.cardTitle}>{poll.question}</h4>
+                    {poll.summary ? <p className={styles.summary}>{poll.summary}</p> : null}
+                    {poll.options.length ? (
                       <div className={styles.highlights}>
-                        {recap.highlights.slice(0, 3).map((highlight, index) => (
-                          <span key={`${recap.id}-highlight-${index}`} className={styles.highlight}>
-                            {highlight}
-                          </span>
-                        ))}
+                        {poll.options.slice(0, 3).map((option, index) => {
+                          const pct =
+                            poll.totalVotes > 0 ? Math.round((option.votes / poll.totalVotes) * 100) : 0;
+                          return (
+                            <span key={`${poll.id}-option-${index}`} className={styles.highlight}>
+                              {option.label} — {option.votes} vote{option.votes === 1 ? "" : "s"} ({pct}%)
+                            </span>
+                          );
+                        })}
                       </div>
                     ) : null}
                     <div className={styles.footer}>
-                      <span className={styles.memoryId}>Memory #{recap.memoryId.slice(0, 8)}</span>
+                      <span className={styles.memoryId}>Memory #{poll.memoryId.slice(0, 8)}</span>
+                      <span>Total votes: {poll.totalVotes}</span>
                     </div>
                   </article>
                 ))}
@@ -259,10 +263,10 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
           size="icon"
           className={styles.navButton}
           data-side="next"
-          data-hidden={!visibleRecaps.length}
+          data-hidden={!visiblePolls.length}
           leftIcon={<CaretRight size={18} weight="bold" />}
           onClick={handleNext}
-          aria-label="Next party recap"
+          aria-label="Next poll"
           disabled={navDisabled}
         />
       </div>

@@ -13,6 +13,8 @@ const FALLBACK_THUMB_SIZE = 240;
 const THUMB_META_KEYS = [
   "thumbnail_url",
   "thumbnailUrl",
+  "poster_url",
+  "posterUrl",
   "thumb",
   "preview_url",
   "previewUrl",

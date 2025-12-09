@@ -29,12 +29,12 @@ const TILE_META: Record<
 > = {
   growth: {
     icon: <ChartLineUp weight="fill" />,
-    title: "Community Growth",
+    title: "My Store",
     bullets: [
-      "Generate weekly digest",
-      "Launch smart poll",
-      "Auto-summarize posts",
-      "Spotlight a member",
+      "See store performance at a glance",
+      "Jump into seller orders",
+      "Review payouts and balances",
+      "Tweak products and setup",
     ],
   },
   events: {

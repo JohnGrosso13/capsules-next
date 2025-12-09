@@ -14,11 +14,12 @@ import {
   FilePdf,
   FileText,
   PlayCircle,
+  PresentationChart,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
-import type { DisplayMemoryUpload } from "./uploads-types";
+import type { DisplayMemoryUpload, MemoryUploadItem } from "./uploads-types";
 import styles from "./uploads-carousel.module.css";
 import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
@@ -85,7 +86,7 @@ function collectMetaTokens(meta: Record<string, unknown> | null): string[] {
   return Array.from(new Set(tokens));
 }
 
-function isAiVideoMemory(item: DisplayMemoryUpload): boolean {
+export function isAiVideoMemory(item: DisplayMemoryUpload): boolean {
   const meta = normalizeMeta(item.meta);
   const tokens = collectMetaTokens(meta);
   const hasAi = tokens.some((token) => token.includes("ai"));
@@ -102,7 +103,7 @@ function isAiVideoMemory(item: DisplayMemoryUpload): boolean {
   return hasAi && (hasVideoToken || kind === "video" || videoLike);
 }
 
-function isPdfMemory(item: DisplayMemoryUpload): boolean {
+export function isPdfMemory(item: DisplayMemoryUpload): boolean {
   const mime = (item.media_type ?? "").toLowerCase();
   if (mime.includes("pdf")) return true;
 
@@ -112,6 +113,23 @@ function isPdfMemory(item: DisplayMemoryUpload): boolean {
   const meta = normalizeMeta(item.meta);
   const tokens = collectMetaTokens(meta);
   return tokens.some((token) => token.includes("pdf"));
+}
+
+export function isPowerpointMemory(item: DisplayMemoryUpload): boolean {
+  const mime = (item.media_type ?? "").toLowerCase();
+  if (mime.includes("presentation") || mime.includes("powerpoint") || mime.includes("ppt")) {
+    return true;
+  }
+  const ext = getUploadExtension(item);
+  if (ext) {
+    const lower = ext.toLowerCase();
+    if (lower === "ppt" || lower === "pptx") return true;
+  }
+  const meta = normalizeMeta(item.meta);
+  const tokens = collectMetaTokens(meta);
+  return tokens.some(
+    (token) => token === "ppt" || token === "pptx" || token.includes("presentation"),
+  );
 }
 
 function getSlidesPerView() {
@@ -132,6 +150,8 @@ export type UploadsCarouselProps = {
   emptyNone?: string;
   uploadEnabled?: boolean;
   filterItems?: (item: DisplayMemoryUpload) => boolean;
+  pageSize?: number;
+  initialItems?: MemoryUploadItem[] | undefined;
 };
 
 export function UploadsCarousel({
@@ -144,10 +164,28 @@ export function UploadsCarousel({
   emptyNone = "No uploads yet. Add your first image or video.",
   uploadEnabled = true,
   filterItems,
+  pageSize,
+  initialItems,
 }: UploadsCarouselProps = {}) {
-  const { user, envelope, items, loading, error, setError, refresh } = useMemoryUploads(kind);
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 60;
+  const { user, envelope, items, loading, error, setError, refresh } = useMemoryUploads(kind, {
+    pageSize: effectivePageSize,
+    initialPage: initialItems
+      ? {
+          items: initialItems,
+          hasMore: initialItems.length >= effectivePageSize,
+        }
+      : undefined,
+  });
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
+  const setViewportRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      // Always forward the ref so Embla can mount/unmount cleanly.
+      emblaRef(node);
+    },
+    [emblaRef],
+  );
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
   const [activeItem, setActiveItem] = React.useState<DisplayMemoryUpload | null>(null);
 
@@ -178,7 +216,7 @@ export function UploadsCarousel({
   );
 
   const totalItems = filteredItems.length;
-  const pageSize = React.useMemo(() => {
+  const visiblePageSize = React.useMemo(() => {
     if (totalItems === 0) return 0;
     return Math.max(1, Math.min(MAX_VISIBLE, slidesPerView, totalItems));
   }, [slidesPerView, totalItems]);
@@ -199,41 +237,41 @@ export function UploadsCarousel({
       setOffset(0);
       return;
     }
-    if (pageSize === 0 || totalItems <= pageSize) {
+    if (visiblePageSize === 0 || totalItems <= visiblePageSize) {
       setOffset(0);
       return;
     }
     setOffset((previous) => previous % totalItems);
-  }, [pageSize, totalItems]);
+  }, [visiblePageSize, totalItems]);
 
   const visibleItems = React.useMemo(() => {
-    if (pageSize === 0) return [];
+    if (visiblePageSize === 0) return [];
     const result: DisplayMemoryUpload[] = [];
-    for (let index = 0; index < pageSize; index += 1) {
+    for (let index = 0; index < visiblePageSize; index += 1) {
       const item = filteredItems[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [filteredItems, offset, pageSize, totalItems]);
+  }, [filteredItems, offset, visiblePageSize, totalItems]);
 
   React.useEffect(() => {
     queueMicrotask(() => emblaApi?.reInit());
   }, [emblaApi, visibleItems]);
 
-  const hasRotation = pageSize > 0 && totalItems > pageSize;
+  const hasRotation = visiblePageSize > 0 && totalItems > visiblePageSize;
 
   const handleShowPrev = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0 || pageSize === 0) return;
+    if (!hasRotation || totalItems === 0 || visiblePageSize === 0) return;
     setOffset((previous) => {
-      const next = (previous - pageSize) % totalItems;
+      const next = (previous - visiblePageSize) % totalItems;
       return next < 0 ? next + totalItems : next;
     });
-  }, [hasRotation, pageSize, totalItems]);
+  }, [hasRotation, visiblePageSize, totalItems]);
 
   const handleShowNext = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0 || pageSize === 0) return;
-    setOffset((previous) => (previous + pageSize) % totalItems);
-  }, [hasRotation, pageSize, totalItems]);
+    if (!hasRotation || totalItems === 0 || visiblePageSize === 0) return;
+    setOffset((previous) => (previous + visiblePageSize) % totalItems);
+  }, [hasRotation, visiblePageSize, totalItems]);
 
   const indexUploaded = React.useCallback(async () => {
     if (!uploadEnabled || !envelope || !readyAttachment || !readyAttachment.url) return;
@@ -290,11 +328,20 @@ export function UploadsCarousel({
   );
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--carousel-visible-count": Math.max(1, pageSize) }) as React.CSSProperties,
-    [pageSize],
+    () => ({ "--carousel-visible-count": Math.max(1, visiblePageSize) }) as React.CSSProperties,
+    [visiblePageSize],
   );
 
-  const navDisabled = loading || !hasRotation || visibleItems.length === 0;
+  const hasSlides = user && !loading && visibleItems.length > 0;
+  const navDisabled = loading || !hasRotation || !hasSlides;
+
+  const emptyContent = !user
+    ? emptySignedOut
+    : loading
+      ? emptyLoading
+      : error
+        ? error
+        : emptyNone;
 
   const renderCard = (item: DisplayMemoryUpload) => {
     const url = item.displayUrl || item.media_url || "";
@@ -321,14 +368,20 @@ export function UploadsCarousel({
               <video
                 className={styles.video}
                 src={fullUrl}
-                preload="metadata"
+                preload="none"
+                poster={url && url !== fullUrl ? url : undefined}
                 muted
                 playsInline
-                loop
               />
             ) : imageLike ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className={styles.img} src={url} alt={cardTitle} />
+              <img
+                className={styles.img}
+                src={url}
+                alt={cardTitle}
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
               <div className={styles.filePreview} aria-hidden>
                 <div className={styles.filePreviewIcon}>
@@ -422,23 +475,21 @@ export function UploadsCarousel({
             aria-label={`Previous ${title.toLowerCase()}`}
             disabled={navDisabled}
           />
-          {loading ? (
-            <div className={styles.empty}>{emptyLoading}</div>
-          ) : !user ? (
-            <div className={styles.empty}>{emptySignedOut}</div>
-          ) : visibleItems.length === 0 ? (
-            <div className={styles.empty}>{emptyNone}</div>
-          ) : (
-            <div className={styles.viewport} ref={emblaRef}>
-              <div className={styles.container} style={containerStyle}>
-                {visibleItems.map((item) => (
-                  <div className={styles.slide} key={item.id}>
-                    {renderCard(item)}
+          <div className={styles.viewport} ref={setViewportRef}>
+            <div className={styles.container} style={containerStyle}>
+              {hasSlides
+                ? visibleItems.map((item) => (
+                    <div className={styles.slide} key={item.id}>
+                      {renderCard(item)}
+                    </div>
+                  ))
+                : (
+                  <div className={styles.slide}>
+                    <div className={styles.empty}>{emptyContent}</div>
                   </div>
-                ))}
-              </div>
+                )}
             </div>
-          )}
+          </div>
           <Button
             variant="secondary"
             size="icon"
@@ -459,34 +510,58 @@ export function UploadsCarousel({
   );
 }
 
-export function AiVideosCarousel() {
+export function AiVideosCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
   return (
     <UploadsCarousel
       title="AI Videos"
       icon={<PlayCircle size={18} weight="fill" />}
       kind="video"
       uploadEnabled={false}
-      viewAllHref={VIEW_ALL_ROUTE}
+      viewAllHref={`${VIEW_ALL_ROUTE}?tab=ai-videos`}
       emptySignedOut="Sign in to view your AI-generated videos."
       emptyLoading="Loading your AI videos..."
       emptyNone="No AI videos yet. Generate a video in the AI composer to see it here."
       filterItems={isAiVideoMemory}
+      initialItems={initialItems}
+      pageSize={48}
     />
   );
 }
 
-export function PdfsCarousel() {
+export function PdfsCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
   return (
     <UploadsCarousel
       title="PDFs"
       icon={<FilePdf size={18} weight="fill" />}
       kind="upload"
       uploadEnabled={false}
-      viewAllHref={VIEW_ALL_ROUTE}
+      viewAllHref={`${VIEW_ALL_ROUTE}?tab=pdfs`}
       emptySignedOut="Sign in to view your PDFs."
       emptyLoading="Loading your PDFs..."
       emptyNone="No PDFs yet. Generate a PDF to see it here."
       filterItems={isPdfMemory}
+      initialItems={initialItems}
+      pageSize={48}
+    />
+  );
+}
+
+export function PowerpointsCarousel(
+  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+) {
+  return (
+    <UploadsCarousel
+      title="Powerpoints"
+      icon={<PresentationChart size={18} weight="fill" />}
+      kind="upload"
+      uploadEnabled={false}
+      viewAllHref={`${VIEW_ALL_ROUTE}?tab=powerpoints`}
+      emptySignedOut="Sign in to view your Powerpoints."
+      emptyLoading="Loading your Powerpoints..."
+      emptyNone="No Powerpoints yet. Generate a PPTX in Composer to see it here."
+      filterItems={isPowerpointMemory}
+      initialItems={initialItems}
+      pageSize={48}
     />
   );
 }

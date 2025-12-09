@@ -33,6 +33,11 @@
   --ladder-surface-rail: var(--ai-studio-surface-muted, var(--studio-surface-muted));
   --ladder-border-strong: var(--studio-border-soft, rgba(255, 255, 255, 0.14));
   --ladder-border-soft: color-mix(in srgb, var(--studio-border-soft, rgba(255, 255, 255, 0.12)) 80%, transparent);
+  --ladder-border: rgba(255, 255, 255, 0.12);
+  --ladder-outline: rgba(255, 255, 255, 0.08);
+  --ladder-highlight: rgba(255, 255, 255, 0.06);
+  --ladder-hairline: rgba(255, 255, 255, 0.04);
+  --ladder-faint: rgba(255, 255, 255, 0.02);
   /* Accent palette: stay in the blue family but softly tied to the app brand. */
   --ladder-accent-1: color-mix(in srgb, var(--color-brand, #1d4ed8) 80%, #60a5fa 20%);
   --ladder-accent-2: color-mix(in srgb, var(--color-brand, #1d4ed8) 55%, #0ea5e9 45%);
@@ -281,7 +286,7 @@
 .textarea {
   min-height: 60px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ladder-outline);
   background: rgba(14, 18, 30, 0.6);
   padding: 12px 14px;
   color: inherit;
@@ -297,7 +302,7 @@
 .select {
   height: 40px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ladder-outline);
   background: rgba(14, 18, 30, 0.6);
   padding: 0 12px;
   color: inherit;
@@ -358,7 +363,7 @@
   border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
   background: color-mix(in srgb, var(--studio-surface-glass, rgba(14, 18, 30, 0.5)) 96%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 16px 34px rgba(5, 8, 22, 0.5);
   /* Allow search suggestion popovers to extend beyond the table rows. */
   overflow: visible;
@@ -368,7 +373,7 @@
 .membersTable td {
   padding: 8px 10px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--ladder-highlight);
 }
 
 .membersTable th {
@@ -443,7 +448,7 @@
   font-size: 12px;
   letter-spacing: 0.02em;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 0 1px var(--ladder-border),
     0 10px 20px var(--identity-glow, rgba(86, 112, 255, 0.28));
   overflow: hidden;
   flex-shrink: 0;
@@ -493,7 +498,7 @@
     border: 1px solid var(--ladder-border-soft);
     background: color-mix(in srgb, var(--ladder-surface-strong) 92%, rgba(10, 14, 28, 0.6));
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 1px 0 var(--ladder-highlight),
       0 12px 26px rgba(5, 8, 22, 0.42);
     transition:
       border-color 0.2s ease,
@@ -728,7 +733,7 @@
     color-mix(in srgb, var(--ladder-surface-strong, rgba(6, 10, 24, 0.96)) 80%, transparent)
   );
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 10px 22px rgba(5, 8, 22, 0.55);
 }
 
@@ -745,7 +750,7 @@
   border: 1px solid var(--ladder-border-soft, rgba(255, 255, 255, 0.14));
   background: color-mix(in srgb, var(--ladder-surface-strong, rgba(10, 14, 30, 0.9)) 94%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 8px 18px rgba(5, 8, 22, 0.55);
 }
 
@@ -788,7 +793,7 @@
   );
   color: color-mix(in srgb, #ffffff 90%, var(--ladder-accent-3) 10%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 12px 24px rgba(4, 6, 18, 0.65);
 }
 
@@ -982,7 +987,7 @@
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     transform 0.2s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 var(--ladder-outline, rgba(255, 255, 255, 0.08));
 }
 
 .mobileAction:hover,
@@ -991,7 +996,7 @@
   transform: translateY(-1px);
   outline: none;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 var(--ladder-outline, rgba(255, 255, 255, 0.08)),
     0 10px 24px rgba(6, 10, 24, 0.35);
 }
 
@@ -1199,7 +1204,7 @@
   border: 1px solid var(--ladder-border-soft);
   background: var(--ladder-surface-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 18px 34px rgba(6, 10, 28, 0.4);
   backdrop-filter: blur(12px);
 }
@@ -1247,7 +1252,7 @@
   border: 1px solid var(--ladder-border-soft);
   background: color-mix(in srgb, var(--ladder-surface-strong) 90%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 14px 30px rgba(5, 8, 22, 0.45);
   transition:
     border-color 0.2s ease,
@@ -1335,7 +1340,7 @@
   border: 1px solid var(--ladder-border-soft);
   border-radius: 16px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 14px 30px rgba(5, 8, 22, 0.45);
   transition:
     border-color 0.2s ease,
@@ -1399,8 +1404,8 @@
 
 .requirementChip {
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ladder-border);
+  background: var(--ladder-highlight);
   color: inherit;
   padding: 6px 12px;
   font-size: 0.85rem;
@@ -1451,8 +1456,8 @@
   gap: 10px;
   padding: 8px 10px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--ladder-faint, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--ladder-faint, rgba(255, 255, 255, 0.02));
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
@@ -1461,7 +1466,7 @@
 
 .requirementItem:hover {
   border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 55%, rgba(255, 255, 255, 0.12));
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.04) 80%, transparent);
+  background: color-mix(in srgb, var(--ladder-hairline, rgba(255, 255, 255, 0.04)) 80%, transparent);
   transform: translateY(-0.5px);
 }
 
@@ -1474,7 +1479,7 @@
     color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 80%, #a855f7),
     color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 42%, rgba(99, 102, 241, 0.32))
   );
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 1px var(--ladder-border);
 }
 
 .requirementText {
@@ -1483,9 +1488,9 @@
 }
 
 .requirementAction {
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--ladder-border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--ladder-highlight);
   color: inherit;
   padding: 6px 10px;
   font-size: 0.8rem;
@@ -1500,7 +1505,7 @@
 .requirementAction:hover,
 .requirementAction:focus-visible {
   border-color: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 70%, transparent);
-  background: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 26%, rgba(255, 255, 255, 0.06));
+  background: color-mix(in srgb, var(--tile-accent-a, var(--color-brand)) 26%, var(--ladder-highlight));
   box-shadow: 0 8px 18px color-mix(in srgb, var(--accent-glow, rgba(99, 102, 241, 0.34)) 70%, transparent);
   transform: translateY(-0.5px);
   outline: none;
@@ -1569,7 +1574,7 @@
   border: 1px solid rgba(62, 122, 255, 0.5);
   background: rgba(44, 94, 184, 0.2);
   color: #d7e7ff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 20px rgba(8, 12, 26, 0.35);
+  box-shadow: inset 0 1px 0 var(--ladder-highlight), 0 10px 20px rgba(8, 12, 26, 0.35);
   padding: 8px 14px;
 }
 
@@ -1748,7 +1753,7 @@
   background: color-mix(in srgb, var(--ladder-surface-rail) 92%, transparent);
   color: inherit;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 var(--ladder-highlight);
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -1929,7 +1934,7 @@
   color: #ffffff;
   cursor: pointer;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 12px 24px rgba(4, 6, 18, 0.48),
     var(--ladder-accent-glow);
   transition:
@@ -1959,7 +1964,7 @@
   border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
   background: color-mix(in srgb, var(--studio-surface-panel, rgba(12, 16, 34, 0.82)) 94%, transparent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 22px 44px rgba(6, 10, 24, 0.4);
   padding: 6px;
   max-height: 80vh;
@@ -2358,7 +2363,7 @@
   border: 1px solid var(--ladder-border-soft);
   background: var(--ladder-surface-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 var(--ladder-highlight),
     0 18px 32px rgba(6, 10, 28, 0.4);
   backdrop-filter: blur(10px);
 }

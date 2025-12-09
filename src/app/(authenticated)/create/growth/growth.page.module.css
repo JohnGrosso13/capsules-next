@@ -274,7 +274,11 @@
   margin-top: 14px;
   padding-top: 6px;
   border-top: 1px solid
-    color-mix(in srgb, var(--color-brand) 56%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 56%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
+    );
 }
 
 .miniTimelineHeader {
@@ -421,7 +425,11 @@
       color-mix(in srgb, var(--color-brand-strong) 18%, transparent)
     );
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 58%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 58%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
+    );
   box-shadow:
     0 10px 24px rgba(15, 23, 42, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -457,6 +465,69 @@
   color: var(--text-2);
 }
 
+.catalogList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.catalogItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 9px;
+  border-radius: 13px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand) 24%, transparent),
+      color-mix(in srgb, var(--color-brand-strong) 18%, transparent)
+    );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-brand) 64%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
+    );
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.85);
+}
+
+.catalogMeta {
+  display: grid;
+  gap: 2px;
+}
+
+.catalogName {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.catalogPrice {
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.catalogStatus {
+  align-self: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.52));
+  border: 1px solid rgba(96, 165, 250, 0.9);
+  box-shadow:
+    0 8px 18px rgba(30, 64, 175, 0.8),
+    inset 0 1px 0 rgba(239, 246, 255, 0.7),
+    inset 0 -1px 0 rgba(30, 64, 175, 0.9);
+}
+
 .playbookList {
   margin-top: 10px;
   display: grid;
@@ -478,7 +549,11 @@
       color-mix(in srgb, var(--color-brand-strong) 24%, transparent)
     );
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 70%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 70%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 42%, transparent)
+    );
   box-shadow:
     0 12px 26px rgba(15, 23, 42, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -513,6 +588,54 @@
     inset 0 -1px 0 rgba(15, 23, 42, 0.9);
 }
 
+.linkList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.linkItem {
+  padding: 8px 9px;
+  border-radius: 13px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-brand) 55%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
+    );
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.98)),
+    radial-gradient(
+      140% 180% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 28%, transparent),
+      transparent 65%
+    );
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+}
+
+.linkMeta {
+  display: grid;
+  gap: 2px;
+}
+
+.linkLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.linkLabel:hover {
+  text-decoration: underline;
+}
+
+.linkHint {
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
 .taskList {
   margin-top: 10px;
   display: grid;
@@ -527,7 +650,11 @@
   padding: 9px 10px;
   border-radius: 14px;
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 64%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 64%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
+    );
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(

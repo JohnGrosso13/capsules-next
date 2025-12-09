@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Trash, WarningCircle, X, UserPlus } from "@phosphor-icons/react/dist/ssr";
+import { Check, Info, Trash, WarningCircle, X, UserPlus } from "@phosphor-icons/react/dist/ssr";
 
 import type {
   CapsuleMembershipAction,
@@ -249,6 +249,8 @@ export function CapsuleMembersPanel({
   const hasSuggestions = friendSuggestions.length > 0;
   const hasFollowers = followers.length > 0;
 
+  const [roleHelpOpen, setRoleHelpOpen] = React.useState(false);
+
   const tabItems = React.useMemo(() => {
     const items: Array<{ id: MemberPanelTab; label: string; badge: number }> = [
       { id: "members", label: "Members", badge: membersCount },
@@ -285,6 +287,15 @@ export function CapsuleMembersPanel({
           </p>
         </div>
         <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.button}
+            data-variant="icon"
+            onClick={() => setRoleHelpOpen((open) => !open)}
+            aria-label={roleHelpOpen ? "Hide role explanations" : "What do roles do?"}
+          >
+            <Info size={16} weight="bold" />
+          </button>
           {canChangeRoles && onChangePolicy ? (
             <div className={styles.policySelectGroup}>
               <label className={styles.policyLabel} htmlFor="membership-policy-select">
@@ -318,6 +329,32 @@ export function CapsuleMembersPanel({
           ) : null}
         </div>
       </div>
+
+      {roleHelpOpen ? (
+        <div className={styles.notice}>
+          <div className={styles.roleHelp}>
+            <strong className={styles.roleHelpTitle}>Roles in this capsule</strong>
+            <ul className={styles.roleList}>
+              <li>
+                <strong>Founder</strong> – full control over members, store, streaming, and
+                settings.
+              </li>
+              <li>
+                <strong>Admin</strong> – manage members, store, analytics, ladders, and most
+                configuration.
+              </li>
+              <li>
+                <strong>Leader</strong> – invite members, manage ladders and events, and help
+                moderate content.
+              </li>
+              <li>
+                <strong>Member</strong> – post, comment, join events, and participate in ladders
+                and streams.
+              </li>
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       {loading ? <div className={styles.notice}>Loading membership details...</div> : null}
 

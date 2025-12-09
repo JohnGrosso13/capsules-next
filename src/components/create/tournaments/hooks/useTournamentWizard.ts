@@ -152,7 +152,12 @@ export const buildTournamentConfigPayload = (form: TournamentFormState) => {
   } as Record<string, unknown>;
 };
 
-export const buildTournamentMembersPayload = (participants: ParticipantFormState[]) => {
+export const buildTournamentMembersPayload = (
+  participants: ParticipantFormState[],
+  matchMode?: TournamentFormState["matchMode"],
+) => {
+  const resolvedMatchMode = matchMode ?? "1v1";
+  const isTeamMode = resolvedMatchMode === "teams";
   return normalizeParticipants(participants)
     .filter((participant) => participant.displayName.trim().length)
     .map((participant, index) => {
@@ -170,8 +175,19 @@ export const buildTournamentMembersPayload = (participants: ParticipantFormState
       const capsuleId = participant.entityType === "capsule" ? participant.capsuleId.trim() : "";
       if (userId) payload.userId = userId;
       const metadata: Record<string, unknown> = {};
-      if (capsuleId) metadata.capsuleId = capsuleId;
-      if (participant.entityType !== "custom") metadata.entityType = participant.entityType;
+      if (capsuleId) {
+        metadata.capsuleId = capsuleId;
+        if (!metadata.entityType) metadata.entityType = "capsule";
+        if (!metadata.identityType) metadata.identityType = "capsule";
+      }
+      if (participant.entityType === "user") {
+        metadata.entityType = "user";
+        metadata.identityType = "user";
+      }
+      if (isTeamMode) {
+        metadata.entityType = "team";
+        metadata.identityType = "team";
+      }
       if (Object.keys(metadata).length) {
         payload.metadata = metadata;
       }
@@ -373,8 +389,8 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     [form],
   );
   const convertParticipantsToPayload = React.useCallback(
-    () => buildTournamentMembersPayload(participants),
-    [participants],
+    () => buildTournamentMembersPayload(participants, form.matchMode),
+    [form.matchMode, participants],
   );
   const buildMetaPayload = React.useCallback(
     () => buildTournamentMetaPayload(form),
@@ -576,6 +592,13 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
       setErrorMessage("Give your tournament a name.");
       return;
     }
+    const activeParticipants = normalizeParticipants(participants).filter((participant) =>
+      participant.displayName.trim().length,
+    );
+    if (activeParticipants.length < 2) {
+      setErrorMessage("Add at least two entrants before creating the tournament.");
+      return;
+    }
     resetMessages();
     setSaving(true);
     try {
@@ -624,6 +647,7 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     form.publish,
     form.summary,
     form.visibility,
+    participants,
     resetMessages,
     router,
     selectedCapsule,

@@ -2,6 +2,7 @@ import * as React from "react";
 
 import {
   buildDoubleEliminationBracket,
+  buildRoundRobinBracket,
   buildSingleEliminationBracket,
   type TournamentBracket,
 } from "@/lib/ladders/bracket";
@@ -23,6 +24,9 @@ export function useTournamentBracket({
     const matchHistory = history ?? [];
     if (format === "double_elimination") {
       return buildDoubleEliminationBracket(memberList, matchHistory);
+    }
+    if (format === "round_robin") {
+      return buildRoundRobinBracket(memberList, matchHistory);
     }
     return buildSingleEliminationBracket(memberList, matchHistory);
   }, [format, history, members]);

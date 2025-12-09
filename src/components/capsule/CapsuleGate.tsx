@@ -54,6 +54,12 @@ function PromoCarouselRow({ items, rowLabel }: { items: PlaceholderCapsule[]; ro
     dragFree: true,
     containScroll: "trimSnaps",
   });
+  const setViewportRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      emblaRef(node);
+    },
+    [emblaRef],
+  );
 
   const [canPrev, setCanPrev] = React.useState(false);
   const [canNext, setCanNext] = React.useState(false);
@@ -85,7 +91,7 @@ function PromoCarouselRow({ items, rowLabel }: { items: PlaceholderCapsule[]; ro
 
   return (
     <div className={styles.carouselRow}>
-      <div className={styles.carouselViewport} ref={emblaRef}>
+      <div className={styles.carouselViewport} ref={setViewportRef}>
         <div className={styles.carouselTrack}>
           {items.map((item) => (
             <div key={item.name} className={styles.carouselSlide}>
@@ -129,10 +135,30 @@ function PromoCarouselRow({ items, rowLabel }: { items: PlaceholderCapsule[]; ro
 }
 
 function formatRole(summary: CapsuleSummary): string {
-  if (summary.ownership === "owner") return "You are the owner";
-  if (summary.ownership === "follower") return "You follow this capsule";
-  if (summary.role) return `Role: ${summary.role}`;
-  return "Member";
+  const normalizedRole =
+    typeof summary.role === "string" ? summary.role.trim().toLowerCase() : null;
+
+  if (summary.ownership === "owner" || normalizedRole === "founder") {
+    return "Founder · full control";
+  }
+
+  if (normalizedRole === "admin") {
+    return "Admin · manage members & store";
+  }
+
+  if (normalizedRole === "leader") {
+    return "Leader · invite & run ladders";
+  }
+
+  if (summary.ownership === "follower") {
+    return "Follower · see updates";
+  }
+
+  if (normalizedRole === "member") {
+    return "Member · post & participate";
+  }
+
+  return "Member · post & participate";
 }
 
 function CapsuleSelectorTile({

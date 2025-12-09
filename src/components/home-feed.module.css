@@ -63,7 +63,7 @@
     border-radius: var(--radius-pill, 999px);
     border: 1px solid var(--color-border, rgba(255, 255, 255, 0.16));
     background: linear-gradient(180deg, var(--surface-muted, rgba(24, 28, 48, 0.88)), transparent);
-    color: var(--color-fg, #f6f8ff);
+    color: var(--color-fg);
     font-weight: 600;
     transition: transform 120ms var(--motion-ease-standard, ease),
       box-shadow 120ms var(--motion-ease-standard, ease),
@@ -74,7 +74,7 @@
     transform: translateY(-1px);
     border-color: color-mix(
       in srgb,
-      var(--color-brand-strong, var(--color-brand, #2563eb)) 70%,
+      var(--color-brand-strong, var(--color-brand)) 70%,
       transparent
     );
     box-shadow: var(--shadow-sm, 0 10px 24px rgba(10, 14, 35, 0.32));
@@ -87,13 +87,13 @@
 
   .feedEmpty {
     border-radius: var(--radius-xl, 20px);
-    border: 1px dashed color-mix(in srgb, var(--color-brand, #2563eb) 35%, transparent);
+    border: 1px dashed color-mix(in srgb, var(--color-brand) 35%, transparent);
     padding: clamp(32px, 5vw, 56px);
     text-align: center;
     background:
       linear-gradient(
         180deg,
-        color-mix(in srgb, var(--color-brand, #2563eb) 14%, transparent),
+        color-mix(in srgb, var(--color-brand) 14%, transparent),
         transparent
       ),
       var(--surface-elevated, rgba(16, 22, 46, 0.86));
@@ -175,7 +175,7 @@
   }
 
   .card:focus-within {
-    outline: 2px solid color-mix(in srgb, var(--color-brand, #2563eb) 50%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--color-brand) 50%, transparent);
     outline-offset: -1px;
   }
 
@@ -202,7 +202,7 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg, transparent, color-mix(in srgb, var(--color-brand, #2563eb) 20%, transparent), transparent);
+    background: linear-gradient(135deg, transparent, color-mix(in srgb, var(--color-brand) 20%, transparent), transparent);
     animation: sweep 1.4s linear infinite;
     opacity: 0.65;
     pointer-events: none;
@@ -223,10 +223,10 @@
 
   @keyframes summaryHighlight {
     0% {
-      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand, #2563eb) 65%, transparent);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 65%, transparent);
     }
     35% {
-      box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand, #2563eb) 45%, transparent);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand) 45%, transparent);
     }
     100% {
       box-shadow: 0 0 0 0 transparent;
@@ -297,7 +297,7 @@
   }
 
   .avatarLink:focus-visible {
-    outline: 2px solid var(--color-brand, #7c87ff);
+    outline: 2px solid var(--color-brand, var(--feed-outline, #7c87ff));
     outline-offset: 3px;
   }
 
@@ -305,7 +305,10 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: var(--gradient-brand, linear-gradient(120deg, #7c3aed, #22d3ee));
+    background: var(
+      --feed-gradient,
+      var(--gradient-brand, linear-gradient(120deg, #7c3aed, #22d3ee))
+    );
   }
 
   .avatarImg {
@@ -331,7 +334,7 @@
   }
 
   .userName:focus-visible {
-    outline: 2px solid var(--color-brand, #7c87ff);
+    outline: 2px solid var(--color-brand, var(--feed-outline, #7c87ff));
     outline-offset: 2px;
     border-radius: 6px;
   }

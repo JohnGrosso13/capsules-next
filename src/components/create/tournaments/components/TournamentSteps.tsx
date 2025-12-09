@@ -925,6 +925,7 @@ const RewardsStep = React.memo(function RewardsStep({
 
 type ParticipantsStepProps = {
   participants: ParticipantFormState[];
+  matchMode: TournamentFormState["matchMode"];
   onParticipantChange: (index: number, field: keyof ParticipantFormState, value: string) => void;
   onParticipantSuggestion: (index: number, suggestion: ParticipantSuggestion) => void;
   onAddParticipant: () => void;
@@ -934,6 +935,7 @@ type ParticipantsStepProps = {
 
 const ParticipantsStep = React.memo(function ParticipantsStep({
   participants,
+  matchMode,
   onParticipantChange,
   onParticipantSuggestion,
   onAddParticipant,
@@ -941,6 +943,7 @@ const ParticipantsStep = React.memo(function ParticipantsStep({
   onInviteClick,
 }: ParticipantsStepProps) {
   const [expandedIndex, setExpandedIndex] = React.useState<number | null>(null);
+  const isTeamsMode = (matchMode ?? "1v1") === "teams";
 
   return (
     <Card className={styles.formCard} variant="ghost">
@@ -949,17 +952,26 @@ const ParticipantsStep = React.memo(function ParticipantsStep({
       </CardHeader>
       <CardContent className={styles.formCardContent}>
         <p className={styles.fieldHint}>
-          <abbr
-            className={styles.helperAbbr}
-            title="ELO updates player skill after every match. Keep new brackets near 1200 and adjust with K-factor for larger swings."
-          >
-            ELO
-          </abbr>{" "}
-          feeds highlight badges alongside{" "}
-          <abbr className={styles.helperAbbr} title="Streak counts consecutive wins so you can spotlight hot runs.">
-            streak
-          </abbr>{" "}
-          momentum.
+          {isTeamsMode
+            ? "Each row represents a team. Set names, optional tags, and starting stats for your entrants."
+            : (
+              <>
+                <abbr
+                  className={styles.helperAbbr}
+                  title="ELO updates player skill after every match. Keep new brackets near 1200 and adjust with K-factor for larger swings."
+                >
+                  ELO
+                </abbr>{" "}
+                feeds highlight badges alongside{" "}
+                <abbr
+                  className={styles.helperAbbr}
+                  title="Streak counts consecutive wins so you can spotlight hot runs."
+                >
+                  streak
+                </abbr>{" "}
+                momentum.
+              </>
+              )}
         </p>
         <div className={styles.membersTableWrap}>
           <table className={styles.membersTable}>
@@ -1032,17 +1044,17 @@ const ParticipantsStep = React.memo(function ParticipantsStep({
                         <td colSpan={4}>
                           <div className={styles.memberAdvanced}>
                             <div className={styles.memberAdvancedFields}>
-                              <div className={styles.memberAdvancedField}>
-                                <label className={styles.label} htmlFor={`participant-handle-${index}`}>
-                                  Handle or team tag
-                                </label>
-                                <Input
-                                  id={`participant-handle-${index}`}
-                                  value={participant.handle}
-                                  className={styles.memberNumberInput}
-                                  onChange={(event) => onParticipantChange(index, "handle", event.target.value)}
-                                  placeholder="@handle"
-                                />
+                            <div className={styles.memberAdvancedField}>
+                              <label className={styles.label} htmlFor={`participant-handle-${index}`}>
+                                {isTeamsMode ? "Team tag" : "Handle or team tag"}
+                              </label>
+                              <Input
+                                id={`participant-handle-${index}`}
+                                value={participant.handle}
+                                className={styles.memberNumberInput}
+                                onChange={(event) => onParticipantChange(index, "handle", event.target.value)}
+                                placeholder={isTeamsMode ? "Team tag (optional)" : "@handle"}
+                              />
                               </div>
                               <div className={styles.memberAdvancedField}>
                                 <label className={styles.label} htmlFor={`participant-wins-${index}`}>
@@ -1268,6 +1280,7 @@ export const TournamentStepContent = React.memo(function TournamentStepContent({
     return (
       <ParticipantsStep
         participants={participants}
+        matchMode={form.matchMode}
         onParticipantChange={onParticipantChange}
         onParticipantSuggestion={onParticipantSuggestion}
         onAddParticipant={onAddParticipant}

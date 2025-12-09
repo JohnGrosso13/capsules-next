@@ -31,6 +31,7 @@ import { ensureAccessibleMediaUrl } from "@/server/posts/media";
 import { searchGoogleImages, isGoogleImageSearchConfigured } from "@/server/search/google-images";
 import { searchWeb, isWebSearchConfigured } from "@/server/search/web-search";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import PptxGenJS from "pptxgenjs";
 import { uploadBufferToStorage } from "@/lib/supabase/storage";
 import { indexMemory } from "@/lib/supabase/memories";
 
@@ -200,6 +201,47 @@ const TOOL_DEFINITIONS: ToolCallDefinition[] = [
         },
         footer: { type: "string", description: "Closing notes or sign-off." },
         download_name: { type: "string", description: "Filename for the PDF (will be sanitized)." },
+      },
+    },
+  },
+  {
+    name: "generate_pptx",
+    description:
+      "Create a downloadable PowerPoint (.pptx) with slides, bullets, speaker notes, and optional images.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string", description: "Deck title shown on the cover slide." },
+        subtitle: { type: "string", description: "Optional subtitle for the cover slide." },
+        download_name: { type: "string", description: "Filename for the PPTX (will be sanitized)." },
+        slides: {
+          type: "array",
+          minItems: 1,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              title: { type: "string", description: "Slide title." },
+              subtitle: { type: "string", description: "Optional slide subtitle or lead-in." },
+              bullets: {
+                type: "array",
+                items: { type: "string" },
+                description: "Bullet points for this slide.",
+              },
+              body: { type: "string", description: "Paragraph-style body text." },
+              notes: { type: "string", description: "Speaker notes for this slide." },
+              image_url: {
+                type: "string",
+                description: "Optional image URL to embed on the slide.",
+              },
+              image_prompt: {
+                type: "string",
+                description: "If no image_url is provided, generate an image from this prompt.",
+              },
+            },
+          },
+        },
       },
     },
   },
@@ -377,6 +419,9 @@ function findLatestMediaResult(toolRuns: ToolRunResult[]): MediaToolResult | nul
 }
 
 function buildOutputAttachment(media: MediaToolResult): ComposerChatAttachment {
+  const isPresentation =
+    (media.mimeType && media.mimeType.toLowerCase().includes("presentation")) ||
+    (media.name && media.name.toLowerCase().endsWith(".pptx"));
   return {
     id: safeRandomUUID(),
     name:
@@ -385,7 +430,9 @@ function buildOutputAttachment(media: MediaToolResult): ComposerChatAttachment {
         : media.kind === "video"
           ? "Generated clip"
           : media.kind === "file"
-            ? "Generated PDF"
+            ? isPresentation
+              ? "Generated PPTX"
+              : "Generated PDF"
             : "Generated visual",
     mimeType:
       media.mimeType && media.mimeType.length
@@ -393,7 +440,9 @@ function buildOutputAttachment(media: MediaToolResult): ComposerChatAttachment {
         : media.kind === "video"
           ? "video/*"
           : media.kind === "file"
-            ? "application/pdf"
+            ? isPresentation
+              ? "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              : "application/pdf"
             : "image/*",
     size: 0,
     url: media.url,
@@ -711,6 +760,14 @@ function sanitizePdfFilename(value: string | null | undefined): string {
   return resolved.toLowerCase().endsWith(".pdf") ? resolved : `${resolved}.pdf`;
 }
 
+function sanitizePptxFilename(value: string | null | undefined): string {
+  const fallback = "capsule.pptx";
+  if (!value) return fallback;
+  const safe = value.replace(/[^\w.-]+/g, "_").replace(/_{2,}/g, "_").replace(/^_+|_+$/g, "");
+  const resolved = safe.length ? safe : "capsule";
+  return resolved.toLowerCase().endsWith(".pptx") ? resolved : `${resolved}.pptx`;
+}
+
 async function handleGeneratePdf(
   args: Record<string, unknown>,
   runtime: RuntimeContext,
@@ -900,6 +957,304 @@ async function handleGeneratePdf(
   };
 }
 
+type NormalizedSlide = {
+  title: string;
+  subtitle: string | null;
+  bullets: string[];
+  body: string | null;
+  notes: string | null;
+  imageUrl: string | null;
+  imagePrompt: string | null;
+};
+
+function normalizeSlides(args: Record<string, unknown>): NormalizedSlide[] {
+  const slidesRaw = Array.isArray(args.slides) ? (args.slides as unknown[]) : [];
+  const normalized: NormalizedSlide[] = [];
+
+  slidesRaw.forEach((entry, index) => {
+    if (!entry || typeof entry !== "object") return;
+    const record = entry as Record<string, unknown>;
+    const title =
+      typeof record.title === "string" && record.title.trim().length
+        ? record.title.trim()
+        : `Slide ${index + 1}`;
+    const subtitle =
+      typeof record.subtitle === "string" && record.subtitle.trim().length
+        ? record.subtitle.trim()
+        : null;
+    const body =
+      typeof record.body === "string" && record.body.trim().length ? record.body.trim() : null;
+    const notes =
+      typeof record.notes === "string" && record.notes.trim().length ? record.notes.trim() : null;
+    const imageUrl =
+      typeof record.image_url === "string" && record.image_url.trim().length
+        ? record.image_url.trim()
+        : null;
+    const imagePrompt =
+      typeof record.image_prompt === "string" && record.image_prompt.trim().length
+        ? record.image_prompt.trim()
+        : null;
+    const bullets = Array.isArray(record.bullets)
+      ? (record.bullets as unknown[])
+          .map((bullet) => (typeof bullet === "string" ? bullet.trim() : ""))
+          .filter((bullet) => bullet.length > 0)
+      : [];
+
+    if (!body && !bullets.length && !title && !subtitle) return;
+
+    normalized.push({ title, subtitle, body, bullets, notes, imageUrl, imagePrompt });
+  });
+
+  return normalized;
+}
+
+async function fetchImageDataUri(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  const accessible = await ensureAccessibleMediaUrl(url);
+  const target = accessible ?? url;
+  try {
+    const response = await fetch(target);
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type") || "image/png";
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString("base64");
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.warn("pptx image fetch failed", error);
+    return null;
+  }
+}
+
+async function resolveSlideImage(
+  slide: NormalizedSlide,
+  runtime: RuntimeContext,
+): Promise<{ dataUri: string; sourceUrl: string | null } | null> {
+  if (slide.imageUrl) {
+    const dataUri = await fetchImageDataUri(slide.imageUrl);
+    if (dataUri) {
+      return { dataUri, sourceUrl: slide.imageUrl };
+    }
+  }
+
+  if (slide.imagePrompt && runtime.ownerId) {
+    try {
+      const image = await generateImageFromPrompt(
+        slide.imagePrompt,
+        {},
+        {
+          ownerId: runtime.ownerId,
+          assetKind: "pptx-slide",
+          mode: "generate",
+          userPrompt: slide.imagePrompt,
+          resolvedPrompt: slide.imagePrompt,
+          stylePreset: null,
+          options: { size: "1024x1024", quality: "standard" },
+        },
+      );
+      const dataUri = await fetchImageDataUri(image.url);
+      if (dataUri) {
+        return { dataUri, sourceUrl: image.url };
+      }
+    } catch (error) {
+      console.warn("pptx image generation failed", error);
+    }
+  }
+  return null;
+}
+
+async function handleGeneratePptx(
+  args: Record<string, unknown>,
+  runtime: RuntimeContext,
+): Promise<Record<string, unknown>> {
+  const ownerId = runtime.ownerId;
+  if (!ownerId) {
+    throw new Error("generate_pptx requires an authenticated owner.");
+  }
+
+  const deckTitle = typeof args.title === "string" ? args.title.trim() : "";
+  const deckSubtitle = typeof args.subtitle === "string" ? args.subtitle.trim() : "";
+  const downloadName = typeof args.download_name === "string" ? args.download_name.trim() : null;
+  const slides = normalizeSlides(args);
+
+  if (!slides.length) {
+    throw new Error("generate_pptx needs at least one slide with content.");
+  }
+
+  const pptx = new PptxGenJS();
+  pptx.author = "Capsules AI";
+  pptx.company = "Capsules";
+  pptx.subject = deckTitle || "AI Presentation";
+
+  const hasCover = deckTitle.length > 0 || deckSubtitle.length > 0;
+  if (hasCover) {
+    const cover = pptx.addSlide();
+    cover.addText(deckTitle || "Presentation", {
+      x: 0.5,
+      y: 1,
+      w: 9,
+      h: 1,
+      fontSize: 36,
+      bold: true,
+    });
+    if (deckSubtitle.length) {
+      cover.addText(deckSubtitle, {
+        x: 0.5,
+        y: 2,
+        w: 9,
+        h: 0.7,
+        fontSize: 22,
+        color: "666666",
+      });
+    }
+  }
+
+  let embeddedImages = 0;
+  const slideSummaries: string[] = [];
+
+  for (const slideData of slides) {
+    const slide = pptx.addSlide();
+    const title = slideData.title || "Slide";
+    slide.addText(title, { x: 0.5, y: 0.5, w: 9, h: 0.6, fontSize: 28, bold: true });
+    if (slideData.subtitle) {
+      slide.addText(slideData.subtitle, {
+        x: 0.5,
+        y: 1.2,
+        w: 9,
+        h: 0.5,
+        fontSize: 18,
+        color: "555555",
+      });
+    }
+
+    const image = await resolveSlideImage(slideData, runtime);
+    let textX = 0.6;
+    const textY = slideData.subtitle ? 1.9 : 1.5;
+    let textW = 9;
+    const textH = 4.5;
+
+    if (image) {
+      embeddedImages += 1;
+      slide.addImage({
+        data: image.dataUri,
+        x: 0.6,
+        y: textY,
+        w: 4.5,
+        h: 3.2,
+        sizing: { type: "contain", w: 4.5, h: 3.2 },
+      });
+      textX = 5.3;
+      textW = 4.0;
+    }
+
+    const bullets = slideData.bullets;
+    const bodyText = slideData.body;
+
+    if (bullets.length) {
+      slide.addText(bullets.map((b) => `• ${b}`).join("\n"), {
+        x: textX,
+        y: textY,
+        w: textW,
+        h: textH,
+        fontSize: 18,
+        bullet: true,
+        lineSpacing: 24,
+      });
+    } else if (bodyText) {
+      slide.addText(bodyText, {
+        x: textX,
+        y: textY,
+        w: textW,
+        h: textH,
+        fontSize: 18,
+        lineSpacing: 22,
+      });
+    }
+
+    if (slideData.notes) {
+      slide.addNotes(slideData.notes);
+    }
+
+    const summaryParts = [
+      title,
+      slideData.subtitle ?? null,
+      bullets.join("; "),
+      bodyText,
+      slideData.notes ? `Notes: ${slideData.notes}` : null,
+    ].filter(Boolean) as string[];
+    slideSummaries.push(summaryParts.join(" | "));
+  }
+
+  const arrayBuffer = (await pptx.write({ outputType: "arraybuffer" })) as
+    | ArrayBuffer
+    | Buffer
+    | string;
+  const pptxBuffer =
+    typeof arrayBuffer === "string"
+      ? Buffer.from(arrayBuffer, "binary")
+      : Buffer.isBuffer(arrayBuffer)
+        ? arrayBuffer
+        : Buffer.from(arrayBuffer as ArrayBuffer);
+
+  const PPTX_MIME =
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+  const filename = sanitizePptxFilename((downloadName ?? deckTitle) || "presentation");
+  const uploadName = filename.toLowerCase().endsWith(".pptx")
+    ? filename.slice(0, -5)
+    : filename;
+
+  const { url, key } = await uploadBufferToStorage(pptxBuffer, PPTX_MIME, uploadName, {
+    ownerId,
+    kind: "ai-pptx",
+    metadata: { slide_count: slides.length, image_count: embeddedImages },
+  });
+
+  let memoryId: string | null = null;
+  try {
+    const rawText = slideSummaries.join("\n\n");
+    const metadata: Record<string, unknown> = {
+      source: "ai-pptx",
+      file_extension: "pptx",
+      mime_type: PPTX_MIME,
+      download_name: filename,
+      slide_count: slides.length,
+      image_count: embeddedImages,
+    };
+    if (key) {
+      metadata.storage_key = key;
+      metadata.upload_key = key;
+    }
+    if (runtime.capsuleId) {
+      metadata.capsule_id = runtime.capsuleId;
+    }
+    memoryId = await indexMemory({
+      ownerId,
+      kind: "upload",
+      mediaUrl: url,
+      mediaType: PPTX_MIME,
+      title: deckTitle || filename,
+      description: deckSubtitle || slides[0]?.subtitle || slides[0]?.title || "AI presentation",
+      postId: null,
+      metadata,
+      rawText,
+      source: "ai-pptx",
+      tags: ["ai", "pptx", "presentation"],
+    });
+  } catch (error) {
+    console.warn("ai_pptx_memory_index_failed", error);
+  }
+
+  return {
+    status: "succeeded",
+    kind: "file",
+    mimeType: PPTX_MIME,
+    url,
+    name: filename,
+    storageKey: key ?? null,
+    memoryId,
+  };
+}
+
 async function handleFetchContext(
   args: Record<string, unknown>,
   runtime: RuntimeContext,
@@ -1021,6 +1376,7 @@ const TOOL_HANDLERS: Record<
   search_web: handleSearchWeb,
   search_images: handleSearchImages,
   generate_pdf: handleGeneratePdf,
+  generate_pptx: handleGeneratePptx,
 };
 
 type ReplyMode = "chat" | "draft";
@@ -1037,7 +1393,7 @@ function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
     "When the user refers to their feed, capsules, memories, or past work, call fetch_context to retrieve grounded context instead of guessing.",
     "Use search_web (and fetch_context when relevant) for real-world facts-game/map names, events, releases, stats-before listing specifics. Do not invent names; cite the latest results.",
     "Do NOT paste raw media URLs (images, videos, downloads) into your `message`; attachments are already shared with the user.",
-    "Use analyze_document / summarize_video / fetch_context / search_web / search_images / embed_text / generate_pdf tools whenever needed.",
+    "Use analyze_document / summarize_video / fetch_context / search_web / search_images / embed_text / generate_pdf / generate_pptx tools whenever needed.",
     "If the user supplies an existing post, treat it as the current draft and adjust only requested sections.",
   ];
 
@@ -1295,3 +1651,8 @@ export async function runComposerToolSession(
 
   throw new Error("Composer tool session exceeded iteration limit.");
 }
+
+// Internal hooks for tests
+export const __test__ = {
+  handleGeneratePptx,
+};

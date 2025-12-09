@@ -23,9 +23,21 @@
   }
 
   .connectionTile {
-    --tile-accent-a: color-mix(in srgb, var(--color-brand) 60%, var(--color-accent, var(--color-info)));
-    --tile-accent-b: color-mix(in srgb, var(--color-accent, var(--color-info)) 55%, var(--color-brand));
-    --tile-accent-c: color-mix(in srgb, var(--color-info, var(--color-accent)) 40%, transparent);
+    --tile-accent-a: color-mix(
+      in srgb,
+      var(--color-brand) 60%,
+      var(--color-accent, var(--color-info, var(--connections-accent-b, #22c4ff)))
+    );
+    --tile-accent-b: color-mix(
+      in srgb,
+      var(--color-accent, var(--color-info, var(--connections-accent-b, #22c4ff))) 55%,
+      var(--color-brand)
+    );
+    --tile-accent-c: color-mix(
+      in srgb,
+      var(--color-info, var(--color-accent, var(--connections-accent-b, #22c4ff))) 40%,
+      transparent
+    );
     --tile-glow-opacity: 0.22;
     --tile-glow-opacity-hover: 0.32;
     display: flex;
@@ -102,7 +114,8 @@
   }
 
   .connectionTile:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, transparent);
+    outline: 2px solid
+      color-mix(in srgb, var(--color-brand, var(--connections-accent-a, #6366f1)) 60%, transparent);
     outline-offset: 2px;
     transform: translateY(-2px);
     border-color: var(
@@ -239,23 +252,34 @@
     --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: color-mix(
       in srgb,
-      #6366f1 24%,
+      var(--connections-accent-a, #6366f1) 24%,
       var(--tile-border-base, var(--card-border, var(--color-border)))
     );
-    --tile-icon-bg-final: linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%);
-    --tile-icon-color-final: #e8f3ff;
-    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
-    --tile-badge-bg-final: color-mix(
-      in srgb,
-      #2f6bff 14%,
-      var(--surface-elevated, var(--surface-overlay))
+    --tile-icon-bg-final: var(
+      --connections-friends-icon-bg,
+      linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%)
     );
-    --tile-badge-color-final: #eef6ff;
-    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
-    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
-    --tile-accent-a: #6366f1;
-    --tile-accent-b: #22c4ff;
-    --tile-accent-c: #4f46e5;
+    --tile-icon-color-final: var(--connections-friends-icon-fg, #e8f3ff);
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --connections-friends-badge-bg,
+      color-mix(
+        in srgb,
+        #2f6bff 14%,
+        var(--surface-elevated, var(--surface-overlay))
+      )
+    );
+    --tile-badge-color-final: var(--connections-friends-badge-fg, #eef6ff);
+    --tile-border-hover: color-mix(
+      in srgb,
+      var(--connections-border-hover, #818cf8) 44%,
+      transparent
+    );
+    --tile-shadow-hover: 0 14px 32px
+      color-mix(in srgb, var(--connections-shadow-hover, #312e81) 22%, transparent);
+    --tile-accent-a: var(--connections-accent-a, #6366f1);
+    --tile-accent-b: var(--connections-accent-b, #22c4ff);
+    --tile-accent-c: var(--connections-accent-c, #4f46e5);
     --tile-glow-opacity: 0.24;
     --tile-glow-opacity-hover: 0.34;
     --tile-hover-halo-opacity: 0.3;
@@ -265,23 +289,34 @@
     --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: color-mix(
       in srgb,
-      #6366f1 24%,
+      var(--connections-accent-a, #6366f1) 24%,
       var(--tile-border-base, var(--card-border, var(--color-border)))
     );
-    --tile-icon-bg-final: linear-gradient(135deg, #4f46e5 0%, #22c4ff 100%);
-    --tile-icon-color-final: #f8edff;
-    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
-    --tile-badge-bg-final: color-mix(
-      in srgb,
-      #6366f1 12%,
-      var(--surface-elevated, var(--surface-overlay))
+    --tile-icon-bg-final: var(
+      --connections-party-icon-bg,
+      linear-gradient(135deg, #4f46e5 0%, #22c4ff 100%)
     );
-    --tile-badge-color-final: #fef7ff;
-    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
-    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
-    --tile-accent-a: #6366f1;
-    --tile-accent-b: #22c4ff;
-    --tile-accent-c: #4f46e5;
+    --tile-icon-color-final: var(--connections-party-icon-fg, #f8edff);
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --connections-party-badge-bg,
+      color-mix(
+        in srgb,
+        #6366f1 12%,
+        var(--surface-elevated, var(--surface-overlay))
+      )
+    );
+    --tile-badge-color-final: var(--connections-party-badge-fg, #fef7ff);
+    --tile-border-hover: color-mix(
+      in srgb,
+      var(--connections-border-hover, #818cf8) 44%,
+      transparent
+    );
+    --tile-shadow-hover: 0 14px 32px
+      color-mix(in srgb, var(--connections-shadow-hover, #312e81) 22%, transparent);
+    --tile-accent-a: var(--connections-accent-a, #6366f1);
+    --tile-accent-b: var(--connections-accent-b, #22c4ff);
+    --tile-accent-c: var(--connections-accent-c, #4f46e5);
     --tile-glow-opacity: 0.24;
     --tile-glow-opacity-hover: 0.34;
     --tile-hover-halo-opacity: 0.3;
@@ -291,23 +326,34 @@
     --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: color-mix(
       in srgb,
-      #6366f1 24%,
+      var(--connections-accent-a, #6366f1) 24%,
       var(--tile-border-base, var(--card-border, var(--color-border)))
     );
-    --tile-icon-bg-final: linear-gradient(135deg, #1d4ed8 0%, #22c4ee 100%);
-    --tile-icon-color-final: #e8f4ff;
-    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
-    --tile-badge-bg-final: color-mix(
-      in srgb,
-      #1f6bff 12%,
-      var(--surface-elevated, var(--surface-overlay))
+    --tile-icon-bg-final: var(
+      --connections-chats-icon-bg,
+      linear-gradient(135deg, #1d4ed8 0%, #22c4ee 100%)
     );
-    --tile-badge-color-final: #f3f8ff;
-    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
-    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
-    --tile-accent-a: #6366f1;
-    --tile-accent-b: #22c4ff;
-    --tile-accent-c: #4f46e5;
+    --tile-icon-color-final: var(--connections-chats-icon-fg, #e8f4ff);
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --connections-chats-badge-bg,
+      color-mix(
+        in srgb,
+        #1f6bff 12%,
+        var(--surface-elevated, var(--surface-overlay))
+      )
+    );
+    --tile-badge-color-final: var(--connections-chats-badge-fg, #f3f8ff);
+    --tile-border-hover: color-mix(
+      in srgb,
+      var(--connections-border-hover, #818cf8) 44%,
+      transparent
+    );
+    --tile-shadow-hover: 0 14px 32px
+      color-mix(in srgb, var(--connections-shadow-hover, #312e81) 22%, transparent);
+    --tile-accent-a: var(--connections-accent-a, #6366f1);
+    --tile-accent-b: var(--connections-accent-b, #22c4ff);
+    --tile-accent-c: var(--connections-accent-c, #4f46e5);
     --tile-glow-opacity: 0.24;
     --tile-glow-opacity-hover: 0.34;
     --tile-hover-halo-opacity: 0.3;
@@ -317,27 +363,38 @@
     --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: color-mix(
       in srgb,
-      #6366f1 24%,
+      var(--connections-accent-a, #6366f1) 24%,
       var(--tile-border-base, var(--card-border, var(--color-border)))
     );
-    --tile-icon-bg-final: linear-gradient(
-      135deg,
-      #1d4ed8 0%,
-      #38bdf8 100%
+    --tile-icon-bg-final: var(
+      --connections-requests-icon-bg,
+      linear-gradient(
+        135deg,
+        #1d4ed8 0%,
+        #38bdf8 100%
+      )
     );
-    --tile-icon-color-final: var(--text-on-brand, #f9fafb);
+    --tile-icon-color-final: var(--connections-requests-icon-fg, var(--text-on-brand, #f9fafb));
     --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
-    --tile-badge-bg-final: color-mix(
-      in srgb,
-      #38bdf8 14%,
-      var(--surface-elevated, var(--surface-overlay))
+    --tile-badge-bg-final: var(
+      --connections-requests-badge-bg,
+      color-mix(
+        in srgb,
+        #38bdf8 14%,
+        var(--surface-elevated, var(--surface-overlay))
+      )
     );
-    --tile-badge-color-final: var(--text-on-brand, #f8fafc);
-    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
-    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
-    --tile-accent-a: #6366f1;
-    --tile-accent-b: #22c4ff;
-    --tile-accent-c: #4f46e5;
+    --tile-badge-color-final: var(--connections-requests-badge-fg, var(--text-on-brand, #f8fafc));
+    --tile-border-hover: color-mix(
+      in srgb,
+      var(--connections-border-hover, #818cf8) 44%,
+      transparent
+    );
+    --tile-shadow-hover: 0 14px 32px
+      color-mix(in srgb, var(--connections-shadow-hover, #312e81) 22%, transparent);
+    --tile-accent-a: var(--connections-accent-a, #6366f1);
+    --tile-accent-b: var(--connections-accent-b, #22c4ff);
+    --tile-accent-c: var(--connections-accent-c, #4f46e5);
     --tile-glow-opacity: 0.24;
     --tile-glow-opacity-hover: 0.34;
     --tile-hover-halo-opacity: 0.3;
@@ -347,23 +404,34 @@
     --tile-bg-final: var(--tile-bg-base);
     --tile-border-final: color-mix(
       in srgb,
-      #6366f1 24%,
+      var(--connections-accent-a, #6366f1) 24%,
       var(--tile-border-base, var(--card-border, var(--color-border)))
     );
-    --tile-icon-bg-final: linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%);
-    --tile-icon-color-final: #eef2ff;
-    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
-    --tile-badge-bg-final: color-mix(
-      in srgb,
-      #60a5fa 14%,
-      var(--surface-elevated, var(--surface-overlay))
+    --tile-icon-bg-final: var(
+      --connections-assistant-icon-bg,
+      linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%)
     );
-    --tile-badge-color-final: #f8fafc;
-    --tile-border-hover: color-mix(in srgb, #818cf8 44%, transparent);
-    --tile-shadow-hover: 0 14px 32px color-mix(in srgb, #312e81 22%, transparent);
-    --tile-accent-a: #6366f1;
-    --tile-accent-b: #22c4ff;
-    --tile-accent-c: #4f46e5;
+    --tile-icon-color-final: var(--connections-assistant-icon-fg, #eef2ff);
+    --tile-desc-final: var(--color-fg-subtle, var(--color-fg-muted));
+    --tile-badge-bg-final: var(
+      --connections-assistant-badge-bg,
+      color-mix(
+        in srgb,
+        #60a5fa 14%,
+        var(--surface-elevated, var(--surface-overlay))
+      )
+    );
+    --tile-badge-color-final: var(--connections-assistant-badge-fg, #f8fafc);
+    --tile-border-hover: color-mix(
+      in srgb,
+      var(--connections-border-hover, #818cf8) 44%,
+      transparent
+    );
+    --tile-shadow-hover: 0 14px 32px
+      color-mix(in srgb, var(--connections-shadow-hover, #312e81) 22%, transparent);
+    --tile-accent-a: var(--connections-accent-a, #6366f1);
+    --tile-accent-b: var(--connections-accent-b, #22c4ff);
+    --tile-accent-c: var(--connections-accent-c, #4f46e5);
     --tile-glow-opacity: 0.24;
     --tile-glow-opacity-hover: 0.34;
     --tile-hover-halo-opacity: 0.3;

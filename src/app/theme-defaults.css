@@ -8,6 +8,9 @@
   --app-feed-width: 100%;
   --blur-amount: 14px;
   --brand-gradient: var(--gradient-brand);
+  --capsule-accent: #22d3ee;
+  --capsule-brand: #2563eb;
+  --capsule-danger-accent: #ff4060;
   --capsule-gap: clamp(4px, 0.8vw, 12px);
   --capsule-live-chat-shadow: none;
   --capsule-logo-border: color-mix(in srgb, currentColor 20%, transparent);
@@ -18,6 +21,7 @@
   --capsule-logo-shadow: 0 14px 32px rgba(5, 10, 30, 0.42);
   --capsule-logo-size: var(--capsule-logo-size-md);
   --capsule-rail-width: var(--app-rail-width, clamp(320px, 24vw, 380px));
+  --capsule-text-on-brand: #f8fafc;
   --capsule-tile-aspect: 4 / 3;
   --capsule-tile-banner: transparent;
   --capsule-tile-banner-filter: initial;
@@ -77,6 +81,13 @@
   --color-info: #0284c7;
   --color-success: #059669;
   --color-warning: #d97706;
+  --comment-border: rgba(255, 255, 255, 0.12);
+  --comment-border-faint: rgba(255, 255, 255, 0.1);
+  --comment-border-strong: rgba(255, 255, 255, 0.18);
+  --comment-glow-hairline: rgba(255, 255, 255, 0.02);
+  --comment-glow-soft: rgba(255, 255, 255, 0.06);
+  --comment-glow-strong: rgba(255, 255, 255, 0.08);
+  --comment-glow-veil: rgba(255, 255, 255, 0.04);
   --comment-media-bg: ;
   --composer-accent: var(--color-brand, #1d4ed8);
   --composer-accent-soft: color-mix(in srgb, var(--composer-accent, #1d4ed8) 28%, transparent);
@@ -177,7 +188,56 @@
     color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 35%, transparent),
     color-mix(in srgb, var(--composer-accent, var(--color-brand, #1d4ed8)) 20%, transparent)
   );
+  --connections-accent-a: #6366f1;
+  --connections-accent-b: #22c4ff;
+  --connections-accent-c: #4f46e5;
+  --connections-assistant-badge-bg: color-mix(
+      in srgb,
+      #60a5fa 14%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+  --connections-assistant-badge-fg: #f8fafc;
+  --connections-assistant-icon-bg: linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%);
+  --connections-assistant-icon-fg: #eef2ff;
+  --connections-border-hover: #818cf8;
+  --connections-chats-badge-bg: color-mix(
+      in srgb,
+      #1f6bff 12%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+  --connections-chats-badge-fg: #f3f8ff;
+  --connections-chats-icon-bg: linear-gradient(135deg, #1d4ed8 0%, #22c4ee 100%);
+  --connections-chats-icon-fg: #e8f4ff;
+  --connections-friends-badge-bg: color-mix(
+      in srgb,
+      #2f6bff 14%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+  --connections-friends-badge-fg: #eef6ff;
+  --connections-friends-icon-bg: linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%);
+  --connections-friends-icon-fg: #e8f3ff;
+  --connections-party-badge-bg: color-mix(
+      in srgb,
+      #6366f1 12%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+  --connections-party-badge-fg: #fef7ff;
+  --connections-party-icon-bg: linear-gradient(135deg, #4f46e5 0%, #22c4ff 100%);
+  --connections-party-icon-fg: #f8edff;
   --connections-rail-offset: 0px;
+  --connections-requests-badge-bg: color-mix(
+      in srgb,
+      #38bdf8 14%,
+      var(--surface-elevated, var(--surface-overlay))
+    );
+  --connections-requests-badge-fg: var(--text-on-brand, #f8fafc);
+  --connections-requests-icon-bg: linear-gradient(
+      135deg,
+      #1d4ed8 0%,
+      #38bdf8 100%
+    );
+  --connections-requests-icon-fg: var(--text-on-brand, #f9fafb);
+  --connections-shadow-hover: #312e81;
   --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
   --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
   --cta-button-text: #ffffff;
@@ -191,10 +251,12 @@
   --feed-action-border: rgba(255, 255, 255, 0.08);
   --feed-action-shadow-hover: 0 12px 28px rgba(5, 10, 30, 0.28);
   --feed-gap: var(--layout-page-gap, var(--space-2xl, 32px));
+  --feed-gradient: linear-gradient(120deg, #7c3aed, #22d3ee);
   --feed-max-width: 720px;
   --feed-media-aspect: 1 / 1;
   --feed-media-max-height: clamp(320px, 88vh, 1020px);
   --feed-media-min-height: clamp(240px, 46vh, 760px);
+  --feed-outline: #7c87ff;
   --font-display: "Clash Display", "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,

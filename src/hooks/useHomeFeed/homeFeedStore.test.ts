@@ -100,6 +100,26 @@ describe("homeFeedStore", () => {
     expect(state.items[0]?.id).toBe("fallback");
   });
 
+  it("refresh handles errors gracefully and marks feed as fetched", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network fail"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const store = createHomeFeedStore({
+      client: { fetch: fetchMock },
+      events: { refreshFriends: vi.fn() },
+    });
+
+    try {
+      await store.actions.refresh();
+    } finally {
+      errorSpy.mockRestore();
+    }
+
+    const state = store.getState();
+    expect(state.isRefreshing).toBe(false);
+    expect(state.hasFetched).toBe(true);
+  });
+
   it("toggleLike updates state and calls client", async () => {
     const toggleLikeMock = vi.fn().mockResolvedValue({ likes: 7, viewerLiked: true });
     const store = createHomeFeedStore({

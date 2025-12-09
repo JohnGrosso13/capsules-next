@@ -11,6 +11,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const userPayload = (body?.user as Record<string, unknown>) ?? {};
   const kind = (body?.kind as string) ?? null;
+  const rawLimit = typeof body?.limit === "number" ? body.limit : null;
+  const limit = rawLimit ? Math.min(Math.max(Math.trunc(rawLimit), 1), 200) : 200;
+  const cursor = typeof body?.cursor === "string" && body.cursor.trim().length ? body.cursor : null;
   const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: false });
   if (!ownerId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
@@ -40,7 +43,13 @@ export async function POST(req: Request) {
 
   try {
     const requestOrigin = deriveRequestOrigin(req);
-    const items = await listMemories({ ownerId, kind, origin: requestOrigin ?? null });
+    const items = await listMemories({
+      ownerId,
+      kind,
+      origin: requestOrigin ?? null,
+      limit,
+      cursor,
+    });
     return NextResponse.json({ items });
   } catch (error) {
     console.error("memory list error", error);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDoubleEliminationBracket,
+  buildRoundRobinBracket,
   buildSingleEliminationBracket,
 } from "@/lib/ladders/bracket";
 import type { CapsuleLadderMember, LadderMatchRecord } from "@/types/ladders";
@@ -82,5 +83,33 @@ describe("tournament brackets", () => {
 
     expect(losersFinal?.a?.id === "m3" || losersFinal?.b?.id === "m3").toBe(true);
     expect(finalsMatch?.a?.id === "m1" || finalsMatch?.b?.id === "m1").toBe(true);
+  });
+
+  it("builds a round robin schedule and attaches results", () => {
+    const members = [makeMember("m1", 1), makeMember("m2", 2), makeMember("m3", 3)];
+    const history: LadderMatchRecord[] = [
+      // m1 vs m2
+      makeResult("h1", "m1", "m2", "challenger", "2024-01-02T00:00:00.000Z"),
+      // m2 vs m3
+      makeResult("h2", "m2", "m3", "challenger", "2024-01-02T00:05:00.000Z"),
+    ];
+
+    const bracket = buildRoundRobinBracket(members, history);
+    expect(bracket.type).toBe("round_robin");
+    expect(bracket.rounds.length).toBeGreaterThanOrEqual(2);
+    const allMatches = bracket.rounds.flatMap((round) => round.matches);
+    // Every pairing should appear at least once across the schedule.
+    const pairs = new Set(allMatches.map((m) => [m.a?.id, m.b?.id].sort().join("-")));
+    expect(pairs.has(["m1", "m2"].sort().join("-"))).toBe(true);
+    expect(pairs.has(["m1", "m3"].sort().join("-"))).toBe(true);
+    expect(pairs.has(["m2", "m3"].sort().join("-"))).toBe(true);
+    // Known results from history should be marked complete with a winner.
+    const m1m2 = allMatches.find(
+      (m) =>
+        (m.a?.id === "m1" && m.b?.id === "m2") ||
+        (m.a?.id === "m2" && m.b?.id === "m1"),
+    );
+    expect(m1m2?.status).toBe("complete");
+    expect(m1m2?.winnerId).toBe("m1");
   });
 });

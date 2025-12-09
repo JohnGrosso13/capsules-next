@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, CaretLeft, CaretRight, Confetti } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, BookmarkSimple, CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 
 import { Button, ButtonLink } from "@/components/ui/button";
 
@@ -9,13 +9,12 @@ import { useMemoryUploads } from "./use-memory-uploads";
 import type { MemoryUploadItem } from "./uploads-types";
 import styles from "./party-recaps-carousel.module.css";
 
-type RecapCard = {
+export type SavedPostCard = {
   id: string;
   title: string;
-  summary: string;
+  excerpt: string | null;
+  author: string | null;
   createdAt: string | null;
-  topic: string | null;
-  highlights: string[];
   memoryId: string;
 };
 
@@ -51,42 +50,20 @@ function formatTimestamp(iso: string | null | undefined): string | null {
   }
 }
 
-function truncate(value: string, limit = 260): string {
-  if (value.length <= limit) return value;
-  return `${value.slice(0, limit - 1).trimEnd()}...`;
-}
-
-function buildRecaps(items: MemoryUploadItem[]): RecapCard[] {
+export function buildSavedPosts(items: MemoryUploadItem[]): SavedPostCard[] {
   return items
     .map((item) => {
       const meta = toMetaObject(item.meta);
-      const rawSummary =
-        (typeof item.description === "string" ? item.description.trim() : "") ||
-        (typeof (meta as { summary_text?: unknown })?.summary_text === "string"
-          ? ((meta as { summary_text: string }).summary_text ?? "").trim()
-          : "");
-      if (!rawSummary.length) return null;
-
-      const topicCandidate =
-        (typeof (meta as { party_topic?: unknown })?.party_topic === "string"
-          ? ((meta as { party_topic: string }).party_topic ?? "").trim()
-          : "") || null;
-
-      const titleCandidate = typeof item.title === "string" ? item.title.trim() : "";
-      const title = titleCandidate || (topicCandidate ? `Party recap - ${topicCandidate}` : "Party recap");
-
-      const highlightsRaw = (meta as { summary_highlights?: unknown })?.summary_highlights;
-      const highlights = Array.isArray(highlightsRaw)
-        ? highlightsRaw
-            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-            .filter((entry) => entry.length)
-        : [];
-
-      const createdAt =
-        formatTimestamp(
-          (meta as { summary_generated_at?: unknown })?.summary_generated_at as string | undefined,
-        ) ?? formatTimestamp(item.created_at ?? null);
-
+      const author =
+        (typeof meta?.post_author_name === "string" && meta.post_author_name.trim()) || null;
+      const title =
+        (typeof item.title === "string" && item.title.trim()) ||
+        (author ? `Saved ${author}'s post` : "Saved post");
+      const excerpt =
+        (typeof meta?.post_excerpt === "string" && meta.post_excerpt.trim()) ||
+        (typeof item.description === "string" && item.description.trim()) ||
+        null;
+      const createdAt = formatTimestamp(item.created_at ?? null);
       const memoryId =
         typeof item.id === "string"
           ? item.id
@@ -95,16 +72,15 @@ function buildRecaps(items: MemoryUploadItem[]): RecapCard[] {
             : "unknown";
 
       return {
-        id: item.id as string,
+        id: memoryId,
         title,
-        summary: truncate(rawSummary, 320),
+        excerpt,
+        author,
         createdAt,
-        topic: topicCandidate,
-        highlights,
         memoryId,
       };
     })
-    .filter((recap): recap is RecapCard => recap !== null);
+    .filter((card): card is SavedPostCard => Boolean(card.title));
 }
 
 function getSlidesPerView(): number {
@@ -115,16 +91,18 @@ function getSlidesPerView(): number {
   return 1;
 }
 
-export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
-  const { user, items, loading, error } = useMemoryUploads("party_summary", {
+export function PostMemoriesCarousel(
+  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+) {
+  const { user, items, loading, error } = useMemoryUploads("post_memory", {
     initialPage: initialItems ? { items: initialItems, hasMore: false } : undefined,
   });
-  const recaps = React.useMemo(() => buildRecaps(items), [items]);
+  const posts = React.useMemo(() => buildSavedPosts(items), [items]);
 
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
   const [offset, setOffset] = React.useState(0);
 
-  const totalItems = recaps.length;
+  const totalItems = posts.length;
   const pageSize = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
 
   React.useEffect(() => {
@@ -144,18 +122,18 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
     setOffset((current) => current % totalItems);
   }, [totalItems]);
 
-  const visibleRecaps = React.useMemo(() => {
+  const visiblePosts = React.useMemo(() => {
     if (pageSize === 0) return [];
-    const result: RecapCard[] = [];
+    const result: SavedPostCard[] = [];
     for (let index = 0; index < pageSize; index += 1) {
-      const item = recaps[(offset + index) % totalItems];
+      const item = posts[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, pageSize, recaps, totalItems]);
+  }, [offset, pageSize, posts, totalItems]);
 
   const hasRotation = pageSize > 0 && totalItems > pageSize;
-  const navDisabled = loading || !hasRotation || visibleRecaps.length === 0;
+  const navDisabled = loading || !hasRotation || visiblePosts.length === 0;
 
   const handlePrev = React.useCallback(() => {
     if (!hasRotation) return;
@@ -180,17 +158,18 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <div className={styles.icon}>
-            <Confetti size={18} weight="fill" />
+            <BookmarkSimple size={18} weight="fill" />
           </div>
           <div>
-            <h3 className={styles.title}>Party recaps</h3>
+            <h3 className={styles.title}>Saved posts</h3>
+            <p className={styles.subtitle}>Posts you remembered with the Memory icon.</p>
           </div>
         </div>
         <div className={styles.actions}>
           <ButtonLink
             variant="ghost"
             size="sm"
-            href="/memory/uploads?tab=party-recaps"
+            href="/memory/uploads?tab=saved-posts"
             rightIcon={<ArrowRight size={16} weight="bold" />}
           >
             View All
@@ -204,48 +183,37 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
           size="icon"
           className={styles.navButton}
           data-side="prev"
-          data-hidden={!visibleRecaps.length}
+          data-hidden={!visiblePosts.length}
           leftIcon={<CaretLeft size={18} weight="bold" />}
           onClick={handlePrev}
-          aria-label="Previous party recap"
+          aria-label="Previous saved post"
           disabled={navDisabled}
         />
 
-        {!user ? <div className={styles.empty}>Sign in to view party recaps.</div> : null}
+        {!user ? <div className={styles.empty}>Sign in to view your saved posts.</div> : null}
         {user && error ? <div className={styles.empty}>{error}</div> : null}
 
         {user ? (
-          loading && !recaps.length ? (
-            <div className={styles.empty}>Loading party recaps...</div>
-          ) : !recaps.length ? (
+          loading && !posts.length ? (
+            <div className={styles.empty}>Loading saved posts...</div>
+          ) : !posts.length ? (
             <div className={styles.empty}>
-              No party recaps yet. Enable summaries in a live party and generate a recap to see it here.
+              No saved posts yet. Tap the Memory icon on a post to save it.
             </div>
           ) : (
             <div className={styles.viewport}>
               <div className={styles.container} style={containerStyle}>
-                {visibleRecaps.map((recap) => (
-                  <article key={recap.id} className={styles.card}>
+                {visiblePosts.map((post) => (
+                  <article key={post.id} className={styles.card}>
                     <div className={styles.cardHeader}>
-                      <span className={styles.badge}>Party recap</span>
-                      {recap.createdAt ? (
-                        <span className={styles.timestamp}>{recap.createdAt}</span>
-                      ) : null}
+                      <span className={styles.badge}>Saved</span>
+                      {post.createdAt ? <span className={styles.timestamp}>{post.createdAt}</span> : null}
                     </div>
-                    <h4 className={styles.cardTitle}>{recap.title}</h4>
-                    {recap.topic ? <p className={styles.topic}>Topic: {recap.topic}</p> : null}
-                    <p className={styles.summary}>{recap.summary}</p>
-                    {recap.highlights.length ? (
-                      <div className={styles.highlights}>
-                        {recap.highlights.slice(0, 3).map((highlight, index) => (
-                          <span key={`${recap.id}-highlight-${index}`} className={styles.highlight}>
-                            {highlight}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
+                    <h4 className={styles.cardTitle}>{post.title}</h4>
+                    {post.author ? <p className={styles.topic}>By {post.author}</p> : null}
+                    {post.excerpt ? <p className={styles.summary}>{post.excerpt}</p> : null}
                     <div className={styles.footer}>
-                      <span className={styles.memoryId}>Memory #{recap.memoryId.slice(0, 8)}</span>
+                      <span className={styles.memoryId}>Memory #{post.memoryId.slice(0, 8)}</span>
                     </div>
                   </article>
                 ))}
@@ -259,10 +227,10 @@ export function PartyRecapsCarousel({ initialItems }: { initialItems?: MemoryUpl
           size="icon"
           className={styles.navButton}
           data-side="next"
-          data-hidden={!visibleRecaps.length}
+          data-hidden={!visiblePosts.length}
           leftIcon={<CaretRight size={18} weight="bold" />}
           onClick={handleNext}
-          aria-label="Next party recap"
+          aria-label="Next saved post"
           disabled={navDisabled}
         />
       </div>

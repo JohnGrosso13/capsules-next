@@ -28,7 +28,7 @@
     border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.28)) 70%, transparent);
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--card-bg-1, rgba(36, 46, 88, 0.88)) 78%, transparent), color-mix(in srgb, var(--card-bg-2, rgba(10, 14, 32, 0.88)) 92%, transparent)),
-      radial-gradient(140% 120% at 12% 0%, rgba(255, 255, 255, 0.06), transparent 55%);
+      radial-gradient(140% 120% at 12% 0%, var(--comment-glow-soft), transparent 55%);
     -webkit-backdrop-filter: blur(18px) saturate(150%);
     backdrop-filter: blur(18px) saturate(150%);
     box-shadow:
@@ -46,8 +46,8 @@
     border-radius: inherit;
     pointer-events: none;
     background:
-      radial-gradient(110% 90% at 50% -10%, rgba(255, 255, 255, 0.08), transparent 68%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
+      radial-gradient(110% 90% at 50% -10%, var(--comment-glow-strong), transparent 68%),
+      linear-gradient(180deg, var(--comment-glow-soft), rgba(255, 255, 255, 0));
     mix-blend-mode: soft-light;
   }
 
@@ -95,12 +95,12 @@
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--color-border, rgba(255, 255, 255, 0.22)) 70%, transparent);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+      linear-gradient(180deg, var(--comment-glow-strong), var(--comment-glow-veil)),
       linear-gradient(180deg, rgba(22, 28, 58, 0.65), rgba(12, 16, 38, 0.72));
     color: var(--text, rgba(240, 244, 255, 0.92));
     box-shadow:
       0 12px 28px rgba(4, 8, 28, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 1px 0 var(--comment-glow-strong),
       inset 0 -2px 0 rgba(6, 10, 28, 0.5);
     transition:
       transform 140ms ease,
@@ -180,7 +180,7 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--comment-border-strong) 80%, transparent);
     background: linear-gradient(180deg, rgba(32, 38, 66, 0.72), rgba(18, 22, 44, 0.6));
     color: var(--text, rgba(240, 244, 255, 0.92));
     transition:
@@ -256,7 +256,7 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 1px solid var(--comment-border-strong);
     background: linear-gradient(180deg, rgba(18, 24, 46, 0.85), rgba(8, 12, 28, 0.82));
     display: inline-flex;
     align-items: center;
@@ -267,7 +267,7 @@
     overflow: hidden;
     box-shadow:
       0 2px 8px rgba(7, 10, 28, 0.45),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      inset 0 1px 0 var(--comment-glow-soft);
   }
 
   .commentAvatar img {
@@ -279,17 +279,17 @@
 
   .commentBubble {
     border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--comment-border);
     background:
       linear-gradient(145deg, rgba(38, 48, 88, 0.82), rgba(18, 24, 48, 0.82)),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+      linear-gradient(180deg, var(--comment-glow-veil), rgba(255, 255, 255, 0));
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
     box-shadow:
       0 12px 28px rgba(6, 10, 28, 0.36),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 var(--comment-glow-strong),
       inset 0 -1px 0 rgba(6, 10, 28, 0.45);
   }
 
@@ -346,10 +346,10 @@
 
   .composerSection {
     padding: 12px 18px 18px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid var(--comment-border);
     background:
       linear-gradient(180deg, rgba(22, 28, 52, 0.94), rgba(12, 16, 34, 0.9)),
-      radial-gradient(120% 110% at 8% 0%, rgba(255, 255, 255, 0.06), transparent 55%);
+      radial-gradient(120% 110% at 8% 0%, var(--comment-glow-soft), transparent 55%);
     display: grid;
     gap: 10px;
   }
@@ -382,7 +382,7 @@
     background: linear-gradient(180deg, var(--glass-bg-1, rgba(255,255,255,0.98)), var(--glass-bg-2, rgba(247,249,255,0.94)));
   }
   :global(:root[data-theme="light"]) [data-comment-panel-root] .engagementBar {
-    border-color: rgba(14, 23, 42, 0.12);
+    border-color: var(--card-border, rgba(14, 23, 42, 0.12));
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 246, 255, 0.9)),
       radial-gradient(120% 120% at 12% 14%, rgba(46, 103, 255, 0.08), transparent 52%);
@@ -408,7 +408,7 @@
       inset 0 -2px 0 rgba(14, 23, 42, 0.08);
   }
   :global(:root[data-theme="light"]) [data-comment-panel-root] .headerIconBtn {
-    border-color: rgba(14, 23, 42, 0.12);
+    border-color: var(--card-border, rgba(14, 23, 42, 0.12));
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 247, 255, 0.92));
     color: var(--text, #0f172a);
     box-shadow:
@@ -422,10 +422,10 @@
     display: grid;
     gap: 12px;
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--comment-border-faint);
     background:
       linear-gradient(180deg, rgba(22, 28, 52, 0.48), rgba(10, 14, 30, 0.36)),
-      radial-gradient(120% 90% at 8% 10%, rgba(255, 255, 255, 0.06), transparent 56%);
+      radial-gradient(120% 90% at 8% 10%, var(--comment-glow-soft), transparent 56%);
     padding: 12px;
     }
   .postMedia {
@@ -449,7 +449,7 @@
     display: grid;
     gap: 10px;
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--comment-border-faint);
     background:
       linear-gradient(180deg, rgba(18, 24, 46, 0.35), rgba(10, 14, 32, 0.32)),
       radial-gradient(120% 120% at 12% 14%, rgba(124, 135, 255, 0.08), transparent 46%),
@@ -457,7 +457,7 @@
     padding: 12px;
     box-shadow:
       0 14px 32px rgba(6, 10, 32, 0.42),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 var(--comment-glow-strong),
       inset 0 -1px 0 rgba(6, 10, 26, 0.4);
   }
   .engagementMeta {
@@ -472,13 +472,13 @@
     gap: 8px;
     padding: 8px 10px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--comment-border);
+    background: linear-gradient(180deg, var(--comment-glow-veil), var(--comment-glow-hairline));
     color: var(--text-3, rgba(220, 226, 255, 0.76));
     font-weight: 600;
     font-size: 0.85rem;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 var(--comment-glow-strong),
       inset 0 -1px 0 rgba(4, 8, 20, 0.4);
   }
   .engagementActions {
@@ -493,16 +493,16 @@
     gap: 10px;
     padding: 10px 12px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--comment-border);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), var(--comment-glow-hairline)),
       linear-gradient(145deg, rgba(44, 56, 100, 0.55), rgba(16, 20, 44, 0.62));
     color: rgba(240, 244, 255, 0.94);
     font-weight: 700;
     font-size: 0.9rem;
     box-shadow:
       0 12px 28px rgba(6, 10, 28, 0.36),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 1px 0 var(--comment-glow-strong),
       inset 0 -2px 0 rgba(4, 8, 20, 0.55);
     transition:
       transform 140ms ease,
@@ -523,7 +523,7 @@
     opacity: 0.65;
     cursor: not-allowed;
     transform: none;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 var(--comment-glow-strong);
   }
   .actionChip[data-variant="like"][data-active="true"] {
     border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, rgba(255, 255, 255, 0.22));
@@ -539,7 +539,7 @@
     width: 26px;
     height: 26px;
     border-radius: 10px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    background: linear-gradient(180deg, var(--comment-glow-strong), var(--comment-glow-hairline));
     color: inherit;
   }
   .chipLabel {

@@ -127,6 +127,51 @@
     "exposeToStyler": true
   },
   {
+    "id": "capsule.accent",
+    "cssVar": "--capsule-accent",
+    "label": "Capsule Accent",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "capsule",
+      "accent"
+    ],
+    "semantics": "Capsule Accent",
+    "layer": "component",
+    "fallback": "#22d3ee",
+    "exposeToStyler": false
+  },
+  {
+    "id": "capsule.brand",
+    "cssVar": "--capsule-brand",
+    "label": "Capsule Brand",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "capsule",
+      "brand"
+    ],
+    "semantics": "Capsule Brand",
+    "layer": "component",
+    "fallback": "#2563eb",
+    "exposeToStyler": false
+  },
+  {
+    "id": "capsule.danger-accent",
+    "cssVar": "--capsule-danger-accent",
+    "label": "Capsule Danger Accent",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [
+      "capsule",
+      "danger"
+    ],
+    "semantics": "Capsule Danger Accent",
+    "layer": "component",
+    "fallback": "#ff4060",
+    "exposeToStyler": false
+  },
+  {
     "id": "layout.capsule.gap",
     "cssVar": "--capsule-gap",
     "label": "Capsule Gap",
@@ -283,6 +328,21 @@
     "semantics": "Layout / Capsule Rail Width",
     "layer": "component",
     "fallback": "var(--app-rail-width, clamp(320px, 24vw, 380px))",
+    "exposeToStyler": false
+  },
+  {
+    "id": "capsule.text-on-brand",
+    "cssVar": "--capsule-text-on-brand",
+    "label": "Capsule Text On Brand",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "capsule",
+      "text"
+    ],
+    "semantics": "Capsule Text On Brand",
+    "layer": "component",
+    "fallback": "#f8fafc",
     "exposeToStyler": false
   },
   {
@@ -1093,6 +1153,118 @@
     }
   },
   {
+    "id": "comment.border",
+    "cssVar": "--comment-border",
+    "label": "Comment / Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "border"
+    ],
+    "semantics": "Comment / Border",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.12)",
+    "lightFallback": "rgba(255, 255, 255, 0.12)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "comment.border.faint",
+    "cssVar": "--comment-border-faint",
+    "label": "Comment / Border Faint",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "border"
+    ],
+    "semantics": "Comment / Border Faint",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.1)",
+    "lightFallback": "rgba(255, 255, 255, 0.1)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "comment.border.strong",
+    "cssVar": "--comment-border-strong",
+    "label": "Comment / Border Strong",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "border"
+    ],
+    "semantics": "Comment / Border Strong",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.18)",
+    "lightFallback": "rgba(255, 255, 255, 0.18)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "comment.glow.hairline",
+    "cssVar": "--comment-glow-hairline",
+    "label": "Comment / Glow Hairline",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "glow"
+    ],
+    "semantics": "Comment / Glow Hairline",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.02)",
+    "lightFallback": "rgba(255, 255, 255, 0.02)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "comment.glow.soft",
+    "cssVar": "--comment-glow-soft",
+    "label": "Comment / Glow Soft",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "glow"
+    ],
+    "semantics": "Comment / Glow Soft",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.06)",
+    "lightFallback": "rgba(255, 255, 255, 0.06)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "comment.glow.strong",
+    "cssVar": "--comment-glow-strong",
+    "label": "Comment / Glow Strong",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "glow"
+    ],
+    "semantics": "Comment / Glow Strong",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.08)",
+    "lightFallback": "rgba(255, 255, 255, 0.08)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "comment.glow.veil",
+    "cssVar": "--comment-glow-veil",
+    "label": "Comment / Glow Veil",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "comment",
+      "glow"
+    ],
+    "semantics": "Comment / Glow Veil",
+    "layer": "component",
+    "fallback": "rgba(255, 255, 255, 0.04)",
+    "lightFallback": "rgba(255, 255, 255, 0.04)",
+    "exposeToStyler": false
+  },
+  {
     "id": "comment.media.bg",
     "cssVar": "--comment-media-bg",
     "label": "Comment Media Bg",
@@ -1536,6 +1708,342 @@
     "exposeToStyler": true
   },
   {
+    "id": "connections.tile.accent.a",
+    "cssVar": "--connections-accent-a",
+    "label": "Connections Tile Accent A",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "tile",
+      "accent"
+    ],
+    "semantics": "Connections Tile Accent A",
+    "layer": "component",
+    "fallback": "#6366f1",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.tile.accent.b",
+    "cssVar": "--connections-accent-b",
+    "label": "Connections Tile Accent B",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "tile",
+      "accent"
+    ],
+    "semantics": "Connections Tile Accent B",
+    "layer": "component",
+    "fallback": "#22c4ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.tile.accent.c",
+    "cssVar": "--connections-accent-c",
+    "label": "Connections Tile Accent C",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "tile",
+      "accent"
+    ],
+    "semantics": "Connections Tile Accent C",
+    "layer": "component",
+    "fallback": "#4f46e5",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.assistant.badge.bg",
+    "cssVar": "--connections-assistant-badge-bg",
+    "label": "Connections Assistant Badge Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "assistant",
+      "badge",
+      "background"
+    ],
+    "semantics": "Connections Assistant Badge Background",
+    "layer": "component",
+    "fallback": "color-mix(\n      in srgb,\n      #60a5fa 14%,\n      var(--surface-elevated, var(--surface-overlay))\n    )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.assistant.badge.fg",
+    "cssVar": "--connections-assistant-badge-fg",
+    "label": "Connections Assistant Badge Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "assistant",
+      "badge",
+      "foreground"
+    ],
+    "semantics": "Connections Assistant Badge Foreground",
+    "layer": "component",
+    "fallback": "#f8fafc",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.assistant.icon.bg",
+    "cssVar": "--connections-assistant-icon-bg",
+    "label": "Connections Assistant Icon Background",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "connections",
+      "assistant",
+      "icon",
+      "gradient"
+    ],
+    "semantics": "Connections Assistant Icon Background",
+    "layer": "component",
+    "fallback": "linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.assistant.icon.fg",
+    "cssVar": "--connections-assistant-icon-fg",
+    "label": "Connections Assistant Icon Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "assistant",
+      "icon",
+      "foreground"
+    ],
+    "semantics": "Connections Assistant Icon Foreground",
+    "layer": "component",
+    "fallback": "#eef2ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.tile.border.hover",
+    "cssVar": "--connections-border-hover",
+    "label": "Connections Tile Border Hover",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "tile",
+      "border"
+    ],
+    "semantics": "Connections Tile Border Hover",
+    "layer": "component",
+    "fallback": "#818cf8",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.chats.badge.bg",
+    "cssVar": "--connections-chats-badge-bg",
+    "label": "Connections Chats Badge Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "chats",
+      "badge",
+      "background"
+    ],
+    "semantics": "Connections Chats Badge Background",
+    "layer": "component",
+    "fallback": "color-mix(\n      in srgb,\n      #1f6bff 12%,\n      var(--surface-elevated, var(--surface-overlay))\n    )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.chats.badge.fg",
+    "cssVar": "--connections-chats-badge-fg",
+    "label": "Connections Chats Badge Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "chats",
+      "badge",
+      "foreground"
+    ],
+    "semantics": "Connections Chats Badge Foreground",
+    "layer": "component",
+    "fallback": "#f3f8ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.chats.icon.bg",
+    "cssVar": "--connections-chats-icon-bg",
+    "label": "Connections Chats Icon Background",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "connections",
+      "chats",
+      "icon",
+      "gradient"
+    ],
+    "semantics": "Connections Chats Icon Background",
+    "layer": "component",
+    "fallback": "linear-gradient(135deg, #1d4ed8 0%, #22c4ee 100%)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.chats.icon.fg",
+    "cssVar": "--connections-chats-icon-fg",
+    "label": "Connections Chats Icon Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "chats",
+      "icon",
+      "foreground"
+    ],
+    "semantics": "Connections Chats Icon Foreground",
+    "layer": "component",
+    "fallback": "#e8f4ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.friends.badge.bg",
+    "cssVar": "--connections-friends-badge-bg",
+    "label": "Connections Friends Badge Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "friends",
+      "badge",
+      "background"
+    ],
+    "semantics": "Connections Friends Badge Background",
+    "layer": "component",
+    "fallback": "color-mix(\n      in srgb,\n      #2f6bff 14%,\n      var(--surface-elevated, var(--surface-overlay))\n    )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.friends.badge.fg",
+    "cssVar": "--connections-friends-badge-fg",
+    "label": "Connections Friends Badge Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "friends",
+      "badge",
+      "foreground"
+    ],
+    "semantics": "Connections Friends Badge Foreground",
+    "layer": "component",
+    "fallback": "#eef6ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.friends.icon.bg",
+    "cssVar": "--connections-friends-icon-bg",
+    "label": "Connections Friends Icon Background",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "connections",
+      "friends",
+      "icon",
+      "gradient"
+    ],
+    "semantics": "Connections Friends Icon Background",
+    "layer": "component",
+    "fallback": "linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.friends.icon.fg",
+    "cssVar": "--connections-friends-icon-fg",
+    "label": "Connections Friends Icon Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "friends",
+      "icon",
+      "foreground"
+    ],
+    "semantics": "Connections Friends Icon Foreground",
+    "layer": "component",
+    "fallback": "#e8f3ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.party.badge.bg",
+    "cssVar": "--connections-party-badge-bg",
+    "label": "Connections Party Badge Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "party",
+      "badge",
+      "background"
+    ],
+    "semantics": "Connections Party Badge Background",
+    "layer": "component",
+    "fallback": "color-mix(\n      in srgb,\n      #6366f1 12%,\n      var(--surface-elevated, var(--surface-overlay))\n    )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.party.badge.fg",
+    "cssVar": "--connections-party-badge-fg",
+    "label": "Connections Party Badge Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "party",
+      "badge",
+      "foreground"
+    ],
+    "semantics": "Connections Party Badge Foreground",
+    "layer": "component",
+    "fallback": "#fef7ff",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.party.icon.bg",
+    "cssVar": "--connections-party-icon-bg",
+    "label": "Connections Party Icon Background",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "connections",
+      "party",
+      "icon",
+      "gradient"
+    ],
+    "semantics": "Connections Party Icon Background",
+    "layer": "component",
+    "fallback": "linear-gradient(135deg, #4f46e5 0%, #22c4ff 100%)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.party.icon.fg",
+    "cssVar": "--connections-party-icon-fg",
+    "label": "Connections Party Icon Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "party",
+      "icon",
+      "foreground"
+    ],
+    "semantics": "Connections Party Icon Foreground",
+    "layer": "component",
+    "fallback": "#f8edff",
+    "exposeToStyler": false
+  },
+  {
     "id": "layout.connections.rail.offset",
     "cssVar": "--connections-rail-offset",
     "label": "Connections Rail Offset",
@@ -1549,6 +2057,90 @@
     "semantics": "Connections Rail Offset",
     "layer": "component",
     "fallback": "0px",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.requests.badge.bg",
+    "cssVar": "--connections-requests-badge-bg",
+    "label": "Connections Requests Badge Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "requests",
+      "badge",
+      "background"
+    ],
+    "semantics": "Connections Requests Badge Background",
+    "layer": "component",
+    "fallback": "color-mix(\n      in srgb,\n      #38bdf8 14%,\n      var(--surface-elevated, var(--surface-overlay))\n    )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.requests.badge.fg",
+    "cssVar": "--connections-requests-badge-fg",
+    "label": "Connections Requests Badge Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "requests",
+      "badge",
+      "foreground"
+    ],
+    "semantics": "Connections Requests Badge Foreground",
+    "layer": "component",
+    "fallback": "var(--text-on-brand, #f8fafc)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.requests.icon.bg",
+    "cssVar": "--connections-requests-icon-bg",
+    "label": "Connections Requests Icon Background",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "connections",
+      "requests",
+      "icon",
+      "gradient"
+    ],
+    "semantics": "Connections Requests Icon Background",
+    "layer": "component",
+    "fallback": "linear-gradient(\n      135deg,\n      #1d4ed8 0%,\n      #38bdf8 100%\n    )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.requests.icon.fg",
+    "cssVar": "--connections-requests-icon-fg",
+    "label": "Connections Requests Icon Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "requests",
+      "icon",
+      "foreground"
+    ],
+    "semantics": "Connections Requests Icon Foreground",
+    "layer": "component",
+    "fallback": "var(--text-on-brand, #f9fafb)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "connections.tile.shadow.hover",
+    "cssVar": "--connections-shadow-hover",
+    "label": "Connections Tile Shadow Hover",
+    "category": "shadow",
+    "valueKind": "color",
+    "tags": [
+      "connections",
+      "tile",
+      "shadow"
+    ],
+    "semantics": "Connections Tile Shadow Hover",
+    "layer": "component",
+    "fallback": "#312e81",
     "exposeToStyler": false
   },
   {
@@ -1773,6 +2365,21 @@
     "exposeToStyler": false
   },
   {
+    "id": "feed.gradient",
+    "cssVar": "--feed-gradient",
+    "label": "Feed Gradient",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "feed",
+      "gradient"
+    ],
+    "semantics": "Feed Gradient",
+    "layer": "component",
+    "fallback": "linear-gradient(120deg, #7c3aed, #22d3ee)",
+    "exposeToStyler": false
+  },
+  {
     "id": "feed.max.width",
     "cssVar": "--feed-max-width",
     "label": "Feed Max Width",
@@ -1833,6 +2440,21 @@
     "semantics": "Layout / Feed Media Min Height",
     "layer": "component",
     "fallback": "clamp(240px, 46vh, 760px)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "feed.outline",
+    "cssVar": "--feed-outline",
+    "label": "Feed Outline",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "feed",
+      "outline"
+    ],
+    "semantics": "Feed Outline",
+    "layer": "component",
+    "fallback": "#7c87ff",
     "exposeToStyler": false
   },
   {

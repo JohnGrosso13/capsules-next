@@ -38,8 +38,25 @@ function getInitial(name: string): string {
 }
 
 function describeRole(capsule: CapsuleSummary): string {
-  if (capsule.ownership === "owner") return "Owner";
-  if (capsule.role) return capsule.role;
+  const normalizedRole =
+    typeof capsule.role === "string" ? capsule.role.trim().toLowerCase() : null;
+
+  if (capsule.ownership === "owner" || normalizedRole === "founder") {
+    return "Founder · full control";
+  }
+
+  if (normalizedRole === "admin") {
+    return "Admin · manage members & store";
+  }
+
+  if (normalizedRole === "leader") {
+    return "Leader · invite & run ladders";
+  }
+
+  if (normalizedRole === "member") {
+    return "Member · post & participate";
+  }
+
   return "Member";
 }
 

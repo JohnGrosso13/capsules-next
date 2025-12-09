@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 
 import cards from "@/components/cards.module.css";
-import { ThemeStyleCarousel } from "@/components/theme-style-carousel";
 import type { NotificationSettings } from "@/shared/notifications";
 
 import layout from "./settings.module.css";
@@ -16,6 +16,16 @@ import { NotificationsSettingsSection } from "./notifications-section";
 import { AccessibilitySettingsSection } from "./accessibility-section";
 import { SecurityPrivacySection } from "./security-section";
 import { BillingSection } from "./billing-section";
+
+const ThemeStyleCarousel = dynamic(
+  () =>
+    import("@/components/theme-style-carousel").then((mod) => ({
+      default: mod.ThemeStyleCarousel,
+    })),
+  {
+    loading: () => null,
+  },
+);
 
 type CapsuleSettingsProps = React.ComponentProps<typeof CapsuleSettingsSection>;
 type AccountProfileProps = React.ComponentProps<typeof AccountSettingsSection>["profile"];

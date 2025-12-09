@@ -17,7 +17,7 @@ import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
-import type { DisplayMemoryUpload } from "./uploads-types";
+import type { DisplayMemoryUpload, MemoryUploadItem } from "./uploads-types";
 import styles from "./uploads-carousel.module.css";
 import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 
@@ -221,6 +221,7 @@ export type MemoryAssetCarouselProps = {
   emptySignedOut: string;
   emptyLoading: string;
   emptyNone: string;
+  initialItems?: MemoryUploadItem[] | undefined;
 };
 
 export function MemoryAssetCarousel({
@@ -233,14 +234,30 @@ export function MemoryAssetCarousel({
   emptySignedOut,
   emptyLoading,
   emptyNone,
+  initialItems,
 }: MemoryAssetCarouselProps) {
-  const { user, items, loading, error } = useMemoryUploads(kind);
+  const memoryOptions = initialItems
+    ? {
+        initialPage: {
+          items: initialItems,
+          hasMore: false,
+        },
+      }
+    : {};
+
+  const { user, items, loading, error } = useMemoryUploads(kind, memoryOptions);
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(
     () => (typeof window !== "undefined" ? window.location.origin : null),
     [],
   );
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", dragFree: true, loop: false });
+  const setViewportRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      emblaRef(node);
+    },
+    [emblaRef],
+  );
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
   const [offset, setOffset] = React.useState(0);
   const [activeItem, setActiveItem] = React.useState<DisplayMemoryUpload | null>(null);
@@ -372,7 +389,7 @@ export function MemoryAssetCarousel({
             ) : !filteredItems.length ? (
               <div className={styles.empty}>{emptyNone}</div>
             ) : (
-              <div className={styles.viewport} ref={emblaRef}>
+      <div className={styles.viewport} ref={setViewportRef}>
                 <div className={styles.container} style={containerStyle}>
                   {visibleItems.map((item) => (
                     <div className={styles.slide} key={item.id}>
@@ -404,46 +421,54 @@ export function MemoryAssetCarousel({
   );
 }
 
-export function CapsuleAssetsCarousel() {
+export function CapsuleAssetsCarousel(
+  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+) {
   return (
     <MemoryAssetCarousel
       title="Capsule Assets"
       icon={<SquaresFour size={18} weight="fill" />}
+      kind={null}
       variants={["banner", "store_banner", "promo_tile", "logo", "avatar"]}
       viewAllHref="/memory/assets?tab=banners"
       emptySignedOut="Sign in to access your capsule assets."
       emptyLoading="Loading your capsule assets..."
       emptyNone="No capsule assets saved yet. Customize a capsule or profile to add one."
+      initialItems={initialItems}
     />
   );
 }
 
-export function SavedCreationsCarousel() {
+export function SavedCreationsCarousel(
+  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+) {
   return (
     <MemoryAssetCarousel
       title="Saved Creations"
       icon={<MagicWand size={18} weight="fill" />}
       kind="composer_creation"
       variants={null}
-      viewAllHref="/memory/uploads?tab=uploads"
+      viewAllHref="/memory/uploads?tab=saved-creations"
       emptySignedOut="Sign in to view your saved creations."
       emptyLoading="Loading your creations..."
       emptyNone="No creations saved yet. Generate an image or video in the composer and tap Save."
+      initialItems={initialItems}
     />
   );
 }
 
-export function AiImagesCarousel() {
+export function AiImagesCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
   return (
     <MemoryAssetCarousel
       title="AI Images"
       icon={<ImageSquare size={18} weight="fill" />}
       kind="composer_image"
       variants={null}
-      viewAllHref="/memory/uploads?tab=uploads"
+      viewAllHref="/memory/uploads?tab=ai-images"
       emptySignedOut="Sign in to view your AI-generated images."
       emptyLoading="Loading your AI images..."
       emptyNone="No AI images yet. Generate an image in the composer to see it here."
+      initialItems={initialItems}
     />
   );
 }

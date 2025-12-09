@@ -28,9 +28,13 @@ const hasCredentials = Boolean(process.env.ABLY_API_KEY && process.env.ABLY_API_
     expect(token?.token).toBeTruthy();
   });
 
-  it("publishes a message", async () => {
-    const channel = `smoke:ably:${Date.now()}`;
-    const ok = await publishAblyMessage(channel, "smoke-test", { ts: Date.now() });
-    expect(ok).toBe(true);
-  });
+  it(
+    "publishes a message",
+    async () => {
+      const channel = `smoke:ably:${Date.now()}`;
+      const ok = await publishAblyMessage(channel, "smoke-test", { ts: Date.now() });
+      expect(ok).toBe(true);
+    },
+    15_000,
+  );
 });

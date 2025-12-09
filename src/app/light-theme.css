@@ -51,6 +51,13 @@
     --color-fg: rgba(14, 16, 36, 0.96);
     --color-fg-muted: rgba(14, 16, 36, 0.76);
     --color-fg-subtle: rgba(14, 16, 36, 0.6);
+    --comment-border: rgba(255, 255, 255, 0.12);
+    --comment-border-faint: rgba(255, 255, 255, 0.1);
+    --comment-border-strong: rgba(255, 255, 255, 0.18);
+    --comment-glow-hairline: rgba(255, 255, 255, 0.02);
+    --comment-glow-soft: rgba(255, 255, 255, 0.06);
+    --comment-glow-strong: rgba(255, 255, 255, 0.08);
+    --comment-glow-veil: rgba(255, 255, 255, 0.04);
     --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
     --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
     --cta-chip-border: rgba(14, 23, 42, 0.16);

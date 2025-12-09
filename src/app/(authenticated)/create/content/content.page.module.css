@@ -98,7 +98,7 @@
     radial-gradient(160% 200% at 0% 0%, color-mix(in srgb, var(--color-accent) 32%, transparent), transparent 60%);
   box-shadow:
     0 16px 32px color-mix(in srgb, var(--color-brand) 35%, rgba(5, 10, 30, 0.8)),
-    inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text-on-brand) 88%, transparent),
     inset 0 -1px 0 rgba(15, 23, 42, 0.9);
 }
 
@@ -299,7 +299,11 @@
   inset: 10%;
   border-radius: 18px;
   border: 1px dashed
-    color-mix(in srgb, var(--color-brand) 56%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 56%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
+    );
 }
 
 .previewBadge {
@@ -312,7 +316,11 @@
   font-weight: 600;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 1));
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 68%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 68%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 42%, transparent)
+    );
 }
 
 .previewTagline {
@@ -402,7 +410,11 @@
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.9);
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 70%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 70%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 42%, transparent)
+    );
 }
 
 .timelineTracks {
@@ -424,7 +436,11 @@
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.9);
   border: 1px dashed
-    color-mix(in srgb, var(--color-brand) 62%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 62%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
+    );
 }
 
 .chipButton {
@@ -451,7 +467,11 @@
   border-radius: 14px;
   padding: 9px 10px;
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 70%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 70%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 42%, transparent)
+    );
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(
@@ -488,7 +508,11 @@
   border-radius: 14px;
   padding: 9px 10px;
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 58%, color-mix(in srgb, var(--card-border, #ffffff) 36%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 58%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 36%, transparent)
+    );
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
@@ -526,7 +550,11 @@
       color-mix(in srgb, var(--color-brand-strong) 18%, transparent)
     );
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 58%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 58%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
+    );
   box-shadow:
     0 10px 24px rgba(15, 23, 42, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -590,7 +618,11 @@
   border-radius: 14px;
   padding: 8px 9px;
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 64%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 64%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
+    );
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(
@@ -624,7 +656,11 @@
   border-radius: 14px;
   padding: 9px 10px;
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 64%, color-mix(in srgb, var(--card-border, #ffffff) 38%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 64%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
+    );
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
     linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
@@ -678,7 +714,11 @@
   border-radius: 999px;
   font-size: 0.78rem;
   border: 1px solid
-    color-mix(in srgb, var(--color-brand) 68%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
+    color-mix(
+      in srgb,
+      var(--color-brand) 68%,
+      color-mix(in srgb, var(--card-border, var(--surface-outline)) 42%, transparent)
+    );
 }
 
 .fontChip[data-variant="sub"] {

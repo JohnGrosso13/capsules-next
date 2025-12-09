@@ -47,6 +47,8 @@ type MemoryIdRow = {
 const MEMORY_MEDIA_META_KEYS = [
   "thumbnail_url",
   "thumbnailUrl",
+  "poster_url",
+  "posterUrl",
   "thumb",
   "preview_url",
   "previewUrl",
@@ -541,6 +543,18 @@ type MemoryKindFilter = {
 };
 
 const BANNER_SOURCE_TOKENS = ["capsule_banner", "banner", "capsule_tile", "tile", "promo_tile"];
+const ASSET_SOURCE_TOKENS = [
+  "store_banner",
+  "store-banner",
+  "logo",
+  "capsule_logo",
+  "avatar",
+  "profile_avatar",
+  "user_logo",
+  "capsule_asset",
+  "capsule_brand_asset",
+];
+const UPLOAD_SOURCE_EXCLUDE_TOKENS = [...BANNER_SOURCE_TOKENS, ...ASSET_SOURCE_TOKENS];
 const COMPOSER_IMAGE_TOKENS = ["composer_image", "ai_image", "image_generation"];
 const COMPOSER_CREATION_TOKENS = ["composer_creation", "capsule_creation"];
 
@@ -627,8 +641,11 @@ function resolveMemoryKindFilters(kind: string | null | undefined): MemoryKindFi
   if (normalized === "composer_creation") {
     return { dbKinds: ["upload"], sourceIncludes: COMPOSER_CREATION_TOKENS, sourceExcludes: null };
   }
+  if (normalized === "post_memory") {
+    return { dbKinds: null, sourceIncludes: ["post_memory"], sourceExcludes: null };
+  }
   if (normalized === "upload") {
-    return { dbKinds: ["upload"], sourceIncludes: null, sourceExcludes: BANNER_SOURCE_TOKENS };
+    return { dbKinds: ["upload"], sourceIncludes: null, sourceExcludes: UPLOAD_SOURCE_EXCLUDE_TOKENS };
   }
   return { dbKinds: [normalized], sourceIncludes: null, sourceExcludes: null };
 }
@@ -638,6 +655,7 @@ async function fetchLegacyMemoryItems(
   filters: MemoryKindFilter,
   limit = DEFAULT_LIST_LIMIT,
   origin?: string | null,
+  cursor?: string | null,
 ) {
   const variants = [
     "id, kind, media_url, media_type, title, description, created_at",
@@ -652,6 +670,7 @@ async function fetchLegacyMemoryItems(
       .select<Record<string, unknown>>(columns)
       .eq("owner_user_id", ownerId)
       .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(limit);
 
     if (filters.dbKinds && filters.dbKinds.length) {
@@ -667,11 +686,20 @@ async function fetchLegacyMemoryItems(
 
     const rows = result.data ?? [];
     const normalized = rows.map((row) => normalizeLegacyMemoryRow(row as Record<string, unknown>));
-    const filtered = normalized.filter((item) =>
+    const filteredBySource = normalized.filter((item) =>
       matchesSourceRules(item.meta, filters.sourceIncludes, filters.sourceExcludes),
     );
+    const filtered = cursor
+      ? filteredBySource.filter((item) => {
+          if (!cursor) return true;
+          const createdAt = (item as { created_at?: unknown }).created_at;
+          if (typeof createdAt !== "string") return true;
+          return createdAt < cursor;
+        })
+      : filteredBySource;
+    const limited = filtered.slice(0, limit);
     return Promise.all(
-      filtered.map((item) => sanitizeMemoryItem(item as Record<string, unknown>, origin)),
+      limited.map((item) => sanitizeMemoryItem(item as Record<string, unknown>, origin)),
     );
   }
 
@@ -682,12 +710,18 @@ export async function listMemories({
   ownerId,
   kind,
   origin,
+  limit = DEFAULT_LIST_LIMIT,
+  cursor,
 }: {
   ownerId: string;
   kind?: string | null;
   origin?: string | null;
+  limit?: number | null;
+  cursor?: string | null;
 }) {
   const filters = resolveMemoryKindFilters(kind);
+  const pageSize =
+    typeof limit === "number" && limit > 0 ? Math.min(limit, DEFAULT_LIST_LIMIT) : DEFAULT_LIST_LIMIT;
 
   let builder = db
     .from("memories")
@@ -695,7 +729,8 @@ export async function listMemories({
     .eq("owner_user_id", ownerId)
     .eq("is_latest", true)
     .order("created_at", { ascending: false })
-    .limit(DEFAULT_LIST_LIMIT);
+    .order("id", { ascending: false })
+    .limit(pageSize);
 
   if (filters.dbKinds && filters.dbKinds.length) {
     if (filters.dbKinds.length === 1) {
@@ -705,11 +740,15 @@ export async function listMemories({
     }
   }
 
+  if (cursor && typeof cursor === "string") {
+    builder = builder.lt("created_at", cursor);
+  }
+
   const result = await builder.fetch();
 
   if (result.error) {
     if (isMissingTable(result.error)) {
-      return fetchLegacyMemoryItems(ownerId, filters, DEFAULT_LIST_LIMIT, origin ?? null);
+      return fetchLegacyMemoryItems(ownerId, filters, pageSize, origin ?? null, cursor ?? null);
     }
     throw result.error;
   }

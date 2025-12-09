@@ -10,6 +10,16 @@
   gap: 12px;
 }
 
+.tabList {
+  width: 100%;
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -109,4 +119,9 @@
   padding: 32px;
   text-align: center;
   color: var(--text-3, rgba(255, 255, 255, 0.62));
+}
+
+.loadMoreRow {
+  display: flex;
+  justify-content: center;
 }

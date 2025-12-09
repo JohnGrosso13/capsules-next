@@ -130,6 +130,22 @@ function sortStandings(members: CapsuleLadderMember[], scoringSystem?: string): 
   });
 }
 
+function getEntrantKind(member: CapsuleLadderMember): "player" | "team" | "capsule" {
+  const meta =
+    member.metadata && typeof member.metadata === "object"
+      ? (member.metadata as Record<string, unknown>)
+      : null;
+  const rawType =
+    typeof meta?.identityType === "string"
+      ? meta.identityType
+      : typeof meta?.entityType === "string"
+        ? meta.entityType
+        : null;
+  if (rawType === "capsule") return "capsule";
+  if (rawType === "team") return "team";
+  return "player";
+}
+
 function resolveTournamentFormat(
   detail: CapsuleLadderDetail | null | undefined,
 ): "single_elimination" | "double_elimination" | "round_robin" {
@@ -872,6 +888,7 @@ export function CapsuleEventsSection({
               } as React.CSSProperties;
               const streak = member.streak ?? 0;
               const streakTone = streak > 0 ? styles.streakPositive : streak < 0 ? styles.streakNegative : styles.streakNeutral;
+              const entrantKind = getEntrantKind(member);
               return (
                 <tr key={member.id}>
                   <td>
@@ -886,6 +903,11 @@ export function CapsuleEventsSection({
                         <span className={styles.playerName}>{member.displayName}</span>
                         {member.handle ? (
                           <span className={styles.playerHandle}>@{member.handle}</span>
+                        ) : null}
+                        {entrantKind !== "player" ? (
+                          <span className={styles.playerMeta}>
+                            {entrantKind === "team" ? "Team" : "Capsule"}
+                          </span>
                         ) : null}
                       </div>
                     </div>
@@ -1364,6 +1386,8 @@ export function CapsuleEventsSection({
           tournamentChallengesError={tournamentChallengesError}
           tournamentReportError={tournamentReportError}
           bracket={tournamentBracket}
+          members={tournamentMembers}
+          history={tournamentHistory}
           reportingMatchId={tournamentReportingMatchId}
           loadingTournamentState={loadingTournamentState}
           onSelectTournament={(value) => setSelectedTournamentId(value)}

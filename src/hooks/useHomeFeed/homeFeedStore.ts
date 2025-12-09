@@ -372,8 +372,12 @@ export function createHomeFeedStore(deps: HomeFeedStoreDependencies = {}): HomeF
         options.signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
       if (!aborted) {
         console.error("Posts refresh failed", error);
+        // Ensure the UI can exit the loading state gracefully on error.
+        // We keep existing items but mark the feed as fetched so skeletons stop.
+        setState({ isRefreshing: false, hasFetched: true });
+      } else {
+        setState({ isRefreshing: false });
       }
-      setState({ isRefreshing: false });
     }
   }
 
