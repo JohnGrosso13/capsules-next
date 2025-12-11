@@ -70,29 +70,6 @@ const ASSET_KIND_OPTIONS = [
   { key: "poll", label: "Poll" },
 ];
 
-type MemoryPreset = { key: string; label: string; description: string; prompt: string };
-
-const DEFAULT_MEMORY_PRESETS: MemoryPreset[] = [
-  {
-    key: "hook",
-    label: "Punchy hook",
-    description: "Start with a scroll-stopping opener.",
-    prompt: "Draft a punchy first line for this update.",
-  },
-  {
-    key: "summary",
-    label: "Quick summary",
-    description: "Condense the draft into a crisp takeaway.",
-    prompt: "Summarize the core idea in two sentences.",
-  },
-  {
-    key: "cta",
-    label: "Call to action",
-    description: "Close with a clear next step for readers.",
-    prompt: "Add a concise call-to-action that fits this draft.",
-  },
-];
-
 const normalizeComposerKind = (kind?: string | null): "text" | "image" | "video" | "poll" => {
   const normalized = (kind ?? "").toLowerCase();
   if (normalized === "image" || normalized === "video" || normalized === "poll") return normalized;
@@ -112,7 +89,7 @@ const getFooterHint = (kind?: string | null): string => {
   if (normalized === "image") return "Add a description so we can generate visuals.";
   if (normalized === "video") return "Add context for the edit or clip you want.";
   if (normalized === "poll") return "Add a question and options, then share it.";
-  return "Draft your post, then save or publish.";
+  return "";
 };
 
 const resolveKindLabel = (kind?: string | null): string => {
@@ -145,14 +122,6 @@ const MobileSidebarMenu = dynamic<MobileSidebarMenuProps>(
   () => import("./panes/SidebarPane").then((mod) => mod.MobileSidebarMenu),
   { ssr: false, loading: () => null },
 );
-
-type MemoryItem = {
-  key: string;
-  label: string;
-  description: string;
-  prompt: string | null;
-  kind: "choice" | "preset";
-};
 
 function pickFirstMeaningful(...values: Array<string | null | undefined>): string {
   for (const value of values) {
@@ -622,47 +591,6 @@ export function ComposerForm({
     ],
   );
 
-  const memoryItems = React.useMemo<MemoryItem[]>(() => {
-    if (_choices?.length) {
-      return _choices.map((choice) => ({
-        key: choice.key,
-        label: choice.label,
-        description: "Blueprint",
-        prompt: null,
-        kind: "choice" as const,
-      }));
-    }
-    return DEFAULT_MEMORY_PRESETS.map((preset) => ({
-      key: preset.key,
-      label: preset.label,
-      description: preset.description,
-      prompt: preset.prompt,
-      kind: "preset" as const,
-    }));
-  }, [_choices]);
-
-
-  const handleMemorySelect = React.useCallback(
-    (item: MemoryItem) => {
-      if (item.kind === "choice") {
-        if (onForceChoice) {
-          onForceChoice(item.key);
-        }
-      } else if (item.prompt) {
-        handleSuggestionSelect(item.prompt);
-      }
-      closeMobileRail();
-    },
-    [closeMobileRail, handleSuggestionSelect, onForceChoice],
-  );
-
-  const handleBlueprintShortcut = React.useCallback(() => {
-    if (!memoryItems.length) return;
-    const firstMemory = memoryItems[0];
-    if (!firstMemory) return;
-    handleMemorySelect(firstMemory);
-  }, [handleMemorySelect, memoryItems]);
-
   const handleMemoryPickerClose = React.useCallback(() => {
     closeAttachmentPicker();
   }, [closeAttachmentPicker]);
@@ -758,8 +686,6 @@ export function ComposerForm({
 
   const {
     previewState,
-    previewPrimaryAction,
-    previewSecondaryAction,
   } = useFeedPreview({
     activeKind,
     activeKindLabel,
@@ -770,15 +696,6 @@ export function ComposerForm({
     pollHasStructure,
     pollHelperText,
     pollPreviewCard,
-    handleAttachClick,
-    handlePromptSubmit,
-    handleMemoryPickerOpen,
-    handleBlueprintShortcut,
-    promptValue,
-    attachmentUploading,
-    loading,
-    memoryPickerTab,
-    memoryItemCount: memoryItems.length,
     onPostContentChange: handlePostContentChange,
   });
 
@@ -1195,8 +1112,6 @@ export function ComposerForm({
     <PreviewPane
       summaryPreviewContent={summaryPreviewContent}
       previewState={previewState}
-      previewPrimaryAction={previewPrimaryAction}
-      previewSecondaryAction={previewSecondaryAction}
     />
   );
 

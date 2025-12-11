@@ -41,6 +41,24 @@
     );
 }
 
+.chatPanelBare {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0;
+}
+
+.chatPanelBare[data-variant="rail"] {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.chatPanelBare .chatListShell {
+  padding: 0;
+}
+
 .placeholderHeader {
   padding: 14px 18px;
   font-weight: 800;
@@ -178,6 +196,11 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px;
+}
+
+.chatPanelBare .chatThreads {
+  padding: 0;
+  gap: 10px;
 }
 
 .chatThread {

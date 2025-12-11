@@ -850,7 +850,11 @@ export function AiComposerRoot() {
       onRetryVideo={retryVideo}
       onSaveCreation={saveCreation}
       onRetryLastPrompt={retryLastPrompt}
-      canRetryLastPrompt={Boolean(state.lastPrompt) && !state.loading}
+      canRetryLastPrompt={
+        Boolean(state.lastPrompt?.failed) &&
+        Boolean(state.lastPrompt?.kind) &&
+        !state.loading
+      }
       onCancelRun={cancelActiveRequest}
       {...forceHandlers}
     />

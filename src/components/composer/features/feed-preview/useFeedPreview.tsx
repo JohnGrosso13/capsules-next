@@ -8,7 +8,6 @@ import type { LocalAttachment } from "@/hooks/useAttachmentUpload";
 import type { ComposerDraft } from "@/lib/composer/draft";
 
 import styles from "../../styles";
-import type { MemoryPickerTab } from "../../components/ComposerMemoryPicker";
 import { formatClipDuration } from "../../utils/time";
 
 type FeedPreviewState = {
@@ -17,12 +16,6 @@ type FeedPreviewState = {
   body: React.ReactNode;
   empty: boolean;
   helper: string | null;
-};
-
-type PreviewAction = {
-  label: string;
-  onClick: () => void;
-  disabled: boolean;
 };
 
 type UseFeedPreviewParams = {
@@ -35,22 +28,11 @@ type UseFeedPreviewParams = {
   pollHasStructure: boolean;
   pollHelperText: string;
   pollPreviewCard: React.ReactNode;
-  handleAttachClick: () => void;
-  handlePromptSubmit: () => void;
-  handleMemoryPickerOpen(tab: MemoryPickerTab): void;
-  handleBlueprintShortcut: () => void;
-  promptValue: string;
-  attachmentUploading: boolean;
-  loading: boolean;
-  memoryPickerTab: MemoryPickerTab;
-  memoryItemCount: number;
   onPostContentChange?: (value: string) => void;
 };
 
 export type FeedPreviewController = {
   previewState: FeedPreviewState;
-  previewPrimaryAction: PreviewAction;
-  previewSecondaryAction: PreviewAction;
 };
 
 export function useFeedPreview({
@@ -63,15 +45,6 @@ export function useFeedPreview({
   pollHasStructure,
   pollHelperText,
   pollPreviewCard,
-  handleAttachClick,
-  handlePromptSubmit,
-  handleMemoryPickerOpen,
-  handleBlueprintShortcut,
-  promptValue,
-  attachmentUploading,
-  loading,
-  memoryPickerTab,
-  memoryItemCount,
   onPostContentChange,
 }: UseFeedPreviewParams): FeedPreviewController {
   const handlePostContentChange = React.useCallback(
@@ -341,54 +314,5 @@ export function useFeedPreview({
     workingDraft.mediaUrl,
     workingDraft.title,
   ]);
-
-  const previewPrimaryAction = React.useMemo<PreviewAction>(() => {
-    if (activeKind === "image" || activeKind === "video") {
-      return {
-        label: "Upload asset",
-        onClick: handleAttachClick,
-        disabled: loading || attachmentUploading,
-      };
-    }
-    const trimmed = promptValue.trim();
-    const label =
-      activeKind === "poll" ? "Generate via AI" : activeKind === "document" ? "Outline with AI" : "Ask Capsule";
-    const allowed = trimmed.length > 0 || pollHasStructure;
-    return {
-      label,
-      onClick: handlePromptSubmit,
-      disabled: loading || attachmentUploading || !allowed,
-    };
-  }, [
-    activeKind,
-    attachmentUploading,
-    handleAttachClick,
-    handlePromptSubmit,
-    loading,
-    pollHasStructure,
-    promptValue,
-  ]);
-
-  const previewSecondaryAction = React.useMemo<PreviewAction>(() => {
-    if (activeKind === "image" || activeKind === "video") {
-      return {
-        label: "Open library",
-        onClick: () => handleMemoryPickerOpen(memoryPickerTab),
-        disabled: false,
-      };
-    }
-    return {
-      label: "Browse blueprints",
-      onClick: handleBlueprintShortcut,
-      disabled: !memoryItemCount,
-    };
-  }, [
-    activeKind,
-    handleBlueprintShortcut,
-    handleMemoryPickerOpen,
-    memoryItemCount,
-    memoryPickerTab,
-  ]);
-
-  return { previewState, previewPrimaryAction, previewSecondaryAction };
+  return { previewState };
 }

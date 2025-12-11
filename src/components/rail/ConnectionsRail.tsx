@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import styles from "./connections-rail.module.css";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { FriendsRail } from "@/components/rail/FriendsRail";
@@ -9,6 +10,7 @@ import { PartyPanel } from "@/components/party/PartyPanel";
 import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
 import {
   GroupChatOverlay,
   type GroupChatOverlaySubmitPayload,
@@ -32,10 +34,12 @@ import {
   MagicWand,
   Plus,
   UserPlus,
+  X,
 } from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter } from "next/navigation";
 import { buildProfileHref } from "@/lib/profile/routes";
 import tileStyles from "./connection-tiles.module.css";
+import { sendPartyInviteRequest } from "@/services/party-invite/client";
 
 type RailTab = "friends" | "party" | "chats" | "requests" | "assistant";
 
@@ -340,11 +344,15 @@ export function ConnectionsRail() {
   const [groupBusy, setGroupBusy] = React.useState(false);
   const [groupError, setGroupError] = React.useState<string | null>(null);
   const hasEligibleFriends = React.useMemo(() => friends.some((friend) => Boolean(friend.userId)), [friends]);
+  const [partyInviteOpen, setPartyInviteOpen] = React.useState(false);
+  const [partyInviteBusy, setPartyInviteBusy] = React.useState(false);
+  const [partyInviteError, setPartyInviteError] = React.useState<string | null>(null);
   const [showFriendDiscover, setShowFriendDiscover] = React.useState(false);
   const [friendSearch, setFriendSearch] = React.useState("");
   const [addedSuggestionIds, setAddedSuggestionIds] = React.useState<Set<string>>(
     () => new Set<string>(),
   );
+  const [mounted, setMounted] = React.useState(false);
   const friendSearchInputRef = React.useRef<HTMLInputElement | null>(null);
   const [friendSearchResults, setFriendSearchResults] = React.useState<UserSearchResult[]>([]);
   const [friendSearchLoading, setFriendSearchLoading] = React.useState(false);
@@ -369,6 +377,10 @@ export function ConnectionsRail() {
     });
     return map;
   }, [friends]);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const partySummary = React.useMemo(() => {
     if (partyStatus === "loading") {
@@ -408,6 +420,14 @@ export function ConnectionsRail() {
     setGroupError(null);
     setGroupBusy(false);
   }, []);
+  const handleOpenPartyInvite = React.useCallback(() => {
+    setPartyInviteError(null);
+    setPartyInviteOpen(true);
+  }, []);
+  const handleClosePartyInvite = React.useCallback(() => {
+    setPartyInviteError(null);
+    setPartyInviteOpen(false);
+  }, []);
   const handlePartyShowFriends = React.useCallback(() => {
     setActiveRailTab("friends");
     setRailMode("connections");
@@ -417,6 +437,12 @@ export function ConnectionsRail() {
       const next = !prev;
       if (next) {
         window.setTimeout(() => friendSearchInputRef.current?.focus(), 0);
+      } else {
+        friendSearchAbortRef.current?.abort();
+        friendSearchAbortRef.current = null;
+        setFriendSearchLoading(false);
+        setFriendSearchError(null);
+        setFriendSearchResults([]);
       }
       return next;
     });
@@ -428,6 +454,13 @@ export function ConnectionsRail() {
       return next;
     });
   }, []);
+
+  React.useEffect(() => {
+    if (partySession) return;
+    setPartyInviteOpen(false);
+    setPartyInviteBusy(false);
+    setPartyInviteError(null);
+  }, [partySession]);
 
   const handleGroupSubmit = React.useCallback(
     async ({ name, participantIds }: GroupChatOverlaySubmitPayload) => {
@@ -479,6 +512,39 @@ export function ConnectionsRail() {
       setRailMode,
       startGroupChat,
     ],
+  );
+
+  const handlePartyInviteSubmit = React.useCallback(
+    async (userIds: string[]) => {
+      const unique = Array.from(new Set(userIds));
+      if (!partySession) {
+        setPartyInviteError("Start a party first, then invite your friends.");
+        return;
+      }
+      const validIds = unique.filter((id) => friendTargetMap.has(id));
+      if (!validIds.length) {
+        setPartyInviteError("Pick at least one friend to invite.");
+        return;
+      }
+      setPartyInviteBusy(true);
+      setPartyInviteError(null);
+      try {
+        for (const userId of validIds) {
+          await sendPartyInviteRequest({
+            partyId: partySession.partyId,
+            recipientId: userId,
+          });
+        }
+        setPartyInviteOpen(false);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "We couldn't deliver those invites. Try again soon.";
+        setPartyInviteError(message);
+      } finally {
+        setPartyInviteBusy(false);
+      }
+    },
+    [friendTargetMap, partySession],
   );
   const inviteSession = React.useMemo(() => {
     if (groupFlow?.mode !== "invite") return null;
@@ -1218,61 +1284,6 @@ export function ConnectionsRail() {
                 </div>
               </header>
               <div className={styles.panelShellDivider} />
-              {showFriendDiscover ? (
-                <div className={styles.friendDiscover}>
-                  <div className={styles.friendDiscoverControls}>
-                    <input
-                      id="friend-discover-search"
-                      ref={friendSearchInputRef}
-                      type="search"
-                      value={friendSearch}
-                      onChange={(event) => setFriendSearch(event.target.value)}
-                      placeholder="Search friends by name"
-                      className={styles.friendDiscoverInput}
-                      aria-label="Search friends"
-                    />
-                  </div>
-                  <div className={styles.friendSuggestions}>
-                    {friendSearchLoading ? (
-                      <div className={styles.friendSuggestionEmpty}>Searching...</div>
-                    ) : friendSearchError ? (
-                      <div className={styles.friendSuggestionEmpty}>{friendSearchError}</div>
-                    ) : friendSearchResults.length > 0 ? (
-                      friendSearchResults.map((entry) => {
-                        const added = addedSuggestionIds.has(entry.id);
-                        const subtitle = entry.subtitle ?? "";
-                        return (
-                          <div key={entry.id} className={styles.friendSuggestion}>
-                            <div className={styles.friendSuggestionMeta}>
-                              <span className={styles.friendSuggestionName}>{entry.name}</span>
-                              {subtitle ? (
-                                <span className={styles.friendSuggestionStatus}>{subtitle}</span>
-                              ) : null}
-                            </div>
-                            <button
-                              type="button"
-                              className={`${styles.friendSuggestionAdd} ${added ? styles.friendSuggestionAdded : ""}`.trim()}
-                              onClick={() => handleAddSuggestedFriend(entry.id)}
-                              disabled={added}
-                            >
-                              {added ? "Added" : "Add"}
-                            </button>
-                          </div>
-                        );
-                      })
-                    ) : friendSearch.trim().length >= 2 ? (
-                      <div className={styles.friendSuggestionEmpty}>No people found.</div>
-                    ) : (
-                      <div className={styles.friendSuggestionEmpty}>
-                        Start typing to search people across Capsules.
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.friendSuggestionHint}>
-                    No suggested friends right now.
-                  </div>
-                </div>
-              ) : null}
               <FriendsRail
                 friends={friends}
                 pendingId={friendActionPendingId}
@@ -1304,9 +1315,26 @@ export function ConnectionsRail() {
                   <span className={styles.panelShellTitleIcon} aria-hidden>
                     <MicrophoneStage size={18} weight="duotone" />
                   </span>
-                  <h2 className={styles.panelShellTitle}>Host a party lobby</h2>
+                  <h2 className={styles.panelShellTitle}>Party</h2>
                 </div>
-                <div className={styles.panelShellActions} />
+                <div className={styles.panelShellActions}>
+                  <button
+                    type="button"
+                    className={styles.railPanelActionButton}
+                    aria-label="Invite friends to your party"
+                    title={
+                      hasEligibleFriends
+                        ? partySession
+                          ? "Invite friends to your party"
+                          : "Start a party to send these invites"
+                        : "Add friends to invite"
+                    }
+                    onClick={handleOpenPartyInvite}
+                    disabled={!hasEligibleFriends}
+                  >
+                    <Plus size={16} weight="bold" />
+                  </button>
+                </div>
               </header>
               <div className={styles.panelShellDivider} />
               <PartyPanel
@@ -1314,6 +1342,8 @@ export function ConnectionsRail() {
                 friendTargets={friendTargetMap}
                 onShowFriends={handlePartyShowFriends}
                 variant="compact"
+                showHeader={false}
+                frameless
               />
             </div>
           </div>
@@ -1349,6 +1379,8 @@ export function ConnectionsRail() {
                 friends={friends}
                 emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
                 onInviteToGroup={handleInviteToGroup}
+                showHeader={false}
+                frameless
               />
             </div>
           </div>
@@ -1414,8 +1446,87 @@ export function ConnectionsRail() {
               friends={friends}
             />
           </div>
-        </div>
+          </div>
           {/* Overlay for group chat create/invite */}
+          <ChatStartOverlay
+            open={partyInviteOpen}
+            friends={friends}
+            busy={partyInviteBusy}
+            error={partyInviteError}
+            onClose={handleClosePartyInvite}
+            onSubmit={(ids) => void handlePartyInviteSubmit(ids)}
+            mode="party"
+          />
+          {showFriendDiscover && mounted && typeof document !== "undefined"
+            ? createPortal(
+                <div className={styles.friendDiscoverOverlay} role="dialog" aria-modal="true" aria-label="Add friends">
+                  <div className={styles.friendDiscoverBackdrop} onClick={handleToggleFriendDiscover} aria-hidden />
+                  <div className={styles.friendDiscoverPanel}>
+                    <div className={styles.friendDiscoverHeader}>
+                      <div>
+                        <h3 className={styles.friendDiscoverTitle}>Add friends</h3>
+                        <p className={styles.friendDiscoverSubtitle}>Search people across Capsules.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.friendDiscoverClose}
+                        aria-label="Close add friends"
+                        onClick={handleToggleFriendDiscover}
+                      >
+                        <X size={16} weight="bold" />
+                      </button>
+                    </div>
+                    <div className={styles.friendDiscoverControls}>
+                      <input
+                        id="friend-discover-search"
+                        ref={friendSearchInputRef}
+                        type="search"
+                        value={friendSearch}
+                        onChange={(event) => setFriendSearch(event.target.value)}
+                        placeholder="Search friends by name"
+                        className={styles.friendDiscoverInput}
+                        aria-label="Search friends"
+                        autoFocus
+                      />
+                    </div>
+                    <div className={styles.friendSuggestions}>
+                      {friendSearchLoading ? (
+                        <div className={styles.friendSuggestionEmpty}>Searching...</div>
+                      ) : friendSearchError ? (
+                        <div className={styles.friendSuggestionEmpty}>{friendSearchError}</div>
+                      ) : friendSearchResults.length > 0 ? (
+                        friendSearchResults.map((entry) => {
+                          const added = addedSuggestionIds.has(entry.id);
+                          const subtitle = entry.subtitle ?? "";
+                          return (
+                            <div key={entry.id} className={styles.friendSuggestion}>
+                              <div className={styles.friendSuggestionMeta}>
+                                <span className={styles.friendSuggestionName}>{entry.name}</span>
+                                {subtitle ? <span className={styles.friendSuggestionStatus}>{subtitle}</span> : null}
+                              </div>
+                              <button
+                                type="button"
+                                className={`${styles.friendSuggestionAdd} ${added ? styles.friendSuggestionAdded : ""}`.trim()}
+                                onClick={() => handleAddSuggestedFriend(entry.id)}
+                                disabled={added}
+                              >
+                                {added ? "Added" : "Add"}
+                              </button>
+                            </div>
+                          );
+                        })
+                      ) : friendSearch.trim().length >= 2 ? (
+                        <div className={styles.friendSuggestionEmpty}>No people found.</div>
+                      ) : (
+                        <div className={styles.friendSuggestionEmpty}>Start typing to search people across Capsules.</div>
+                      )}
+                    </div>
+                    <div className={styles.friendSuggestionHint}>No suggested friends right now.</div>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null}
           <GroupChatOverlay
             open={groupFlow !== null}
             mode={groupFlow?.mode ?? "create"}

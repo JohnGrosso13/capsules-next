@@ -102,5 +102,7 @@ export type ComposerState = {
     prompt: string;
     attachments: PrompterAttachment[] | null;
     mode: PromptRunMode;
+    kind: "image" | "video" | null;
+    failed: boolean;
   } | null;
 };

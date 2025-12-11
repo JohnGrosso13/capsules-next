@@ -481,7 +481,14 @@
     var(--composer-rail-border, var(--composer-panel-border, rgba(148, 163, 255, 0.32))) 85%,
     transparent
   );
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+  background:
+    radial-gradient(
+      140% 140% at 50% 50%,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 55%,
+      rgba(255, 255, 255, 0) 75%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
   color: var(--text, rgba(241, 245, 255, 0.96));
   font-weight: 700;
   box-shadow:

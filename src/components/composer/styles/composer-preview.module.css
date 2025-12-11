@@ -30,26 +30,11 @@
   gap: 18px;
 }
 
-.previewSection[data-variant='compact'] {
-  gap: 12px;
-}
+.previewSection[data-variant='compact'] { gap: 12px; }
 
 .previewHeader {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.previewSection {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.previewHeader {
-  display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
 }
@@ -80,6 +65,17 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  align-self: center;
+}
+
+.previewPaneTitle {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--composer-rail-tab-color-strong, var(--composer-text));
 }
 
 .previewTypeBadge {
@@ -375,66 +371,6 @@
   color: var(--composer-text, var(--text));
   font-size: 0.85rem;
   text-align: center;
-}
-
-.previewActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: flex-start;
-}
-
-.previewActionPrimary,
-.previewActionSecondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 20px;
-  border-radius: 999px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  transition:
-    transform 120ms ease,
-    box-shadow 120ms ease,
-    border-color 120ms ease;
-}
-
-.previewActionPrimary {
-  border: none;
-  background: var(--composer-rail-tab-active-bg, var(--composer-rail-shell));
-  color: var(--composer-rail-tab-active-color, var(--text-on-brand));
-  box-shadow: var(--composer-rail-tab-active-shadow, var(--composer-shadow));
-  cursor: pointer;
-}
-
-.previewActionPrimary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.previewActionPrimary:hover:not(:disabled),
-.previewActionPrimary:focus-visible:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--composer-send-btn-hover-shadow, var(--composer-rail-tab-active-shadow));
-}
-
-.previewActionSecondary {
-  border: 1px solid var(--composer-rail-tab-border);
-  background: var(--composer-rail-shell, var(--composer-panel-background));
-  color: var(--composer-text, var(--text));
-  cursor: pointer;
-}
-
-.previewActionSecondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.previewActionSecondary:hover:not(:disabled),
-.previewActionSecondary:focus-visible:not(:disabled) {
-  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
-  transform: translateY(-1px);
 }
 
 @media (max-width: 900px) {

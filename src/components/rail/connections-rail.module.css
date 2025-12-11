@@ -664,6 +664,104 @@
     color: var(--text-2, #a5b1cb);
   }
 
+  .friendDiscoverOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .friendDiscoverBackdrop {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--surface-overlay, #050816) 65%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .friendDiscoverPanel {
+    position: relative;
+    z-index: 1;
+    width: min(640px, 100%);
+    max-height: min(680px, 100vh - 48px);
+    overflow: hidden;
+    border-radius: 24px;
+    border: 1px solid color-mix(in srgb, var(--card-border, var(--color-border)) 80%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent),
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 82%, transparent)
+    );
+    box-shadow: 0 28px 48px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 40%, transparent);
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    padding: 20px 20px 18px;
+    gap: 14px;
+  }
+
+  .friendDiscoverHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .friendDiscoverTitle {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+
+  .friendDiscoverSubtitle {
+    margin: 2px 0 0;
+    font-size: 0.95rem;
+    color: color-mix(in srgb, var(--text) 70%, transparent);
+  }
+
+  .friendDiscoverClose {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--card-border, var(--color-border)) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 80%, transparent);
+    color: var(--text);
+    transition: transform 150ms ease, filter 150ms ease, border-color 150ms ease;
+  }
+
+  .friendDiscoverClose:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+    border-color: color-mix(in srgb, var(--color-brand, var(--color-border)) 70%, transparent);
+  }
+
+  .friendDiscoverControls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .friendDiscoverInput {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--card-border, var(--color-border)) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 80%, transparent);
+    color: var(--text);
+  }
+
+  .friendDiscoverInput:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-brand) 70%, var(--card-border));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 28%, transparent);
+  }
+
   .railPanelTitle {
     font-weight: 800;
     font-size: 1.2rem;

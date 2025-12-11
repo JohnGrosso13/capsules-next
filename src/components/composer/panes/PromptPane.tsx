@@ -156,6 +156,7 @@ export function PromptPane({
   const chatScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shouldStickRef = React.useRef(true);
   const isLoadingImage = loading && loadingKind === "image";
+  const isLoadingVideo = loading && loadingKind === "video";
   const [brainProgress, setBrainProgress] = React.useState(0);
   React.useEffect(() => {
     if (!isLoadingImage) {
@@ -647,7 +648,7 @@ export function PromptPane({
               </li>
             ) : null}
 
-            {loading && !isLoadingImage ? (
+            {loading && !isLoadingImage && !isLoadingVideo ? (
               <li className={styles.msgRow} data-role="ai">
                 <div
                   className={`${styles.msgBubble} ${styles.aiBubble} ${styles.streaming}`}
@@ -656,13 +657,6 @@ export function PromptPane({
                   <span className={styles.streamDot} />
                   <span className={styles.streamDot} />
                   <span className={styles.streamDot} />
-                  {onCancelRun ? (
-                    <div className={styles.videoStatusActions}>
-                      <button type="button" className={styles.videoCancelButton} onClick={onCancelRun}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               </li>
             ) : null}

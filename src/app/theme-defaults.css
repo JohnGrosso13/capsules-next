@@ -155,7 +155,7 @@
   --composer-rail-button-text: color-mix(in srgb, var(--composer-text, var(--text)) 92%, transparent);
   --composer-rail-scrollbar: color-mix(
     in srgb,
-    var(--composer-accent, var(--color-brand, #1d4ed8)) 32%,
+    var(--composer-text, var(--text, rgba(14, 16, 36, 0.96))) 28%,
     transparent
   );
   --composer-rail-tab-active-bg: linear-gradient(

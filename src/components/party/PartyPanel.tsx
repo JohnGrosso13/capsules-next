@@ -13,6 +13,7 @@ import {
   UsersThree,
   XCircle,
   CaretDown,
+  Plus,
 } from "@phosphor-icons/react/dist/ssr";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
@@ -42,6 +43,10 @@ type PartyPanelProps = {
   friendTargets: Map<string, ChatFriendTarget>;
   onShowFriends(): void;
   variant?: PartyPanelVariant;
+  showHeader?: boolean;
+  frameless?: boolean;
+  onOpenPartyInvite?: () => void;
+  canOpenPartyInvite?: boolean;
 };
 
 type ExpandableSettingProps = {
@@ -332,7 +337,7 @@ type PrivacyOption = {
   description: string;
 };
 
-const DEFAULT_PRIVACY: PartyPrivacy = "invite-only";
+const DEFAULT_PRIVACY: PartyPrivacy = "public";
 
 const PRIVACY_OPTIONS: PrivacyOption[] = [
   {
@@ -362,6 +367,10 @@ export function PartyPanel({
   friends,
   friendTargets,
   variant = "default",
+  showHeader = true,
+  frameless = false,
+  onOpenPartyInvite,
+  canOpenPartyInvite = true,
 }: PartyPanelProps) {
   const searchParams = useSearchParams();
   const {
@@ -389,7 +398,7 @@ export function PartyPanel({
   const [createSummaryEnabled, setCreateSummaryEnabled] = React.useState(false);
   const [createSummaryVerbosity, setCreateSummaryVerbosity] =
     React.useState<SummaryLengthHint>("medium");
-  const [privacyExpanded, setPrivacyExpanded] = React.useState(true);
+  const [privacyExpanded, setPrivacyExpanded] = React.useState(false);
   const [summaryExpanded, setSummaryExpanded] = React.useState(false);
   const [joinCode, setJoinCode] = React.useState("");
 
@@ -626,26 +635,46 @@ export function PartyPanel({
   }, [privacy]);
 
   const summarySetupStatusLabel = React.useMemo(() => {
-    return createSummaryEnabled ? `On - ${SUMMARY_LABELS[createSummaryVerbosity]}` : "Off";
-  }, [createSummaryEnabled, createSummaryVerbosity]);
+    return createSummaryEnabled ? "On" : "Off";
+  }, [createSummaryEnabled]);
 
   const panelClassName =
     variant === "compact" ? `${styles.panel} ${styles.panelCompact}`.trim() : styles.panel;
-  const tileClassName =
-    variant === "compact" ? `${styles.partyTile} ${styles.partyTileCompact}`.trim() : styles.partyTile;
+  const tileClassName = [
+    styles.partyTile,
+    variant === "compact" ? styles.partyTileCompact : "",
+    frameless ? styles.partyTileBare : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const renderInactiveTile = () => (
     <>
-      <header className={styles.tileHeader}>
-        <div className={styles.tileHeading}>
-          <div className={styles.titleRow}>
-            <span className={styles.titleIcon} aria-hidden>
-              <MicrophoneStage size={18} weight="duotone" />
-            </span>
-            <h2 className={styles.tileTitle}>Host a party lobby</h2>
+      {showHeader ? (
+        <header className={styles.tileHeader}>
+          <div className={styles.tileHeading}>
+            <div className={styles.titleRow}>
+              <span className={styles.titleIcon} aria-hidden>
+                <MicrophoneStage size={18} weight="duotone" />
+              </span>
+              <h2 className={styles.tileTitle}>Party</h2>
+            </div>
           </div>
-        </div>
-      </header>
+          {onOpenPartyInvite ? (
+            <div className={styles.headerActions}>
+              <button
+                type="button"
+                className={styles.headerIconButton}
+                aria-label="Invite friends to your party"
+                onClick={onOpenPartyInvite}
+                disabled={!canOpenPartyInvite}
+              >
+                <Plus size={16} weight="bold" />
+              </button>
+            </div>
+          ) : null}
+        </header>
+      ) : null}
       <section className={`${styles.section} ${styles.sectionSplit}`.trim()}>
         <div className={styles.sectionBody}>
           {loading && action === "resume" ? (
@@ -662,14 +691,13 @@ export function PartyPanel({
             onChange={(event) => setDisplayName(event.target.value)}
             disabled={loading}
           />
-          <ExpandableSetting
-            id="party-privacy"
-            title="Party privacy"
-            eyebrow="Default: Invite only"
-            description="Choose who can discover and join your lobby."
-            status={<span className={styles.settingStatusPill}>{privacyStatusLabel}</span>}
-            open={privacyExpanded}
-            onToggle={setPrivacyExpanded}
+        <ExpandableSetting
+          id="party-privacy"
+          title="Party privacy"
+          description="Choose who can discover and join your lobby."
+          status={<span className={styles.settingStatusPill}>{privacyStatusLabel}</span>}
+          open={privacyExpanded}
+          onToggle={setPrivacyExpanded}
           >
             <div className={styles.settingOptions} role="radiogroup" aria-label="Party privacy">
               {PRIVACY_OPTIONS.map((option, index) => {
@@ -697,15 +725,14 @@ export function PartyPanel({
               })}
             </div>
           </ExpandableSetting>
-          <ExpandableSetting
-            id="party-summaries"
-            title="Conversation summaries"
-            eyebrow="Saves to Memory"
-            description="Capture an AI recap of your voice chat."
-            status={
-              <span
-                className={`${styles.settingStatusPill} ${
-                  createSummaryEnabled ? styles.settingStatusPillActive : ""
+        <ExpandableSetting
+          id="party-summaries"
+          title="Summaries"
+          description="Capture an AI recap of your voice chat."
+          status={
+            <span
+              className={`${styles.settingStatusPill} ${
+                createSummaryEnabled ? styles.settingStatusPillActive : ""
                 }`.trim()}
               >
                 {summarySetupStatusLabel}
@@ -832,14 +859,18 @@ export function PartyPanel({
     });
     const liveDurationLabel = createdAtLabel || "Just now";
 
+    const statusChip = statusText ? <span className={styles.headerStatus}>{statusText}</span> : null;
+
     return (
       <>
         <header className={`${styles.tileHeader} ${styles.tileHeaderActive}`}>
           <div className={styles.tileHeading}>
-            <div className={styles.titleRow}>
-              <h2 className={styles.tileTitle}>Party lobby</h2>
-              {statusText ? <span className={styles.headerStatus}>{statusText}</span> : null}
-            </div>
+            {showHeader ? (
+              <div className={styles.titleRow}>
+                <h2 className={styles.tileTitle}>Party lobby</h2>
+                {statusChip}
+              </div>
+            ) : null}
             <div className={styles.headerMetaRow}>
               <span className={styles.metaChip} title="Host">
                 <CrownSimple size={14} weight="fill" />
@@ -856,6 +887,7 @@ export function PartyPanel({
                   <span className={styles.metaEmphasis}>{liveDurationLabel}</span>
                 </span>
               </span>
+              {!showHeader ? statusChip : null}
             </div>
           </div>
           <div className={`${styles.headerActions} ${styles.headerActionsActive}`}>

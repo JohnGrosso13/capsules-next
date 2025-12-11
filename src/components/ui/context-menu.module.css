@@ -44,6 +44,18 @@
   font-weight: 700;
   cursor: pointer;
 }
+.choiceItem {
+  justify-content: flex-start;
+}
+.choiceItem[data-active="true"] {
+  border-color: var(--card-hover-border, rgba(255, 255, 255, 0.22));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.06))
+  );
+  box-shadow: 0 6px 18px rgba(5, 10, 30, 0.45);
+}
 .item:hover {
   border-color: var(--card-hover-border, rgba(255, 255, 255, 0.22));
   background: linear-gradient(
@@ -51,6 +63,26 @@
     var(--pill-bg-1, rgba(255, 255, 255, 0.12)),
     var(--pill-bg-2, rgba(255, 255, 255, 0.06))
   );
+}
+.itemLabel {
+  flex: 1;
+  text-align: left;
+}
+.itemCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border-radius: 10px;
+  color: var(--text-on-brand, #0b0e22);
+  background: color-mix(in srgb, var(--color-brand, #8aa0ff) 75%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand, #8aa0ff) 55%, transparent);
+}
+.itemCheck svg {
+  width: 14px;
+  height: 14px;
 }
 .item:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-brand) 55%, transparent);

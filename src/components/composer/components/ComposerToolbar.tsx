@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Brain,
+  Check,
   DotsThree,
   MagnifyingGlass,
 } from "@phosphor-icons/react/dist/ssr";
@@ -157,7 +158,7 @@ export function ComposerToolbar({
                 <button
                   key={quality}
                   type="button"
-                  className={menuStyles.item}
+                  className={`${menuStyles.item} ${menuStyles.choiceItem}`.trim()}
                   role="menuitemradio"
                   aria-checked={imageQuality === quality}
                   data-active={imageQuality === quality ? "true" : undefined}
@@ -165,7 +166,12 @@ export function ComposerToolbar({
                   disabled={disabled}
                   aria-disabled={disabled}
                 >
-                  <span>{titleCaseComposerQuality(quality)}</span>
+                  <span className={menuStyles.itemLabel}>{titleCaseComposerQuality(quality)}</span>
+                  {imageQuality === quality ? (
+                    <span className={menuStyles.itemCheck} aria-hidden="true">
+                      <Check weight="bold" />
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>

@@ -303,12 +303,210 @@
 }
 
 .railPlaceholder {
+  --rail-skeleton-block: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(12, 18, 40, 0.82)) 78%,
+    transparent
+  );
+  --rail-skeleton-line: color-mix(
+    in srgb,
+    var(--surface-overlay, rgba(12, 18, 40, 0.82)) 62%,
+    transparent
+  );
+  --rail-skeleton-strong: color-mix(
+    in srgb,
+    var(--connections-accent-a, var(--color-brand, #7bd4ff)) 32%,
+    var(--rail-skeleton-block)
+  );
   width: 100%;
   min-height: clamp(280px, 40vh, 520px);
-  border-radius: var(--radius-2xl, 20px);
+  border-radius: var(--card-radius, var(--radius-xl, 16px));
   border: 1px solid var(--card-border);
-  background: var(--card-background, rgba(18, 22, 42, 0.45));
+  background: linear-gradient(
+    180deg,
+    var(
+      --glass-bg-1,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 22%, transparent)
+    ),
+    var(
+      --glass-bg-2,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 12%, transparent)
+    )
+  );
+  box-shadow: var(--card-shadow, var(--shadow-lg, 0 14px 32px rgba(4, 8, 24, 0.38)));
+  padding: 10px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+  backdrop-filter: blur(var(--glass-blur, 14px)) saturate(125%);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(125%);
+}
+
+.railPlaceholder::before {
+  content: "";
+  position: absolute;
+  inset: -42% -16% auto -30%;
+  height: 92%;
+  background:
+    radial-gradient(
+      70% 70% at 30% 16%,
+      color-mix(in srgb, var(--rail-skeleton-strong) 60%, transparent),
+      transparent 74%
+    ),
+    radial-gradient(
+      58% 58% at 78% 4%,
+      color-mix(in srgb, var(--connections-accent-b, var(--color-accent, #22c4ff)) 28%, transparent),
+      transparent 74%
+    );
+  opacity: 0.52;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.railPlaceholder::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background: linear-gradient(
+    120deg,
+    transparent 32%,
+    color-mix(in srgb, var(--color-brand, #7bd4ff) 20%, rgba(255, 255, 255, 0.82)) 52%,
+    transparent 68%
+  );
+  transform: translateX(-62%);
+  animation: railSkeletonShimmer 1.6s ease-in-out infinite;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.railPlaceholderTiles {
+  display: grid;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.railPlaceholderTile {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 14px 15px 13px;
+  border-radius: 18px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--connections-accent-a, var(--color-brand, #7bd4ff)) 22%,
+      var(--card-border, rgba(255, 255, 255, 0.16))
+    );
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--surface-elevated, var(--surface-overlay)) 86%, transparent),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 72%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg, #ffffff) 10%, transparent),
+    0 12px 26px color-mix(in srgb, var(--connections-shadow-hover, #312e81) 18%, transparent);
+  overflow: hidden;
+}
+
+.railPlaceholderTile::before {
+  content: "";
+  position: absolute;
+  inset: -40% -16% auto;
+  height: 76%;
+  background: radial-gradient(
+    82% 82% at 32% 8%,
+    color-mix(in srgb, var(--rail-skeleton-strong) 34%, transparent),
+    transparent 76%
+  );
+  opacity: 0.46;
+  pointer-events: none;
+}
+
+.railPlaceholderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.railPlaceholderMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.railPlaceholder [data-rail-skeleton] {
+  display: block;
+  background: var(--rail-skeleton-line);
+  border-radius: 999px;
+  animation: railSkeletonPulse 1.5s ease-in-out infinite alternate;
+}
+
+.railPlaceholderIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--rail-skeleton-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.railPlaceholderTitle {
+  width: clamp(90px, 28vw, 140px);
+  height: 12px;
+}
+
+.railPlaceholderBadge {
+  width: 74px;
+  height: 18px;
+  background: var(--rail-skeleton-block);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.railPlaceholderLine {
+  width: 100%;
+  height: 10px;
+}
+
+.railPlaceholderLineShort {
+  width: 72%;
+}
+
+.railPlaceholderTile:nth-child(2) [data-rail-skeleton] {
+  animation-delay: 0.08s;
+}
+
+.railPlaceholderTile:nth-child(3) [data-rail-skeleton] {
+  animation-delay: 0.16s;
+}
+
+@keyframes railSkeletonPulse {
+  0% {
+    opacity: 0.52;
+  }
+  50% {
+    opacity: 0.94;
+  }
+  100% {
+    opacity: 0.52;
+  }
+}
+
+@keyframes railSkeletonShimmer {
+  0% {
+    transform: translateX(-62%);
+  }
+  50% {
+    transform: translateX(6%);
+  }
+  100% {
+    transform: translateX(74%);
+  }
 }
 
 .capsuleBanner {

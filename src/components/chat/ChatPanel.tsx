@@ -20,9 +20,18 @@ type ChatPanelProps = {
   emptyNotice?: React.ReactNode;
   onInviteToGroup?: (session: ChatSession) => void;
   friends?: FriendItem[];
+  showHeader?: boolean;
+  frameless?: boolean;
 };
 
-export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, friends }: ChatPanelProps) {
+export function ChatPanel({
+  variant = "page",
+  emptyNotice,
+  onInviteToGroup,
+  friends,
+  showHeader = true,
+  frameless = false,
+}: ChatPanelProps) {
   const {
     sessions,
     activeSession,
@@ -230,26 +239,31 @@ export function ChatPanel({ variant = "page", emptyNotice, onInviteToGroup, frie
   }
 
   return (
-    <div className={styles.chatPanel} data-variant={variant}>
+    <div
+      className={`${styles.chatPanel} ${frameless ? styles.chatPanelBare : ""}`.trim()}
+      data-variant={variant}
+    >
       <div className={styles.chatListShell}>
-        <div className={styles.chatListHeader}>
-          <div className={styles.chatListTitleBlock}>
-            <span className={styles.chatListTitleIcon} aria-hidden>
-              <ChatsTeardrop size={18} weight="duotone" />
-            </span>
-            <span className={styles.chatListTitle}>Chats</span>
+        {showHeader ? (
+          <div className={styles.chatListHeader}>
+            <div className={styles.chatListTitleBlock}>
+              <span className={styles.chatListTitleIcon} aria-hidden>
+                <ChatsTeardrop size={18} weight="duotone" />
+              </span>
+              <span className={styles.chatListTitle}>Chats</span>
+            </div>
+            <button
+              type="button"
+              className={styles.chatListActionButton}
+              onClick={handleOpenStartOverlay}
+              disabled={!canStartNewChat}
+              aria-label="Start a new chat"
+              title={canStartNewChat ? "Start a new chat" : "Add friends to start a chat"}
+            >
+              <Plus size={16} weight="bold" />
+            </button>
           </div>
-          <button
-            type="button"
-            className={styles.chatListActionButton}
-            onClick={handleOpenStartOverlay}
-            disabled={!canStartNewChat}
-            aria-label="Start a new chat"
-            title={canStartNewChat ? "Start a new chat" : "Add friends to start a chat"}
-          >
-            <Plus size={16} weight="bold" />
-          </button>
-        </div>
+        ) : null}
         <ChatList
           sessions={sessions}
           activeSessionId={activeSessionId}

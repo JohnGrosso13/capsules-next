@@ -23,6 +23,7 @@ import {
   GroupChatOverlay,
   type GroupChatOverlaySubmitPayload,
 } from "@/components/chat/GroupChatOverlay";
+import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
 import {
   useChatContext,
   type ChatFriendTarget,
@@ -38,6 +39,7 @@ import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 import type { GlobalSearchSection, UserSearchResult } from "@/types/search";
+import { sendPartyInviteRequest } from "@/services/party-invite/client";
 
 import styles from "./friends.module.css";
 
@@ -152,6 +154,9 @@ export function FriendsClient() {
   const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
   const [groupBusy, setGroupBusy] = React.useState(false);
   const [groupError, setGroupError] = React.useState<string | null>(null);
+  const [partyInviteOpen, setPartyInviteOpen] = React.useState(false);
+  const [partyInviteBusy, setPartyInviteBusy] = React.useState(false);
+  const [partyInviteError, setPartyInviteError] = React.useState<string | null>(null);
   const assistantTabActive = activeTab === "Assistant";
   const [cancelingTaskIds, setCancelingTaskIds] = React.useState<Set<string>>(new Set());
   const [assistantActionError, setAssistantActionError] = React.useState<string | null>(null);
@@ -404,6 +409,16 @@ export function FriendsClient() {
     setGroupError(null);
   }, []);
 
+  const handleOpenPartyInvite = React.useCallback(() => {
+    setPartyInviteError(null);
+    setPartyInviteOpen(true);
+  }, []);
+
+  const handleClosePartyInvite = React.useCallback(() => {
+    setPartyInviteError(null);
+    setPartyInviteOpen(false);
+  }, []);
+
   const handleGroupSubmit = React.useCallback(
     async ({ name, participantIds }: GroupChatOverlaySubmitPayload) => {
       if (!groupFlow) return;
@@ -464,6 +479,39 @@ export function FriendsClient() {
       setChatNotice,
       startGroupChat,
     ],
+  );
+
+  const handlePartyInviteSubmit = React.useCallback(
+    async (userIds: string[]) => {
+      const unique = Array.from(new Set(userIds));
+      if (!party.session) {
+        setPartyInviteError("Start a party first, then invite your friends.");
+        return;
+      }
+      const validIds = unique.filter((id) => friendTargetMap.has(id));
+      if (!validIds.length) {
+        setPartyInviteError("Pick at least one friend to invite.");
+        return;
+      }
+      setPartyInviteBusy(true);
+      setPartyInviteError(null);
+      try {
+        for (const userId of validIds) {
+          await sendPartyInviteRequest({
+            partyId: party.session.partyId,
+            recipientId: userId,
+          });
+        }
+        setPartyInviteOpen(false);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "We couldn't deliver those invites. Try again soon.";
+        setPartyInviteError(message);
+      } finally {
+        setPartyInviteBusy(false);
+      }
+    },
+    [friendTargetMap, party.session],
   );
 
   const withPendingAction = React.useCallback(
@@ -1045,6 +1093,8 @@ export function FriendsClient() {
             friends={friends}
             friendTargets={friendTargetMap}
             onShowFriends={() => selectTab("Friends")}
+            onOpenPartyInvite={handleOpenPartyInvite}
+            canOpenPartyInvite={hasEligibleFriends}
           />
         </div>
 
@@ -1088,6 +1138,16 @@ export function FriendsClient() {
           />
         </div>
       </section>
+
+      <ChatStartOverlay
+        open={partyInviteOpen}
+        friends={friends}
+        busy={partyInviteBusy}
+        error={partyInviteError}
+        mode="party"
+        onClose={handleClosePartyInvite}
+        onSubmit={(ids) => void handlePartyInviteSubmit(ids)}
+      />
 
       <GroupChatOverlay
         open={groupFlow !== null}

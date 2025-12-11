@@ -37,7 +37,7 @@ export function ComposerFooter({
   return (
     <footer className={footerStyles.panelFooter}>
       <div className={footerStyles.footerLeft}>
-        <p className={footerStyles.footerHint}>{footerHint}</p>
+        {footerHint ? <p className={footerStyles.footerHint}>{footerHint}</p> : null}
         <div className={footerStyles.privacyGroup}>
           <span className={footerStyles.privacyLabel}>Visibility</span>
           <select

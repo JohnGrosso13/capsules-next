@@ -96,8 +96,9 @@ export function useComposerPromptActions({
         history,
         threadId,
       });
+      setState((prev) => ({ ...prev, lastPrompt: null }));
     },
-    [applyAiResponse, recordRecentChat],
+    [applyAiResponse, recordRecentChat, setState],
   );
 
   const runAiPromptHandoff = React.useCallback(
@@ -227,6 +228,8 @@ export function useComposerPromptActions({
             prompt: trimmedPrompt,
             attachments: normalizedAttachments ?? null,
             mode: replyMode === "chat" ? "chatOnly" : "default",
+            kind: requestedComposeKind,
+            failed: false,
           },
         };
       });
@@ -284,17 +287,24 @@ export function useComposerPromptActions({
           createdAt: new Date().toISOString(),
           attachments: null,
         };
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-        loadingKind: null,
-        history: pendingHistory.length
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          loadingKind: null,
+          history: pendingHistory.length
             ? pendingHistory.filter((entry) => entry.id !== workingMessageId).concat(assistantError)
             : prev.history.filter((entry) => entry.id !== workingMessageId).concat(assistantError),
           message: errorMessage,
           backgrounded: false,
           backgroundReadyNotice: null,
           backgroundReminderVisible: false,
+          lastPrompt: {
+            prompt: trimmedPrompt,
+            attachments: normalizedAttachments ?? null,
+            mode: replyMode === "chat" ? "chatOnly" : "default",
+            kind: requestedComposeKind,
+            failed: true,
+          },
         }));
         clearRequestToken(requestToken);
         clearRequestController(controller);
@@ -614,6 +624,8 @@ export function useComposerPromptActions({
             prompt: trimmed,
             attachments: attachmentList ?? null,
             mode: options?.mode ?? "default",
+            kind: expectVideo ? "video" : expectImage ? "image" : null,
+            failed: false,
           },
         };
       });
@@ -689,6 +701,13 @@ export function useComposerPromptActions({
             backgrounded: false,
             backgroundReadyNotice: null,
             backgroundReminderVisible: false,
+            lastPrompt: {
+              prompt: trimmed,
+              attachments: attachmentList ?? null,
+              mode: options?.mode ?? "default",
+              kind: expectVideo ? "video" : expectImage ? "image" : null,
+              failed: true,
+            },
           };
         });
         clearRequestToken(requestToken);

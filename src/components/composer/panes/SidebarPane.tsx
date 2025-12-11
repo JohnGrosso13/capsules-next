@@ -188,36 +188,38 @@ export function SidebarRail({
   return (
     <div className={styles.memoryRail}>
       <div className={styles.sidebarHeaderRow}>
-        <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
-          {SIDEBAR_TAB_OPTIONS.map((tab) => {
-            const selected = tab.key === activeTab;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                tabIndex={selected ? 0 : -1}
-                className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
-                data-selected={selected ? "true" : undefined}
-                onClick={() => onTabChange(tab.key)}
-                title={tab.label}
-              >
-                {tab.renderIcon(selected)}
-                <span className={styles.srOnly}>{tab.label}</span>
-              </button>
-            );
-          })}
+        <div className={styles.sidebarTabsGroup}>
+          <div className={styles.sidebarTabs} role="tablist" aria-label="Composer navigation">
+            {SIDEBAR_TAB_OPTIONS.map((tab) => {
+              const selected = tab.key === activeTab;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  tabIndex={selected ? 0 : -1}
+                  className={`${styles.sidebarTab} ${selected ? styles.sidebarTabActive : ""}`}
+                  data-selected={selected ? "true" : undefined}
+                  onClick={() => onTabChange(tab.key)}
+                  title={tab.label}
+                >
+                  {tab.renderIcon(selected)}
+                  <span className={styles.srOnly}>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            className={styles.sidebarCollapseBtn}
+            onClick={onToggleCollapse}
+            aria-label="Hide sidebar"
+          >
+            <SidebarSimple size={18} weight="bold" />
+            <span className={styles.srOnly}>Hide sidebar</span>
+          </button>
         </div>
-        <button
-          type="button"
-          className={styles.sidebarCollapseBtn}
-          onClick={onToggleCollapse}
-          aria-label="Hide sidebar"
-        >
-          <SidebarSimple size={16} weight="bold" />
-          <span className={styles.srOnly}>Hide sidebar</span>
-        </button>
       </div>
       <div className={styles.sidebarScroll}>{content}</div>
 

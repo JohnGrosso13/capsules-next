@@ -3,7 +3,14 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { CheckCircle, ChatsTeardrop, MagnifyingGlass, PlusCircle, X } from "@phosphor-icons/react/dist/ssr";
+import {
+  CheckCircle,
+  ChatsTeardrop,
+  MagnifyingGlass,
+  PlusCircle,
+  X,
+  MicrophoneStage,
+} from "@phosphor-icons/react/dist/ssr";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { preferDisplayName } from "@/lib/users/format";
@@ -195,8 +202,8 @@ export function ChatStartOverlay({
     closeAriaLabel = "Close tournament invites";
   } else if (mode === "party") {
     titleText = "Invite friends to this party";
-    subtitleText = "Send friends an invite to join your party chat.";
-    primaryLabel = selectedCount <= 1 ? "Send invite" : "Send invites";
+    subtitleText = "Send friends an invite to join your party.";
+    primaryLabel = selectedCount <= 1 ? "Send party invite" : "Send party invites";
     summary =
       selectedCount === 0
         ? "Pick at least one friend to invite to this party."
@@ -204,7 +211,7 @@ export function ChatStartOverlay({
           ? "This friend will get a party invite."
           : "These friends will get party invites.";
     emptyTitle = "No friends are ready to invite yet.";
-    emptyBody = "Add friends so you can invite them to party chats.";
+    emptyBody = "Add friends so you can invite them to parties.";
     closeAriaLabel = "Close party invites";
   } else {
     titleText = "Start a chat";
@@ -332,7 +339,11 @@ export function ChatStartOverlay({
               onClick={() => void handleSubmit()}
               disabled={busy || selectedCount === 0 || !hasFriends}
             >
-              <ChatsTeardrop size={18} weight="fill" />
+              {mode === "party" ? (
+                <MicrophoneStage size={18} weight="fill" />
+              ) : (
+                <ChatsTeardrop size={18} weight="fill" />
+              )}
               <span>{primaryLabel}</span>
             </button>
           </div>

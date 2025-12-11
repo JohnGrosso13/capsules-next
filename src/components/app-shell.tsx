@@ -29,7 +29,28 @@ const ConnectionsRailIsland = dynamic(
     })),
   {
     ssr: false,
-    loading: () => <div className={styles.railPlaceholder} aria-hidden />,
+    loading: () => (
+      <div className={styles.railPlaceholder} aria-hidden="true">
+        <div className={styles.railPlaceholderTiles}>
+          {[0, 1, 2].map((tile) => (
+            <div key={tile} className={styles.railPlaceholderTile}>
+              <div className={styles.railPlaceholderRow}>
+                <div className={styles.railPlaceholderMeta}>
+                  <span className={styles.railPlaceholderIcon} data-rail-skeleton />
+                  <span className={styles.railPlaceholderTitle} data-rail-skeleton />
+                </div>
+                <span className={styles.railPlaceholderBadge} data-rail-skeleton />
+              </div>
+              <span className={styles.railPlaceholderLine} data-rail-skeleton />
+              <span
+                className={`${styles.railPlaceholderLine} ${styles.railPlaceholderLineShort}`}
+                data-rail-skeleton
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
   },
 );
 

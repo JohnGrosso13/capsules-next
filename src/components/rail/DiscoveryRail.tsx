@@ -71,6 +71,18 @@ function parseEventDate(iso: string | null | undefined): Date | null {
   return new Date(timestamp);
 }
 
+function resolveCapsuleAvatar(
+  capsule: { name?: string | null; slug?: string | null; logoUrl?: string | null; bannerUrl?: string | null } | null,
+) {
+  const logo = resolveToAbsoluteUrl(normalizeMediaUrl(capsule?.logoUrl ?? null));
+  const banner = resolveToAbsoluteUrl(normalizeMediaUrl(capsule?.bannerUrl ?? null));
+  const avatarUrl = logo ?? banner ?? null;
+  const name = capsule?.name?.trim();
+  const slug = capsule?.slug?.trim();
+  const avatarInitial = name?.slice(0, 1).toUpperCase() ?? slug?.slice(0, 1).toUpperCase() ?? "C";
+  return { avatarUrl, avatarInitial };
+}
+
 function buildCalendarDays(
   currentMonth: Date,
   eventsByDay: Map<string, CalendarEvent[]>,
@@ -120,11 +132,15 @@ function Section({
   items,
   action,
   emptyMessage,
+  loading = false,
+  skeletonCount = 3,
 }: {
   title: string;
   items: Item[];
   action?: SectionAction;
   emptyMessage?: string;
+  loading?: boolean;
+  skeletonCount?: number;
 }) {
   const renderAction = () => {
     if (!action) return null;
@@ -172,13 +188,28 @@ function Section({
     return null;
   };
 
-  return (
-    <section className={styles.section}>
-      <header className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>{title}</h3>
-        {renderAction()}
-      </header>
-      {items.length ? (
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <ul className={styles.list} data-loading="true" aria-hidden>
+          {Array.from({ length: skeletonCount }).map((_, index) => (
+            <li key={`skeleton-${index}`}>
+              <div className={`${styles.listItem} ${styles.skeletonItem}`} data-skeleton="true">
+                <span className={styles.skeletonAvatar} />
+                <div className={styles.skeletonBody}>
+                  <span className={styles.skeletonLine} />
+                  <span className={`${styles.skeletonLine} ${styles.skeletonLineShort}`} />
+                  <span className={styles.skeletonPill} />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    if (items.length) {
+      return (
         <ul className={styles.list}>
           {items.map((item) => {
             const avatar = item.avatarUrl ? (
@@ -217,9 +248,23 @@ function Section({
             );
           })}
         </ul>
-      ) : emptyMessage ? (
-        <div className={styles.empty}>{emptyMessage}</div>
-      ) : null}
+      );
+    }
+
+    if (emptyMessage) {
+      return <div className={styles.empty}>{emptyMessage}</div>;
+    }
+
+    return null;
+  };
+
+  return (
+    <section className={styles.section}>
+      <header className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>{title}</h3>
+        {renderAction()}
+      </header>
+      {renderContent()}
     </section>
   );
 }
@@ -251,14 +296,20 @@ function formatRelativeDate(iso: string | null | undefined): string | null {
 }
 
 const FALLBACK_CAPSULES: Item[] = [
-  { id: "c1", title: "Creator Studio", subtitle: "Brand design + prompts", meta: "12k members" },
-  { id: "c2", title: "AI Photography", subtitle: "Midjourney, SDXL tips", meta: "8.2k members" },
-  { id: "c3", title: "Music Makers", subtitle: "DAW workflows + samples", meta: "4.5k members" },
+  {
+    id: "c1",
+    title: "Creator Studio",
+    subtitle: "Brand design + prompts",
+    meta: "12k members",
+    avatarInitial: "C",
+  },
+  { id: "c2", title: "AI Photography", subtitle: "Midjourney, SDXL tips", meta: "8.2k members", avatarInitial: "A" },
+  { id: "c3", title: "Music Makers", subtitle: "DAW workflows + samples", meta: "4.5k members", avatarInitial: "M" },
 ];
 
 const FALLBACK_EVENTS: Item[] = [
-  { id: "e1", title: "Weekly Capsule Lab", subtitle: "Today 5:00 PM" },
-  { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210" },
+  { id: "e1", title: "Weekly Capsule Lab", subtitle: "Today 5:00 PM", avatarInitial: "W" },
+  { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210", avatarInitial: "P" },
 ];
 
 function UpcomingEventsCalendarOverlay({
@@ -502,9 +553,9 @@ function UpcomingEventsCalendarOverlayPortal(
 }
 
 export function DiscoveryRail() {
-  const [recommendedCapsules, setRecommendedCapsules] = React.useState<Item[]>(FALLBACK_CAPSULES);
+  const [recommendedCapsules, setRecommendedCapsules] = React.useState<Item[]>([]);
   const [loadingCapsules, setLoadingCapsules] = React.useState(true);
-  const [upcomingEvents, setUpcomingEvents] = React.useState<Item[]>(FALLBACK_EVENTS);
+  const [upcomingEvents, setUpcomingEvents] = React.useState<Item[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
 
@@ -543,9 +594,7 @@ export function DiscoveryRail() {
           return;
         }
         const items: Item[] = payload.capsules.slice(0, 3).map((capsule) => {
-          const logo = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.logoUrl));
-          const banner = resolveToAbsoluteUrl(normalizeMediaUrl(capsule.bannerUrl));
-          const avatarUrl = logo ?? banner;
+          const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(capsule);
           const relative = formatRelativeDate(capsule.createdAt);
           const subtitle = capsule.slug ? `@${capsule.slug}` : "New capsule";
           const meta = relative ? `Created ${relative}` : "Just launched";
@@ -556,7 +605,7 @@ export function DiscoveryRail() {
             meta,
             href: `/capsule?capsuleId=${encodeURIComponent(capsule.id)}`,
             avatarUrl,
-            avatarInitial: capsule.name ? capsule.name.trim().slice(0, 1).toUpperCase() : "C",
+            avatarInitial,
           };
         });
         if (!cancelled) {
@@ -612,9 +661,7 @@ export function DiscoveryRail() {
           return;
         }
         const items: Item[] = payload.ladders.slice(0, 3).map((ladder) => {
-          const mediaUrl = resolveToAbsoluteUrl(
-            normalizeMediaUrl(ladder.capsule?.logoUrl ?? ladder.capsule?.bannerUrl ?? null),
-          );
+          const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(ladder.capsule);
           const relative = formatRelativeDate(ladder.publishedAt ?? ladder.createdAt);
           const subtitle =
             (ladder.game?.title && ladder.game.title.trim().length
@@ -640,8 +687,8 @@ export function DiscoveryRail() {
             meta: metaParts.join(" \u2022 "),
             date: ladder.publishedAt ?? ladder.createdAt,
             href: `/capsule?capsuleId=${encodeURIComponent(ladder.capsuleId)}&ladderId=${encodeURIComponent(ladder.id)}&section=events`,
-            avatarUrl: mediaUrl,
-            avatarInitial: ladder.name ? ladder.name.trim().slice(0, 1).toUpperCase() : "L",
+            avatarUrl,
+            avatarInitial,
           };
         });
         if (!cancelled) {
@@ -682,11 +729,8 @@ export function DiscoveryRail() {
           title="Recommended Capsules"
           items={recommendedCapsules}
           action={{ label: "See all", href: "/explore" }}
-          emptyMessage={
-            loadingCapsules
-              ? "Loading recommendations..."
-              : "No new capsules yet. Check again soon!"
-          }
+          emptyMessage="No new capsules yet. Check again soon!"
+          loading={loadingCapsules}
         />
         <Section
           title="Upcoming Events"
@@ -695,7 +739,8 @@ export function DiscoveryRail() {
             label: "Calendar",
             onClick: () => setCalendarOpen(true),
           }}
-          emptyMessage={loadingEvents ? "Loading ladders..." : "No ladders yet. Create one to see it here."}
+          emptyMessage="No ladders yet. Create one to see it here."
+          loading={loadingEvents}
         />
         <Section
           title="What's Hot"
