@@ -23,6 +23,7 @@ import {
   updateOrder,
   updatePaymentByIntentId,
   findOrderById,
+  upsertPayout,
 } from "./repository";
 import type {
   StoreAddress,
@@ -35,7 +36,29 @@ import type {
   TaxCalculationResult,
 } from "./types";
 import { getEmailService } from "@/config/email";
-import { createPrintfulOrder, hasPrintfulCredentials, verifyPrintfulSignature } from "./printful";
+import {
+  createPrintfulOrder,
+  ensurePrintfulWebhookRegistered,
+  hasPrintfulCredentials,
+  isPrintfulV2Enabled,
+  normalizePrintfulWebhookPayload,
+  resolvePrintfulSignatureHeader,
+  verifyPrintfulSignature,
+} from "./printful";
+import { resolveConnectCharge } from "./connect";
+
+export class StoreCheckoutError extends Error {
+  status: number;
+  code: string;
+  details?: unknown;
+
+  constructor(status: number, code: string, message: string, details?: unknown) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
 
 export type CheckoutRequest = {
   capsuleId: string;
@@ -167,6 +190,8 @@ async function createPaymentIntent(params: {
   contactEmail?: string | null;
   shippingAddress?: StoreAddress | null;
   metadata?: Record<string, string | null>;
+  applicationFeeAmount?: number | null;
+  transferDestination?: string | null;
 }): Promise<StripePaymentIntentResult> {
   const stripe = requireStripe();
 
@@ -193,6 +218,12 @@ async function createPaymentIntent(params: {
       return acc;
     }, {}),
     ...(shippingDetails ? { shipping: shippingDetails } : {}),
+    ...(typeof params.applicationFeeAmount === "number" && params.applicationFeeAmount > 0
+      ? { application_fee_amount: Math.trunc(params.applicationFeeAmount) }
+      : {}),
+    ...(params.transferDestination
+      ? { transfer_data: { destination: params.transferDestination } }
+      : {}),
   });
 
   return {
@@ -274,6 +305,13 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
     shippingCents: shippingCostCents,
   });
 
+  const connectCharge = await resolveConnectCharge(capsuleId, taxCalculation.totalCents);
+  if (connectCharge.blockedReason) {
+    throw new StoreCheckoutError(400, connectCharge.blockedReason.code, connectCharge.blockedReason.message);
+  }
+  const platformFeeCents = connectCharge.useConnect ? connectCharge.applicationFeeAmount : 0;
+  const connectDestination = connectCharge.useConnect ? connectCharge.destinationAccountId : null;
+
   const orderMetadata: Record<string, unknown> = {
     cart: items.map((entry) => ({
       product_id: entry.product.id,
@@ -283,6 +321,9 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
     shipping_option_id: chosenShippingId,
     stripe_tax_calculation_id: taxCalculation.stripeCalculationId,
     promo_code: payload.promoCode ?? null,
+    platform_fee_cents: platformFeeCents,
+    platform_fee_bps: connectCharge.platformFeeBasisPoints,
+    connect_destination: connectDestination,
   };
 
   const confirmationCode = generateConfirmationCode();
@@ -295,7 +336,7 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
     payment_status: "requires_payment",
     subtotal_cents: taxCalculation.subtotalCents,
     tax_cents: taxCalculation.taxCents,
-    fee_cents: 0,
+    fee_cents: platformFeeCents,
     total_cents: taxCalculation.totalCents,
     currency,
     shipping_required: shippingRequired,
@@ -372,7 +413,12 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
       capsule_id: capsuleId,
       confirmation_code: confirmationCode,
       stripe_tax_calculation_id: taxCalculation.stripeCalculationId,
+      platform_fee_cents: platformFeeCents !== null && platformFeeCents !== undefined ? String(platformFeeCents) : null,
+      platform_fee_bps: connectCharge.platformFeeBasisPoints !== null ? String(connectCharge.platformFeeBasisPoints) : null,
+      connect_destination: connectDestination,
     },
+    applicationFeeAmount: platformFeeCents,
+    transferDestination: connectDestination,
   });
 
   await updateOrder(order.id, {
@@ -411,12 +457,17 @@ async function updateOrderFromPaymentIntent(
     (paymentIntent as Stripe.PaymentIntent & { charges?: { data?: Stripe.Charge[] } }).charges?.data?.[0] ?? null;
   const receiptUrl = charge?.receipt_url ?? null;
   const chargeId = charge?.id ?? null;
+  const applicationFee =
+    typeof paymentIntent.application_fee_amount === "number"
+      ? paymentIntent.application_fee_amount
+      : order.feeCents ?? 0;
 
   const updates: Record<string, unknown> = {
     payment_status: status,
     status: status === "succeeded" ? (order.shippingRequired ? "fulfillment_pending" : "fulfilled") : order.status,
     updated_at: new Date().toISOString(),
     total_cents: paymentIntent.amount_received || paymentIntent.amount || order.totalCents,
+    fee_cents: applicationFee,
   };
 
   await updatePaymentByIntentId(paymentIntent.id, {
@@ -432,9 +483,56 @@ async function updateOrderFromPaymentIntent(
   return next;
 }
 
+async function recordPayoutForPaymentIntent(order: StoreOrderRecord, paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  if (!order.capsuleId) return;
+  const destination =
+    (paymentIntent.transfer_data?.destination as string | undefined | null) ??
+    (
+      (
+        (paymentIntent as Stripe.PaymentIntent & { charges?: { data?: Stripe.Charge[] } })?.charges?.data?.[0]
+          ?.transfer_data as { destination?: string } | undefined
+      )?.destination ?? null
+    );
+  if (!destination) return;
+
+  const feeCents =
+    typeof paymentIntent.application_fee_amount === "number"
+      ? paymentIntent.application_fee_amount
+      : order.feeCents ?? 0;
+  const amountReceived = paymentIntent.amount_received || paymentIntent.amount || order.totalCents;
+  const sellerAmount = Math.max(0, amountReceived - feeCents);
+  try {
+    await upsertPayout({
+      capsuleId: order.capsuleId,
+      orderId: order.id,
+      amountCents: sellerAmount,
+      feeCents,
+      currency: order.currency,
+      status: "pending",
+      payoutRef:
+        typeof paymentIntent.latest_charge === "string"
+          ? paymentIntent.latest_charge
+          : (paymentIntent.latest_charge as Stripe.Charge | null | undefined)?.id ?? null,
+      metadata: {
+        stripe_payment_intent_id: paymentIntent.id,
+        stripe_destination: destination,
+        application_fee_amount: feeCents,
+      },
+    });
+  } catch (error) {
+    console.error("store.payout.upsert_failed", { orderId: order.id, paymentIntentId: paymentIntent.id, error });
+  }
+}
+
 async function maybeSendPrintful(order: StoreOrderRecord) {
   if (!hasPrintfulCredentials()) return;
   if (!order.shippingRequired) return;
+
+  if (isPrintfulV2Enabled()) {
+    void ensurePrintfulWebhookRegistered().catch((error) => {
+      console.warn("printful.webhook.ensure_async_failed", { orderId: order.id, error });
+    });
+  }
 
   const items = await listOrderItems(order.id);
   const lineItems = items
@@ -537,6 +635,7 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
       const intent = event.data.object as Stripe.PaymentIntent;
       const order = await updateOrderFromPaymentIntent(intent, "succeeded");
       if (order) {
+        await recordPayoutForPaymentIntent(order, intent);
         await maybeSendPrintful(order);
         try {
           await sendOrderReceipt(order);
@@ -558,7 +657,7 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
 }
 
 export async function handlePrintfulWebhook(rawBody: string, headers: Headers): Promise<void> {
-  const signature = headers.get("X-Printful-Signature") ?? headers.get("x-printful-signature");
+  const signature = resolvePrintfulSignatureHeader(headers);
   if (!verifyPrintfulSignature(rawBody, signature)) {
     throw new Error("Invalid Printful webhook signature");
   }
@@ -569,6 +668,46 @@ export async function handlePrintfulWebhook(rawBody: string, headers: Headers): 
   } catch (error) {
     console.error("printful.webhook.parse_failed", error);
     throw new Error("Invalid Printful webhook payload");
+  }
+
+  if (isPrintfulV2Enabled()) {
+    const normalized = normalizePrintfulWebhookPayload(payload);
+    if (!normalized) {
+      console.error("printful.webhook.normalize_failed", { payload });
+      throw new Error("Invalid Printful webhook payload");
+    }
+    const existing = await findOrderById(normalized.externalId);
+    if (!existing) return;
+
+    const metadata: Record<string, unknown> = {
+      ...(existing.metadata ?? {}),
+      printful_last_webhook: {
+        type: normalized.eventType,
+        created: normalized.createdAt,
+        data: normalized.data,
+      },
+      printful_order_status: normalized.orderStatus ?? null,
+    };
+    if (normalized.shipments.length) {
+      metadata.printful_shipments = normalized.shipments;
+    }
+
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+      metadata,
+    };
+    if (normalized.shippingStatus) {
+      updates.shipping_status = normalized.shippingStatus;
+    }
+    if (normalized.trackingUrl || normalized.trackingNumber) {
+      updates.shipping_tracking = normalized.trackingUrl ?? normalized.trackingNumber ?? null;
+    }
+    if (normalized.carrier) {
+      updates.shipping_carrier = normalized.carrier;
+    }
+
+    await updateOrder(existing.id, updates);
+    return;
   }
 
   const data = (payload["data"] as Record<string, unknown>) ?? {};

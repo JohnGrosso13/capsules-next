@@ -28,6 +28,7 @@ export class EntitlementError extends Error {
     public code: "insufficient_compute" | "insufficient_storage" | "billing_disabled",
     message: string,
     public status: number = 402,
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -169,7 +170,15 @@ export async function chargeUsage(params: {
   if (available < amount) {
     throw new EntitlementError(
       params.metric === "compute" ? "insufficient_compute" : "insufficient_storage",
-      "Your plan is out of allowance for this action.",
+      params.metric === "compute"
+        ? "Not enough compute credits remain for this action."
+        : "Not enough storage remains for this action.",
+      402,
+      {
+        metric: params.metric,
+        requiredAmount: amount,
+        available,
+      },
     );
   }
 
@@ -216,6 +225,8 @@ export function ensureFeatureAccess(options: {
     throw new EntitlementError(
       "billing_disabled",
       `Upgrade required to access ${options.featureName ?? "this feature"}.`,
+      402,
+      { requiredTier: required, currentTier: options.balance.featureTier ?? null },
     );
   }
 }

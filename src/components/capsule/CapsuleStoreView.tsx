@@ -346,10 +346,26 @@ function StorefrontExperience({
     status: string;
     tracking?: string | null;
     carrier?: string | null;
+    shippingStatus?: string | null;
     totalCents: number;
     currency: string;
     items: { title: string; quantity: number; unitPriceCents: number }[];
   } | null>(null);
+  const [connectStatus, setConnectStatus] = React.useState<{
+    loading: boolean;
+    enabled: boolean;
+    requireAccount: boolean;
+    onboardingComplete: boolean;
+    accountId: string | null;
+    error: string | null;
+  }>({
+    loading: false,
+    enabled: false,
+    requireAccount: false,
+    onboardingComplete: false,
+    accountId: null,
+    error: null,
+  });
   const checkoutSteps = React.useMemo<CheckoutStep[]>(() => ["shipping", "billing", "review", "confirmation"], []);
   const checkoutStepDetails: Record<CheckoutStep, { label: string; description: string }> = {
     shipping: { label: "Shipping", description: "Contact & delivery" },
@@ -366,9 +382,13 @@ function StorefrontExperience({
     [],
   );
   const taxRate = 0.0825;
-  const defaultShipping = React.useMemo(
-    () => shippingOptions[1]?.id ?? shippingOptions[0]?.id ?? "",
+  const availableShippingOptions = React.useMemo(
+    () => shippingOptions.filter((option) => option.active !== false),
     [shippingOptions],
+  );
+  const defaultShipping = React.useMemo(
+    () => availableShippingOptions[1]?.id ?? availableShippingOptions[0]?.id ?? "",
+    [availableShippingOptions],
   );
   const defaultPayment = paymentOptions[0]?.id ?? "card";
   const [checkoutOpen, setCheckoutOpen] = React.useState(false);
@@ -635,24 +655,21 @@ function StorefrontExperience({
   const selectedShipping = React.useMemo(
     () =>
       shippingRequired
-        ? shippingOptions
-            .filter((option) => option.active !== false)
-            .find((option) => option.id === checkoutDetails.shippingOption)
+        ? availableShippingOptions.find((option) => option.id === checkoutDetails.shippingOption) ?? null
         : null,
-    [checkoutDetails.shippingOption, shippingOptions, shippingRequired],
+    [availableShippingOptions, checkoutDetails.shippingOption, shippingRequired],
   );
 
   React.useEffect(() => {
     if (!shippingRequired) return;
-    const activeOptions = shippingOptions.filter((option) => option.active !== false);
-    const hasSelection = activeOptions.some((option) => option.id === checkoutDetails.shippingOption);
+    const hasSelection = availableShippingOptions.some((option) => option.id === checkoutDetails.shippingOption);
     if (!hasSelection) {
       setCheckoutDetails((previous) => ({
         ...previous,
-        shippingOption: activeOptions[0]?.id ?? defaultShipping,
+        shippingOption: availableShippingOptions[0]?.id ?? defaultShipping,
       }));
     }
-  }, [checkoutDetails.shippingOption, defaultShipping, shippingOptions, shippingRequired]);
+  }, [availableShippingOptions, checkoutDetails.shippingOption, defaultShipping, shippingRequired]);
 
   const buildAddressFromCheckout = React.useCallback(
     (target: "shipping" | "billing") => {
@@ -782,8 +799,17 @@ function StorefrontExperience({
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || `Checkout failed (${response.status})`);
+        let message = `Checkout failed (${response.status})`;
+        try {
+          const errorJson = (await response.json()) as { message?: string };
+          if (errorJson?.message) {
+            message = errorJson.message;
+          }
+        } catch {
+          const text = await response.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
       }
       const data: {
         orderId: string;
@@ -822,6 +848,9 @@ function StorefrontExperience({
         orders: Array<{
           order: {
             status: string;
+            confirmationCode?: string | null;
+            id?: string;
+            shippingStatus?: string | null;
             shippingTracking: string | null;
             shippingCarrier: string | null;
             totalCents: number;
@@ -832,10 +861,12 @@ function StorefrontExperience({
       } = await response.json();
       const entry = data.orders[0];
       if (entry) {
+        setOrderReference(entry.order.confirmationCode ?? entry.order.id ?? null);
         setOrderSummary({
           status: entry.order.status,
           tracking: entry.order.shippingTracking,
           carrier: entry.order.shippingCarrier,
+          shippingStatus: entry.order.shippingStatus ?? null,
           totalCents: entry.order.totalCents,
           currency: entry.order.currency,
           items: entry.items,
@@ -845,6 +876,80 @@ function StorefrontExperience({
       console.warn("store.orders.detail_load_failed", error);
     }
   }, []);
+
+  const refreshConnectStatus = React.useCallback(async () => {
+    if (!capsuleId) return;
+    setConnectStatus((previous) => ({ ...previous, loading: true, error: null }));
+    try {
+      const response = await fetch(`/api/store/connect?capsuleId=${encodeURIComponent(capsuleId)}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Unable to load payouts status");
+      }
+      const data: {
+        connectEnabled: boolean;
+        requireAccount: boolean;
+        platformFeeBasisPoints: number;
+        accountId: string | null;
+        onboardingComplete: boolean;
+        chargesEnabled: boolean;
+        payoutsEnabled: boolean;
+        detailsSubmitted: boolean;
+      } = await response.json();
+      setConnectStatus({
+        loading: false,
+        enabled: data.connectEnabled,
+        requireAccount: data.requireAccount,
+        onboardingComplete: data.onboardingComplete,
+        accountId: data.accountId,
+        error: null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to load payouts status";
+      setConnectStatus((previous) => ({ ...previous, loading: false, error: message }));
+    }
+  }, [capsuleId]);
+
+  const startConnectOnboarding = React.useCallback(async () => {
+    if (!capsuleId) {
+      setStoreError("Capsule is not available.");
+      return;
+    }
+    setConnectStatus((previous) => ({ ...previous, loading: true, error: null }));
+    try {
+      const response = await fetch("/api/store/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capsuleId }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message =
+          payload && typeof payload === "object" && "message" in (payload as Record<string, unknown>)
+            ? ((payload as { message?: string }).message ?? "Unable to start Stripe onboarding.")
+            : "Unable to start Stripe onboarding.";
+        throw new Error(message);
+      }
+      const onboardingUrl = (payload as { onboardingUrl?: string })?.onboardingUrl;
+      if (onboardingUrl && typeof window !== "undefined") {
+        window.open(onboardingUrl, "_blank", "noopener,noreferrer");
+      }
+      await refreshConnectStatus();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to start Stripe onboarding.";
+      setConnectStatus((previous) => ({ ...previous, error: message }));
+      setStoreError(message);
+    } finally {
+      setConnectStatus((previous) => ({ ...previous, loading: false }));
+    }
+  }, [capsuleId, refreshConnectStatus, setStoreError]);
+
+  React.useEffect(() => {
+    if (!isFounder || !capsuleId) return;
+    void refreshConnectStatus();
+  }, [capsuleId, isFounder, refreshConnectStatus]);
 
   const checkoutErrors = React.useMemo(() => {
     const errors: Record<string, string> = {};
@@ -858,8 +963,12 @@ function StorefrontExperience({
       if (checkoutDetails.region.trim().length < 2) errors.region = "Enter a state or region.";
       if (checkoutDetails.postal.trim().length < 3) errors.postal = "Enter a postal code.";
       if (!checkoutDetails.country.trim().length) errors.country = "Enter a country.";
-      const hasShippingSelection = shippingOptions.some((option) => option.id === checkoutDetails.shippingOption);
-      if (!hasShippingSelection) errors.shippingOption = "Choose a shipping speed.";
+      const hasShippingSelection = availableShippingOptions.some((option) => option.id === checkoutDetails.shippingOption);
+      if (!availableShippingOptions.length) {
+        errors.shippingOption = "Shipping isn't configured yet for this capsule.";
+      } else if (!hasShippingSelection) {
+        errors.shippingOption = "Choose a shipping speed.";
+      }
     }
     if (needsBillingAddress) {
       if (checkoutDetails.billingName.trim().length < 2) errors.billingName = "Enter billing name.";
@@ -872,7 +981,7 @@ function StorefrontExperience({
     if (!checkoutDetails.termsAccepted) errors.terms = "Please agree to the terms.";
     if (!hasItems) errors.cart = "Add at least one item to checkout.";
     return errors;
-  }, [checkoutDetails, hasItems, needsBillingAddress, shippingOptions, shippingRequired]);
+  }, [availableShippingOptions, checkoutDetails, hasItems, needsBillingAddress, shippingRequired]);
 
   const errorFor = React.useCallback(
     (key: keyof typeof checkoutErrors) => (checkoutAttempted ? checkoutErrors[key] : undefined),
@@ -907,7 +1016,7 @@ function StorefrontExperience({
       const message =
         error && typeof (error as { message?: string }).message === "string"
           ? (error as { message: string }).message
-          : "Payment failed. Please try again.";
+          : "Payment could not be completed. Please check your card and try again.";
       setPaymentError(message);
       setCheckoutStep("billing");
     } finally {
@@ -954,7 +1063,9 @@ function StorefrontExperience({
           setCheckoutStep("billing");
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Unable to start checkout. Please try again.";
+            error instanceof Error
+              ? error.message
+              : "We couldn't start checkout. Please check your shipping details and try again.";
           setPaymentError(message);
         }
       }
@@ -966,7 +1077,9 @@ function StorefrontExperience({
           await startCheckoutIntent();
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Unable to start checkout. Please try again.";
+            error instanceof Error
+              ? error.message
+              : "We couldn't start checkout. Please check your shipping details and try again.";
           setPaymentError(message);
           return;
         }
@@ -1137,16 +1250,16 @@ function StorefrontExperience({
               <header className={capTheme.storePanelHeader}>
                 <Sparkle size={18} weight="bold" />
                 <div>
-                  <h3>Fuel this capsule</h3>
-                  <p>Donate tokens or storage so everyone can create more together.</p>
+                  <h3>Support options</h3>
+                  <p>Donations and boosts are coming soon for this capsule.</p>
                 </div>
               </header>
               <div className={capTheme.storeSupportActions}>
-                <button type="button" className={capTheme.storePrimaryButton}>
-                  Donate tokens
+                <button type="button" className={capTheme.storePrimaryButton} disabled aria-disabled="true">
+                  Coming soon
                 </button>
-                <button type="button" className={capTheme.storeActionButton}>
-                  Share support link
+                <button type="button" className={capTheme.storeActionButton} disabled aria-disabled="true">
+                  Notify me
                 </button>
               </div>
             </section>
@@ -1155,20 +1268,62 @@ function StorefrontExperience({
               <header className={capTheme.storePanelHeader}>
                 <Storefront size={18} weight="bold" />
                 <div>
-                  <h3>Upgrade capsule tier</h3>
-                  <p>Unlock higher-quality models, more memory, and priority jobs.</p>
+                  <h3>Capsule tiers</h3>
+                  <p>Plan upgrades will live here when available.</p>
                 </div>
               </header>
               <div className={capTheme.storeSupportActions}>
-                <button type="button" className={capTheme.storeActionButton}>
-                  View capsule plans
+                <button type="button" className={capTheme.storeActionButton} disabled aria-disabled="true">
+                  Coming soon
                 </button>
-                <button type="button" className={capTheme.storeGhostButton}>
-                  What is included?
+                <button type="button" className={capTheme.storeGhostButton} disabled aria-disabled="true">
+                  Preview benefits
                 </button>
               </div>
             </section>
           </div>
+
+          {isFounder && capsuleId ? (
+            <section className={capTheme.storePanel} style={{ marginTop: "16px" }}>
+              <header className={capTheme.storePanelHeader}>
+                <h3 style={{ margin: 0 }}>Orders & payouts</h3>
+                <p className={capTheme.checkoutHint} style={{ margin: 0 }}>
+                  Seller orders live here. Stripe Connect controls when payouts land in your account.
+                </p>
+              </header>
+              {connectStatus.error ? <p className={capTheme.checkoutError}>{connectStatus.error}</p> : null}
+              <div className={capTheme.storeSupportActions}>
+                <a className={capTheme.storeActionButton} href={`/orders?capsuleId=${capsuleId}`}>
+                  View seller orders
+                </a>
+                <button
+                  type="button"
+                  className={capTheme.storePrimaryButton}
+                  onClick={() => void startConnectOnboarding()}
+                  disabled={connectStatus.loading || (!connectStatus.enabled && !connectStatus.onboardingComplete)}
+                >
+                  {connectStatus.enabled
+                    ? connectStatus.onboardingComplete
+                      ? "Manage Stripe payouts"
+                      : "Connect payouts with Stripe"
+                    : "Connect disabled"}
+                </button>
+              </div>
+              <p className={capTheme.checkoutHint} style={{ marginTop: 8, marginBottom: 0 }}>
+                View fulfillment updates at the seller orders link above. If Stripe Connect is incomplete, payments
+                will route through the platform account until onboarding finishes.
+              </p>
+              <p className={capTheme.checkoutHint} style={{ marginTop: 4, marginBottom: 0 }}>
+                {connectStatus.enabled
+                  ? connectStatus.onboardingComplete
+                    ? "Payouts are routed to your Stripe account; platform fees apply at checkout."
+                    : connectStatus.requireAccount
+                      ? "Finish Stripe onboarding to take payments for this capsule."
+                      : "Complete Stripe onboarding so payouts can be sent to your account."
+                  : "Stripe Connect is disabled here; payments currently run on the platform account."}
+              </p>
+            </section>
+          ) : null}
 
           {isFounder && shippingAdmin ? (
             <section className={capTheme.storePanel} style={{ marginTop: "16px" }}>
@@ -1269,7 +1424,7 @@ function StorefrontExperience({
             currentStepIndex={currentStepIndex}
             orderReference={orderReference}
             details={checkoutDetails}
-            shippingOptions={shippingOptions.filter((option) => option.active !== false)}
+            shippingOptions={availableShippingOptions}
             paymentOptions={paymentOptions}
             selectedShipping={selectedShipping ?? null}
             selectedPaymentOption={selectedPaymentOption}

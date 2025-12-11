@@ -22,6 +22,26 @@ vi.mock("@/server/capsules/permissions", () => ({
   resolveCapsuleActor: vi.fn(),
 }));
 
+vi.mock("@/server/store/dashboard", () => ({
+  getStoreDashboard: vi.fn(),
+}));
+
+vi.mock("@/server/capsules/service", () => {
+  class CapsuleMembershipError extends Error {
+    code: string;
+    status: number;
+    constructor(code = "forbidden", message = "Forbidden", status = 403) {
+      super(message);
+      this.code = code;
+      this.status = status;
+    }
+  }
+  return {
+    CapsuleMembershipError,
+    requireCapsuleOwnership: vi.fn(),
+  };
+});
+
 import { POST as checkoutPost } from "@/app/api/store/checkout-intent/route";
 import { GET as ordersGet } from "@/app/api/store/orders/route";
 import {
@@ -38,6 +58,9 @@ import {
   deleteShippingOptionForCapsule,
 } from "@/server/store/service";
 import { canCustomizeCapsule, resolveCapsuleActor } from "@/server/capsules/permissions";
+import { getStoreDashboard } from "@/server/store/dashboard";
+import { CapsuleMembershipError, requireCapsuleOwnership } from "@/server/capsules/service";
+import { GET as dashboardGet } from "@/app/api/store/dashboard/route";
 
 describe("store routes", () => {
   beforeEach(() => {
@@ -234,5 +257,65 @@ describe("store routes", () => {
     );
     expect(deleteRes.status).toBe(200);
     expect(deleteShippingOptionForCapsule).toHaveBeenCalledWith("cap-1", "ship-1");
+  });
+
+  it("returns dashboard metrics for capsule owners", async () => {
+    vi.mocked(requireCapsuleOwnership).mockResolvedValue({
+      capsule: {
+        id: "cap-1",
+        name: "Cap One",
+        slug: null,
+        banner_url: null,
+        store_banner_url: null,
+        promo_tile_url: null,
+        logo_url: null,
+        membership_policy: null,
+        created_by_id: "sb-1",
+        created_at: null,
+      },
+      ownerId: "sb-1",
+    });
+    vi.mocked(getStoreDashboard).mockResolvedValue({
+      capsuleId: "cap-1",
+      currency: "usd",
+      summary: {
+        grossLast30Cents: 12000,
+        netLast30Cents: 9000,
+        totalOrders: 3,
+        openOrders: 1,
+        inTransitOrders: 1,
+        fulfilledOrders: 1,
+        failedOrders: 0,
+        pendingPayment: 0,
+        lastOrderAt: "2025-01-01T00:00:00.000Z",
+      },
+      recentOrders: [],
+      catalog: [],
+    });
+
+    const res = await dashboardGet(
+      new Request("http://localhost/api/store/dashboard?capsuleId=cap-1", {
+        headers: { Accept: "application/json" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const payload = (await res.json()) as { summary?: { totalOrders?: number } };
+    expect(payload.summary?.totalOrders).toBe(3);
+    expect(getStoreDashboard).toHaveBeenCalledWith("cap-1");
+    expect(requireCapsuleOwnership).toHaveBeenCalledWith("cap-1", "sb-1");
+  });
+
+  it("blocks dashboard when user is not owner", async () => {
+    vi.mocked(requireCapsuleOwnership).mockRejectedValue(new CapsuleMembershipError("forbidden", "Nope", 403));
+
+    const res = await dashboardGet(
+      new Request("http://localhost/api/store/dashboard?capsuleId=cap-1", {
+        headers: { Accept: "application/json" },
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(getStoreDashboard).not.toHaveBeenCalled();
   });
 });

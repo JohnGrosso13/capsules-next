@@ -9,17 +9,45 @@
     --presence-offline-dot,
     color-mix(in srgb, var(--text-2, #b8c1d8) 62%, transparent)
   );
+  /* Share CTA + tile styling with Party so tabs feel cohesive */
+  --friends-primary-background: var(--cta-button-gradient, var(--cta-gradient));
+  --friends-primary-border: color-mix(
+    in srgb,
+    var(--header-brand-strong-color, var(--color-brand-strong, var(--color-brand))) 70%,
+    var(--color-border, rgba(255, 255, 255, 0.18))
+  );
+  --friends-row-border: var(
+    --party-tile-border,
+    color-mix(
+      in srgb,
+      var(--card-border, rgba(255, 255, 255, 0.16)) 78%,
+      color-mix(in srgb, var(--color-brand) 30%, transparent)
+    )
+  );
 }
 
 .tabsSticky {
   position: sticky;
   top: 0;
   z-index: 12;
-  background: color-mix(in srgb, rgba(6, 10, 24, 0.9) 90%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(
+      in srgb,
+      var(--header-brand-color, var(--color-brand)) 18%,
+      rgba(6, 10, 24, 0.9)
+    ) 0%,
+    color-mix(in srgb, rgba(6, 10, 24, 0.9) 92%, transparent) 100%
+  );
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 12px 4px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 70%, transparent);
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--header-brand-strong-color, var(--color-brand-strong, var(--color-brand))) 55%,
+      var(--card-border)
+    );
 }
 
 .tabsHeader {
@@ -157,6 +185,47 @@
   gap: 12px;
 }
 
+.friendsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 20px 20px 18px;
+  border-radius: 28px;
+  border: 1px solid
+    var(
+      --party-tile-border,
+      color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.16)) 70%, transparent)
+    );
+  background: linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--glass-bg-1, rgba(255, 255, 255, 0.06)) 78%,
+        var(--surface-elevated, rgba(15, 23, 42, 0.9)) 22%
+      ),
+      color-mix(
+        in srgb,
+        var(--glass-bg-2, rgba(255, 255, 255, 0.035)) 78%,
+        var(--surface-muted, rgba(15, 23, 42, 0.8)) 22%
+      )
+    );
+  box-shadow: var(
+    --party-tile-shadow,
+    0 20px 44px color-mix(in srgb, rgba(5, 10, 30, 0.5) 70%, transparent)
+  );
+}
+
+.friendsPanelHeader {
+  padding: 0 4px 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.friendsPanelDivider {
+  margin: 10px 0 12px;
+  border-top: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+}
+
 .notice {
   padding: 12px 14px;
   border-radius: 14px;
@@ -176,8 +245,10 @@
 }
 
 .friendHighlight {
-  border-color: color-mix(in srgb, var(--color-brand) 72%, transparent);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-brand) 24%, transparent);
+  border-color: color-mix(in srgb, #6e78ff 72%, transparent);
+  box-shadow:
+    0 18px 36px color-mix(in srgb, #6e78ff 24%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent);
 }
 
 .friendRow {
@@ -187,12 +258,15 @@
   gap: 12px;
   padding: 12px 16px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--card-border) 82%, transparent);
+  border: 1px solid var(--friends-row-border, color-mix(in srgb, var(--card-border) 78%, transparent));
   background: linear-gradient(
-    180deg,
-    color-mix(in srgb, rgba(28, 32, 60, 0.6) 70%, rgba(10, 14, 30, 0.8)),
-    color-mix(in srgb, rgba(8, 10, 26, 0.88) 80%, transparent)
-  );
+      160deg,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 88%, transparent) 0%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 62%, transparent) 100%
+    );
+  box-shadow:
+    0 16px 32px color-mix(in srgb, #6e78ff 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 10%, transparent);
   min-height: 104px;
   transition:
     transform 0.15s ease,
@@ -202,8 +276,10 @@
 
 .friendRow:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--color-brand) 68%, transparent);
-  box-shadow: 0 16px 34px rgba(6, 12, 32, 0.36);
+  border-color: color-mix(in srgb, #6e78ff 60%, transparent);
+  box-shadow:
+    0 18px 36px color-mix(in srgb, #6e78ff 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent);
 }
 
 .friendRowMain {
@@ -506,13 +582,16 @@
   gap: 8px;
   padding: 10px 14px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 78%, transparent);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),
-    color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
+  border: 1px solid var(--friends-primary-border, color-mix(in srgb, var(--color-brand) 78%, transparent));
+  background: var(
+    --friends-primary-background,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),
+      color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))
+    )
   );
-  color: var(--text-on-brand, #ffffff);
+  color: var(--cta-button-text, var(--text-on-brand, #ffffff));
   font-weight: 800;
   transition:
     transform 0.14s ease,

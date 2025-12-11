@@ -25,7 +25,20 @@
 
 .chatPanel[data-variant="rail"] {
   border-radius: 18px;
-  box-shadow: none;
+  box-shadow: 0 16px 32px color-mix(in srgb, #6e78ff 14%, transparent);
+  background: linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--glass-bg-1, rgba(255, 255, 255, 0.06)) 78%,
+        var(--surface-elevated, rgba(15, 23, 42, 0.9)) 22%
+      ),
+      color-mix(
+        in srgb,
+        var(--glass-bg-2, rgba(255, 255, 255, 0.035)) 78%,
+        var(--surface-muted, rgba(15, 23, 42, 0.8)) 22%
+      )
+    );
 }
 
 .placeholderHeader {
@@ -90,8 +103,14 @@
   justify-content: space-between;
   padding: 12px 16px 12px;
   gap: 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 75%, transparent);
-  margin-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
+  margin-bottom: 10px;
+}
+
+.chatPanel[data-variant="rail"] .chatListHeader {
+  padding: 12px 16px 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-border) 55%, transparent);
 }
 
 .chatListTitleBlock {
@@ -179,9 +198,28 @@
     box-shadow 160ms ease;
 }
 
+.chatPanel[data-variant="rail"] .chatThread {
+  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent);
+  background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 88%, transparent) 0%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 62%, transparent) 100%
+    );
+  box-shadow:
+    0 16px 32px color-mix(in srgb, #6e78ff 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 10%, transparent);
+}
+
 .chatThread:hover {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
+}
+
+.chatPanel[data-variant="rail"] .chatThread:hover {
+  border-color: color-mix(in srgb, #6e78ff 60%, transparent);
+  box-shadow:
+    0 18px 36px color-mix(in srgb, #6e78ff 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent);
 }
 
 .chatThreadActive {
@@ -190,6 +228,13 @@
     --chats-thread-active-shadow,
     0 16px 36px color-mix(in srgb, var(--color-brand) 28%, transparent)
   );
+}
+
+.chatPanel[data-variant="rail"] .chatThreadActive {
+  border-color: color-mix(in srgb, #6e78ff 70%, transparent);
+  box-shadow:
+    0 18px 36px color-mix(in srgb, #6e78ff 24%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent);
 }
 
 .chatThreadMain {

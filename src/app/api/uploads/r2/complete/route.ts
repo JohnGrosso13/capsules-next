@@ -168,13 +168,13 @@ export async function POST(req: Request) {
         reason: "upload.completed",
         bypass: walletContext.bypass,
       });
-    } catch (error) {
-      if (error instanceof EntitlementError) {
-        return returnError(error.status, error.code, error.message);
-      }
-      console.error("billing.upload.charge_failed", error);
-      return returnError(500, "billing_error", "Failed to record storage usage");
+  } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message, error.details);
     }
+    console.error("billing.upload.charge_failed", error);
+    return returnError(500, "billing_error", "Failed to record storage usage");
+  }
   }
 
   return validatedJson(completeUploadResponseSchema, {

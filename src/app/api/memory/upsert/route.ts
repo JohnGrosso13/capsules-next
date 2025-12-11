@@ -10,18 +10,19 @@ import {
   resolveWalletContext,
   EntitlementError,
 } from "@/server/billing/entitlements";
+import { returnError } from "@/server/validation/http";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const userPayload = (body?.user as Record<string, unknown>) ?? {};
   const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: false });
   if (!ownerId) {
-    return NextResponse.json({ error: "auth required" }, { status: 401 });
+    return returnError(401, "auth_required", "Authentication required");
   }
 
   const item = (body?.item as Record<string, unknown>) ?? null;
   if (!item || typeof item.media_url !== "string") {
-    return NextResponse.json({ error: "media_url required" }, { status: 400 });
+    return returnError(400, "invalid_request", "media_url required");
   }
 
   try {
@@ -49,10 +50,15 @@ export async function POST(req: Request) {
       });
     } catch (billingError) {
       if (billingError instanceof EntitlementError) {
-        return NextResponse.json({ error: billingError.message }, { status: billingError.status });
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
       }
       console.error("billing.memory_upsert.failed", billingError);
-      return NextResponse.json({ error: "Billing check failed" }, { status: 500 });
+      return returnError(500, "billing_error", "Billing check failed");
     }
 
     await indexMemory({
@@ -79,6 +85,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("memory upsert error", error);
-    return NextResponse.json({ error: "Failed to index memory" }, { status: 500 });
+    return returnError(500, "index_failed", "Failed to index memory");
   }
 }

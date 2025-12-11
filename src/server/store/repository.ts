@@ -14,6 +14,9 @@ import type {
   StoreShippingOptionRecord,
   StoreOrderStatus,
   StorePaymentStatus,
+  StorePayoutRecord,
+  StorePayoutStatus,
+  StoreConnectAccountRecord,
 } from "./types";
 
 const db = getDatabaseAdminClient();
@@ -181,6 +184,37 @@ export function mapPayment(row: Record<string, unknown>): StorePaymentRecord {
   };
 }
 
+export function mapPayout(row: Record<string, unknown>): StorePayoutRecord {
+  return {
+    id: String(row.id),
+    capsuleId: String(row.capsule_id),
+    orderId: toStringOrNull(row.order_id),
+    amountCents: toInt(row.amount_cents),
+    feeCents: toInt(row.fee_cents),
+    currency: (row.currency as string) ?? "usd",
+    status: (row.status as StorePayoutStatus) ?? "pending",
+    payoutRef: toStringOrNull(row.payout_ref),
+    metadata: parseJson(row.metadata),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function mapConnectAccount(row: Record<string, unknown>): StoreConnectAccountRecord {
+  return {
+    id: String(row.id),
+    capsuleId: String(row.capsule_id),
+    stripeAccountId: String(row.stripe_account_id),
+    chargesEnabled: Boolean(row.charges_enabled),
+    payoutsEnabled: Boolean(row.payouts_enabled),
+    detailsSubmitted: Boolean(row.details_submitted),
+    requirements: parseJson(row.requirements),
+    metadata: parseJson(row.metadata),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
 export async function listProductsWithVariants(
   capsuleId: string,
 ): Promise<{ products: StoreProductRecord[]; variants: StoreProductVariantRecord[] }> {
@@ -322,6 +356,48 @@ export async function listOrdersForCapsule(
     .fetch();
   const rows = expectResult(result, "store_orders.list_for_capsule");
   return (rows as Record<string, unknown>[]).map(mapOrder);
+}
+
+export async function getConnectAccountForCapsule(
+  capsuleId: string,
+): Promise<StoreConnectAccountRecord | null> {
+  const result = await db
+    .from("store_connect_accounts")
+    .select("*")
+    .eq("capsule_id", capsuleId)
+    .maybeSingle();
+  if (!result.data) return null;
+  return mapConnectAccount(result.data as Record<string, unknown>);
+}
+
+export async function upsertConnectAccount(params: {
+  capsuleId: string;
+  stripeAccountId: string;
+  chargesEnabled?: boolean;
+  payoutsEnabled?: boolean;
+  detailsSubmitted?: boolean;
+  requirements?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<StoreConnectAccountRecord> {
+  const now = new Date().toISOString();
+  const payload = {
+    capsule_id: params.capsuleId,
+    stripe_account_id: params.stripeAccountId,
+    charges_enabled: params.chargesEnabled ?? false,
+    payouts_enabled: params.payoutsEnabled ?? false,
+    details_submitted: params.detailsSubmitted ?? false,
+    requirements: params.requirements ?? {},
+    metadata: params.metadata ?? {},
+    updated_at: now,
+  };
+
+  const result = await db
+    .from("store_connect_accounts")
+    .upsert(payload, { onConflict: "capsule_id", ignoreDuplicates: false, defaultToNull: false })
+    .select("*")
+    .maybeSingle();
+  const row = expectResult(result, "store_connect_accounts.upsert");
+  return mapConnectAccount(row as Record<string, unknown>);
 }
 
 function isUuid(value: unknown): value is string {
@@ -545,4 +621,43 @@ export function assembleCartItems(
   }
 
   return { subtotalCents, items };
+}
+
+export async function findPayoutByOrderId(
+  orderId: string,
+): Promise<StorePayoutRecord | null> {
+  const result = await db.from("store_payouts").select("*").eq("order_id", orderId).maybeSingle();
+  if (!result.data) return null;
+  return mapPayout(result.data as Record<string, unknown>);
+}
+
+export async function upsertPayout(params: {
+  capsuleId: string;
+  orderId: string;
+  amountCents: number;
+  feeCents: number;
+  currency?: string;
+  status?: StorePayoutStatus;
+  payoutRef?: string | null;
+  metadata?: Record<string, unknown> | null;
+}): Promise<StorePayoutRecord> {
+  const now = new Date().toISOString();
+  const payload = {
+    capsule_id: params.capsuleId,
+    order_id: params.orderId,
+    amount_cents: Math.max(0, Math.trunc(params.amountCents)),
+    fee_cents: Math.max(0, Math.trunc(params.feeCents)),
+    currency: params.currency ?? "usd",
+    status: params.status ?? "pending",
+    payout_ref: params.payoutRef ?? null,
+    metadata: params.metadata ?? {},
+    updated_at: now,
+  };
+  const result = await db
+    .from("store_payouts")
+    .upsert(payload, { onConflict: "order_id", ignoreDuplicates: false, defaultToNull: false })
+    .select("*")
+    .maybeSingle();
+  const row = expectResult(result, "store_payouts.upsert");
+  return mapPayout(row as Record<string, unknown>);
 }

@@ -377,20 +377,24 @@ export function useComposerPromptActions({
               ? { kind: "image", label: "Image ready", threadId: nextThreadId }
               : null,
           backgroundReminderVisible: false,
-        }));
-      } catch (error) {
-        console.error("Logo tool failed", error);
-        setState((prev) => ({
-          ...prev,
-          open: true,
-          loading: false,
-          loadingKind: null,
-          message: "Image generation failed. Tap retry to try again.",
-          choices: null,
-          backgrounded: false,
-          backgroundReadyNotice: null,
-          backgroundReminderVisible: false,
-        }));
+      }));
+    } catch (error) {
+      console.error("Logo tool failed", error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Image generation failed. Tap retry to try again.";
+      setState((prev) => ({
+        ...prev,
+        open: true,
+        loading: false,
+        loadingKind: null,
+        message,
+        choices: null,
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
+      }));
       }
     },
     [activeCapsuleId, imageRequestOptions, setState],
@@ -462,19 +466,23 @@ export function useComposerPromptActions({
               ? { kind: "image", label: "Image ready", threadId: nextThreadId }
               : null,
           backgroundReminderVisible: false,
-        }));
-      } catch (error) {
-        console.error("Image edit tool failed", error);
-        setState((prev) => ({
-          ...prev,
-          open: true,
-          loading: false,
-          loadingKind: null,
-          message: "Image edit failed. Tap retry to try again.",
-          choices: null,
-          backgrounded: false,
-          backgroundReadyNotice: null,
-          backgroundReminderVisible: false,
+      }));
+    } catch (error) {
+      console.error("Image edit tool failed", error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Image edit failed. Tap retry to try again.";
+      setState((prev) => ({
+        ...prev,
+        open: true,
+        loading: false,
+        loadingKind: null,
+        message,
+        choices: null,
+        backgrounded: false,
+        backgroundReadyNotice: null,
+        backgroundReminderVisible: false,
         }));
       }
     },

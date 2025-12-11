@@ -399,7 +399,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     if (error instanceof EntitlementError) {
-      return returnError(error.status, error.code, error.message);
+      return returnError(error.status, error.code, error.message, error.details);
     }
     console.error("billing.ai_prompt.failed", error);
     return returnError(500, "billing_error", "Failed to verify allowance");

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComposerImageQuality } from "@/lib/composer/image-settings";
+import { toBillingClientError } from "@/lib/billing/client-errors";
 
 export type ImageRunResult = {
   url: string;
@@ -32,9 +33,15 @@ export async function requestImageGeneration(
     headers: { "Content-Type": "application/json" },
     body: buildRequestBody({ prompt }, options),
   });
-  const json = (await response.json().catch(() => null)) as { url?: string } | null;
+  const json = (await response.json().catch(() => null)) as { url?: string; message?: string } | null;
   if (!response.ok || !json?.url) {
-    throw new Error(`Image generate failed (${response.status})`);
+    const billingError = toBillingClientError(response.status, json);
+    if (billingError) throw billingError;
+    const message =
+      (json && typeof json.message === "string" && json.message.trim().length
+        ? json.message.trim()
+        : null) ?? `Image generate failed (${response.status})`;
+    throw new Error(message);
   }
   return { url: json.url };
 }
@@ -54,9 +61,15 @@ export async function requestImageEdit({
     headers: { "Content-Type": "application/json" },
     body: buildRequestBody({ imageUrl, instruction }, options),
   });
-  const json = (await response.json().catch(() => null)) as { url?: string } | null;
+  const json = (await response.json().catch(() => null)) as { url?: string; message?: string } | null;
   if (!response.ok || !json?.url) {
-    throw new Error(`Image edit failed (${response.status})`);
+    const billingError = toBillingClientError(response.status, json);
+    if (billingError) throw billingError;
+    const message =
+      (json && typeof json.message === "string" && json.message.trim().length
+        ? json.message.trim()
+        : null) ?? `Image edit failed (${response.status})`;
+    throw new Error(message);
   }
   return { url: json.url };
 }

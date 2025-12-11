@@ -946,83 +946,91 @@ export function FriendsClient() {
           hidden={activeTab !== "Friends"}
           className={`${styles.tabPanel} ${styles.panelFull}`.trim()}
         >
-          <div className={styles.mobileOnly}>
-            {showFriendDiscover ? (
-              <div className={`${railStyles.friendDiscover} ${styles.mobileFriendDiscover}`.trim()}>
-                <div className={railStyles.friendDiscoverControls}>
-                  <input
-                    id="friend-discover-mobile-search"
-                    ref={friendSearchInputRef}
-                    type="search"
-                    value={friendSearch}
-                    onChange={(event) => setFriendSearch(event.target.value)}
-                    placeholder="Search friends by name"
-                    className={railStyles.friendDiscoverInput}
-                    aria-label="Search friends"
-                  />
-                </div>
-                <div className={railStyles.friendSuggestions}>
-                  {friendSearchLoading ? (
-                    <div className={railStyles.friendSuggestionEmpty}>Searching...</div>
-                  ) : friendSearchError ? (
-                    <div className={railStyles.friendSuggestionEmpty}>{friendSearchError}</div>
-                  ) : friendSearchResults.length > 0 ? (
-                    friendSearchResults.map((entry) => {
-                      const added = addedSuggestionIds.has(entry.id);
-                      const subtitle = entry.subtitle ?? "";
-                      return (
-                        <div key={entry.id} className={railStyles.friendSuggestion}>
-                          <div className={railStyles.friendSuggestionMeta}>
-                            <span className={railStyles.friendSuggestionName}>{entry.name}</span>
-                            {subtitle ? (
-                              <span className={railStyles.friendSuggestionStatus}>{subtitle}</span>
-                            ) : null}
+          <div className={styles.friendsPanel}>
+            <div className={styles.mobileOnly}>
+              {showFriendDiscover ? (
+                <div
+                  className={`${railStyles.friendDiscover} ${styles.mobileFriendDiscover}`.trim()}
+                >
+                  <div className={railStyles.friendDiscoverControls}>
+                    <input
+                      id="friend-discover-mobile-search"
+                      ref={friendSearchInputRef}
+                      type="search"
+                      value={friendSearch}
+                      onChange={(event) => setFriendSearch(event.target.value)}
+                      placeholder="Search friends by name"
+                      className={railStyles.friendDiscoverInput}
+                      aria-label="Search friends"
+                    />
+                  </div>
+                  <div className={railStyles.friendSuggestions}>
+                    {friendSearchLoading ? (
+                      <div className={railStyles.friendSuggestionEmpty}>Searching...</div>
+                    ) : friendSearchError ? (
+                      <div className={railStyles.friendSuggestionEmpty}>{friendSearchError}</div>
+                    ) : friendSearchResults.length > 0 ? (
+                      friendSearchResults.map((entry) => {
+                        const added = addedSuggestionIds.has(entry.id);
+                        const subtitle = entry.subtitle ?? "";
+                        return (
+                          <div key={entry.id} className={railStyles.friendSuggestion}>
+                            <div className={railStyles.friendSuggestionMeta}>
+                              <span className={railStyles.friendSuggestionName}>{entry.name}</span>
+                              {subtitle ? (
+                                <span className={railStyles.friendSuggestionStatus}>
+                                  {subtitle}
+                                </span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              className={`${railStyles.friendSuggestionAdd} ${added ? railStyles.friendSuggestionAdded : ""}`.trim()}
+                              onClick={() => handleAddSuggestedFriend(entry.id)}
+                              disabled={added}
+                            >
+                              {added ? "Added" : "Add"}
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className={`${railStyles.friendSuggestionAdd} ${added ? railStyles.friendSuggestionAdded : ""}`.trim()}
-                            onClick={() => handleAddSuggestedFriend(entry.id)}
-                            disabled={added}
-                          >
-                            {added ? "Added" : "Add"}
-                          </button>
-                        </div>
-                      );
-                    })
-                  ) : friendSearch.trim().length >= 2 ? (
-                    <div className={railStyles.friendSuggestionEmpty}>No people found.</div>
-                  ) : (
-                    <div className={railStyles.friendSuggestionEmpty}>
-                      Start typing to search people across Capsules.
-                    </div>
-                  )}
+                        );
+                      })
+                    ) : friendSearch.trim().length >= 2 ? (
+                      <div className={railStyles.friendSuggestionEmpty}>No people found.</div>
+                    ) : (
+                      <div className={railStyles.friendSuggestionEmpty}>
+                        Start typing to search people across Capsules.
+                      </div>
+                    )}
+                  </div>
+                  <div className={railStyles.friendSuggestionHint}>
+                    No suggested friends right now.
+                  </div>
                 </div>
-                <div className={railStyles.friendSuggestionHint}>No suggested friends right now.</div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
+            <FriendsList
+              items={friends}
+              pendingId={pendingId}
+              notice={listNotice}
+              highlightId={highlightId}
+              onDelete={(friend, identifier) => {
+                void handleRemove(friend, identifier);
+              }}
+              onBlock={(friend, identifier) => {
+                void handleBlock(friend, identifier);
+              }}
+              onView={(friend) => handleView(friend)}
+              onStartChat={(friend) => handleStartChat(friend)}
+              onFollow={(friend, identifier) => {
+                void handleFollowFriend(friend, identifier);
+              }}
+              onUnfollow={(friend, identifier) => {
+                void handleUnfollowFriend(friend, identifier);
+              }}
+              isFollowing={isFollowingFriend}
+              isFollower={isFollowerFriend}
+            />
           </div>
-          <FriendsList
-            items={friends}
-            pendingId={pendingId}
-            notice={listNotice}
-            highlightId={highlightId}
-            onDelete={(friend, identifier) => {
-              void handleRemove(friend, identifier);
-            }}
-            onBlock={(friend, identifier) => {
-              void handleBlock(friend, identifier);
-            }}
-            onView={(friend) => handleView(friend)}
-            onStartChat={(friend) => handleStartChat(friend)}
-            onFollow={(friend, identifier) => {
-              void handleFollowFriend(friend, identifier);
-            }}
-            onUnfollow={(friend, identifier) => {
-              void handleUnfollowFriend(friend, identifier);
-            }}
-            isFollowing={isFollowingFriend}
-            isFollower={isFollowerFriend}
-          />
         </div>
 
         <div

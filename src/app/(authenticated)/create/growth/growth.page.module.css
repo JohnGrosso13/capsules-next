@@ -70,6 +70,22 @@
   color: var(--text-2);
   max-width: 34rem;
 }
+.capsuleSwitcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.emptyHint {
+  font-size: 0.9rem;
+  color: var(--text-2);
+}
 
 .headerMeta {
   display: grid;
@@ -198,6 +214,17 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(15, 23, 42, 0.7),
     0 8px 20px rgba(15, 23, 42, 0.55);
+}
+.chipButton[data-active="true"] {
+  border-color: color-mix(in srgb, var(--color-brand) 70%, var(--pill-border));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.8),
+    0 10px 22px color-mix(in srgb, var(--color-brand) 50%, rgba(15, 23, 42, 0.9));
+}
+.chipButton[data-disabled="true"] {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .chipButton[data-variant="ghost"] {
@@ -351,6 +378,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
   gap: 14px;
+}
+.cardColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .segmentGrid {
@@ -526,6 +558,89 @@
     0 8px 18px rgba(30, 64, 175, 0.8),
     inset 0 1px 0 rgba(239, 246, 255, 0.7),
     inset 0 -1px 0 rgba(30, 64, 175, 0.9);
+}
+.orderList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+.orderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 40%, var(--surface-outline));
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96)),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent);
+}
+.orderMetaBlock {
+  display: grid;
+  gap: 4px;
+}
+.orderTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.orderMeta {
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+.orderRowMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 180px;
+  text-align: right;
+}
+.orderTotal {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(255, 255, 255, 0.15));
+  background: color-mix(in srgb, var(--color-brand) 28%, rgba(255, 255, 255, 0.05));
+}
+.statusPill[data-tone="success"] {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.5));
+  border-color: rgba(74, 222, 128, 0.9);
+}
+.statusPill[data-tone="warning"] {
+  background: linear-gradient(180deg, rgba(234, 179, 8, 0.26), rgba(234, 179, 8, 0.44));
+  border-color: rgba(250, 204, 21, 0.9);
+}
+.statusPill[data-tone="danger"] {
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.22), rgba(239, 68, 68, 0.48));
+  border-color: rgba(248, 113, 113, 0.9);
+}
+.statusPill[data-tone="info"] {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.42));
+  border-color: rgba(96, 165, 250, 0.9);
+}
+.emptyCard {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--surface-outline) 80%, var(--color-brand));
+  color: var(--text-2);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.9));
 }
 
 .playbookList {

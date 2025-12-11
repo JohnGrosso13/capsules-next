@@ -26,9 +26,11 @@ import type { GlobalSearchSection, UserSearchResult } from "@/types/search";
 import {
   UsersThree,
   ChatsCircle,
+  ChatsTeardrop,
   Handshake,
   MicrophoneStage,
   MagicWand,
+  Plus,
   UserPlus,
 } from "@phosphor-icons/react/dist/ssr";
 import { usePathname, useRouter } from "next/navigation";
@@ -337,6 +339,7 @@ export function ConnectionsRail() {
   const [groupFlow, setGroupFlow] = React.useState<GroupFlowState | null>(null);
   const [groupBusy, setGroupBusy] = React.useState(false);
   const [groupError, setGroupError] = React.useState<string | null>(null);
+  const hasEligibleFriends = React.useMemo(() => friends.some((friend) => Boolean(friend.userId)), [friends]);
   const [showFriendDiscover, setShowFriendDiscover] = React.useState(false);
   const [friendSearch, setFriendSearch] = React.useState("");
   const [addedSuggestionIds, setAddedSuggestionIds] = React.useState<Set<string>>(
@@ -399,6 +402,11 @@ export function ConnectionsRail() {
   const handleInviteToGroup = React.useCallback((session: ChatSession) => {
     setGroupFlow({ mode: "invite", sessionId: session.id });
     setGroupError(null);
+  }, []);
+  const handleOpenGroupCreator = React.useCallback(() => {
+    setGroupFlow({ mode: "create" });
+    setGroupError(null);
+    setGroupBusy(false);
   }, []);
   const handlePartyShowFriends = React.useCallback(() => {
     setActiveRailTab("friends");
@@ -1186,164 +1194,226 @@ export function ConnectionsRail() {
           </div>
           <div
             className={styles.railPanel}
-          hidden={activeRailTab !== "friends"}
-          data-tab="friends"
-        >
-          <header className={styles.railPanelHeader}>
-            <div className={styles.railPanelHeading}>
-              <div className={styles.railPanelTitleRow}>
-                <span className={styles.railPanelTitleIcon} aria-hidden>
-                  <UsersThree size={18} weight="duotone" />
-                </span>
-                <h2 className={styles.railPanelTitle}>Friends</h2>
-              </div>
-            </div>
-            <div className={styles.railPanelActions}>
-              <button
-                type="button"
-                className={styles.railPanelActionButton}
-                  aria-pressed={showFriendDiscover}
-                  aria-label={showFriendDiscover ? "Hide add friends" : "Add friends"}
-                  onClick={handleToggleFriendDiscover}
-                >
-                  <UserPlus size={16} weight="bold" />
-                </button>
-              </div>
-            </header>
-            {showFriendDiscover ? (
-              <div className={styles.friendDiscover}>
-                <div className={styles.friendDiscoverControls}>
-                  <input
-                    id="friend-discover-search"
-                    ref={friendSearchInputRef}
-                    type="search"
-                    value={friendSearch}
-                    onChange={(event) => setFriendSearch(event.target.value)}
-                    placeholder="Search friends by name"
-                    className={styles.friendDiscoverInput}
-                    aria-label="Search friends"
-                  />
+            hidden={activeRailTab !== "friends"}
+            data-tab="friends"
+          >
+            <div className={styles.panelShell}>
+              <header className={styles.panelShellHeader}>
+                <div className={styles.panelShellHeading}>
+                  <span className={styles.panelShellTitleIcon} aria-hidden>
+                    <UsersThree size={18} weight="duotone" />
+                  </span>
+                  <h2 className={styles.panelShellTitle}>Friends</h2>
                 </div>
-                <div className={styles.friendSuggestions}>
-                  {friendSearchLoading ? (
-                    <div className={styles.friendSuggestionEmpty}>Searching...</div>
-                  ) : friendSearchError ? (
-                    <div className={styles.friendSuggestionEmpty}>{friendSearchError}</div>
-                  ) : friendSearchResults.length > 0 ? (
-                    friendSearchResults.map((entry) => {
-                      const added = addedSuggestionIds.has(entry.id);
-                      const subtitle = entry.subtitle ?? "";
-                      return (
-                        <div key={entry.id} className={styles.friendSuggestion}>
-                          <div className={styles.friendSuggestionMeta}>
-                            <span className={styles.friendSuggestionName}>{entry.name}</span>
-                            {subtitle ? (
-                              <span className={styles.friendSuggestionStatus}>{subtitle}</span>
-                            ) : null}
+                <div className={styles.panelShellActions}>
+                  <button
+                    type="button"
+                    className={styles.railPanelActionButton}
+                    aria-pressed={showFriendDiscover}
+                    aria-label={showFriendDiscover ? "Hide add friends" : "Add friends"}
+                    onClick={handleToggleFriendDiscover}
+                  >
+                    <UserPlus size={16} weight="bold" />
+                  </button>
+                </div>
+              </header>
+              <div className={styles.panelShellDivider} />
+              {showFriendDiscover ? (
+                <div className={styles.friendDiscover}>
+                  <div className={styles.friendDiscoverControls}>
+                    <input
+                      id="friend-discover-search"
+                      ref={friendSearchInputRef}
+                      type="search"
+                      value={friendSearch}
+                      onChange={(event) => setFriendSearch(event.target.value)}
+                      placeholder="Search friends by name"
+                      className={styles.friendDiscoverInput}
+                      aria-label="Search friends"
+                    />
+                  </div>
+                  <div className={styles.friendSuggestions}>
+                    {friendSearchLoading ? (
+                      <div className={styles.friendSuggestionEmpty}>Searching...</div>
+                    ) : friendSearchError ? (
+                      <div className={styles.friendSuggestionEmpty}>{friendSearchError}</div>
+                    ) : friendSearchResults.length > 0 ? (
+                      friendSearchResults.map((entry) => {
+                        const added = addedSuggestionIds.has(entry.id);
+                        const subtitle = entry.subtitle ?? "";
+                        return (
+                          <div key={entry.id} className={styles.friendSuggestion}>
+                            <div className={styles.friendSuggestionMeta}>
+                              <span className={styles.friendSuggestionName}>{entry.name}</span>
+                              {subtitle ? (
+                                <span className={styles.friendSuggestionStatus}>{subtitle}</span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              className={`${styles.friendSuggestionAdd} ${added ? styles.friendSuggestionAdded : ""}`.trim()}
+                              onClick={() => handleAddSuggestedFriend(entry.id)}
+                              disabled={added}
+                            >
+                              {added ? "Added" : "Add"}
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className={`${styles.friendSuggestionAdd} ${added ? styles.friendSuggestionAdded : ""}`.trim()}
-                            onClick={() => handleAddSuggestedFriend(entry.id)}
-                            disabled={added}
-                          >
-                            {added ? "Added" : "Add"}
-                          </button>
-                        </div>
-                      );
-                    })
-                  ) : friendSearch.trim().length >= 2 ? (
-                    <div className={styles.friendSuggestionEmpty}>No people found.</div>
-                  ) : (
-                    <div className={styles.friendSuggestionEmpty}>
-                      Start typing to search people across Capsules.
-                    </div>
-                  )}
+                        );
+                      })
+                    ) : friendSearch.trim().length >= 2 ? (
+                      <div className={styles.friendSuggestionEmpty}>No people found.</div>
+                    ) : (
+                      <div className={styles.friendSuggestionEmpty}>
+                        Start typing to search people across Capsules.
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.friendSuggestionHint}>
+                    No suggested friends right now.
+                  </div>
                 </div>
-                <div className={styles.friendSuggestionHint}>No suggested friends right now.</div>
-              </div>
-            ) : null}
-            <FriendsRail
-              friends={friends}
-              pendingId={friendActionPendingId}
-              activeTarget={activeFriendTarget}
-              onNameClick={handleFriendNameClick}
-              onDelete={handleFriendRemove}
-              onStartChat={(friend) => {
-                handleStartChat(friend);
-              }}
-              onFollow={(friend, identifier) => {
-                void handleFollowFriend(friend, identifier);
-              }}
-              onUnfollow={(friend, identifier) => {
-                void handleUnfollowFriend(friend, identifier);
-              }}
-              isFollowing={isFollowingFriend}
-              isFollower={isFollowerFriend}
-            />
+              ) : null}
+              <FriendsRail
+                friends={friends}
+                pendingId={friendActionPendingId}
+                activeTarget={activeFriendTarget}
+                onNameClick={handleFriendNameClick}
+                onDelete={handleFriendRemove}
+                onStartChat={(friend) => {
+                  handleStartChat(friend);
+                }}
+                onFollow={(friend, identifier) => {
+                  void handleFollowFriend(friend, identifier);
+                }}
+                onUnfollow={(friend, identifier) => {
+                  void handleUnfollowFriend(friend, identifier);
+                }}
+                isFollowing={isFollowingFriend}
+                isFollower={isFollowerFriend}
+              />
+            </div>
           </div>
           <div
             className={styles.railPanel}
             hidden={activeRailTab !== "party"}
             data-tab="party"
           >
-            <PartyPanel
-              friends={friends}
-              friendTargets={friendTargetMap}
-              onShowFriends={handlePartyShowFriends}
-              variant="compact"
-            />
+            <div className={styles.panelShell}>
+              <header className={styles.panelShellHeader}>
+                <div className={styles.panelShellHeading}>
+                  <span className={styles.panelShellTitleIcon} aria-hidden>
+                    <MicrophoneStage size={18} weight="duotone" />
+                  </span>
+                  <h2 className={styles.panelShellTitle}>Host a party lobby</h2>
+                </div>
+                <div className={styles.panelShellActions} />
+              </header>
+              <div className={styles.panelShellDivider} />
+              <PartyPanel
+                friends={friends}
+                friendTargets={friendTargetMap}
+                onShowFriends={handlePartyShowFriends}
+                variant="compact"
+              />
+            </div>
           </div>
           <div
             className={styles.railPanel}
             hidden={activeRailTab !== "chats"}
             data-tab="chats"
           >
-            <ChatPanel
-              variant="rail"
-              friends={friends}
-              emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
-              onInviteToGroup={handleInviteToGroup}
-            />
+            <div className={styles.panelShell}>
+              <header className={styles.panelShellHeader}>
+                <div className={styles.panelShellHeading}>
+                  <span className={styles.panelShellTitleIcon} aria-hidden>
+                    <ChatsTeardrop size={18} weight="duotone" />
+                  </span>
+                  <h2 className={styles.panelShellTitle}>Chats</h2>
+                </div>
+                <div className={styles.panelShellActions}>
+                  <button
+                    type="button"
+                    className={styles.railPanelActionButton}
+                    aria-label="Start a new chat"
+                    title={hasEligibleFriends ? "Start a new chat" : "Add friends to start a chat"}
+                    onClick={handleOpenGroupCreator}
+                    disabled={!hasEligibleFriends}
+                  >
+                    <Plus size={16} weight="bold" />
+                  </button>
+                </div>
+              </header>
+              <div className={styles.panelShellDivider} />
+              <ChatPanel
+                variant="rail"
+                friends={friends}
+                emptyNotice={<p>No chats yet. Start a conversation from your friends list.</p>}
+                onInviteToGroup={handleInviteToGroup}
+              />
+            </div>
           </div>
         <div
           className={styles.railPanel}
           hidden={activeRailTab !== "requests"}
           data-tab="requests"
         >
-          <RequestsList
-            incoming={incomingRequests}
-            outgoing={outgoingRequests}
-            partyInvites={partyInvites}
-            capsuleInvites={capsuleInvites}
-            onAccept={handleAccept}
-            onDecline={handleDecline}
-            onCancel={handleCancel}
-            onAcceptInvite={handleAcceptInvite}
-            onDeclineInvite={handleDeclineInvite}
-            onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
-            onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
-            pendingRequests={requestPendingIds}
-            pendingInvites={invitePendingIds}
-            pendingCapsuleInvites={capsuleInvitePendingIds}
-            errorMessage={requestError}
-            onClearError={() => setRequestError(null)}
-          />
+          <div className={styles.panelShell}>
+            <header className={styles.panelShellHeader}>
+              <div className={styles.panelShellHeading}>
+                <span className={styles.panelShellTitleIcon} aria-hidden>
+                  <Handshake size={18} weight="duotone" />
+                </span>
+                <h2 className={styles.panelShellTitle}>Requests</h2>
+              </div>
+              <div className={styles.panelShellActions} />
+            </header>
+            <div className={styles.panelShellDivider} />
+            <RequestsList
+              incoming={incomingRequests}
+              outgoing={outgoingRequests}
+              partyInvites={partyInvites}
+              capsuleInvites={capsuleInvites}
+              onAccept={handleAccept}
+              onDecline={handleDecline}
+              onCancel={handleCancel}
+              onAcceptInvite={handleAcceptInvite}
+              onDeclineInvite={handleDeclineInvite}
+              onAcceptCapsuleInvite={handleAcceptCapsuleInvite}
+              onDeclineCapsuleInvite={handleDeclineCapsuleInvite}
+              pendingRequests={requestPendingIds}
+              pendingInvites={invitePendingIds}
+              pendingCapsuleInvites={capsuleInvitePendingIds}
+              errorMessage={requestError}
+              onClearError={() => setRequestError(null)}
+            />
+          </div>
         </div>
         <div
           className={styles.railPanel}
           hidden={activeRailTab !== "assistant"}
           data-tab="assistant"
         >
-          <AssistantPanel
-            tasks={assistantTasks}
-            loading={loadingAssistantTasks}
-            error={assistantError}
-            onRefresh={refreshAssistantTasks}
-            onCancelTask={handleCancelAssistantTask}
-            cancelingTaskIds={cancelingTaskIds}
-            friends={friends}
-          />
+          <div className={styles.panelShell}>
+            <header className={styles.panelShellHeader}>
+              <div className={styles.panelShellHeading}>
+                <span className={styles.panelShellTitleIcon} aria-hidden>
+                  <MagicWand size={18} weight="duotone" />
+                </span>
+                <h2 className={styles.panelShellTitle}>Assistant</h2>
+              </div>
+              <div className={styles.panelShellActions} />
+            </header>
+            <div className={styles.panelShellDivider} />
+            <AssistantPanel
+              tasks={assistantTasks}
+              loading={loadingAssistantTasks}
+              error={assistantError}
+              onRefresh={refreshAssistantTasks}
+              onCancelTask={handleCancelAssistantTask}
+              cancelingTaskIds={cancelingTaskIds}
+              friends={friends}
+            />
+          </div>
         </div>
           {/* Overlay for group chat create/invite */}
           <GroupChatOverlay

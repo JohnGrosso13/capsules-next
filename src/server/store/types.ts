@@ -137,6 +137,35 @@ export type StorePaymentRecord = {
   updatedAt: string;
 };
 
+export type StorePayoutStatus = "pending" | "paid" | "failed";
+
+export type StorePayoutRecord = {
+  id: string;
+  capsuleId: string;
+  orderId: string | null;
+  amountCents: number;
+  feeCents: number;
+  currency: string;
+  status: StorePayoutStatus;
+  payoutRef: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StoreConnectAccountRecord = {
+  id: string;
+  capsuleId: string;
+  stripeAccountId: string;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  requirements: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type StoreCartLine = {
   productId: string;
   variantId: string | null;

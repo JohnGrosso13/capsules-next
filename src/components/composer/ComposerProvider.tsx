@@ -315,7 +315,7 @@ function ComposerSessionProvider({ children, user }: ComposerSessionProviderProp
     selectSavedDraft,
     selectRecentChat,
     saveDraft,
-  } = useComposerSidebarActions({ sidebarStore, updateSidebarStore, setState });
+  } = useComposerSidebarActions({ sidebarStore, updateSidebarStore, setState, getState });
 
   const pushAssistantError = React.useCallback(
     (content: string, history: ComposerChatMessage[] = []) => {

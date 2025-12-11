@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     sessionMetadata.billing_wallet_id = wallet.wallet.id;
   } catch (error) {
     if (error instanceof EntitlementError) {
-      return returnError(error.status, error.code, error.message);
+      return returnError(error.status, error.code, error.message, error.details);
     }
     console.error("billing.upload.precheck_failed", error);
     return returnError(500, "billing_error", "Failed to check storage allowance");

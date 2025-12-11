@@ -43,6 +43,7 @@ type StoreCheckoutSheetProps = {
     status: string;
     tracking?: string | null;
     carrier?: string | null;
+    shippingStatus?: string | null;
     totalCents: number;
     currency: string;
     items: { title: string; quantity: number; unitPriceCents: number }[];
@@ -281,32 +282,40 @@ function StoreCheckoutSheet({
                         </label>
                       </div>
 
-                      <div
-                        className={capTheme.checkoutOptions}
-                        data-invalid={errorFor("shippingOption") ? "true" : undefined}
-                      >
-                        {shippingOptions.map((option) => (
-                          <label key={option.id} className={capTheme.checkoutOptionCard}>
-                            <input
-                              type="radio"
-                              name="shipping-option"
-                              value={option.id}
-                              checked={details.shippingOption === option.id}
-                              onChange={(event) => onUpdateField("shippingOption", event.target.value)}
-                            />
-                            <div>
-                              <div className={capTheme.checkoutOptionTop}>
-                                <strong>{option.label}</strong>
-                                <span>{option.price === 0 ? "Free" : formatCurrency(option.price)}</span>
-                              </div>
-                              <p>{option.detail}</p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                      {errorFor("shippingOption") ? (
-                        <p className={capTheme.checkoutError}>{errorFor("shippingOption")}</p>
-                      ) : null}
+                      {!shippingOptions.length ? (
+                        <p className={capTheme.checkoutError}>
+                          Shipping options are not available yet. Please contact the capsule owner.
+                        </p>
+                      ) : (
+                        <>
+                          <div
+                            className={capTheme.checkoutOptions}
+                            data-invalid={errorFor("shippingOption") ? "true" : undefined}
+                          >
+                            {shippingOptions.map((option) => (
+                              <label key={option.id} className={capTheme.checkoutOptionCard}>
+                                <input
+                                  type="radio"
+                                  name="shipping-option"
+                                  value={option.id}
+                                  checked={details.shippingOption === option.id}
+                                  onChange={(event) => onUpdateField("shippingOption", event.target.value)}
+                                />
+                                <div>
+                                  <div className={capTheme.checkoutOptionTop}>
+                                    <strong>{option.label}</strong>
+                                    <span>{option.price === 0 ? "Free" : formatCurrency(option.price)}</span>
+                                  </div>
+                                  <p>{option.detail}</p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                          {errorFor("shippingOption") ? (
+                            <p className={capTheme.checkoutError}>{errorFor("shippingOption")}</p>
+                          ) : null}
+                        </>
+                      )}
                     </>
                   ) : (
                     <p className={capTheme.checkoutEyebrow}>No shipping required for this order.</p>
@@ -590,11 +599,27 @@ function StoreCheckoutSheet({
                 <div className={capTheme.checkoutConfirmationIcon}>
                   <CheckCircle size={32} weight="duotone" />
                 </div>
-                <h4>Order submitted</h4>
-                <p className={capTheme.checkoutReviewValue}>Reference {orderReference ?? "pending reference"}.</p>
+                <h4>Order confirmed</h4>
+                <p className={capTheme.checkoutReviewValue}>Reference {orderReference ?? "Pending"}.</p>
                 <p className={capTheme.checkoutHint}>
-                  We&apos;ll email {details.email || "your inbox"} as fulfillment begins.
+                  We&apos;ll email {details.email || "your inbox"} when fulfillment begins.
                 </p>
+                <p className={capTheme.checkoutHint}>
+                  Delivery:{" "}
+                  {shippingRequired
+                    ? selectedShipping
+                      ? `${selectedShipping.label}${selectedShipping.detail ? ` — ${selectedShipping.detail}` : ""}`
+                      : "Shipping will be assigned before fulfillment."
+                    : "Digital delivery"}
+                </p>
+                <div className={capTheme.storeSupportActions}>
+                  <a className={capTheme.storeActionButton} href="/orders">
+                    View all my orders
+                  </a>
+                  <button type="button" className={capTheme.storeGhostButton} onClick={onClose}>
+                    Back to store
+                  </button>
+                </div>
               </div>
             ) : null}
           </form>
@@ -709,6 +734,9 @@ function StoreCheckoutSheet({
                     </li>
                   ))}
                 </ul>
+                {orderSummary.shippingStatus ? (
+                  <p className={capTheme.checkoutHint}>Shipping status: {orderSummary.shippingStatus}</p>
+                ) : null}
                 {orderSummary.tracking ? (
                   <p className={capTheme.checkoutHint}>
                     Tracking:{" "}
@@ -739,15 +767,15 @@ function StoreCheckoutSheet({
               <button
                 type="button"
                 className={capTheme.storeGhostButton}
-                onClick={onBackStep}
+                onClick={step === "confirmation" ? onClose : onBackStep}
                 disabled={checkoutBusy}
               >
-                {step === "shipping" ? "Back to cart" : "Back"}
+                {step === "shipping" ? "Back to cart" : step === "confirmation" ? "Back to store" : "Back"}
               </button>
               {step === "confirmation" ? (
-                <button type="button" className={capTheme.storePrimaryButton} onClick={onClose}>
-                  Close
-                </button>
+                <a className={capTheme.storePrimaryButton} href="/orders">
+                  View all my orders
+                </a>
               ) : step === "review" ? (
                 <button
                   type="button"

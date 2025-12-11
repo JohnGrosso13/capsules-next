@@ -175,7 +175,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     if (error instanceof EntitlementError) {
-      return returnError(error.status, error.code, error.message);
+      return returnError(error.status, error.code, error.message, error.details);
     }
     const code = (error as { code?: string }).code ?? null;
     if (code === "style_persona_not_found") {

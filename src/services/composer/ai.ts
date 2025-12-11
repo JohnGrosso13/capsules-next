@@ -6,6 +6,7 @@ import {
   promptResponseSchema,
   type PromptResponse,
 } from "@/shared/schemas/ai";
+import { BillingClientError, toBillingClientError } from "@/lib/billing/client-errors";
 
 export type CallAiPromptParams = {
   message: string;
@@ -114,7 +115,17 @@ export async function callAiPrompt({
 
     if (streamMode) {
       try {
-        if (!response.ok || !response.body) {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const billingError = toBillingClientError(response.status, payload);
+          if (billingError) throw billingError;
+          const message =
+            (payload && typeof (payload as { message?: unknown }).message === "string"
+              ? ((payload as { message: string }).message ?? "").trim()
+              : "") || `Prompt request failed (${response.status})`;
+          throw new Error(message);
+        }
+        if (!response.body) {
           throw new Error(`Prompt request failed (${response.status})`);
         }
         const reader = response.body.getReader();
@@ -183,7 +194,9 @@ export async function callAiPrompt({
         }
         return finalPayload;
       } catch (error) {
-        if (!allowFallback) throw error instanceof Error ? error : new Error(String(error));
+        if (!allowFallback || error instanceof BillingClientError) {
+          throw error instanceof Error ? error : new Error(String(error));
+        }
         console.warn("Prompt stream failed, retrying without stream", error);
         return runRequest(false, false);
       }
@@ -191,7 +204,13 @@ export async function callAiPrompt({
 
     const json = await response.json().catch(() => null);
     if (!response.ok || !json) {
-      throw new Error(`Prompt request failed (${response.status})`);
+      const billingError = toBillingClientError(response.status, json);
+      if (billingError) throw billingError;
+      const message =
+        (json && typeof (json as { message?: unknown }).message === "string"
+          ? ((json as { message: string }).message ?? "").trim()
+          : "") || `Prompt request failed (${response.status})`;
+      throw new Error(message);
     }
     const apiMs = performance.now() - apiStarted;
     console.info("composer_ai_request_timing", {

@@ -4,10 +4,19 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import cards from "@/components/cards.module.css";
+import { BILLING_SETTINGS_PATH } from "@/lib/billing/client-errors";
+import {
+  buildPlanDisplay,
+  formatComputeUnits,
+  formatStorageBytes,
+  resolveFeatureTier,
+  sortPlansForDisplay,
+  type BillingPlanSummary,
+  type PlanDisplay,
+} from "@/lib/billing/plan-display";
+
 import layout from "./settings.module.css";
 import styles from "./billing-section.module.css";
-
-type SubscriptionTierId = "free" | "creator" | "pro" | "studio";
 
 type CapsuleSummary = {
   id: string;
@@ -43,104 +52,133 @@ type WalletResponse = {
   } | null;
 };
 
-type BillingPlan = {
-  code: string;
-  name: string;
-  description: string | null;
-  priceCents: number | null;
-  currency: string;
-  billingInterval: "monthly" | "yearly";
-  includedCompute: number;
-  includedStorageBytes: number;
-  stripePriceId: string | null;
-};
-
 type PlansResponse = {
-  personal: BillingPlan[];
-  capsule: BillingPlan[];
+  personal: BillingPlanSummary[];
+  capsule: BillingPlanSummary[];
 };
 
 type BillingSectionProps = {
   capsules: CapsuleSummary[];
 };
 
-type SubscriptionTier = {
-  id: SubscriptionTierId;
-  name: string;
-  priceLabel: string;
-  tagline: string;
-  planCode?: string | null;
-  highlight?: boolean;
-  features: string[];
+type UsageStat = {
+  total: number;
+  used: number;
+  remaining: number;
+  percentUsed: number;
+  nearlyOut: boolean;
 };
 
-const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
-  {
-    id: "free",
-    name: "Free",
-    priceLabel: "$0 / month",
-    tagline: "Explore Capsules and try every core feature.",
-    planCode: "user_free",
-    features: [
-      "Create ladders and tournaments with light monthly usage",
-      "Try AI video editing, image generation, and PDF export",
-      "Chat with the Capsules assistant for planning and ideas",
-      "Starter memory space for your first Capsules and uploads",
-    ],
-  },
-  {
-    id: "creator",
-    name: "Creator",
-    priceLabel: "$15 / month",
-    tagline: "For regular players and creators.",
-    highlight: true,
-    planCode: "user_creator",
-    features: [
-      "Everything in Free, with more room to experiment",
-      "Run more ladders and tournaments at the same time",
-      "More AI video minutes and image generations each month",
-      "Expanded memory space for ongoing Capsules projects",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    priceLabel: "$39 / month",
-    tagline: "Run serious leagues and content workflows.",
-    planCode: "user_pro",
-    features: [
-      "Everything in Creator",
-      "Run many ladders and tournaments concurrently",
-      "Higher AI usage across video, images, PDFs, and chat",
-      "Priority processing during busy hours",
-    ],
-  },
-  {
-    id: "studio",
-    name: "Studio",
-    priceLabel: "$99 / month",
-    tagline: "For studios, teams, and heavy daily use.",
-    planCode: "user_studio",
-    features: [
-      "Everything in Pro",
-      "Built for heavy, daily AI workflows",
-      "Maximum memory space and asset storage",
-      "Priority support and early access features",
-    ],
-  },
-];
-
-function formatBytes(value: number): string {
-  if (!Number.isFinite(value)) return "0 B";
-  const gb = value / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  const mb = value / (1024 * 1024);
-  if (mb >= 1) return `${mb.toFixed(0)} MB`;
-  return `${Math.max(0, Math.floor(value / 1024))} KB`;
+function buildUsageStat(total: number, used: number): UsageStat {
+  const safeTotal = Math.max(0, total);
+  const safeUsed = Math.max(0, used);
+  const remaining = Math.max(0, safeTotal - safeUsed);
+  const percentUsed = safeTotal > 0 ? Math.min(100, Math.round((safeUsed / safeTotal) * 100)) : 0;
+  return {
+    total: safeTotal,
+    used: safeUsed,
+    remaining,
+    percentUsed,
+    nearlyOut: percentUsed >= 85 && safeTotal > 0,
+  };
 }
 
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat().format(Math.max(0, Math.floor(value)));
+function formatDateLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(
+    date,
+  );
+}
+
+function resolvePlanForWallet(
+  plans: BillingPlanSummary[],
+  wallet: WalletResponse | null,
+): BillingPlanSummary | null {
+  if (!plans.length) return null;
+  const planById = new Map(plans.map((plan) => [plan.id, plan]));
+  if (wallet?.subscription?.planId) {
+    const match = planById.get(wallet.subscription.planId);
+    if (match) return match;
+  }
+  const walletTier = wallet?.balance.featureTier?.toLowerCase();
+  if (walletTier) {
+    const tierMatch = plans.find(
+      (plan) => resolveFeatureTier(plan)?.toLowerCase() === walletTier,
+    );
+    if (tierMatch) return tierMatch;
+  }
+  const freePlan = plans.find((plan) => plan.code === "user_free");
+  if (freePlan) return freePlan;
+  return plans[0] ?? null;
+}
+
+function findNextPlan(planDisplays: PlanDisplay[], currentPlanId: string | null): PlanDisplay | null {
+  if (!planDisplays.length) return null;
+  const currentIndex = currentPlanId
+    ? planDisplays.findIndex((entry) => entry.plan.id === currentPlanId)
+    : -1;
+  if (currentIndex >= 0 && currentIndex < planDisplays.length - 1) {
+    return planDisplays[currentIndex + 1] ?? null;
+  }
+  const recommended = planDisplays.find(
+    (entry) => entry.recommended && entry.plan.id !== currentPlanId,
+  );
+  if (recommended) return recommended;
+  return planDisplays.find((entry) => entry.plan.id !== currentPlanId) ?? null;
+}
+
+function resolveRenewalLabel(wallet: WalletResponse | null, currentPlan: PlanDisplay | null): string {
+  const subscriptionRenewal =
+    wallet?.subscription?.currentPeriodEnd && formatDateLabel(wallet.subscription.currentPeriodEnd);
+  if (subscriptionRenewal) {
+    const cancelSuffix = wallet?.subscription?.cancelAtPeriodEnd ? " (cancels at period end)" : "";
+    return `Renews ${subscriptionRenewal}${cancelSuffix}`;
+  }
+
+  const periodStart = wallet?.balance.periodStart ? formatDateLabel(wallet.balance.periodStart) : null;
+  const periodEnd = wallet?.balance.periodEnd ? formatDateLabel(wallet.balance.periodEnd) : null;
+  if (periodStart && periodEnd) return `Current period ${periodStart}–${periodEnd}`;
+  if (periodEnd) return `Renews ${periodEnd}`;
+
+  if (currentPlan) {
+    return currentPlan.plan.billingInterval === "yearly" ? "Yearly billing" : "Monthly billing";
+  }
+  return "Billing active";
+}
+
+function UsageMeter({
+  label,
+  usage,
+  formatter,
+}: {
+  label: string;
+  usage: UsageStat;
+  formatter: (value: number) => string;
+}): React.JSX.Element {
+  return (
+    <div className={styles.usageRow} data-warning={usage.nearlyOut ? "true" : undefined}>
+      <div className={styles.usageMeta}>
+        <p className={styles.label}>{label}</p>
+        <p className={styles.balanceRow}>
+          <span>{formatter(usage.used)} used</span>
+          <span aria-hidden>·</span>
+          <span>{formatter(usage.total)} included</span>
+        </p>
+      </div>
+      <div
+        className={styles.usageBar}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={usage.percentUsed}
+      >
+        <div className={styles.usageBarFill} style={{ width: `${usage.percentUsed}%` }} />
+      </div>
+      <p className={styles.subtle}>{formatter(usage.remaining)} remaining this period</p>
+    </div>
+  );
 }
 
 async function startCheckout(params: {
@@ -156,8 +194,8 @@ async function startCheckout(params: {
       scope: params.scope,
       capsuleId: params.capsuleId ?? null,
       planCode: params.planCode ?? null,
-      successPath: "/settings?tab=billing",
-      cancelPath: "/settings?tab=billing",
+      successPath: BILLING_SETTINGS_PATH,
+      cancelPath: BILLING_SETTINGS_PATH,
     }),
   });
   const payload = (await response.json().catch(() => null)) as
@@ -182,39 +220,6 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
   const [donationAmount, setDonationAmount] = React.useState<string>("1000");
   const [donationStatus, setDonationStatus] = React.useState<string | null>(null);
   const [isDonating, setIsDonating] = React.useState<boolean>(false);
-
-  const [view, setView] = React.useState<"overview" | "limits">("overview");
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const url = new URL(window.location.href);
-      const viewParam = (url.searchParams.get("view") ?? "").trim().toLowerCase();
-      if (viewParam === "limits") {
-        setView("limits");
-      }
-    } catch (error) {
-      console.error("billing.view.bootstrap_failed", error);
-    }
-  }, []);
-
-  const updateView = React.useCallback((next: "overview" | "limits") => {
-    setView(next);
-    if (typeof window === "undefined") return;
-    try {
-      const url = new URL(window.location.href);
-      if (next === "overview") {
-        if (url.searchParams.has("view")) {
-          url.searchParams.delete("view");
-        }
-      } else {
-        url.searchParams.set("view", next);
-      }
-      window.history.replaceState(window.history.state, "", url.toString());
-    } catch (error) {
-      console.error("billing.view.update_failed", error);
-    }
-  }, []);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -258,10 +263,10 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
   }, []);
 
   const handleCapsuleCheckout = React.useCallback(
-    async (capsuleId: string) => {
+    async (capsuleId: string, planCode?: string | null) => {
       setError(null);
       try {
-        const url = await startCheckout({ scope: "capsule", capsuleId });
+        const url = await startCheckout({ scope: "capsule", capsuleId, planCode: planCode ?? null });
         window.location.href = url;
       } catch (err) {
         console.error("billing.checkout.capsule.failed", err);
@@ -298,168 +303,208 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
       if (!response.ok) {
         throw new Error((payload as { message?: string })?.message ?? "Transfer failed");
       }
-      setDonationStatus("Donation sent!");
+      setDonationStatus("Transfer complete. Credits moved.");
       setDonationAmount("0");
       void loadData();
     } catch (err) {
       console.error("billing.donation.failed", err);
-      setDonationStatus((err as Error)?.message ?? "Donation failed");
+      setDonationStatus((err as Error)?.message ?? "Transfer failed");
     } finally {
       setIsDonating(false);
     }
   }, [donationAmount, donationCapsuleId, donationMetric, loadData]);
 
-  const personalPlan =
-    plans?.personal?.find((plan) => plan.code === "user_creator") ??
-    plans?.personal?.find((plan) => plan.code === "user_free") ??
-    plans?.personal?.[0] ??
-    null;
+  const personalPlans = React.useMemo(() => plans?.personal ?? [], [plans]);
   const capsulePlan = plans?.capsule?.[0] ?? null;
+  const planDisplays = React.useMemo(() => sortPlansForDisplay(personalPlans), [personalPlans]);
+  const currentPlanRaw = React.useMemo(
+    () => resolvePlanForWallet(personalPlans, wallet),
+    [personalPlans, wallet],
+  );
+  const currentPlanDisplay = React.useMemo(
+    () =>
+      currentPlanRaw
+        ? planDisplays.find((entry) => entry.plan.id === currentPlanRaw.id) ??
+          buildPlanDisplay(currentPlanRaw)
+        : null,
+    [currentPlanRaw, planDisplays],
+  );
+  const nextPlan = React.useMemo(
+    () => findNextPlan(planDisplays, currentPlanRaw?.id ?? null),
+    [planDisplays, currentPlanRaw],
+  );
 
-  const computeRemaining = Math.max(
-    0,
-    (wallet?.balance.computeGranted ?? 0) - (wallet?.balance.computeUsed ?? 0),
+  const computeUsage = buildUsageStat(
+    wallet?.balance.computeGranted ?? 0,
+    wallet?.balance.computeUsed ?? 0,
   );
-  const storageRemaining = Math.max(
-    0,
-    (wallet?.balance.storageGranted ?? 0) - (wallet?.balance.storageUsed ?? 0),
+  const storageUsage = buildUsageStat(
+    wallet?.balance.storageGranted ?? 0,
+    wallet?.balance.storageUsed ?? 0,
   );
+  const renewalLabel = resolveRenewalLabel(wallet, currentPlanDisplay);
+
+  const bypass = wallet?.bypass ?? false;
+  const dataReady = Boolean(wallet && plans);
 
   return (
     <article className={`${cards.card} ${layout.card}`}>
       <header className={cards.cardHead}>
-        <h3 className={layout.sectionTitle}>
-          {view === "limits" ? "Billing limits & wallet" : "Subscriptions"}
-        </h3>
+        <h3 className={layout.sectionTitle}>Billing &amp; usage</h3>
       </header>
       <div className={`${cards.cardBody} ${styles.sectionBody}`}>
         {error ? <p className={styles.error}>{error}</p> : null}
-
-        {view === "overview" ? (
+        {!dataReady ? (
+          <p className={styles.helper}>Loading billing details...</p>
+        ) : (
           <>
+            <div className={styles.panel}>
+              <div className={styles.planHeaderRow}>
+                <div>
+                  <p className={styles.label}>Current plan</p>
+                  <div className={styles.planNameRow}>
+                    <p className={styles.planName}>{currentPlanDisplay?.plan.name ?? "Free"}</p>
+                    {currentPlanDisplay?.badge ? (
+                      <span className={styles.planBadge}>{currentPlanDisplay.badge}</span>
+                    ) : null}
+                    {bypass ? <span className={styles.planBadge}>Dev credits</span> : null}
+                    {currentPlanDisplay?.plan.code === "user_free" && !bypass ? (
+                      <span className={styles.planBadge}>Free</span>
+                    ) : null}
+                  </div>
+                  <p className={styles.subtle}>
+                    {currentPlanDisplay?.priceLabel ?? "Free"} ·{" "}
+                    {currentPlanDisplay
+                      ? currentPlanDisplay.plan.billingInterval === "yearly"
+                        ? "Yearly"
+                        : "Monthly"
+                      : "Monthly"}
+                  </p>
+                  <p className={styles.subtle}>{renewalLabel}</p>
+                  {currentPlanDisplay?.featureTier ? (
+                    <p className={styles.subtle}>
+                      Feature tier: {currentPlanDisplay.featureTier.toUpperCase()}
+                    </p>
+                  ) : null}
+                  {bypass ? (
+                    <p className={styles.devNote}>
+                      Development credits are enabled. Usage is topped up for testing, and upgrades are
+                      optional.
+                    </p>
+                  ) : null}
+                  {computeUsage.nearlyOut || storageUsage.nearlyOut ? (
+                    <p className={styles.warning}>
+                      You are nearing your included limits. Consider upgrading to avoid interruptions.
+                    </p>
+                  ) : null}
+                </div>
+                <div className={styles.actions}>
+                  <Button
+                    type="button"
+                    variant="gradient"
+                    size="sm"
+                    onClick={() => {
+                      void handlePersonalCheckout(nextPlan?.plan.code ?? currentPlanDisplay?.plan.code);
+                    }}
+                    loading={loading}
+                  >
+                    {currentPlanDisplay && nextPlan
+                      ? `Upgrade to ${nextPlan.plan.name}`
+                      : "Manage plan"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void loadData()}
+                    loading={loading}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              <div className={styles.usageGrid}>
+                <UsageMeter label="Compute" usage={computeUsage} formatter={formatComputeUnits} />
+                <UsageMeter label="Storage" usage={storageUsage} formatter={formatStorageBytes} />
+              </div>
+            </div>
+
             <div className={styles.tierIntro}>
-              <p className={styles.tierEyebrow}>Subscriptions</p>
-              <p className={styles.tierTitle}>Start free. Upgrade as you grow.</p>
+              <p className={styles.tierEyebrow}>Personal plans</p>
+              <p className={styles.tierTitle}>Choose the allowance that fits your play style.</p>
               <p className={styles.tierSubtitle}>
-                Every plan can use ladders, tournaments, AI tools, PDFs, chat, and memory; higher tiers simply
-                unlock more of everything.
+                Every tier includes ladders, tournaments, and Capsule AI. Higher plans add more compute,
+                storage, and feature tier unlocks.
               </p>
             </div>
 
             <div className={styles.tiersGrid} role="list" aria-label="Subscription plans">
-              {SUBSCRIPTION_TIERS.map((tier) => (
-                <section
-                  key={tier.id}
-                  className={`${styles.tierCard}${tier.highlight ? ` ${styles.tierCardFeatured}` : ""}`}
-                  role="listitem"
-                  aria-label={`${tier.name} plan`}
-                >
-                  <div className={styles.tierHeader}>
-                    <p className={styles.tierName}>{tier.name}</p>
-                    <p className={styles.tierPrice}>{tier.priceLabel}</p>
-                    <p className={styles.tierTagline}>{tier.tagline}</p>
-                  </div>
-                  <ul className={styles.tierFeatures}>
-                    {tier.features.map((feature) => (
-                      <li key={feature} className={styles.tierFeatureItem}>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className={styles.tierFooter}>
-                    <Button
-                      type="button"
-                      variant={tier.highlight ? "gradient" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        void handlePersonalCheckout(tier.planCode ?? null);
-                      }}
-                      loading={loading}
+              {planDisplays.length ? (
+                planDisplays.map((display) => {
+                  const isCurrent = currentPlanDisplay?.plan.id === display.plan.id;
+                  return (
+                    <section
+                      key={display.plan.id}
+                      className={`${styles.tierCard}${
+                        display.recommended ? ` ${styles.tierCardFeatured}` : ""
+                      }${isCurrent ? ` ${styles.tierCardCurrent}` : ""}`}
+                      role="listitem"
+                      aria-label={`${display.plan.name} plan`}
                     >
-                      {tier.id === "free" ? "Stay on Free" : `Get ${tier.name}`}
-                    </Button>
-                    <button
-                      type="button"
-                      className={styles.limitsLink}
-                      onClick={() => {
-                        updateView("limits");
-                      }}
-                    >
-                      Limits apply
-                    </button>
-                  </div>
-                </section>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.limitsHeaderRow}>
-              <p className={styles.limitsSummary}>
-                Here you can see the raw wallet balances, technical limits, and capsule upgrades behind your
-                subscription.
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  updateView("overview");
-                }}
-              >
-                Back to plans
-              </Button>
+                      <div className={styles.tierHeader}>
+                        <div className={styles.planNameRow}>
+                          <p className={styles.tierName}>{display.plan.name}</p>
+                          {display.badge ? <span className={styles.planBadge}>{display.badge}</span> : null}
+                          {isCurrent ? <span className={styles.planBadge}>Current</span> : null}
+                        </div>
+                        <p className={styles.tierPrice}>{display.priceLabel}</p>
+                        <p className={styles.tierTagline}>{display.tagline}</p>
+                      </div>
+                      <ul className={styles.tierFeatures}>
+                        {display.allowances.map((feature) => (
+                          <li key={`${display.plan.id}-${feature}`} className={styles.tierFeatureItem}>
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className={styles.tierFooter}>
+                        <Button
+                          type="button"
+                          variant={display.recommended ? "gradient" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            if (isCurrent) return;
+                            void handlePersonalCheckout(display.plan.code);
+                          }}
+                          disabled={isCurrent}
+                          loading={loading}
+                        >
+                          {isCurrent ? "Current plan" : `Choose ${display.plan.name}`}
+                        </Button>
+                        <span className={styles.tierMeta}>
+                          {display.featureTier
+                            ? `${display.featureTier.toUpperCase()} tier · ${display.plan.billingInterval}`
+                            : display.plan.billingInterval === "yearly"
+                              ? "Yearly billing"
+                              : "Monthly billing"}
+                        </span>
+                      </div>
+                    </section>
+                  );
+                })
+              ) : (
+                <p className={styles.helper}>No plans are configured yet.</p>
+              )}
             </div>
 
             <div className={styles.grid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}>
                   <div>
-                    <p className={styles.label}>Personal Wallet</p>
-                    <p className={styles.balanceRow}>
-                      Compute: <strong>{formatNumber(wallet?.balance.computeGranted ?? 0)}</strong>{" "}
-                      granted / <strong>{formatNumber(computeRemaining)}</strong> remaining
-                    </p>
-                    <p className={styles.balanceRow}>
-                      Storage: <strong>{formatBytes(wallet?.balance.storageGranted ?? 0)}</strong> /
-                      remaining <strong>{formatBytes(storageRemaining)}</strong>
-                    </p>
+                    <p className={styles.label}>Send credits to a capsule</p>
                     <p className={styles.subtle}>
-                      Feature tier: {wallet?.balance.featureTier ?? "default"} | Bypass:
-                      {wallet?.bypass ? " enabled" : " off"}
-                    </p>
-                    {wallet?.subscription ? (
-                      <p className={styles.subtle}>
-                        Subscription: {wallet.subscription.status}
-                        {wallet.subscription.cancelAtPeriodEnd ? " (cancels at period end)" : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className={styles.actions}>
-                    <Button
-                      type="button"
-                      variant="gradient"
-                      size="sm"
-                      onClick={() => {
-                        void handlePersonalCheckout(personalPlan?.code);
-                      }}
-                      loading={loading}
-                    >
-                      {personalPlan ? `Upgrade (${personalPlan.name})` : "Upgrade"}
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => void loadData()}>
-                      Refresh
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}>
-                  <div>
-                    <p className={styles.label}>Donate to a Capsule</p>
-                    <p className={styles.subtle}>
-                      Send compute or storage to any capsule you own. Donations move wallet allowances.
+                      Move compute or storage allowances between your wallet and a capsule you own.
+                      This transfers credits, not money.
                     </p>
                   </div>
                 </div>
@@ -515,9 +560,8 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                     onChange={(event) => setDonationAmount(event.target.value)}
                   />
                   <p className={styles.helper}>
-                    {donationMetric === "storage"
-                      ? "Bytes to donate (use MB/GB values for large transfers)."
-                      : "Compute units to donate."}
+                    Transfers use your existing credits (compute units or storage bytes). No payment is
+                    charged.
                   </p>
                 </div>
                 <div className={styles.actions}>
@@ -529,45 +573,60 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                     }}
                     loading={isDonating}
                   >
-                    Send Donation
+                    Send credits
                   </Button>
                   {donationStatus ? <p className={styles.status}>{donationStatus}</p> : null}
                 </div>
               </div>
-            </div>
 
-            <div className={styles.capsuleList}>
-            <div className={styles.listHeader}>
-              <p className={styles.label}>Your Capsules</p>
-              <p className={styles.subtle}>Upgrade a capsule&apos;s tier or move allowances into it.</p>
-            </div>
-              <div className={styles.listGrid}>
-                {capsules.map((capsule) => (
-                  <div key={capsule.id} className={styles.capsuleCard}>
-                    <p className={styles.capsuleName}>{capsule.name}</p>
-                    <p className={styles.capsuleSlug}>{capsule.slug ?? capsule.id}</p>
-                    <div className={styles.listActions}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          void handleCapsuleCheckout(capsule.id);
-                        }}
-                      >
-                        {capsulePlan ? `Upgrade (${capsulePlan.name})` : "Upgrade Capsule"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setDonationCapsuleId(capsule.id)}
-                      >
-                        Donate to this
-                      </Button>
-                    </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div>
+                    <p className={styles.label}>Capsule upgrades</p>
+                    <p className={styles.subtle}>
+                      Give a capsule its own subscription for dedicated compute and storage.
+                      {capsulePlan
+                        ? ` Includes ${formatComputeUnits(
+                            capsulePlan.includedCompute,
+                          )} and ${formatStorageBytes(capsulePlan.includedStorageBytes)}.`
+                        : ""}
+                    </p>
                   </div>
-                ))}
+                </div>
+                <div className={styles.capsuleList}>
+                  <div className={styles.listHeader}>
+                    <p className={styles.subtle}>Your capsules</p>
+                  </div>
+                  <div className={styles.listGrid}>
+                    {capsules.map((capsule) => (
+                      <div key={capsule.id} className={styles.capsuleCard}>
+                        <p className={styles.capsuleName}>{capsule.name}</p>
+                        <p className={styles.capsuleSlug}>{capsule.slug ?? capsule.id}</p>
+                        <div className={styles.listActions}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              void handleCapsuleCheckout(capsule.id, capsulePlan?.code ?? null);
+                            }}
+                            loading={loading}
+                          >
+                            {capsulePlan ? `Upgrade (${capsulePlan.name})` : "Upgrade capsule"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDonationCapsuleId(capsule.id)}
+                          >
+                            Send credits here
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </>

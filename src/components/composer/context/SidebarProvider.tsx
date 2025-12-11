@@ -5,6 +5,7 @@ import * as React from "react";
 import type { ComposerSidebarSnapshot } from "@/lib/composer/sidebar-store";
 import { useSidebarStore } from "@/components/composer/state/useSidebarStore";
 import { useRemoteConversations } from "@/components/composer/state/useRemoteConversations";
+import { useRemoteDrafts } from "@/components/composer/state/useRemoteDrafts";
 
 type SidebarContextValue = {
   sidebarStore: ComposerSidebarSnapshot;
@@ -26,6 +27,7 @@ export function ComposerSidebarProvider({
 }: ComposerSidebarProviderProps) {
   const { sidebarStore, updateSidebarStore } = useSidebarStore(userId);
   useRemoteConversations(userId, updateSidebarStore);
+  useRemoteDrafts(userId, updateSidebarStore);
 
   const value = React.useMemo(
     () => ({ sidebarStore, updateSidebarStore }),

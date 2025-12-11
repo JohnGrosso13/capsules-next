@@ -8,8 +8,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const { webhookSecret, secretKey } = getStripeConfig();
-  if (!secretKey || !webhookSecret) {
+  const { webhookSecret, storeWebhookSecret, secretKey } = getStripeConfig();
+  const effectiveSecret = storeWebhookSecret ?? webhookSecret;
+  if (!secretKey || !effectiveSecret) {
     return returnError(400, "stripe_unconfigured", "Stripe is not configured");
   }
 
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
   try {
     const stripe = new Stripe(secretKey, { apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion });
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+    event = stripe.webhooks.constructEvent(rawBody, signature, effectiveSecret);
   } catch (error) {
     console.error("store.stripe.webhook.invalid", error);
     return returnError(400, "invalid_signature", "Invalid Stripe signature");

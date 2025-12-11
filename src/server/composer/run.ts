@@ -16,7 +16,7 @@ import {
   type ChatMessage,
   type ToolCallDefinition,
 } from "@/lib/ai/prompter/core";
-import { generateImageFromPrompt } from "@/lib/ai/prompter/images";
+import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter/images";
 import { generateVideoFromPrompt, editVideoWithInstruction } from "@/lib/ai/video";
 import { safeRandomUUID } from "@/lib/random";
 import {
@@ -69,6 +69,32 @@ const TOOL_DEFINITIONS: ToolCallDefinition[] = [
         style: {
           type: "string",
           description: "High-level art direction such as 'noir spotlight', 'vector', etc.",
+        },
+      },
+    },
+  },
+  {
+    name: "edit_image",
+    description:
+      "Edit a user-provided image attachment with natural language instructions (recolor, remove objects, adjust background, etc.). Use the provided attachment_id.",
+    parameters: {
+      type: "object",
+      required: ["prompt", "attachment_id"],
+      additionalProperties: false,
+      properties: {
+        prompt: { type: "string", description: "How to edit the referenced image." },
+        attachment_id: {
+          type: "string",
+          description: "ID of the image attachment to edit (from the user's attachments list).",
+        },
+        size: {
+          type: "string",
+          description: "Optional square/portrait/landscape resolution (e.g., 1024x1024).",
+        },
+        quality: {
+          type: "string",
+          enum: ["low", "standard", "high"],
+          description: "Edit quality tier; defaults to workspace preference.",
         },
       },
     },
@@ -627,6 +653,87 @@ async function handleRenderImage(
     provider: result.provider,
     runId: result.runId,
     metadata: result.metadata ?? null,
+  };
+}
+
+function pickImageAttachment(
+  runtime: RuntimeContext,
+  attachmentId?: string | null,
+): ComposerChatAttachment | null {
+  if (attachmentId) {
+    const attachment = runtime.attachments.get(attachmentId);
+    if (
+      attachment &&
+      attachment.url &&
+      (attachment.mimeType ?? "").toLowerCase().startsWith("image/")
+    ) {
+      return attachment;
+    }
+  }
+
+  for (const attachment of runtime.attachments.values()) {
+    const mime = (attachment.mimeType ?? "").toLowerCase();
+    if (mime.startsWith("image/") && attachment.url) {
+      return attachment;
+    }
+  }
+  return null;
+}
+
+async function handleEditImage(
+  args: Record<string, unknown>,
+  runtime: RuntimeContext,
+): Promise<Record<string, unknown>> {
+  const prompt = typeof args.prompt === "string" ? args.prompt.trim() : "";
+  if (!prompt) {
+    throw new Error("edit_image requires a prompt.");
+  }
+  const attachmentId =
+    typeof args.attachment_id === "string" ? args.attachment_id.trim() : null;
+  const attachment = pickImageAttachment(runtime, attachmentId);
+  if (!attachment) {
+    if (attachmentId) {
+      throw new Error(`Attachment ${attachmentId} is not an editable image.`);
+    }
+    throw new Error("No image attachment is available to edit.");
+  }
+
+  const baseOptions = extractComposerImageOptions(runtime.composeOptions.rawOptions ?? {});
+  const mergedOptions: ImageRequestOptions = {};
+  if (baseOptions.quality) {
+    mergedOptions.quality = baseOptions.quality;
+  }
+  const qualityOverride = typeof args.quality === "string" ? args.quality.trim() : null;
+  if (qualityOverride && IMAGE_QUALITY_SET.has(qualityOverride as ComposerImageQuality)) {
+    mergedOptions.quality = qualityOverride as ComposerImageQuality;
+  }
+  const sizeOverride = typeof args.size === "string" ? args.size.trim() : null;
+  if (sizeOverride) {
+    mergedOptions.size = sizeOverride;
+  }
+
+  const sourceUrl =
+    (await ensureAccessibleMediaUrl(attachment.url).catch(() => null)) ?? attachment.url;
+  if (!sourceUrl) {
+    throw new Error("Image attachment is missing a usable URL.");
+  }
+
+  const runContext = buildImageRunContext(prompt, runtime.composeOptions, mergedOptions, "edit");
+  runContext.options = {
+    ...(runContext.options ?? {}),
+    referenceAttachmentId: attachment.id,
+  };
+
+  const result = await editImageWithInstruction(sourceUrl, prompt, mergedOptions, runContext);
+  return {
+    status: "succeeded",
+    kind: "image",
+    prompt,
+    url: result.url,
+    provider: result.provider,
+    runId: result.runId,
+    metadata: result.metadata ?? null,
+    referenceAttachmentId: attachment.id,
   };
 }
 
@@ -1368,6 +1475,7 @@ const TOOL_HANDLERS: Record<
   (args: Record<string, unknown>, runtime: RuntimeContext) => Promise<Record<string, unknown>>
 > = {
   render_image: handleRenderImage,
+  edit_image: handleEditImage,
   render_video: handleRenderVideo,
   analyze_document: handleAnalyzeDocument,
   summarize_video: handleSummarizeVideo,
@@ -1390,6 +1498,7 @@ function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
     "Never wrap JSON in markdown fences. Keep `message` warm and concise regardless of action.",
     "For drafts, the `post` block is used verbatim-respect tone, hashtags, CTA, and assets.",
     "Call render_image or render_video before referencing visual assets, and describe returned media accurately.",
+    "If the user wants changes to an attached image, call edit_image with the relevant attachment_id (pick the best matching image attachment) instead of inventing a new render.",
     "When the user refers to their feed, capsules, memories, or past work, call fetch_context to retrieve grounded context instead of guessing.",
     "Use search_web (and fetch_context when relevant) for real-world facts-game/map names, events, releases, stats-before listing specifics. Do not invent names; cite the latest results.",
     "Do NOT paste raw media URLs (images, videos, downloads) into your `message`; attachments are already shared with the user.",

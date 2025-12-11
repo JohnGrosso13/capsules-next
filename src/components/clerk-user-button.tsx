@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { UserButton } from "@clerk/nextjs";
-import { IdentificationBadge } from "@phosphor-icons/react/dist/ssr";
+import { IdentificationBadge, ShoppingBagOpen } from "@phosphor-icons/react/dist/ssr";
 
 import { buildUserButtonAppearance } from "@/lib/clerk/appearance";
 import { buildProfileHref } from "@/lib/profile/routes";
@@ -39,12 +39,17 @@ export function ClerkUserButton({
       {...(props as Record<string, unknown>)}
     >
       <UserButton.MenuItems>
-        <UserButton.Action label="manageAccount" />
-        <UserButton.Link
-          label="Profile"
-          href={resolvedProfileHref}
-          labelIcon={<IdentificationBadge size={18} weight="duotone" />}
-        />
+      <UserButton.Action label="manageAccount" />
+      <UserButton.Link
+        label="My orders"
+        href="/orders"
+        labelIcon={<ShoppingBagOpen size={18} weight="duotone" />}
+      />
+      <UserButton.Link
+        label="Profile"
+        href={resolvedProfileHref}
+        labelIcon={<IdentificationBadge size={18} weight="duotone" />}
+      />
         <UserButton.Action label="signOut" />
       </UserButton.MenuItems>
     </UserButton>

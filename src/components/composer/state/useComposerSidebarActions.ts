@@ -9,6 +9,8 @@ import type { ComposerDraft } from "@/lib/composer/draft";
 import type { ComposerChatMessage } from "@/lib/composer/chat-types";
 import type { ComposerStoredRecentChat, ComposerStoredProject } from "@/lib/composer/sidebar-store";
 import type { useComposerSidebarStore } from "../context/SidebarProvider";
+import { sanitizeComposerChatHistory } from "@/lib/composer/chat-types";
+import { saveRemoteDraft } from "@/services/composer/drafts";
 
 type SidebarStoreApi = ReturnType<typeof useComposerSidebarStore>;
 
@@ -16,12 +18,14 @@ type SidebarActionsOptions = {
   sidebarStore: SidebarStoreApi["sidebarStore"];
   updateSidebarStore: SidebarStoreApi["updateSidebarStore"];
   setState: React.Dispatch<React.SetStateAction<ComposerState>>;
+  getState: () => ComposerState;
 };
 
 export function useComposerSidebarActions({
   sidebarStore,
   updateSidebarStore,
   setState,
+  getState,
 }: SidebarActionsOptions) {
   const recordRecentChat = React.useCallback(
     (input: {
@@ -115,20 +119,35 @@ export function useComposerSidebarActions({
     [updateSidebarStore],
   );
 
+  const resolveDraftIdentity = React.useCallback((state: ComposerState) => {
+    const rawClientId =
+      typeof (state.rawPost as { client_id?: unknown })?.client_id === "string"
+        ? ((state.rawPost as { client_id: string }).client_id ?? "").trim()
+        : null;
+    const threadId =
+      (typeof state.threadId === "string" && state.threadId.trim().length
+        ? state.threadId.trim()
+        : rawClientId) || safeRandomUUID();
+    return { threadId, rawClientId };
+  }, []);
+
   const upsertDraft = React.useCallback(
     (draftState: ComposerState, projectId?: string | null) => {
-      const { draft, rawPost, prompt, message, history, threadId } = draftState;
-      if (!draft) return;
+      const { rawPost, prompt, message, history, threadId } = draftState;
+      const safeDraft = ensureRecentDraft(draftState.draft ?? null);
+      const resolvedThreadId =
+        typeof threadId === "string" && threadId.trim().length ? threadId.trim() : null;
       const baseId =
         typeof (rawPost as { client_id?: unknown })?.client_id === "string"
           ? ((rawPost as { client_id: string }).client_id ?? safeRandomUUID())
-          : safeRandomUUID();
+          : resolvedThreadId ?? safeRandomUUID();
+      const effectiveThreadId = resolvedThreadId ?? baseId;
       const assignedProjectId =
         projectId === undefined ? sidebarStore.selectedProjectId : projectId ?? null;
 
       updateSidebarStore((prev) => {
         const now = new Date().toISOString();
-        const sanitizedDraft = cloneComposerData(draft);
+        const sanitizedDraft = cloneComposerData(safeDraft);
         const sanitizedRawPost = rawPost ? cloneComposerData(rawPost) : null;
         const historySlice = cloneComposerData(history.slice(-20));
         const existingIndex = prev.drafts.findIndex((item) => item.id === baseId);
@@ -145,7 +164,7 @@ export function useComposerSidebarActions({
             projectId: assignedProjectId ?? existingDraft.projectId ?? null,
             updatedAt: now,
             history: historySlice,
-            threadId: threadId ?? existingDraft.threadId ?? null,
+            threadId: effectiveThreadId ?? existingDraft.threadId ?? null,
           };
         } else {
           drafts = [
@@ -160,7 +179,7 @@ export function useComposerSidebarActions({
               createdAt: now,
               updatedAt: now,
               history: historySlice,
-              threadId: threadId ?? null,
+              threadId: effectiveThreadId ?? null,
             },
             ...drafts,
           ];
@@ -265,16 +284,55 @@ export function useComposerSidebarActions({
     [setState, sidebarStore.recentChats, updateSidebarStore],
   );
 
-  const saveDraft = React.useCallback(
-    (projectId?: string | null) => {
-      setState((prev) => {
-        if (prev.draft) {
-          upsertDraft(prev, projectId);
-        }
-        return prev;
+  const persistRemoteDraft = React.useCallback(
+    (state: ComposerState, projectId?: string | null) => {
+      const { threadId, rawClientId } = resolveDraftIdentity(state);
+      const history = cloneComposerData(
+        sanitizeComposerChatHistory(state.history ?? []).slice(-50),
+      );
+
+      const draftPayload = cloneComposerData(
+        (state.draft as Record<string, unknown> | null) ?? null,
+      ) as Record<string, unknown> | null;
+
+      const payload = {
+        threadId,
+        projectId: projectId ?? null,
+        prompt: state.prompt ?? "",
+        message: state.message ?? null,
+        draft: draftPayload,
+        rawPost: state.rawPost ? cloneComposerData(state.rawPost) : null,
+        history,
+      } as const;
+
+      const withId =
+        rawClientId && rawClientId.length
+          ? { ...payload, id: rawClientId }
+          : payload;
+
+      void saveRemoteDraft(withId).catch((error) => {
+        console.warn("composer draft remote save failed", error);
       });
     },
-    [setState, upsertDraft],
+    [resolveDraftIdentity],
+  );
+
+  const saveDraft = React.useCallback(
+    (projectId?: string | null) => {
+      const snapshot = getState();
+      if (!snapshot?.draft) return;
+      const { threadId } = resolveDraftIdentity(snapshot);
+      const snapshotWithThread = snapshot.threadId
+        ? snapshot
+        : { ...snapshot, threadId };
+
+      upsertDraft(snapshotWithThread, projectId);
+      persistRemoteDraft(snapshotWithThread, projectId);
+      if (!snapshot.threadId) {
+        setState((prev) => (prev.threadId ? prev : { ...prev, threadId }));
+      }
+    },
+    [getState, persistRemoteDraft, resolveDraftIdentity, setState, upsertDraft],
   );
 
   return {

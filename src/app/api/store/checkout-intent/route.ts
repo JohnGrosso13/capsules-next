@@ -2,7 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { z } from "zod";
 
 import { ensureSupabaseUser } from "@/lib/auth/payload";
-import { createCheckoutIntent } from "@/server/store/service";
+import { createCheckoutIntent, StoreCheckoutError } from "@/server/store/service";
 import { returnError, validatedJson } from "@/server/validation/http";
 
 const checkoutRequestSchema = z.object({
@@ -141,6 +141,9 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("store.checkout_intent.failed", error);
+    if (error instanceof StoreCheckoutError) {
+      return returnError(error.status, error.code, error.message, error.details);
+    }
     return returnError(500, "checkout_failed", "Unable to start checkout");
   }
 }
