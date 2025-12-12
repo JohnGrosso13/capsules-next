@@ -13,11 +13,13 @@ function isLivekitConfigured() {
 export async function GET() {
   try {
     const livekitConfigured = isLivekitConfigured();
+    const assistantConfigured =
+      livekitConfigured && Boolean(process.env.LIVEKIT_ASSISTANT_AGENT_ID?.trim());
     return Response.json(
       {
         livekitConfigured,
         transcriptionConfigured: livekitConfigured,
-        assistantConfigured: livekitConfigured,
+        assistantConfigured,
         timestamp: new Date().toISOString(),
       },
       { status: livekitConfigured ? 200 : 500 },

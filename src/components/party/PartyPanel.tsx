@@ -397,6 +397,7 @@ export function PartyPanel({
     React.useState<SummaryLengthHint>("medium");
   const [privacyExpanded, setPrivacyExpanded] = React.useState(false);
   const [summaryExpanded, setSummaryExpanded] = React.useState(false);
+  const [inviteExpanded, setInviteExpanded] = React.useState(true);
   const [joinCode, setJoinCode] = React.useState("");
   const sessionId = session?.partyId ?? null;
 
@@ -538,7 +539,6 @@ React.useEffect(() => {
   const {
     copyState,
     inviteFeedback,
-    showInviteDetails,
     handleGenerateInvite,
   } = usePartyInvites({
     session,
@@ -833,6 +833,13 @@ React.useEffect(() => {
       : summaryEnabled
         ? "Enabled"
         : "Disabled";
+    const joinAriaLabel = loading
+      ? action === "join"
+        ? "Connecting to party"
+        : action === "resume"
+          ? "Reconnecting to party"
+          : "Connecting"
+      : "Join party with this code";
 
     const statusChip = statusText ? <span className={styles.headerStatus}>{statusText}</span> : null;
 
@@ -913,30 +920,87 @@ React.useEffect(() => {
             />
           </ExpandableSetting>
         </section>
-        <JoinSection
-          joinCode={joinCode}
-          loading={loading}
-          action={action}
-          onChange={setJoinCode}
-          onSubmit={() => {
-            void handleJoinParty();
-          }}
-        />
         <section className={styles.section}>
-          <div className={styles.inviteActions}>
-            <button
-              type="button"
-              className={`${styles.secondaryButton} ${styles.inviteButton}`.trim()}
-              onClick={() => {
-                void handleGenerateInvite();
-              }}
-              disabled={loading}
-            >
-              <CopySimple size={16} weight="bold" />
-              {copyState === "copied" ? "Invite copied" : "Generate invite"}
-            </button>
-            {showInviteDetails ? <code className={styles.codeChip}>{currentSession.partyId}</code> : null}
-          </div>
+          <ExpandableSetting
+            id="party-invites-live"
+            title="Invites & codes"
+            description="Share a link or jump into another lobby."
+            open={inviteExpanded}
+            onToggle={setInviteExpanded}
+          >
+            <div className={styles.invitePanel}>
+              <div className={styles.invitePanelGrid}>
+                <div className={styles.invitePanelCard}>
+                  <div className={styles.sectionHeaderRow}>
+                    <LinkSimple size={18} weight="duotone" />
+                    <div className={styles.inviteHeaderText}>
+                      <span>Join with a code</span>
+                      <p className={styles.sectionSubtitle}>Jump into a friend&apos;s lobby instantly.</p>
+                    </div>
+                  </div>
+                  <div className={styles.inlineJoin}>
+                    <div className={styles.inlineJoinField}>
+                      <input
+                        className={styles.inlineJoinInput}
+                        placeholder="Enter a party code"
+                        value={joinCode}
+                        onChange={(event) => setJoinCode(event.target.value)}
+                        disabled={loading}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            if (!loading && joinCode.trim()) {
+                              void handleJoinParty();
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className={styles.inlineJoinButton}
+                        onClick={() => {
+                          if (!loading && joinCode.trim()) {
+                            void handleJoinParty();
+                          }
+                        }}
+                        disabled={loading || !joinCode.trim()}
+                        aria-label={joinAriaLabel}
+                      >
+                        <PaperPlaneTilt size={16} weight="bold" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.invitePanelCard}>
+                  <div className={styles.sectionHeaderRow}>
+                    <CopySimple size={18} weight="duotone" />
+                    <div className={styles.inviteHeaderText}>
+                      <span>Share this party</span>
+                      <p className={styles.sectionSubtitle}>Send an invite link or read out your code.</p>
+                    </div>
+                  </div>
+                  <div className={styles.inviteActionsStack}>
+                    <button
+                      type="button"
+                      className={`${styles.secondaryButton} ${styles.inviteButton}`.trim()}
+                      onClick={() => {
+                        void handleGenerateInvite();
+                      }}
+                      disabled={loading}
+                    >
+                      {copyState === "copied" ? "Invite copied" : "Copy invite link"}
+                    </button>
+                    <div className={styles.inviteCodeRow}>
+                      <div className={styles.inviteCodeStack}>
+                        <span className={styles.label}>Party code</span>
+                        <code className={styles.codeChip}>{currentSession.partyId}</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ExpandableSetting>
         </section>
       </>
     );

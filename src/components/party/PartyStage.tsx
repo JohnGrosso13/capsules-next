@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 
 import {
@@ -169,6 +170,7 @@ const PartyStageScene = React.memo(function PartyStageScene({
   const [assistantBusy, setAssistantBusy] = React.useState(false);
   const [hostNotice, setHostNotice] = React.useState<string | null>(null);
   const [hostBusy, setHostBusy] = React.useState(false);
+  const router = useRouter();
   const { mergedProps: startAudioProps, canPlayAudio } = useStartAudio({
     room,
     props: {
@@ -740,11 +742,14 @@ const PartyStageScene = React.memo(function PartyStageScene({
   }, [applyAssistantMetadata, session]);
 
   const handleOpenSettings = React.useCallback(() => {
-    setAssistantNotice("Device settings coming soon.");
-  }, []);
+    router.push("/settings?tab=voice");
+  }, [router]);
 
   const micLabel = micEnabled ? "Mute" : "Unmute";
   const deafenLabel = isDeafened ? "Undeafen" : "Deafen";
+  const micTooltip = micLabel === "Mute" ? "Mute microphone" : "Unmute microphone";
+  const deafenTooltip =
+    deafenLabel === "Deafen" ? "Deafen party audio" : "Undeafen party audio";
 
   React.useEffect(() => {
     if (!assistantNotice) return;
@@ -873,32 +878,33 @@ const PartyStageScene = React.memo(function PartyStageScene({
           <div className={styles.stageFooterActions}>
             <button
               type="button"
-              className={`${styles.footerIconButton} ${micEnabled ? styles.footerIconActive : ""}`.trim()}
+              className={`${styles.footerIconButton} ${!micEnabled ? styles.footerIconActive : ""}`.trim()}
               onClick={() => {
                 void handleToggleMic();
               }}
-              aria-pressed={micEnabled}
-              aria-label={micLabel === "Mute" ? "Mute microphone" : "Unmute microphone"}
+              aria-pressed={!micEnabled}
+              aria-label={micTooltip}
+              title={micTooltip}
               disabled={micBusy || !room}
             >
               {micEnabled ? <Microphone size={18} weight="bold" /> : <MicrophoneSlash size={18} weight="bold" />}
-              <span className={styles.footerIconLabel}>{micLabel}</span>
             </button>
             <button
               type="button"
               className={`${styles.footerIconButton} ${isDeafened ? styles.footerIconActive : ""}`.trim()}
               onClick={handleToggleDeafen}
               aria-pressed={isDeafened}
-              aria-label={deafenLabel === "Deafen" ? "Deafen party audio" : "Undeafen party audio"}
+              aria-label={deafenTooltip}
+              title={deafenTooltip}
               disabled={!room}
             >
               {isDeafened ? <SpeakerSimpleSlash size={18} weight="bold" /> : <SpeakerSimpleHigh size={18} weight="bold" />}
-              <span className={styles.footerIconLabel}>{deafenLabel}</span>
             </button>
             <button
               type="button"
               className={styles.footerIconButton}
               onClick={handleOpenSettings}
+              title="Audio settings"
               aria-label="Audio settings"
             >
               <GearSix size={18} weight="bold" />

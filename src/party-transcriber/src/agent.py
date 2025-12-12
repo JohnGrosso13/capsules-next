@@ -1,4 +1,6 @@
+import json
 import logging
+import os
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -19,6 +21,8 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
+
+AGENT_ID = os.getenv("LIVEKIT_ASSISTANT_AGENT_ID", "CA_CSg37iUQLwif")
 
 
 class Assistant(Agent):
@@ -53,6 +57,21 @@ def prewarm(proc: JobProcess):
 
 
 async def entrypoint(ctx: JobContext):
+    # Respect room metadata toggle so we don't auto-join when not desired.
+    desired = True
+    try:
+        raw_metadata = ctx.room.metadata or "{}"
+        room_metadata = json.loads(raw_metadata)
+        assistant_meta = room_metadata.get("assistant") if isinstance(room_metadata, dict) else None
+        if isinstance(assistant_meta, dict):
+            desired = assistant_meta.get("desired", True) is True
+    except Exception as error:
+        logger.warning("Failed to parse room metadata; defaulting assistant to disabled", exc_info=error)
+
+    if not desired:
+        logger.info("Assistant not requested for room %s; skipping join", ctx.room.name)
+        return
+
     # Logging setup
     # Add any other context you want in all log entries here
     ctx.log_context_fields = {
@@ -63,15 +82,13 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
+        stt=inference.STT(model="openai/whisper-1", language="en"),
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=inference.LLM(model="openai/gpt-4.1-mini"),
+        llm=inference.LLM(model="openai/gpt-4o-mini"),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=inference.TTS(
-            model="cartesia/sonic-3", voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
-        ),
+        tts=inference.TTS(model="openai/tts-1", voice="alloy"),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
@@ -129,4 +146,11 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            prewarm_fnc=prewarm,
+            port=0,
+            agent_name=AGENT_ID,
+        )
+    )

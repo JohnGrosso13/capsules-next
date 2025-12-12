@@ -1,22 +1,21 @@
 import { z } from "zod";
 
 import { ensureUserFromRequest } from "@/lib/auth/payload";
-import {
-  fetchPartyMetadata,
-  getPartyRoomName,
-  updatePartyMetadata,
-} from "@/server/livekit/party";
+import { fetchPartyMetadata, getPartyRoomName, updatePartyMetadata } from "@/server/livekit/party";
 import {
   listLivekitRoomParticipants,
   removeLivekitParticipant,
 } from "@/adapters/livekit/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import { dispatchAgentToRoom } from "@/server/livekit/dispatch";
 
 const assistantToggleSchema = z.object({
   desired: z.boolean().optional(),
 });
 
 export const runtime = "nodejs";
+
+const ASSISTANT_AGENT_ID = process.env.LIVEKIT_ASSISTANT_AGENT_ID?.trim() || null;
 
 async function requireParty(partyId: string) {
   const metadata = await fetchPartyMetadata(partyId);
@@ -51,8 +50,18 @@ export async function POST(
     return error!;
   }
 
-  if (metadata.ownerId !== userId) {
+  const ownerId = metadata.ownerId;
+  const hostId = metadata.hostId ?? ownerId;
+  if (userId !== ownerId && userId !== hostId) {
     return returnError(403, "assistant_forbidden", "Only the host can summon the assistant.");
+  }
+
+  if (!ASSISTANT_AGENT_ID) {
+    return returnError(
+      500,
+      "assistant_not_configured",
+      "Assistant is not configured. Set LIVEKIT_ASSISTANT_AGENT_ID to a registered LiveKit agent.",
+    );
   }
 
   const desired = parsedBody.data.desired ?? true;
@@ -67,6 +76,23 @@ export async function POST(
 
   if (!updated) {
     return returnError(500, "assistant_update_failed", "Unable to update assistant preferences.");
+  }
+
+  if (desired) {
+    try {
+      await dispatchAgentToRoom({
+        agentId: ASSISTANT_AGENT_ID,
+        roomName: getPartyRoomName(normalizedPartyId),
+        metadata: updated.assistant ? { assistant: updated.assistant } : null,
+      });
+    } catch (error) {
+      console.warn("Assistant dispatch failed", error);
+      return returnError(
+        500,
+        "assistant_dispatch_failed",
+        "Assistant was requested but could not be dispatched. Please try again.",
+      );
+    }
   }
 
   return validatedJson(z.object({ status: z.literal("ok"), assistant: z.any() }), {
@@ -95,7 +121,9 @@ export async function DELETE(
     return error!;
   }
 
-  if (metadata.ownerId !== userId) {
+  const ownerId = metadata.ownerId;
+  const hostId = metadata.hostId ?? ownerId;
+  if (userId !== ownerId && userId !== hostId) {
     return returnError(403, "assistant_forbidden", "Only the host can dismiss the assistant.");
   }
 

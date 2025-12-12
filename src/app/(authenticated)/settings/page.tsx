@@ -17,7 +17,13 @@ export const metadata: Metadata = {
   description: "Manage your account and profile.",
 };
 
-export default async function SettingsPage() {
+type SettingsPageProps = {
+  searchParams?: {
+    tab?: string;
+  };
+};
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/settings");
@@ -71,6 +77,7 @@ export default async function SettingsPage() {
         initialCapsules={ownedCapsules}
         accountProfile={accountProfile}
         notificationSettings={notificationSettings}
+        initialTab={searchParams?.tab ?? null}
       />
     </AppPage>
   );

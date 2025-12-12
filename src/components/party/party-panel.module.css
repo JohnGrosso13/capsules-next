@@ -287,6 +287,77 @@
   font-weight: 700;
 }
 
+.invitePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 0;
+}
+
+.invitePanelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.invitePanelCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--party-input-border);
+  background: color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 75%, transparent);
+  box-shadow: none;
+}
+
+.inviteHeaderText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inviteActionsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inviteCodeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inviteCodeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.inlineCopyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--party-input-border);
+  background: color-mix(in srgb, var(--party-input-background) 96%, transparent);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease;
+  min-width: 130px;
+}
+
 .headerIconButton {
   display: inline-flex;
   align-items: center;
@@ -1342,7 +1413,7 @@
   gap: 14px;
   min-height: 100%;
   position: relative;
-  padding-bottom: 72px;
+  padding-bottom: 44px;
 }
 
 .stageHeader {
@@ -1440,8 +1511,9 @@
   box-shadow: var(--party-surface-shadow, 0 14px 28px color-mix(in srgb, var(--surface-overlay) 32%, transparent));
   backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
   -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
-  width: calc(100% + 48px);
-  margin-inline: -24px;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
 }
 
 .stageFooterContent {
@@ -1545,12 +1617,17 @@
 }
 
 .footerIconActive {
-  border-color: color-mix(in srgb, var(--color-brand, var(--color-accent)) 70%, transparent);
+  border-color: color-mix(in srgb, var(--color-danger, #ef4444) 65%, transparent);
   background: linear-gradient(
     145deg,
-    color-mix(in srgb, var(--color-brand, var(--color-accent)) 34%, transparent),
+    color-mix(in srgb, var(--color-danger, #ef4444) 32%, transparent),
     color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 62%, transparent)
   );
+  color: color-mix(in srgb, var(--color-danger, #ef4444) 90%, var(--text));
+}
+
+.footerIconActive svg {
+  color: var(--color-danger, #ef4444);
 }
 
 .footerIconLabel {
@@ -2470,6 +2547,19 @@
   .inlineJoin .input,
   .inlineJoin .secondaryButton {
     width: 100%;
+  }
+
+  .invitePanelGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .invitePanel {
+    padding: 6px 0;
+  }
+
+  .inviteCodeRow {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .headerActions {

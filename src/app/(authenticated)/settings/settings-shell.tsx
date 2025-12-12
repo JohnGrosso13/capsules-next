@@ -34,6 +34,7 @@ type SettingsShellProps = {
   initialCapsules: CapsuleSettingsProps["initialCapsules"];
   accountProfile: AccountProfileProps;
   notificationSettings: NotificationSettings;
+  initialTab?: string | null;
 };
 
 type SettingsSectionKey =
@@ -47,6 +48,26 @@ type SettingsSectionKey =
   | "notifications"
   | "accessibility"
   | "security";
+
+function normalizeSectionKey(value: string | null | undefined): SettingsSectionKey | null {
+  if (typeof value !== "string") return null;
+  const key = value.trim().toLowerCase();
+  switch (key) {
+    case "capsules":
+    case "account":
+    case "connections":
+    case "billing":
+    case "appearance":
+    case "composer":
+    case "voice":
+    case "notifications":
+    case "accessibility":
+    case "security":
+      return key as SettingsSectionKey;
+    default:
+      return null;
+  }
+}
 
 const NAVIGATION_ITEMS: Array<
   | {
@@ -79,8 +100,10 @@ export function SettingsShell({
   initialCapsules,
   accountProfile,
   notificationSettings,
+  initialTab = null,
 }: SettingsShellProps): React.JSX.Element {
-  const [activeSection, setActiveSection] = React.useState<SettingsSectionKey>("capsules");
+  const initialSection = normalizeSectionKey(initialTab) ?? "capsules";
+  const [activeSection, setActiveSection] = React.useState<SettingsSectionKey>(initialSection);
   const [accountProfileState, setAccountProfileState] =
     React.useState<AccountProfileProps>(accountProfile);
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -93,29 +116,6 @@ export function SettingsShell({
       setAccountProfileState(accountProfile);
     }
   }, [accountProfile]);
-
-  const normalizeSectionKey = React.useCallback(
-    (value: string | null | undefined): SettingsSectionKey | null => {
-      if (typeof value !== "string") return null;
-      const key = value.trim().toLowerCase();
-      switch (key) {
-        case "capsules":
-        case "account":
-        case "connections":
-        case "billing":
-        case "appearance":
-        case "composer":
-        case "voice":
-        case "notifications":
-        case "accessibility":
-        case "security":
-          return key as SettingsSectionKey;
-        default:
-          return null;
-      }
-    },
-    [],
-  );
 
   const setSectionWithHistory = React.useCallback(
     (section: SettingsSectionKey) => {
@@ -159,7 +159,7 @@ export function SettingsShell({
     } catch (error) {
       console.error("settings nav bootstrap failed", error);
     }
-  }, [normalizeSectionKey]);
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -172,7 +172,7 @@ export function SettingsShell({
     } catch (error) {
       console.error("settings nav sync failed", error);
     }
-  }, [activeSection, normalizeSectionKey]);
+  }, [activeSection]);
 
   React.useEffect(() => {
     const media = typeof window !== "undefined" ? window.matchMedia("(max-width: 1024px)") : null;
