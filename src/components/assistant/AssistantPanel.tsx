@@ -204,8 +204,8 @@ export function AssistantPanel({
   const [creatingTask, setCreatingTask] = React.useState(false);
   const [createError, setCreateError] = React.useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = React.useState<string | null>(null);
-  const [composerExpanded, setComposerExpanded] = React.useState(true);
-  const [tasksExpanded, setTasksExpanded] = React.useState(true);
+  const [composerExpanded, setComposerExpanded] = React.useState(false);
+  const [tasksExpanded, setTasksExpanded] = React.useState(false);
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const hasTasks = Boolean(tasks?.length);
   const waitingState = loading && !hasTasks;

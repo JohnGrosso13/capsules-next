@@ -70,7 +70,7 @@ function resolveSummarySettings(input: BuildPartyMetadataParams["summary"]): Par
 }
 
 function resolveAssistantSettings(input: BuildPartyMetadataParams["assistant"]): PartyAssistantSettings {
-  const desired = input?.desired ?? true;
+  const desired = input?.desired === true;
   return {
     desired,
     lastRequestedAt: desired ? new Date().toISOString() : null,
@@ -176,8 +176,7 @@ function coerceAssistantSettings(raw: unknown): PartyAssistantSettings {
     return resolveAssistantSettings(null);
   }
   const source = raw as Partial<PartyAssistantSettings & { desired?: unknown }>;
-  const desired =
-    typeof source.desired === "boolean" ? source.desired : Boolean((source as { desired?: unknown }).desired);
+  const desired = source.desired === true;
 
   const settings: PartyAssistantSettings = {
     desired,
@@ -210,7 +209,7 @@ function mergeAssistantSettings(
       ? patch.desired
       : typeof base.desired === "boolean"
         ? base.desired
-        : true;
+        : false;
 
   const next: PartyAssistantSettings = {
     desired,

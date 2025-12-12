@@ -353,6 +353,12 @@
   padding-top: 10px;
 }
 
+.partyTile .section:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .sectionSplit {
   flex-direction: row;
   flex-wrap: wrap;
@@ -971,17 +977,18 @@
 
 .settingOptionSelected,
 .privacyOptionSelected {
-  /* Selected state: clearer edge + soft brand wash suitable for dark mode */
-  border-color: color-mix(in srgb, var(--color-brand, var(--color-brand)) 65%, transparent);
+  /* Selected state: use strong party accent */
+  --setting-active-color: var(--party-setting-accent, var(--color-brand-strong, #7a6cff));
+  border-color: var(--setting-active-color);
   background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-brand, var(--color-brand)) 10%, var(--party-input-background)) 0%,
-      color-mix(in srgb, var(--color-brand-strong, var(--color-brand-strong, var(--color-brand))) 6%, var(--party-input-background)) 100%
+      color-mix(in srgb, var(--setting-active-color) 24%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--setting-active-color) 14%, var(--party-input-background)) 100%
     );
   color: var(--text);
   box-shadow:
-    0 10px 22px color-mix(in srgb, var(--color-brand, var(--color-brand)) 16%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--color-brand, var(--color-brand)) 35%, transparent) inset,
+    0 12px 24px color-mix(in srgb, var(--setting-active-color) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--setting-active-color) 46%, transparent) inset,
     inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
 }
 
@@ -1006,11 +1013,62 @@
 /* Keep selected emphasis on hover without excessive brightness */
 .settingOptionSelected:hover:not(:disabled),
 .privacyOptionSelected:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--color-brand, var(--color-brand)) 70%, transparent);
+  /* Keep the selected tile steady on hover to avoid jitter/clipping */
+  transform: translateY(0);
+  border-color: var(--setting-active-color);
   box-shadow:
-    0 12px 24px color-mix(in srgb, var(--color-brand, var(--color-brand)) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--color-brand, var(--color-brand)) 38%, transparent) inset,
+    0 12px 24px color-mix(in srgb, var(--setting-active-color) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--setting-active-color) 46%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
+}
+
+/* Privacy options: match the purple active look used in summaries */
+.privacyOptionSelected {
+  --privacy-active-color: var(--party-privacy-accent, var(--color-brand-strong, #7a6cff));
+  border-color: var(--privacy-active-color);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--privacy-active-color) 24%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--privacy-active-color) 14%, var(--party-input-background)) 100%
+    );
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+  box-shadow:
+    0 12px 24px color-mix(in srgb, var(--privacy-active-color) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--privacy-active-color) 46%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
+}
+
+.privacyOptionSelected:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--privacy-active-color) 82%, transparent);
+  box-shadow:
+    0 14px 26px color-mix(in srgb, var(--privacy-active-color) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--privacy-active-color) 52%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent);
+}
+
+/* Privacy section uses settingOption/settingOptionSelected classes; align them to purple when inside privacy group */
+.privacyGroup .settingOptionSelected {
+  --privacy-active-color: var(--party-privacy-accent, var(--color-brand-strong, #7a6cff));
+  border-color: var(--privacy-active-color);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--privacy-active-color) 24%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--privacy-active-color) 14%, var(--party-input-background)) 100%
+    );
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+  box-shadow:
+    0 12px 24px color-mix(in srgb, var(--privacy-active-color) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--privacy-active-color) 46%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
+}
+
+.privacyGroup .settingOptionSelected:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--privacy-active-color) 82%, transparent);
+  box-shadow:
+    0 14px 26px color-mix(in srgb, var(--privacy-active-color) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--privacy-active-color) 52%, transparent) inset,
     inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent);
 }
 
@@ -1188,9 +1246,9 @@
 
 .hostBadge {
   background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 74%, transparent)
-      0%,
+      120deg,
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong)) 74%, transparent)
+        0%,
     color-mix(in srgb, var(--header-brand, var(--color-brand)) 82%, transparent) 50%,
     color-mix(
         in srgb,
@@ -1210,6 +1268,29 @@
   padding: 4px 10px;
   border-radius: 999px;
   text-shadow: 0 1px 0 color-mix(in srgb, var(--text-on-brand, var(--text-on-brand, var(--color-fg))) 25%, transparent);
+}
+
+.participantHostChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong, #7a6cff)) 70%, transparent);
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--header-brand-strong, var(--color-brand-strong, #7a6cff)) 30%, transparent) 0%,
+      color-mix(in srgb, var(--header-brand, var(--color-brand, #7a6cff)) 16%, transparent) 100%
+    );
+  color: var(--text);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.participantHostLabel {
+  line-height: 1;
 }
 
 .stageCard {
@@ -1766,6 +1847,7 @@
 .summarySetup {
   margin-top: 8px;
   padding: 14px 16px;
+  --summary-active-color: var(--party-summary-accent, var(--color-brand-strong, #7a6cff));
   border-radius: 16px;
   border: 1px solid
     color-mix(in srgb, var(--card-border) 72%, transparent);
@@ -1848,21 +1930,33 @@
 .summaryVerbosityButton {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  gap: 6px;
   align-items: flex-start;
-  gap: 4px;
-  padding: 12px 14px;
-  min-width: 120px;
-  border-radius: 14px;
-  border: 1px solid
-    color-mix(in srgb, var(--card-border) 74%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--surface-overlay) 82%,
-    transparent
-  );
-  color: color-mix(in srgb, var(--text) 86%, transparent);
   text-align: left;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  width: 100%;
+  min-height: 64px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--party-input-border);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--party-input-background, var(--surface-overlay)) 90%, transparent) 0%,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 68%, transparent) 100%
+    );
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.35;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+  box-shadow:
+    0 10px 24px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 32%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 5%, transparent);
 }
 
 .summaryVerbosityButton span {
@@ -1875,23 +1969,78 @@
   color: color-mix(in srgb, var(--text) 60%, transparent);
 }
 
-.summaryVerbosityButton:hover,
-.summaryVerbosityButton:focus-visible {
+.summaryVerbosityButton:hover:not(.summaryVerbosityButtonActive):not(:disabled),
+.summaryVerbosityButton:focus-visible:not(.summaryVerbosityButtonActive):not(:disabled) {
   outline: none;
+  border-color: color-mix(in srgb, var(--color-brand, var(--color-brand)) 70%, transparent);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand, var(--color-brand)) 12%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--color-brand, var(--color-brand)) 8%, var(--party-input-focus-background, var(--party-input-background))) 100%
+    );
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--color-brand, var(--color-brand)) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand, var(--color-brand)) 26%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--party-status-pill-border) 90%, transparent);
 }
 
 .summaryVerbosityButton:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+  opacity: 0.6;
   transform: none;
 }
 
 .summaryVerbosityButtonActive {
-  border-color: var(--party-status-pill-border);
-  background: color-mix(in srgb, var(--party-status-pill-background) 88%, transparent);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--surface-overlay) 26%, transparent);
+  border-color: var(--summary-active-color);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--summary-active-color) 28%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--summary-active-color) 18%, var(--party-input-background)) 100%
+    );
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+  box-shadow:
+    0 12px 24px color-mix(in srgb, var(--summary-active-color) 24%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--summary-active-color) 48%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
+}
+
+.summaryVerbosityButtonActive:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--summary-active-color) 82%, transparent);
+  box-shadow:
+    0 14px 26px color-mix(in srgb, var(--summary-active-color) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--summary-active-color) 52%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent);
+}
+
+.summaryVerbosityButtonActive:disabled {
+  opacity: 0.9;
+  cursor: default;
+  transform: none;
+}
+
+.summarySetup .settingOptionSelected {
+  border-color: var(--summary-active-color);
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--summary-active-color) 24%, var(--party-input-background)) 0%,
+      color-mix(in srgb, var(--summary-active-color) 14%, var(--party-input-background)) 100%
+    );
+  color: color-mix(in srgb, var(--text) 96%, transparent);
+  box-shadow:
+    0 12px 24px color-mix(in srgb, var(--summary-active-color) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--summary-active-color) 46%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 6%, transparent);
+}
+
+.summarySetup .settingOptionSelected:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--summary-active-color) 82%, transparent);
+  box-shadow:
+    0 14px 26px color-mix(in srgb, var(--summary-active-color) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--summary-active-color) 52%, transparent) inset,
+    inset 0 1px 0 color-mix(in srgb, var(--color-fg) 8%, transparent);
 }
 
 .summaryPanel {

@@ -25,7 +25,7 @@ export const partySummarySettingsSchema = z
 
 export const partyAssistantSettingsSchema = z
   .object({
-    desired: z.boolean().default(true),
+    desired: z.boolean().default(false),
     lastRequestedAt: z.string().nullable().optional(),
     lastDismissedAt: z.string().nullable().optional(),
   })

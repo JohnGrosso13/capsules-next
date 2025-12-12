@@ -664,43 +664,44 @@
     color: var(--text-2, #a5b1cb);
   }
 
-  .friendDiscoverOverlay {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
+.friendDiscoverOverlay {
+  position: fixed;
+  inset: 0;
+   z-index: 2200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+   padding: 22px;
+   --friend-overlay-strong: color-mix(
+     in srgb,
+     var(--surface-overlay, #050816) 25%,
+     rgba(5, 7, 16, 0.98)
+   );
+}
 
-  .friendDiscoverBackdrop {
-    position: absolute;
-    inset: 0;
-    background: color-mix(in srgb, var(--surface-overlay, #050816) 65%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
+.friendDiscoverBackdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--friend-overlay-strong) 94%, rgba(5, 7, 16, 0.98));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
 
-  .friendDiscoverPanel {
-    position: relative;
-    z-index: 1;
-    width: min(640px, 100%);
-    max-height: min(680px, 100vh - 48px);
-    overflow: hidden;
-    border-radius: 24px;
-    border: 1px solid color-mix(in srgb, var(--card-border, var(--color-border)) 80%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 92%, transparent),
-      color-mix(in srgb, var(--surface-overlay, var(--surface-muted)) 82%, transparent)
-    );
-    box-shadow: 0 28px 48px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 40%, transparent);
-    display: grid;
-    grid-template-rows: auto auto 1fr auto;
-    padding: 20px 20px 18px;
-    gap: 14px;
-  }
+.friendDiscoverPanel {
+  position: relative;
+  z-index: 1;
+  width: min(640px, 100%);
+  max-height: min(680px, 100vh - 88px);
+  overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid color-mix(in srgb, var(--card-border, var(--color-border)) 82%, transparent);
+  background: color-mix(in srgb, var(--friend-overlay-strong) 96%, rgba(5, 7, 16, 0.98));
+  box-shadow: 0 26px 52px color-mix(in srgb, var(--friend-overlay-strong) 70%, rgba(0, 0, 0, 0.28));
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  padding: 22px 22px 18px;
+  gap: 14px;
+}
 
   .friendDiscoverHeader {
     display: flex;
@@ -756,11 +757,21 @@
     color: var(--text);
   }
 
-  .friendDiscoverInput:focus {
-    outline: none;
-    border-color: color-mix(in srgb, var(--color-brand) 70%, var(--card-border));
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 28%, transparent);
-  }
+.friendDiscoverInput:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-brand) 70%, var(--card-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 28%, transparent);
+}
+
+.friendDiscoverPanel .friendDiscoverInput {
+  background: color-mix(in srgb, var(--friend-overlay-strong) 86%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--pill-border, var(--card-border)) 82%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, rgba(0, 0, 0, 0.6) 22%, transparent);
+}
+
+.friendDiscoverPanel .friendDiscoverInput:focus {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 32%, transparent);
+}
 
   .railPanelTitle {
     font-weight: 800;

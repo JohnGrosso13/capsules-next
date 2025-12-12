@@ -69,6 +69,7 @@ type ParticipantBadgeProps = {
   participant: ReturnType<typeof useParticipants>[number];
   profile: ParticipantProfile | null;
   isSelected?: boolean;
+  isHost?: boolean;
   onOpenMenu?: (
     participant: ReturnType<typeof useParticipants>[number],
     profile: ParticipantProfile | null,
@@ -751,12 +752,14 @@ const PartyStageScene = React.memo(function PartyStageScene({
           const profile = participant.identity
             ? participantProfiles.get(participant.identity)
             : null;
+          const isHost = (participant.identity ?? null) === currentHostId;
           return (
             <ParticipantBadge
               key={participant.sid}
               participant={participant}
               profile={profile ?? null}
               isSelected={menuState?.identity === participant.identity}
+              isHost={isHost}
               onOpenMenu={handleOpenParticipantMenu}
             />
           );
@@ -915,6 +918,7 @@ function ParticipantBadge({
   participant,
   profile,
   isSelected = false,
+  isHost = false,
   onOpenMenu,
 }: ParticipantBadgeProps) {
   const speaking = participant.isSpeaking;
@@ -989,6 +993,12 @@ function ParticipantBadge({
       <div className={styles.participantDetails}>
         <div className={styles.participantNameRow}>
           <span className={styles.participantName}>{name}</span>
+          {isHost ? (
+            <span className={styles.participantHostChip}>
+              <CrownSimple size={12} weight="fill" aria-hidden />
+              <span className={styles.participantHostLabel}>Host</span>
+            </span>
+          ) : null}
         </div>
         <div className={styles.participantState}>
           {mic ? (

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 
 import {
   CopySimple,
-  CrownSimple,
   Clock,
   LinkSimple,
   MicrophoneStage,
@@ -288,7 +287,7 @@ const SummaryPanel = React.memo(function SummaryPanel({
               ? transcriptsReady
                 ? "Live captions are rolling."
                 : "Listening for voices."
-              : "Summaries are off for this party."}
+              : null}
           </span>
           {summaryLastSavedLabel ? (
             <span>
@@ -401,6 +400,7 @@ export function PartyPanel({
   const [privacyExpanded, setPrivacyExpanded] = React.useState(false);
   const [summaryExpanded, setSummaryExpanded] = React.useState(false);
   const [joinCode, setJoinCode] = React.useState("");
+  const sessionId = session?.partyId ?? null;
 
   const participantProfiles = React.useMemo(() => {
     const map = new Map<string, ParticipantProfile>();
@@ -489,11 +489,17 @@ export function PartyPanel({
     }
   }, [partyQuery, session]);
 
-  React.useEffect(() => {
-    if (createSummaryEnabled) {
-      setSummaryExpanded(true);
-    }
-  }, [createSummaryEnabled]);
+React.useEffect(() => {
+  if (createSummaryEnabled) {
+    setSummaryExpanded(true);
+  }
+}, [createSummaryEnabled]);
+
+React.useEffect(() => {
+  if (sessionId) {
+    setSummaryExpanded(false);
+  }
+}, [sessionId]);
 
   const isLoading = status === "loading";
   const isConnecting = status === "connecting";
@@ -745,9 +751,6 @@ export function PartyPanel({
               <div className={styles.summarySetupHeader}>
                 <div className={styles.summarySetupLabels}>
                   <span className={styles.label}>Recording & saving</span>
-                  <p className={styles.summarySetupHint}>
-                    Save an AI recap of your voice chat to Memory for later reference.
-                  </p>
                 </div>
                 <button
                   type="button"
@@ -843,20 +846,6 @@ export function PartyPanel({
       : summaryEnabled
         ? "Enabled"
         : "Disabled";
-    const hostProfile = activeHostId ? participantProfiles.get(activeHostId) ?? null : null;
-    const hostName = preferDisplayName({
-      name:
-        hostProfile?.name ??
-        (activeHostId === viewerSupabaseId || activeHostId === user?.id
-          ? currentSession.displayName ?? user?.name ?? null
-          : currentSession.metadata.ownerDisplayName ?? null) ??
-        null,
-      fallback: activeHostId ?? null,
-      fallbackLabel:
-        activeHostId && (activeHostId === viewerSupabaseId || activeHostId === user?.id)
-          ? "You"
-          : "Host",
-    });
     const liveDurationLabel = createdAtLabel || "Just now";
 
     const statusChip = statusText ? <span className={styles.headerStatus}>{statusText}</span> : null;
@@ -872,14 +861,6 @@ export function PartyPanel({
               </div>
             ) : null}
             <div className={styles.headerMetaRow}>
-              <span className={styles.metaChip} title="Host">
-                <CrownSimple size={14} weight="fill" />
-                <span className={styles.metaChipText}>
-                  <span className={styles.metaChipLabel}>Host</span>
-                  <span className={styles.metaEmphasis}>{hostName}</span>
-                  {currentSession.isOwner ? <span className={styles.metaYou}>you</span> : null}
-                </span>
-              </span>
               <span className={styles.metaChip} title="Live duration">
                 <Clock size={14} weight="bold" />
                 <span className={styles.metaChipText}>
@@ -934,29 +915,46 @@ export function PartyPanel({
           </React.Suspense>
         </section>
         <section className={styles.section}>
-          <SummaryPanel
-            summaryEnabled={summaryEnabled}
-            canManageSummary={canManageSummary}
-            summaryStatusLabel={summaryStatusLabel}
-            summaryVerbosity={summaryVerbosity}
-            summaryUpdating={summaryUpdating}
-            summaryGenerating={summaryGenerating}
-            summaryButtonDisabled={summaryButtonDisabled}
-            summaryGenerateLabel={summaryGenerateLabel}
-            summaryResult={summaryResult}
-            summaryError={summaryError}
-            transcriptsReady={transcriptsReady}
-            summaryLastSavedLabel={summaryLastSavedLabel}
-            summaryMemoryId={summaryMemoryId}
-            onToggle={handleSummaryToggle}
-            onVerbosityChange={handleSummaryVerbosityChange}
-            onGenerate={() => {
-              void handleGenerateSummary();
-            }}
-            onReset={() => {
-              void handleSummaryReset();
-            }}
-          />
+          <ExpandableSetting
+            id="party-summaries-live"
+            title="Summaries"
+            description="Capture an AI recap of your voice chat."
+            status={
+              <span
+                className={`${styles.settingStatusPill} ${
+                  summaryEnabled ? styles.settingStatusPillActive : ""
+                }`.trim()}
+              >
+                {summaryStatusLabel}
+              </span>
+            }
+            open={summaryExpanded}
+            onToggle={setSummaryExpanded}
+          >
+            <SummaryPanel
+              summaryEnabled={summaryEnabled}
+              canManageSummary={canManageSummary}
+              summaryStatusLabel={summaryStatusLabel}
+              summaryVerbosity={summaryVerbosity}
+              summaryUpdating={summaryUpdating}
+              summaryGenerating={summaryGenerating}
+              summaryButtonDisabled={summaryButtonDisabled}
+              summaryGenerateLabel={summaryGenerateLabel}
+              summaryResult={summaryResult}
+              summaryError={summaryError}
+              transcriptsReady={transcriptsReady}
+              summaryLastSavedLabel={summaryLastSavedLabel}
+              summaryMemoryId={summaryMemoryId}
+              onToggle={handleSummaryToggle}
+              onVerbosityChange={handleSummaryVerbosityChange}
+              onGenerate={() => {
+                void handleGenerateSummary();
+              }}
+              onReset={() => {
+                void handleSummaryReset();
+              }}
+            />
+          </ExpandableSetting>
         </section>
         <JoinSection
           joinCode={joinCode}

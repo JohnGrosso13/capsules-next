@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       ownerDisplayName: displayName,
       topic,
       privacy,
+      assistant: { desired: false },
       summary: (() => {
         if (!summaryInput) return null;
         const summaryConfig: { enabled?: boolean; verbosity?: SummaryLengthHint } = {};
