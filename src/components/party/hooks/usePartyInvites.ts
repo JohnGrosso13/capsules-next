@@ -28,7 +28,6 @@ export function usePartyInvites({
   const [copyState, setCopyState] = React.useState<"idle" | "copied">("idle");
   const [showInviteDetails, setShowInviteDetails] = React.useState(false);
   const [invitePickerOpen, setInvitePickerOpen] = React.useState(false);
-  const inviteRevealTimer = React.useRef<number | null>(null);
 
   const handleCopyInvite = React.useCallback(async () => {
     if (!session) return;
@@ -53,14 +52,6 @@ export function usePartyInvites({
   const handleGenerateInvite = React.useCallback(async () => {
     await handleCopyInvite();
     setShowInviteDetails(true);
-    if (inviteRevealTimer.current !== null) {
-      window.clearTimeout(inviteRevealTimer.current);
-      inviteRevealTimer.current = null;
-    }
-    inviteRevealTimer.current = window.setTimeout(() => {
-      setShowInviteDetails(false);
-      setCopyState("idle");
-    }, 10000);
   }, [handleCopyInvite]);
 
   const handleOpenInvitePicker = React.useCallback(() => {
@@ -145,21 +136,8 @@ export function usePartyInvites({
   }, [inviteFeedback]);
 
   React.useEffect(() => {
-    return () => {
-      if (inviteRevealTimer.current !== null) {
-        window.clearTimeout(inviteRevealTimer.current);
-        inviteRevealTimer.current = null;
-      }
-    };
-  }, []);
-
-  React.useEffect(() => {
     if (!session) {
       setShowInviteDetails(false);
-      if (inviteRevealTimer.current !== null) {
-        window.clearTimeout(inviteRevealTimer.current);
-        inviteRevealTimer.current = null;
-      }
     }
   }, [session?.partyId, session]);
 

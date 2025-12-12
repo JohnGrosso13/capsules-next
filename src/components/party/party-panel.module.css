@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
+  padding-bottom: 60px;
   /* Share blue-brand tokens with chat + settings so the experience stays cohesive */
   --party-color-brand-base: var(--color-brand);
   --party-color-brand-strong-base: var(--color-brand-strong);
@@ -269,6 +270,23 @@
   font-size: 0.95rem;
 }
 
+.inviteActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+.inviteActions button {
+  width: 100%;
+  max-width: 360px;
+  min-height: 52px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
 .headerIconButton {
   display: inline-flex;
   align-items: center;
@@ -507,7 +525,7 @@
 }
 
 .panelCompact .participantsGrid {
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  flex-direction: column;
 }
 
 .panelCompact .sessionHeader {
@@ -1318,6 +1336,15 @@
   gap: 22px;
 }
 
+.stageShell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  position: relative;
+  padding-bottom: 72px;
+}
+
 .stageHeader {
   display: flex;
   align-items: center;
@@ -1339,15 +1366,15 @@
 }
 
 .participantsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
 }
 
 .participantCard {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 16px;
@@ -1360,6 +1387,8 @@
       color-mix(in srgb, color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 94%, transparent) 94%, transparent) 100%
     )
   );
+  width: 100%;
+  min-height: 84px;
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -1398,6 +1427,144 @@
   background: var(--party-participant-avatar-background);
   color: var(--text-on-brand, var(--surface-app));
   overflow: hidden;
+}
+
+.stageFooter {
+  position: sticky;
+  bottom: 12px;
+  z-index: 10;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--party-panel-border);
+  background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 90%, transparent);
+  box-shadow: var(--party-surface-shadow, 0 14px 28px color-mix(in srgb, var(--surface-overlay) 32%, transparent));
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturate, 120%));
+  width: calc(100% + 48px);
+  margin-inline: -24px;
+}
+
+.stageFooterContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  align-items: center;
+}
+
+.stageFooterActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.stageFooterPrimary {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.footerActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--party-panel-border) 82%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 78%, transparent),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 60%, transparent)
+  );
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-width: 110px;
+  white-space: nowrap;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    filter 140ms ease;
+}
+
+.footerActionButton:hover:not(:disabled),
+.footerIconButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--party-control-hover-border, var(--color-border)) 85%, transparent);
+  filter: brightness(1.05);
+}
+
+.footerActionButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.footerDangerButton {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-danger, #ef4444) 38%, transparent),
+    color-mix(in srgb, var(--color-danger, #ef4444) 22%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--color-danger, #ef4444) 65%, transparent);
+  color: var(--text);
+}
+
+.footerIconButton {
+  min-height: 46px;
+  padding: 10px 14px;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--party-panel-border) 80%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 78%, transparent),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 58%, transparent)
+  );
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    filter 140ms ease;
+}
+
+.footerIconButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.footerIconActive {
+  border-color: color-mix(in srgb, var(--color-brand, var(--color-accent)) 70%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-brand, var(--color-accent)) 34%, transparent),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 62%, transparent)
+  );
+}
+
+.footerIconLabel {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.footerPrimaryButton {
+  width: auto;
+  min-width: 110px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .participantAvatarImage {
@@ -2261,7 +2428,14 @@
   }
 
   .participantsGrid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    flex-direction: column;
+  }
+
+  .stageFooter {
+    width: 100%;
+    margin-inline: 0;
+    bottom: 8px;
+    padding: 10px 12px;
   }
 
   .sectionSplit {

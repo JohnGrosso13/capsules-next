@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 
 import {
   CopySimple,
-  Clock,
   LinkSimple,
   MicrophoneStage,
   PaperPlaneTilt,
@@ -16,7 +15,6 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 
 import type { FriendItem } from "@/hooks/useFriendsData";
-import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
 import { type ChatFriendTarget } from "@/components/providers/ChatProvider";
 import {
   usePartyContext,
@@ -540,13 +538,7 @@ React.useEffect(() => {
   const {
     copyState,
     inviteFeedback,
-    inviteSending,
-    inviteError,
-    invitePickerOpen,
     showInviteDetails,
-    handleOpenInvitePicker,
-    handleCloseInvitePicker,
-    handleInviteFriends,
     handleGenerateInvite,
   } = usePartyInvites({
     session,
@@ -612,11 +604,6 @@ React.useEffect(() => {
   const handleResetAndClose = React.useCallback(async () => {
     await closeParty();
   }, [closeParty]);
-
-  const createdAtLabel = React.useMemo(
-    () => (session ? formatRelativeTime(session.metadata.createdAt) : ""),
-    [session],
-  );
 
   const partyStatusLabel = React.useMemo(() => {
     if (isLoading) {
@@ -846,7 +833,6 @@ React.useEffect(() => {
       : summaryEnabled
         ? "Enabled"
         : "Disabled";
-    const liveDurationLabel = createdAtLabel || "Just now";
 
     const statusChip = statusText ? <span className={styles.headerStatus}>{statusText}</span> : null;
 
@@ -860,38 +846,9 @@ React.useEffect(() => {
                 {statusChip}
               </div>
             ) : null}
-            <div className={styles.headerMetaRow}>
-              <span className={styles.metaChip} title="Live duration">
-                <Clock size={14} weight="bold" />
-                <span className={styles.metaChipText}>
-                  <span className={styles.metaChipLabel}>Live</span>
-                  <span className={styles.metaEmphasis}>{liveDurationLabel}</span>
-                </span>
-              </span>
-              {!showHeader ? statusChip : null}
-            </div>
-          </div>
-          <div className={`${styles.headerActions} ${styles.headerActionsActive}`}>
-            <button
-              type="button"
-              className={`${styles.secondaryButton} ${styles.inviteButton}`}
-              onClick={handleOpenInvitePicker}
-            >
-              <UsersThree size={16} weight="bold" />
-              Invite friends
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => {
-                void handleGenerateInvite();
-              }}
-              disabled={loading}
-            >
-              <CopySimple size={16} weight="bold" />
-              {copyState === "copied" ? "Invite copied" : "Generate invite"}
-            </button>
-            {showInviteDetails ? <code className={styles.codeChip}>{currentSession.partyId}</code> : null}
+            {!showHeader && statusChip ? (
+              <div className={styles.headerMetaRow}>{statusChip}</div>
+            ) : null}
           </div>
         </header>
         <section className={styles.section}>
@@ -965,15 +922,22 @@ React.useEffect(() => {
             void handleJoinParty();
           }}
         />
-        <ChatStartOverlay
-          open={invitePickerOpen}
-          onClose={handleCloseInvitePicker}
-          friends={inviteableFriends}
-          busy={inviteSending || loading}
-          error={inviteError}
-          onSubmit={(userIds) => void handleInviteFriends(userIds)}
-          mode="party"
-        />
+        <section className={styles.section}>
+          <div className={styles.inviteActions}>
+            <button
+              type="button"
+              className={`${styles.secondaryButton} ${styles.inviteButton}`.trim()}
+              onClick={() => {
+                void handleGenerateInvite();
+              }}
+              disabled={loading}
+            >
+              <CopySimple size={16} weight="bold" />
+              {copyState === "copied" ? "Invite copied" : "Generate invite"}
+            </button>
+            {showInviteDetails ? <code className={styles.codeChip}>{currentSession.partyId}</code> : null}
+          </div>
+        </section>
       </>
     );
   };

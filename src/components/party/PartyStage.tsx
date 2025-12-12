@@ -31,6 +31,7 @@ import {
   SpeakerSimpleSlash,
   Sparkle,
   XCircle,
+  GearSix,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { useChatContext, type ChatFriendTarget } from "@/components/providers/ChatProvider";
@@ -738,8 +739,22 @@ const PartyStageScene = React.memo(function PartyStageScene({
     }
   }, [applyAssistantMetadata, session]);
 
+  const handleOpenSettings = React.useCallback(() => {
+    setAssistantNotice("Device settings coming soon.");
+  }, []);
+
+  const micLabel = micEnabled ? "Mute" : "Unmute";
+  const deafenLabel = isDeafened ? "Undeafen" : "Deafen";
+
+  React.useEffect(() => {
+    if (!assistantNotice) return;
+    const timer = window.setTimeout(() => setAssistantNotice(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [assistantNotice]);
+
   return (
     <>
+      <div className={styles.stageShell}>
       <div className={styles.stageInner}>
       <div className={styles.stageHeader}>
         <span className={styles.stageTitle}>Live lobby</span>
@@ -778,35 +793,6 @@ const PartyStageScene = React.memo(function PartyStageScene({
               Tap to allow party audio
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlCompact}`}
-            onClick={() => {
-              void handleToggleMic();
-            }}
-            disabled={micBusy || !room}
-          >
-            {micEnabled ? (
-              <Microphone size={16} weight="bold" />
-            ) : (
-              <MicrophoneSlash size={16} weight="bold" />
-            )}
-            {micEnabled ? "Mute" : "Unmute"}
-          </button>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlCompact}`}
-            onClick={handleToggleDeafen}
-            disabled={!room}
-            aria-pressed={isDeafened}
-          >
-            {isDeafened ? (
-              <SpeakerSimpleSlash size={16} weight="bold" />
-            ) : (
-              <SpeakerSimpleHigh size={16} weight="bold" />
-            )}
-            {isDeafened ? "Undeafen" : "Deafen"}
-          </button>
         </div>
         {canClose ? (
           <div className={styles.controlGroup}>
@@ -836,30 +822,6 @@ const PartyStageScene = React.memo(function PartyStageScene({
             </button>
           </div>
         ) : null}
-        <div className={styles.controlGroup}>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlGhost}`}
-            onClick={() => {
-              void onLeave();
-            }}
-          >
-            <SignOut size={16} weight="bold" />
-            Leave lobby
-          </button>
-          {canClose ? (
-            <button
-              type="button"
-              className={`${styles.controlButton} ${styles.controlDanger}`}
-              onClick={() => {
-                void onClose();
-              }}
-            >
-              <XCircle size={16} weight="bold" />
-              End party
-            </button>
-          ) : null}
-        </div>
       </div>
       {status !== "connected" ? (
         <div className={styles.statusHint}>
@@ -881,6 +843,69 @@ const PartyStageScene = React.memo(function PartyStageScene({
           {hostNotice}
         </div>
       ) : null}
+      </div>
+      <div className={styles.stageFooter}>
+          <div className={styles.stageFooterContent}>
+            <div className={styles.stageFooterPrimary}>
+              <button
+                type="button"
+                className={`${styles.footerActionButton} ${styles.footerPrimaryButton}`}
+                onClick={() => {
+                  void onLeave();
+                }}
+              >
+                <SignOut size={16} weight="bold" />
+              Leave
+            </button>
+            {canClose ? (
+              <button
+                type="button"
+                className={`${styles.footerActionButton} ${styles.footerDangerButton}`}
+                onClick={() => {
+                  void onClose();
+                }}
+              >
+                <XCircle size={16} weight="bold" />
+                End
+              </button>
+            ) : null}
+          </div>
+          <div className={styles.stageFooterActions}>
+            <button
+              type="button"
+              className={`${styles.footerIconButton} ${micEnabled ? styles.footerIconActive : ""}`.trim()}
+              onClick={() => {
+                void handleToggleMic();
+              }}
+              aria-pressed={micEnabled}
+              aria-label={micLabel === "Mute" ? "Mute microphone" : "Unmute microphone"}
+              disabled={micBusy || !room}
+            >
+              {micEnabled ? <Microphone size={18} weight="bold" /> : <MicrophoneSlash size={18} weight="bold" />}
+              <span className={styles.footerIconLabel}>{micLabel}</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.footerIconButton} ${isDeafened ? styles.footerIconActive : ""}`.trim()}
+              onClick={handleToggleDeafen}
+              aria-pressed={isDeafened}
+              aria-label={deafenLabel === "Deafen" ? "Deafen party audio" : "Undeafen party audio"}
+              disabled={!room}
+            >
+              {isDeafened ? <SpeakerSimpleSlash size={18} weight="bold" /> : <SpeakerSimpleHigh size={18} weight="bold" />}
+              <span className={styles.footerIconLabel}>{deafenLabel}</span>
+            </button>
+            <button
+              type="button"
+              className={styles.footerIconButton}
+              onClick={handleOpenSettings}
+              aria-label="Audio settings"
+            >
+              <GearSix size={18} weight="bold" />
+            </button>
+          </div>
+        </div>
+      </div>
       </div>
       {menuState ? (
         <ParticipantMenuPortal
