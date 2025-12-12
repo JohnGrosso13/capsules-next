@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 
+import { useHomeLoading } from "@/components/home-loading";
 import { normalizeMediaUrl } from "@/lib/media";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import styles from "./discovery-rail.module.css";
@@ -558,6 +559,7 @@ export function DiscoveryRail() {
   const [upcomingEvents, setUpcomingEvents] = React.useState<Item[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
+  const homeLoading = useHomeLoading();
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -716,6 +718,14 @@ export function DiscoveryRail() {
     };
   }, []);
 
+  React.useEffect(() => {
+    if (!homeLoading) return;
+    if (!loadingCapsules && !loadingEvents) {
+      homeLoading.markReady("right-rail");
+    }
+  }, [homeLoading, loadingCapsules, loadingEvents]);
+
+  const showSkeleton = loadingCapsules || loadingEvents || (homeLoading?.isPending ?? false);
   const trending: Item[] = [
     { id: "t1", title: "What's Hot", subtitle: "AI logos in 60s", meta: "2.1k watching" },
     { id: "t2", title: "Capsules x Stream", subtitle: "OBS scene presets", meta: "1.3k watching" },
@@ -730,7 +740,7 @@ export function DiscoveryRail() {
           items={recommendedCapsules}
           action={{ label: "See all", href: "/explore" }}
           emptyMessage="No new capsules yet. Check again soon!"
-          loading={loadingCapsules}
+          loading={showSkeleton}
         />
         <Section
           title="Upcoming Events"
@@ -740,12 +750,13 @@ export function DiscoveryRail() {
             onClick: () => setCalendarOpen(true),
           }}
           emptyMessage="No ladders yet. Create one to see it here."
-          loading={loadingEvents}
+          loading={showSkeleton}
         />
         <Section
           title="What's Hot"
           items={trending}
           action={{ label: "More", onClick: () => {} }}
+          loading={showSkeleton}
         />
       </div>
       <UpcomingEventsCalendarOverlayPortal

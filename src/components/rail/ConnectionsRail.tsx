@@ -7,6 +7,7 @@ import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { FriendsRail } from "@/components/rail/FriendsRail";
 import { RequestsList } from "@/components/friends/RequestsList";
 import { PartyPanel } from "@/components/party/PartyPanel";
+import { useHomeLoading } from "@/components/home-loading";
 import { useFriendsDataContext } from "@/components/providers/FriendsDataProvider";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -263,12 +264,15 @@ export function ConnectionsRail() {
     unfollowFriend,
     followingIds,
     followerIds,
+    loading,
   } = useFriendsDataContext();
+  const homeLoading = useHomeLoading();
 
   const [railMode, setRailMode] = React.useState<"tiles" | "connections">("tiles");
   const [activeRailTab, setActiveRailTab] = React.useState<RailTab>("friends");
   const assistantTabActive = railMode === "connections" && activeRailTab === "assistant";
   const [cancelingTaskIds, setCancelingTaskIds] = React.useState<Set<string>>(new Set());
+  const [removingTaskIds, setRemovingTaskIds] = React.useState<Set<string>>(new Set());
   const [assistantActionError, setAssistantActionError] = React.useState<string | null>(null);
   const [requestPendingIds, setRequestPendingIds] = React.useState<Set<string>>(new Set());
   const [invitePendingIds, setInvitePendingIds] = React.useState<Set<string>>(new Set());
@@ -290,6 +294,12 @@ export function ConnectionsRail() {
     limit: 50,
   });
   const assistantError = assistantActionError ?? assistantTasksError;
+  React.useEffect(() => {
+    if (!homeLoading) return;
+    if (!loading) {
+      homeLoading.markReady("left-rail");
+    }
+  }, [homeLoading, loading]);
 
   const handleCancelAssistantTask = React.useCallback(
     async (taskId: string) => {
@@ -313,6 +323,37 @@ export function ConnectionsRail() {
         );
       } finally {
         setCancelingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    },
+    [refreshAssistantTasks],
+  );
+
+  const handleRemoveAssistantTask = React.useCallback(
+    async (taskId: string) => {
+      setAssistantActionError(null);
+      setRemovingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.add(taskId);
+        return next;
+      });
+      try {
+        const response = await fetch(`/api/assistant/tasks/${taskId}?mode=remove`, { method: "DELETE" });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to remove assistant task");
+        }
+        await refreshAssistantTasks();
+      } catch (error) {
+        console.error("remove assistant task failed", error);
+        setAssistantActionError(
+          error instanceof Error ? error.message : "Failed to remove assistant task",
+        );
+      } finally {
+        setRemovingTaskIds((prev) => {
           const next = new Set(prev);
           next.delete(taskId);
           return next;
@@ -1439,13 +1480,15 @@ export function ConnectionsRail() {
             <AssistantPanel
               tasks={assistantTasks}
               loading={loadingAssistantTasks}
-              error={assistantError}
-              onRefresh={refreshAssistantTasks}
-              onCancelTask={handleCancelAssistantTask}
-              cancelingTaskIds={cancelingTaskIds}
-              friends={friends}
-            />
-          </div>
+            error={assistantError}
+            onRefresh={refreshAssistantTasks}
+            onCancelTask={handleCancelAssistantTask}
+            cancelingTaskIds={cancelingTaskIds}
+            onRemoveTask={handleRemoveAssistantTask}
+            removingTaskIds={removingTaskIds}
+            friends={friends}
+          />
+        </div>
           </div>
           {/* Overlay for group chat create/invite */}
           <ChatStartOverlay

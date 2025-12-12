@@ -205,6 +205,20 @@ export async function markTaskTargetCanceled(row: {
   return expectResult(result, "assistant_task_targets.mark_canceled");
 }
 
+export async function deleteTaskTargetsByTask(params: {
+  taskId: string;
+  ownerUserId?: string;
+}): Promise<number> {
+  const db = getDatabaseAdminClient();
+  let query = db.from(TARGETS_TABLE).delete().eq("task_id", params.taskId);
+  if (params.ownerUserId) {
+    query = query.eq("owner_user_id", params.ownerUserId);
+  }
+  const result = await query.select<{ id: string }>("id").fetch();
+  const deleted = expectArrayResult(result, "assistant_task_targets.delete_by_task");
+  return deleted.length;
+}
+
 export async function listTaskTargetsByConversation(params: {
   ownerUserId: string;
   conversationId: string;
@@ -299,4 +313,20 @@ export async function markTaskTargetReminded(row: {
     .single();
   const updated = expectResult(result, "assistant_task_targets.mark_reminded");
   return updated;
+}
+
+export async function deleteAssistantTask(params: {
+  id: string;
+  ownerUserId: string;
+}): Promise<number> {
+  const db = getDatabaseAdminClient();
+  const result = await db
+    .from(TASKS_TABLE)
+    .delete()
+    .eq("id", params.id)
+    .eq("owner_user_id", params.ownerUserId)
+    .select<{ id: string }>("id")
+    .fetch();
+  const deleted = expectArrayResult(result, "assistant_tasks.delete");
+  return deleted.length;
 }

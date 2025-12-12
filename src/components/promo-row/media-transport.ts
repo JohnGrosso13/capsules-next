@@ -542,11 +542,14 @@ export function getTileLabel(tile: TileConfig, context: TileContext): string {
 export function usePromoRowData() {
   const [mediaPosts, setMediaPosts] = React.useState<Post[]>([]);
   const [friends, setFriends] = React.useState<Friend[]>([]);
+  const [mediaLoading, setMediaLoading] = React.useState(true);
+  const [friendsLoading, setFriendsLoading] = React.useState(true);
 
   React.useEffect(() => {
     let cancelled = false;
 
     const loadMedia = async () => {
+      setMediaLoading(true);
       try {
         const response = await fetch("/api/posts?limit=24");
         const data = (await response.json().catch(() => null)) as {
@@ -602,10 +605,15 @@ export function usePromoRowData() {
         if (!cancelled) {
           setMediaPosts([]);
         }
+      } finally {
+        if (!cancelled) {
+          setMediaLoading(false);
+        }
       }
     };
 
     const loadFriends = async () => {
+      setFriendsLoading(true);
       try {
         const response = await fetch("/api/friends/sync", { method: "POST" });
         const data = (await response.json().catch(() => null)) as { friends?: unknown[] } | null;
@@ -628,6 +636,10 @@ export function usePromoRowData() {
       } catch {
         if (!cancelled) {
           setFriends([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setFriendsLoading(false);
         }
       }
     };
@@ -756,5 +768,6 @@ export function usePromoRowData() {
     imageIndexLookup,
     videoIndexLookup,
     mediaLookup,
+    loading: mediaLoading || friendsLoading,
   };
 }

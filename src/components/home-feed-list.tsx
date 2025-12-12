@@ -7,6 +7,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import styles from "./home-feed.module.css";
 
+import { useHomeLoading } from "@/components/home-loading";
 import type { HomeFeedItem, HomeFeedPost } from "@/hooks/useHomeFeed";
 import { normalizeMediaUrl } from "@/lib/media";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
@@ -238,10 +239,18 @@ export function HomeFeedList({
     () => buildIdentifierSet(viewerUserId, viewerUserKey, supabaseViewerId, supabaseUserId),
     [viewerUserId, viewerUserKey, supabaseViewerId, supabaseUserId],
   );
+  const homeLoading = useHomeLoading();
+
+  React.useEffect(() => {
+    if (!homeLoading) return;
+    if (hasFetched) {
+      homeLoading.markReady("feed");
+    }
+  }, [hasFetched, homeLoading]);
 
   const followingIdentifierSet = friendsData?.followingIds ?? null;
 
-  const showSkeletons = !hasFetched;
+  const showSkeletons = !hasFetched || (homeLoading?.isPending ?? false);
   const baseItems = React.useMemo<HomeFeedItem[]>(() => {
     if (showSkeletons) return [];
     if (items && Array.isArray(items)) return items;

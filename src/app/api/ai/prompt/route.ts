@@ -656,6 +656,18 @@ export async function POST(req: Request) {
             return;
           }
           if (event.type === "tool_result") {
+            const resultStatus =
+              typeof (event.result as { status?: unknown })?.status === "string"
+                ? String((event.result as { status: string }).status).toLowerCase()
+                : null;
+            if (resultStatus === "error") {
+              const resultMessage =
+                typeof (event.result as { message?: unknown })?.message === "string"
+                  ? String((event.result as { message: string }).message).trim()
+                  : null;
+              sendStatus(resultMessage?.length ? resultMessage : `${event.name} failed.`);
+              return;
+            }
             sendStatus(`${event.name} ready.`);
           }
         };

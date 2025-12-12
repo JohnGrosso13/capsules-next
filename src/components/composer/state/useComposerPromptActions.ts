@@ -23,6 +23,68 @@ import type { PromptResponse } from "@/shared/schemas/ai";
 import type { ThemePreviewState } from "../context/ThemePreviewProvider";
 import type { ComposerAiApplyResult } from "./useComposerAi";
 
+const IMAGE_EXTENSION_RE = /\.(apng|avif|bmp|gif|jpe?g|jfif|pjpeg|pjp|png|svg|webp)$/i;
+
+function isImageLike(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const normalized = url.split("?")[0]?.toLowerCase() ?? "";
+  return IMAGE_EXTENSION_RE.test(normalized);
+}
+
+function buildFallbackImageAttachment(
+  snapshot: ComposerState,
+  nameOverride?: string | null,
+): PrompterAttachment | null {
+  const draftUrl =
+    typeof snapshot.draft?.mediaUrl === "string" && snapshot.draft.mediaUrl.trim().length
+      ? snapshot.draft.mediaUrl.trim()
+      : null;
+  if (draftUrl) {
+    return {
+      id: safeRandomUUID(),
+      name: nameOverride || snapshot.draft?.title || "Previous visual",
+      mimeType: "image/*",
+      size: 0,
+      url: draftUrl,
+      thumbnailUrl: snapshot.draft?.mediaThumbnailUrl ?? null,
+      role: "reference",
+      source: "ai",
+      excerpt: snapshot.draft?.mediaPrompt ?? null,
+    };
+  }
+
+  for (let i = snapshot.history.length - 1; i >= 0; i -= 1) {
+    const entry = snapshot.history[i];
+    if (!entry || !Array.isArray(entry.attachments) || entry.attachments.length === 0) continue;
+    for (let j = entry.attachments.length - 1; j >= 0; j -= 1) {
+      const attachment = entry.attachments[j];
+      if (!attachment) continue;
+      const url = typeof attachment.url === "string" ? attachment.url.trim() : "";
+      const thumb =
+        typeof attachment.thumbnailUrl === "string" ? attachment.thumbnailUrl.trim() : null;
+      const mime = (attachment.mimeType ?? "").toLowerCase();
+      if (!url) continue;
+      const looksImage = mime.startsWith("image/") || isImageLike(url) || isImageLike(thumb);
+      if (!looksImage) continue;
+      return {
+        id: safeRandomUUID(),
+        name: attachment.name || "Previous visual",
+        mimeType: mime || "image/*",
+        size: 0,
+        url,
+        thumbnailUrl: thumb,
+        storageKey: attachment.storageKey ?? null,
+        sessionId: attachment.sessionId ?? null,
+        role: "reference",
+        source: (attachment.source as PrompterAttachment["source"]) ?? "ai",
+        excerpt: attachment.excerpt ?? null,
+      };
+    }
+  }
+
+  return null;
+}
+
 type AiPromptHandoff = Extract<PrompterHandoff, { intent: "ai_prompt" }>;
 type ImageLogoHandoff = Extract<PrompterHandoff, { intent: "image_logo" }>;
 type ImageEditHandoff = Extract<PrompterHandoff, { intent: "image_edit" }>;
@@ -173,10 +235,17 @@ export function useComposerPromptActions({
       composeOptions.imageQuality = imageSettings.quality;
       const resolvedOptions = Object.keys(composeOptions).length ? composeOptions : undefined;
 
+      const fallbackAttachment =
+        !normalizedAttachments && requestedComposeKind === "image"
+          ? buildFallbackImageAttachment(getState())
+          : null;
+      const effectiveAttachments =
+        normalizedAttachments || (fallbackAttachment ? [fallbackAttachment] : undefined);
+
       const createdAt = new Date().toISOString();
       const workingMessageId = safeRandomUUID();
       const attachmentForChat =
-        normalizedAttachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
+        effectiveAttachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
         id: safeRandomUUID(),
         role: "user",
@@ -226,7 +295,7 @@ export function useComposerPromptActions({
           backgroundReminderVisible: false,
           lastPrompt: {
             prompt: trimmedPrompt,
-            attachments: normalizedAttachments ?? null,
+            attachments: effectiveAttachments ?? null,
             mode: replyMode === "chat" ? "chatOnly" : "default",
             kind: requestedComposeKind,
             failed: false,
@@ -254,7 +323,7 @@ export function useComposerPromptActions({
           message: trimmedPrompt,
           ...(resolvedOptions ? { options: resolvedOptions } : {}),
           ...(rawPostForRequest && replyMode !== "chat" ? { post: rawPostForRequest } : {}),
-          ...(normalizedAttachments ? { attachments: normalizedAttachments } : {}),
+          ...(effectiveAttachments ? { attachments: effectiveAttachments } : {}),
           history: baseHistory,
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
           ...(threadIdSnapshot && !threadIdForRequest ? { threadId: threadIdSnapshot } : {}),
@@ -300,7 +369,7 @@ export function useComposerPromptActions({
           backgroundReminderVisible: false,
           lastPrompt: {
             prompt: trimmedPrompt,
-            attachments: normalizedAttachments ?? null,
+            attachments: effectiveAttachments ?? null,
             mode: replyMode === "chat" ? "chatOnly" : "default",
             kind: requestedComposeKind,
             failed: true,
@@ -556,8 +625,16 @@ export function useComposerPromptActions({
       const expectImage =
         !expectVideo && (snapshot.draft?.kind ?? "").toLowerCase() === "image";
       const preserveSummary = options?.preserveSummary ?? Boolean(snapshot.summaryResult);
+      const fallbackAttachment =
+        !attachmentList?.length && expectImage ? buildFallbackImageAttachment(snapshot) : null;
+      const effectiveAttachments =
+        attachmentList && attachmentList.length
+          ? attachmentList
+          : fallbackAttachment
+            ? [fallbackAttachment]
+            : undefined;
       const chatAttachments =
-        attachmentList?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
+        effectiveAttachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
       const pendingMessage: ComposerChatMessage = {
         id: safeRandomUUID(),
         role: "user",
@@ -622,7 +699,7 @@ export function useComposerPromptActions({
           backgroundReminderVisible: false,
           lastPrompt: {
             prompt: trimmed,
-            attachments: attachmentList ?? null,
+            attachments: effectiveAttachments ?? null,
             mode: options?.mode ?? "default",
             kind: expectVideo ? "video" : expectImage ? "image" : null,
             failed: false,
@@ -640,7 +717,7 @@ export function useComposerPromptActions({
           message: trimmed,
           ...(Object.keys(requestOptions).length ? { options: requestOptions } : {}),
           ...(snapshot.rawPost && options?.mode !== "chatOnly" ? { post: snapshot.rawPost } : {}),
-          ...(attachmentList ? { attachments: attachmentList } : {}),
+          ...(effectiveAttachments ? { attachments: effectiveAttachments } : {}),
           history: previousHistory,
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),

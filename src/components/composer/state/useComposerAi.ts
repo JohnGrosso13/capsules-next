@@ -8,6 +8,7 @@ import {
 } from "@/lib/composer/chat-types";
 import { normalizeDraftFromPost } from "@/lib/composer/normalizers";
 import type { ComposerDraft } from "@/lib/composer/draft";
+import { sanitizePollFromDraft } from "@/lib/composer/poll";
 import type { PromptResponse } from "@/shared/schemas/ai";
 import { safeRandomUUID } from "@/lib/random";
 import { appendCapsuleContext, mergeComposerChatHistory, mergeComposerRawPost } from "./ai-shared";
@@ -56,7 +57,32 @@ export function useComposerAi({
       const baseDraftForKind = isDraftResponse
         ? normalizeDraftFromPost(rawPost ?? {})
         : normalizeDraftFromPost({});
-      const normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
+      let normalizedHistory = sanitizeComposerChatHistory(payload.history ?? []);
+      const pollFromResponse =
+        isDraftResponse && baseDraftForKind.poll ? sanitizePollFromDraft(baseDraftForKind) : null;
+      if (pollFromResponse) {
+        const targetIndex = [...normalizedHistory]
+          .map((entry, index) => ({ entry, index }))
+          .reverse()
+          .find(({ entry }) => entry.role === "assistant")?.index;
+        if (typeof targetIndex === "number") {
+          normalizedHistory = normalizedHistory.map((entry, index) =>
+            index === targetIndex ? { ...entry, poll: pollFromResponse } : entry,
+          );
+        } else {
+          normalizedHistory = [
+            ...normalizedHistory,
+            {
+              id: safeRandomUUID(),
+              role: "assistant",
+              content: pollFromResponse.question || "Poll draft",
+              createdAt: new Date().toISOString(),
+              attachments: null,
+              poll: pollFromResponse,
+            },
+          ];
+        }
+      }
       const draftPayloadPost =
         isDraftResponse && typeof payload.post === "object"
           ? ((payload.post as Record<string, unknown>) ?? null)

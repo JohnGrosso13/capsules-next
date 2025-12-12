@@ -159,6 +159,7 @@ export function FriendsClient() {
   const [partyInviteError, setPartyInviteError] = React.useState<string | null>(null);
   const assistantTabActive = activeTab === "Assistant";
   const [cancelingTaskIds, setCancelingTaskIds] = React.useState<Set<string>>(new Set());
+  const [removingTaskIds, setRemovingTaskIds] = React.useState<Set<string>>(new Set());
   const [assistantActionError, setAssistantActionError] = React.useState<string | null>(null);
   const {
     tasks: assistantTasks,
@@ -759,6 +760,37 @@ export function FriendsClient() {
     [refreshAssistantTasks],
   );
 
+  const handleRemoveAssistantTask = React.useCallback(
+    async (taskId: string) => {
+      setAssistantActionError(null);
+      setRemovingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.add(taskId);
+        return next;
+      });
+      try {
+        const response = await fetch(`/api/assistant/tasks/${taskId}?mode=remove`, { method: "DELETE" });
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+          throw new Error(text || "Failed to remove assistant task");
+        }
+        await refreshAssistantTasks();
+      } catch (error) {
+        console.error("remove assistant task failed", error);
+        setAssistantActionError(
+          error instanceof Error ? error.message : "Failed to remove assistant task",
+        );
+      } finally {
+        setRemovingTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    },
+    [refreshAssistantTasks],
+  );
+
   const inviteSession =
     groupFlow?.mode === "invite"
       ? (chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null)
@@ -982,6 +1014,8 @@ export function FriendsClient() {
             onRefresh={refreshAssistantTasks}
             onCancelTask={handleCancelAssistantTask}
             cancelingTaskIds={cancelingTaskIds}
+            onRemoveTask={handleRemoveAssistantTask}
+            removingTaskIds={removingTaskIds}
             friends={friends}
           />
         </div>

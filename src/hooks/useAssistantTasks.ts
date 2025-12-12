@@ -93,8 +93,9 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
     if (!enabled) return undefined;
-    if (!pollIntervalMs && !idlePollIntervalMs) return undefined;
-    const interval = hasActiveTasks ? pollIntervalMs : idlePollIntervalMs;
+    // Only poll when there are active tasks; otherwise stay idle to avoid unnecessary traffic.
+    if (!hasActiveTasks) return undefined;
+    const interval = pollIntervalMs || idlePollIntervalMs;
     if (!interval) return undefined;
     const handle = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -107,6 +108,7 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
     if (!enabled) return undefined;
     if (typeof window === "undefined" || typeof document === "undefined") return undefined;
     const handleVisibility = () => {
+      if (!hasActiveTasks) return;
       if (document.visibilityState !== "visible") return;
       void fetchTasks({ background: true });
     };
@@ -116,7 +118,7 @@ export function useAssistantTasks(options: UseAssistantTasksOptions = {}) {
       window.removeEventListener("focus", handleVisibility);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [enabled, fetchTasks]);
+  }, [enabled, fetchTasks, hasActiveTasks]);
 
   return {
     tasks,

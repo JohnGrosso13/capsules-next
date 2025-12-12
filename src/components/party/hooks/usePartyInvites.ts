@@ -29,11 +29,32 @@ export function usePartyInvites({
   const [showInviteDetails, setShowInviteDetails] = React.useState(false);
   const [invitePickerOpen, setInvitePickerOpen] = React.useState(false);
 
+  const copyText = React.useCallback(async (text: string) => {
+    // Prefer modern clipboard API when available; fall back to execCommand when blocked.
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!copied) {
+      throw new Error("Copy command was blocked");
+    }
+  }, []);
+
   const handleCopyInvite = React.useCallback(async () => {
     if (!session) return;
     const content = inviteUrl ?? session.partyId;
     try {
-      await navigator.clipboard.writeText(content);
+      await copyText(content);
       setCopyState("copied");
       setInviteFeedback({
         message: "Invite link copied to your clipboard.",
@@ -43,11 +64,11 @@ export function usePartyInvites({
       console.error("Copy failed", err);
       setCopyState("idle");
       setInviteFeedback({
-        message: "We couldn't copy the invite link. Copy it manually.",
+        message: "We couldn't copy the invite link automatically. Copy it manually.",
         tone: "warning",
       });
     }
-  }, [inviteUrl, session]);
+  }, [copyText, inviteUrl, session]);
 
   const handleGenerateInvite = React.useCallback(async () => {
     await handleCopyInvite();

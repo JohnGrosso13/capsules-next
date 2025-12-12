@@ -57,7 +57,7 @@ export function useFeedPreview({
   const canEditPostCopy = typeof onPostContentChange === "function";
 
   const previewState = React.useMemo<FeedPreviewState>(() => {
-    const kind = activeKind;
+    let kind = activeKind;
     let label = activeKindLabel;
     const contentRaw = workingDraft.content ?? "";
     const content = contentRaw.trim();
@@ -133,19 +133,21 @@ export function useFeedPreview({
     let body: React.ReactNode;
     let empty = false;
 
-    if (kind === "poll") {
-      if (!pollHasStructure) {
-        empty = true;
-        body = renderPlaceholder(
-          "Describe the poll or start drafting your intro and the live preview will appear.",
-        );
-      } else {
-        empty = false;
-        helper = pollHelperText;
-        body = pollPreviewCard;
-      }
+    if (pollHasStructure) {
+      kind = "poll";
+      label = "Poll";
+      empty = false;
+      helper = pollHelperText;
+      body = pollPreviewCard;
     } else {
       switch (kind) {
+        case "poll": {
+          empty = true;
+          body = renderPlaceholder(
+            "Describe the poll or start drafting your intro and the live preview will appear.",
+          );
+          break;
+        }
         case "image": {
           const hasCopy = hasTextCopy;
           empty = !mediaUrl && !hasCopy;
@@ -275,23 +277,6 @@ export function useFeedPreview({
           break;
         }
       }
-    }
-
-    if (kind !== "poll" && pollHasStructure) {
-      if (empty) {
-        body = pollPreviewCard;
-      } else {
-        body = (
-          <div className={styles.previewComposite}>
-            <div className={styles.previewPrimary}>{body}</div>
-            <div className={styles.previewDivider} aria-hidden="true" />
-            <div className={styles.previewSupplement}>{pollPreviewCard}</div>
-          </div>
-        );
-      }
-      helper = helper ?? pollHelperText;
-      empty = false;
-      label = `${activeKindLabel} + Poll`;
     }
 
     return { kind, label, body, empty, helper };

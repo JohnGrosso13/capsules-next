@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ImageSquare, Play, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 import { CapsulePromoTile } from "@/components/capsule/CapsulePromoTile";
+import { useHomeLoading } from "@/components/home-loading";
 import {
   resolveCapsuleHandle,
   resolveCapsuleHref,
@@ -47,7 +48,19 @@ export function PromoRow() {
     imageIndexLookup,
     videoIndexLookup,
     mediaLookup,
+    loading,
   } = usePromoRowData();
+  const homeLoading = useHomeLoading();
+  const homePending = homeLoading?.isPending ?? false;
+
+  React.useEffect(() => {
+    if (!homeLoading) return;
+    if (!loading) {
+      homeLoading.markReady("promos");
+    }
+  }, [homeLoading, loading]);
+
+  const showSkeleton = loading || homePending;
   const [activeLightboxIndex, setActiveLightboxIndex] = React.useState<number | null>(null);
   const [activeVideoIndex, setActiveVideoIndex] = React.useState<number | null>(null);
 
@@ -115,7 +128,7 @@ export function PromoRow() {
   React.useEffect(() => {
     if (activeVideoIndex === null) return;
     if (activeVideoIndex >= videoCount) {
-      setActiveVideoIndex(videoCount ? Math.min(videoCount - 1, activeVideoIndex) : null);
+    setActiveVideoIndex(videoCount ? Math.min(videoCount - 1, activeVideoIndex) : null);
     }
   }, [activeVideoIndex, videoCount]);
 
@@ -181,6 +194,22 @@ export function PromoRow() {
     ? currentItem.fallbackIndex % MEDIA_FALLBACK_ICONS.length
     : 0;
   const FallbackIcon = MEDIA_FALLBACK_ICONS[fallbackIconIndex] ?? ImageSquare;
+
+  if (showSkeleton) {
+    return (
+      <div className={styles.row} data-skeleton="true" aria-busy="true" aria-live="polite">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={`promo-skeleton-${index}`}
+            className={`${styles.tile} ${styles.skeletonTile}`.trim()}
+            aria-hidden="true"
+          >
+            <span className={styles.skeletonBlock} />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>

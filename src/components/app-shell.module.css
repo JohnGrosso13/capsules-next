@@ -267,6 +267,35 @@
   width: min(100%, var(--app-rail-width, clamp(320px, 24vw, 380px)));
 }
 
+.railSlot {
+  position: relative;
+}
+
+.railContent[data-hidden="true"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.railSkeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms var(--motion-ease-standard, ease);
+}
+
+.railSkeleton > * {
+  width: 100%;
+}
+
+.railSlot[data-home-loading="true"] .railSkeleton {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .rail[data-side="left"] {
   --connections-rail-offset: -60px;
   --connections-rail-offset-md: -50px;

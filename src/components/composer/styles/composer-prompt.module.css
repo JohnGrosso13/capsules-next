@@ -1109,6 +1109,21 @@
   justify-content: flex-start;
 }
 
+.chatGeneratedPollActions {
+  margin-top: 6px;
+}
+
+.chatGeneratedPollRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 8px 0 0;
+  width: 100%;
+  max-width: min(82%, 720px);
+  align-self: flex-start;
+}
+
 .chatGeneratedButton {
   appearance: none;
   border: 1px solid var(--composer-quick-chip-border);

@@ -22,6 +22,8 @@ type AssistantPanelProps = {
   cancelingTaskIds?: Set<string>;
   friends?: FriendItem[];
   hasRealFriends?: boolean;
+  onRemoveTask?: (taskId: string) => Promise<void> | void;
+  removingTaskIds?: Set<string>;
 };
 
 const RELATIVE_DIVISIONS: Array<{ amount: number; unit: Intl.RelativeTimeFormatUnit }> = [
@@ -188,6 +190,8 @@ export function AssistantPanel({
   cancelingTaskIds,
   friends,
   hasRealFriends = false,
+  onRemoveTask,
+  removingTaskIds,
 }: AssistantPanelProps) {
   const friendList = React.useMemo(
     () =>
@@ -305,10 +309,7 @@ export function AssistantPanel({
   );
 
   const recentTasks = React.useMemo(
-    () =>
-      sortedTasks.filter(
-        (task) => !isTaskActive(task) && task.status !== "canceled",
-      ),
+    () => sortedTasks.filter((task) => !isTaskActive(task)),
     [sortedTasks],
   );
 
@@ -316,20 +317,25 @@ export function AssistantPanel({
     () => cancelingTaskIds ?? new Set<string>(),
     [cancelingTaskIds],
   );
+  const removingIds = React.useMemo(
+    () => removingTaskIds ?? new Set<string>(),
+    [removingTaskIds],
+  );
 
   const renderTaskCard = React.useCallback(
     (task: AssistantTaskSummary) => {
       const metrics = summarizeTaskMetrics(task);
       const lastUpdated = formatRelativeTime(task.lastResponseAt ?? task.updatedAt) ?? "just now";
       const isCanceling = cancelingIds.has(task.id);
+      const isRemoving = removingIds.has(task.id);
       const direction =
         task.direction === "incoming" || task.direction === "outgoing" ? task.direction : "outgoing";
       const directionLabel = direction === "incoming" ? "Incoming request" : "Outgoing request";
+      const isFinalized =
+        task.status === "completed" || task.status === "partial" || task.status === "canceled";
       const canCancel =
-        onCancelTask &&
-        task.status !== "completed" &&
-        task.status !== "partial" &&
-        task.status !== "canceled";
+        onCancelTask && !isFinalized;
+      const canRemove = onRemoveTask && isFinalized;
       const stageLabel = describeTaskStatus(task);
 
       return (
@@ -402,12 +408,22 @@ export function AssistantPanel({
                   {isCanceling ? "Cancelling..." : "Cancel task"}
                 </button>
               ) : null}
+              {canRemove ? (
+                <button
+                  type="button"
+                  className={styles.cancel}
+                  onClick={() => onRemoveTask?.(task.id)}
+                  disabled={loading || isRemoving}
+                >
+                  {isRemoving ? "Removing..." : "Clear task"}
+                </button>
+              ) : null}
             </div>
           </div>
         </li>
       );
     },
-    [cancelingIds, loading, onCancelTask],
+    [cancelingIds, loading, onCancelTask, onRemoveTask, removingIds],
   );
 
   return (
@@ -531,7 +547,7 @@ export function AssistantPanel({
               activeTasks.length
                 ? `${activeTasks.length} active`
                 : recentTasks.length
-                  ? "No active · recent below"
+                  ? "No active - recent below"
                   : "No active tasks"
             }
             open={tasksExpanded}

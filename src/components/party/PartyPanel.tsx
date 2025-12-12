@@ -176,6 +176,7 @@ type SummaryPanelProps = {
   summaryEnabled: boolean;
   canManageSummary: boolean;
   summaryStatusLabel: string;
+  summaryStatusAriaLabel: string;
   summaryVerbosity: SummaryLengthHint;
   summaryUpdating: boolean;
   summaryGenerating: boolean;
@@ -196,6 +197,7 @@ const SummaryPanel = React.memo(function SummaryPanel({
   summaryEnabled,
   canManageSummary,
   summaryStatusLabel,
+  summaryStatusAriaLabel,
   summaryVerbosity,
   summaryUpdating,
   summaryGenerating,
@@ -229,12 +231,16 @@ const SummaryPanel = React.memo(function SummaryPanel({
             onClick={onToggle}
             disabled={summaryUpdating}
             aria-pressed={summaryEnabled}
+            aria-label={summaryStatusAriaLabel}
+            title={summaryStatusAriaLabel}
           >
             {summaryStatusLabel}
           </button>
         ) : (
           <span
             className={`${styles.summaryStatusBadge} ${summaryEnabled ? styles.summaryStatusBadgeActive : ""}`.trim()}
+            aria-label={summaryStatusAriaLabel}
+            title={summaryStatusAriaLabel}
           >
             {summaryEnabled ? "Enabled" : "Disabled"}
           </span>
@@ -828,11 +834,12 @@ React.useEffect(() => {
     const summaryButtonDisabled =
       summaryGenerating || summaryUpdating || !summaryEnabled || !transcriptsReady || !canManageSummary;
     const summaryGenerateLabel = summaryGenerating ? "Summarizing..." : "Generate summary";
-    const summaryStatusLabel = summaryUpdating
-      ? "Updating..."
+    const summaryStatusLabel = summaryUpdating ? "..." : summaryEnabled ? "Enabled" : "Disabled";
+    const summaryStatusAriaLabel = summaryUpdating
+      ? "Updating summary settings"
       : summaryEnabled
-        ? "Enabled"
-        : "Disabled";
+        ? "Disable summaries"
+        : "Enable summaries";
     const joinAriaLabel = loading
       ? action === "join"
         ? "Connecting to party"
@@ -899,6 +906,7 @@ React.useEffect(() => {
               summaryEnabled={summaryEnabled}
               canManageSummary={canManageSummary}
               summaryStatusLabel={summaryStatusLabel}
+              summaryStatusAriaLabel={summaryStatusAriaLabel}
               summaryVerbosity={summaryVerbosity}
               summaryUpdating={summaryUpdating}
               summaryGenerating={summaryGenerating}

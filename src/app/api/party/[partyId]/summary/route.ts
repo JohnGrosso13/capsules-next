@@ -20,10 +20,14 @@ const toggleSchema = z
     verbosity: z.enum(summaryVerbosityValues).optional(),
     reset: z.boolean().optional(),
   })
-  .refine((value) => Boolean(value.enabled ?? value.verbosity ?? value.reset), {
+  .refine(
+    (value) =>
+      value.enabled !== undefined || value.verbosity !== undefined || value.reset !== undefined,
+    {
     message: "At least one field must be provided.",
     path: [],
-  });
+    },
+  );
 
 const transcriptSegmentSchema = z.object({
   id: z.string(),

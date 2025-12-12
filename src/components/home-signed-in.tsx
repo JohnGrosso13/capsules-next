@@ -8,6 +8,7 @@ import { AppShell } from "./app-shell";
 import { PromoRow } from "./promo-row";
 import { HomeFeedList } from "./home-feed-list";
 import { FeedSurface } from "./feed-surface";
+import { HomeLoadingProvider, HOME_LOADING_SECTIONS } from "./home-loading";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
 import type { HomeFeedPost } from "@/hooks/useHomeFeed";
 import { useSearchParams } from "next/navigation";
@@ -188,43 +189,51 @@ export function HomeSignedIn({
   }, [externalLoading, externalPost?.id, focusPostId, posts]);
 
   return (
-    <AppShell
-      activeNav="home"
-      showPrompter={showPrompter}
-      promoSlot={showPromoRow ? <PromoRow /> : null}
+    <HomeLoadingProvider
+      sections={
+        showPromoRow
+          ? HOME_LOADING_SECTIONS
+          : HOME_LOADING_SECTIONS.filter((section) => section !== "promos")
+      }
     >
-      <FeedSurface variant="home">
-        {friendMessage && hasFetched ? (
-          <div className={styles.postFriendNotice}>{friendMessage}</div>
-        ) : null}
-        <HomeFeedList
-          likePending={likePending}
-          memoryPending={memoryPending}
-          activeFriendTarget={activeFriendTarget}
-          friendActionPending={friendActionPending}
-          onToggleLike={handleToggleLike}
-          onToggleMemory={handleToggleMemory}
-          onFriendRequest={handleFriendRequest}
-          onDelete={handleDelete}
-        onRemoveFriend={handleFriendRemove}
-        onFollowUser={handleFollowUser}
-        onUnfollowUser={handleUnfollowUser}
-          onToggleFriendTarget={setActiveFriendTarget}
-          formatCount={formatCount}
-          timeAgo={timeAgo}
-          exactTime={exactTime}
-          canRemember={canRemember}
-          hasFetched={hasFetched}
-          isRefreshing={isRefreshing}
-          posts={postsWithExternal}
-          items={itemsWithExternal}
-          focusPostId={focusPostId}
-          promoInterval={10}
-          onLoadMore={loadMore}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-        />
-      </FeedSurface>
-    </AppShell>
+      <AppShell
+        activeNav="home"
+        showPrompter={showPrompter}
+        promoSlot={showPromoRow ? <PromoRow /> : null}
+      >
+        <FeedSurface variant="home">
+          {friendMessage && hasFetched ? (
+            <div className={styles.postFriendNotice}>{friendMessage}</div>
+          ) : null}
+          <HomeFeedList
+            likePending={likePending}
+            memoryPending={memoryPending}
+            activeFriendTarget={activeFriendTarget}
+            friendActionPending={friendActionPending}
+            onToggleLike={handleToggleLike}
+            onToggleMemory={handleToggleMemory}
+            onFriendRequest={handleFriendRequest}
+            onDelete={handleDelete}
+            onRemoveFriend={handleFriendRemove}
+            onFollowUser={handleFollowUser}
+            onUnfollowUser={handleUnfollowUser}
+            onToggleFriendTarget={setActiveFriendTarget}
+            formatCount={formatCount}
+            timeAgo={timeAgo}
+            exactTime={exactTime}
+            canRemember={canRemember}
+            hasFetched={hasFetched}
+            isRefreshing={isRefreshing}
+            posts={postsWithExternal}
+            items={itemsWithExternal}
+            focusPostId={focusPostId}
+            promoInterval={10}
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+          />
+        </FeedSurface>
+      </AppShell>
+    </HomeLoadingProvider>
   );
 }

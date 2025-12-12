@@ -650,6 +650,44 @@ export function ComposerForm({
     [actions, attachRemoteAttachment, promptInputRef],
   );
 
+  const handleAddPollToPreview = React.useCallback(
+    (poll: { question: string; options: string[] }) => {
+      if (!poll) return;
+      const question = typeof poll.question === "string" ? poll.question.trim() : "";
+      const optionsRaw = Array.isArray(poll.options) ? poll.options : [];
+      const cleanedOptions = optionsRaw
+        .map((option) => {
+          if (typeof option === "string") return option.trim();
+          if (option == null) return "";
+          return String(option).trim();
+        })
+        .filter((option) => option.length);
+      const normalizedOptions =
+        cleanedOptions.length >= 2
+          ? cleanedOptions.slice(0, 6)
+          : [...cleanedOptions, "Option 1", "Option 2"].slice(
+              0,
+              Math.max(2, cleanedOptions.length + 2),
+            );
+      const nextKind =
+        normalizeComposerKind(workingDraft.kind) === "text" ? "poll" : workingDraft.kind;
+      updateDraft({
+        kind: nextKind,
+        poll: {
+          question,
+          options: normalizedOptions,
+        },
+      });
+      actions.setPreviewOpen(true);
+      if (typeof window !== "undefined") {
+        window.requestAnimationFrame(() => {
+          pollQuestionRef.current?.focus();
+        });
+      }
+    },
+    [actions, pollQuestionRef, updateDraft, workingDraft.kind],
+  );
+
   const handleMemoryTabChange = React.useCallback(
     (tab: MemoryPickerTab) => {
       onAttachmentTabChange(tab);
@@ -1096,15 +1134,16 @@ export function ComposerForm({
       showVibePrompt={showVibePrompt}
       vibeSuggestions={vibeSuggestions}
       onSuggestionSelect={handleSuggestionSelect}
-      showQuickPromptBubble={showQuickPromptBubble}
-      quickPromptBubbleOptions={quickPromptBubbleOptions}
-      promptSurfaceProps={promptSurfaceProps}
-      onAddAttachmentToPreview={handleAddAttachmentToPreview}
-      canRetryLastPrompt={canRetryLastPrompt}
-      onRetryLastPrompt={onRetryLastPrompt}
-      smartContextEnabled={smartContextEnabled}
-      onEnableContext={() => onSmartContextChange(true)}
-      onCancelRun={onCancelRun}
+       showQuickPromptBubble={showQuickPromptBubble}
+       quickPromptBubbleOptions={quickPromptBubbleOptions}
+       promptSurfaceProps={promptSurfaceProps}
+       onAddAttachmentToPreview={handleAddAttachmentToPreview}
+       onAddPollToPreview={handleAddPollToPreview}
+       canRetryLastPrompt={canRetryLastPrompt}
+       onRetryLastPrompt={onRetryLastPrompt}
+       smartContextEnabled={smartContextEnabled}
+       onEnableContext={() => onSmartContextChange(true)}
+       onCancelRun={onCancelRun}
     />
   );
 

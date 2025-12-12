@@ -25,12 +25,18 @@ export const composerAttachmentSchema = z.object({
   excerpt: z.string().nullable().optional(),
 });
 
+const composerChatPollSchema = z.object({
+  question: z.string(),
+  options: z.array(z.string()),
+});
+
 export const composerChatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(["user", "assistant", "system"]),
   content: z.string(),
   createdAt: z.string(),
   attachments: z.array(composerAttachmentSchema).optional().nullable(),
+  poll: composerChatPollSchema.optional().nullable(),
 });
 
 const promptContextSnippetSchema = z.object({

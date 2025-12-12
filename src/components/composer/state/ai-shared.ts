@@ -150,6 +150,11 @@ export function mergeComposerChatHistory(
   const push = (m: ComposerChatMessage) => {
     if (!m || typeof m !== "object") return;
     const key = buildKey(m);
+    const existing = byId.get(key);
+    if (existing && !m.poll && existing.poll) {
+      byId.set(key, { ...m, poll: existing.poll });
+      return;
+    }
     // Prefer the latest entry when keys collide (e.g., replacing optimistic user bubble with server copy)
     byId.set(key, m);
   };

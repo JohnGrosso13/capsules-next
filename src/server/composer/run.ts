@@ -688,16 +688,6 @@ async function handleEditImage(
   if (!prompt) {
     throw new Error("edit_image requires a prompt.");
   }
-  const attachmentId =
-    typeof args.attachment_id === "string" ? args.attachment_id.trim() : null;
-  const attachment = pickImageAttachment(runtime, attachmentId);
-  if (!attachment) {
-    if (attachmentId) {
-      throw new Error(`Attachment ${attachmentId} is not an editable image.`);
-    }
-    throw new Error("No image attachment is available to edit.");
-  }
-
   const baseOptions = extractComposerImageOptions(runtime.composeOptions.rawOptions ?? {});
   const mergedOptions: ImageRequestOptions = {};
   if (baseOptions.quality) {
@@ -710,6 +700,26 @@ async function handleEditImage(
   const sizeOverride = typeof args.size === "string" ? args.size.trim() : null;
   if (sizeOverride) {
     mergedOptions.size = sizeOverride;
+  }
+  const attachmentId =
+    typeof args.attachment_id === "string" ? args.attachment_id.trim() : null;
+  const attachment = pickImageAttachment(runtime, attachmentId);
+  if (!attachment) {
+    if (attachmentId) {
+      throw new Error(`Attachment ${attachmentId} is not an editable image.`);
+    }
+    // No reference image available: fall back to generating a fresh render instead of erroring.
+    const runContext = buildImageRunContext(prompt, runtime.composeOptions, mergedOptions, "generate");
+    const result = await generateImageFromPrompt(prompt, mergedOptions, runContext);
+    return {
+      status: "succeeded",
+      kind: "image",
+      prompt,
+      url: result.url,
+      provider: result.provider,
+      runId: result.runId,
+      metadata: { ...(result.metadata ?? {}), fallback: "rendered_without_reference" },
+    };
   }
 
   const sourceUrl =

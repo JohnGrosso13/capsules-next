@@ -64,6 +64,7 @@ export type PromptPaneProps = {
   quickPromptBubbleOptions: QuickPromptOption[];
   promptSurfaceProps: PromptPaneSurfaceProps;
   onAddAttachmentToPreview?: (attachment: ComposerChatAttachment) => void;
+  onAddPollToPreview?: (poll: NonNullable<ComposerChatMessage["poll"]>) => void;
   canRetryLastPrompt: boolean;
   onRetryLastPrompt(): void;
   smartContextEnabled: boolean;
@@ -147,6 +148,7 @@ export function PromptPane({
   quickPromptBubbleOptions,
   promptSurfaceProps,
   onAddAttachmentToPreview,
+  onAddPollToPreview,
   canRetryLastPrompt,
   onRetryLastPrompt,
   smartContextEnabled,
@@ -316,6 +318,48 @@ export function PromptPane({
     [],
   );
 
+  const renderPollPreview = React.useCallback(
+    (poll: ComposerChatMessage["poll"], entryKey: string) => {
+      if (!poll) return null;
+      const question = typeof poll.question === "string" ? poll.question.trim() : "";
+      const optionsRaw = Array.isArray(poll.options) ? poll.options : [];
+      const cleanedOptions = optionsRaw
+        .map((option) => {
+          if (typeof option === "string") return option.trim();
+          if (option == null) return "";
+          return String(option).trim();
+        })
+        .filter((option) => option.length);
+      const optionList =
+        cleanedOptions.length >= 2
+          ? cleanedOptions.slice(0, 6)
+          : [...cleanedOptions, "Option 1", "Option 2"].slice(
+              0,
+              Math.max(2, cleanedOptions.length + 2),
+            );
+      const displayQuestion = question || "Poll draft";
+      const canAddPoll = typeof onAddPollToPreview === "function";
+      if (!canAddPoll) return null;
+      return (
+        <div key={`${entryKey}-poll`} className={styles.chatGeneratedPollRow}>
+          <button
+            type="button"
+            className={`${styles.chatGeneratedButton} ${styles.chatGeneratedPrimary}`.trim()}
+            onClick={() =>
+              onAddPollToPreview?.({
+                question: displayQuestion,
+                options: optionList,
+              })
+            }
+          >
+            Add to preview
+          </button>
+        </div>
+      );
+    },
+    [onAddPollToPreview],
+  );
+
   const renderChatEntries = React.useCallback(
     (entries: ComposerChatMessage[], keyPrefix: string) =>
       entries.map((entry, index) => {
@@ -410,15 +454,17 @@ export function PromptPane({
                 );
               })
             : null;
+        const pollNode = entry.poll ? renderPollPreview(entry.poll, key) : null;
 
         return (
           <li key={key} className={styles.msgRow} data-role={role}>
             {bubbleNode}
             {generatedNodes}
+            {pollNode}
           </li>
         );
       }),
-    [onAddAttachmentToPreview, renderInlineAttachments],
+    [onAddAttachmentToPreview, renderInlineAttachments, renderPollPreview],
   );
 
   return (

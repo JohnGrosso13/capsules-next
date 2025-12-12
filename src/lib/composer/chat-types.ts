@@ -1,3 +1,5 @@
+import { ensurePollStructure } from "./draft";
+
 export const COMPOSER_CHAT_ROLES = ["user", "assistant", "system"] as const;
 
 export type ComposerChatRole = (typeof COMPOSER_CHAT_ROLES)[number];
@@ -16,12 +18,18 @@ export type ComposerChatAttachment = {
   excerpt?: string | null;
 };
 
+export type ComposerChatPoll = {
+  question: string;
+  options: string[];
+};
+
 export type ComposerChatMessage = {
   id: string;
   role: ComposerChatRole;
   content: string;
   createdAt: string;
   attachments?: ComposerChatAttachment[] | null;
+  poll?: ComposerChatPoll | null;
 };
 
 export type ComposerChatThread = {
@@ -78,6 +86,44 @@ export function sanitizeComposerChatAttachment(
   };
 }
 
+function sanitizeComposerChatPoll(value: unknown): ComposerChatPoll | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as { question?: unknown; options?: unknown };
+  const question =
+    typeof record.question === "string" && record.question.trim().length
+      ? record.question.trim()
+      : "";
+  const optionsRaw = Array.isArray(record.options) ? record.options : [];
+  const options = optionsRaw
+    .map((option) => {
+      if (typeof option === "string") return option.trim();
+      if (option == null) return "";
+      return String(option).trim();
+    })
+    .filter((option) => option.length);
+  const structured = ensurePollStructure({
+    kind: "poll",
+    content: "",
+    mediaUrl: null,
+    mediaPrompt: null,
+    poll: {
+      question,
+      options,
+    },
+  });
+  const normalizedQuestion = structured.question.trim();
+  const normalizedOptions = structured.options.map((option) => option.trim());
+  const hasQuestion = normalizedQuestion.length > 0;
+  const hasOptions = normalizedOptions.some((option) => option.length > 0);
+  if (!hasQuestion && !hasOptions) return null;
+  const cleanedOptions = normalizedOptions.filter((option) => option.length);
+  const safeOptions = cleanedOptions.length ? cleanedOptions : [];
+  return {
+    question: normalizedQuestion,
+    options: safeOptions.length ? safeOptions : ["Option 1", "Option 2"],
+  };
+}
+
 export function sanitizeComposerChatMessage(value: unknown): ComposerChatMessage | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Partial<ComposerChatMessage>;
@@ -97,12 +143,14 @@ export function sanitizeComposerChatMessage(value: unknown): ComposerChatMessage
         .map((attachment) => sanitizeComposerChatAttachment(attachment))
         .filter((attachment): attachment is ComposerChatAttachment => Boolean(attachment))
     : [];
+  const poll = sanitizeComposerChatPoll((record as { poll?: unknown }).poll);
   return {
     id: record.id,
     role,
     content,
     createdAt,
     attachments: attachments.length ? attachments : null,
+    ...(poll ? { poll } : {}),
   };
 }
 

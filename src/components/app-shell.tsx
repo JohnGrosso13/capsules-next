@@ -10,6 +10,7 @@ import {
   AiComposerRoot,
   useComposerActions,
 } from "@/components/composer/ComposerProvider";
+import { useHomeLoading } from "./home-loading";
 import { FriendsDataProvider } from "@/components/providers/FriendsDataProvider";
 import { ChatProvider } from "@/components/providers/ChatProvider";
 import { PrimaryHeader } from "@/components/primary-header";
@@ -22,6 +23,31 @@ import { useCurrentUser } from "@/services/auth/client";
 
 import styles from "./app-shell.module.css";
 
+function RailPlaceholder() {
+  return (
+    <div className={styles.railPlaceholder} aria-hidden="true">
+      <div className={styles.railPlaceholderTiles}>
+        {[0, 1, 2].map((tile) => (
+          <div key={tile} className={styles.railPlaceholderTile}>
+            <div className={styles.railPlaceholderRow}>
+              <div className={styles.railPlaceholderMeta}>
+                <span className={styles.railPlaceholderIcon} data-rail-skeleton />
+                <span className={styles.railPlaceholderTitle} data-rail-skeleton />
+              </div>
+              <span className={styles.railPlaceholderBadge} data-rail-skeleton />
+            </div>
+            <span className={styles.railPlaceholderLine} data-rail-skeleton />
+            <span
+              className={`${styles.railPlaceholderLine} ${styles.railPlaceholderLineShort}`}
+              data-rail-skeleton
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const ConnectionsRailIsland = dynamic(
   () =>
     import("@/components/rail/ConnectionsRailIsland").then((mod) => ({
@@ -29,28 +55,7 @@ const ConnectionsRailIsland = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div className={styles.railPlaceholder} aria-hidden="true">
-        <div className={styles.railPlaceholderTiles}>
-          {[0, 1, 2].map((tile) => (
-            <div key={tile} className={styles.railPlaceholderTile}>
-              <div className={styles.railPlaceholderRow}>
-                <div className={styles.railPlaceholderMeta}>
-                  <span className={styles.railPlaceholderIcon} data-rail-skeleton />
-                  <span className={styles.railPlaceholderTitle} data-rail-skeleton />
-                </div>
-                <span className={styles.railPlaceholderBadge} data-rail-skeleton />
-              </div>
-              <span className={styles.railPlaceholderLine} data-rail-skeleton />
-              <span
-                className={`${styles.railPlaceholderLine} ${styles.railPlaceholderLineShort}`}
-                data-rail-skeleton
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    ),
+    loading: () => <RailPlaceholder />,
   },
 );
 
@@ -98,6 +103,9 @@ function AppShellContent({
     if (pathname.startsWith("/studio")) return "studio";
     return "home";
   }, [activeNav, pathname]);
+  const homeLoading = useHomeLoading();
+  const syncHomeLoading = derivedActive === "home" && homeLoading;
+  const homePending = Boolean(syncHomeLoading && homeLoading?.isPending);
 
   const { chips: prompterChips } = usePrompterChips(
     derivedActive,
@@ -226,6 +234,21 @@ function AppShellContent({
       : null
     : null;
   const rightRailContent = usesCapsuleLayout ? capsuleRightRailContent : standardRightRailContent;
+  const renderRailSlot = React.useCallback(
+    (node: React.ReactNode) => (
+      <div className={styles.railSlot} data-home-loading={homePending ? "true" : undefined}>
+        <div className={styles.railContent} data-hidden={homePending ? "true" : undefined}>
+          {node}
+        </div>
+        {homePending ? (
+          <div className={styles.railSkeleton}>
+            <RailPlaceholder />
+          </div>
+        ) : null}
+      </div>
+    ),
+    [homePending],
+  );
 
   return (
     <div className={styles.outer} data-layout={effectiveLayout}>
@@ -255,7 +278,7 @@ function AppShellContent({
             data-capsule-tab={usesCapsuleLayout ? capsuleTab : undefined}
           >
             <aside className={styles.rail} data-side="left" data-layout={effectiveLayout}>
-              <ConnectionsRailIsland />
+              {renderRailSlot(<ConnectionsRailIsland />)}
             </aside>
 
             <section
@@ -280,7 +303,7 @@ function AppShellContent({
 
             {rightRailContent ? (
               <aside className={styles.rail} data-side="right" data-layout={effectiveLayout}>
-                {rightRailContent}
+                {renderRailSlot(rightRailContent)}
               </aside>
             ) : null}
           </div>

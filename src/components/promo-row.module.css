@@ -134,6 +134,55 @@
     aspect-ratio: 4/3;
   }
 }
+.row[data-skeleton="true"] {
+  width: 100%;
+}
+
+.skeletonTile {
+  position: relative;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 9/16;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 86%, transparent),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 72%, transparent)
+  );
+}
+@media (max-width: 640px) {
+  .skeletonTile {
+    aspect-ratio: 4/3;
+    border-radius: 14px;
+  }
+}
+@media (max-width: 1024px) and (min-width: 641px) {
+  .skeletonTile {
+    aspect-ratio: 4/3;
+  }
+}
+
+.skeletonBlock {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+      120deg,
+      transparent,
+      color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 72%, transparent),
+      transparent
+    ),
+    color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 88%, transparent);
+  animation: promoSkeletonPulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes promoSkeletonPulse {
+  from {
+    opacity: 0.32;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
 @media (max-width: 1024px) and (min-width: 641px) {
   .short {
     aspect-ratio: 4/3;

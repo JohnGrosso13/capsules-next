@@ -12,6 +12,8 @@ import {
   updateAssistantTask,
   type AssistantTaskRow,
   type AssistantTaskTargetRow,
+  deleteAssistantTask,
+  deleteTaskTargetsByTask,
 } from "./repository";
 import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
 
@@ -444,4 +446,29 @@ export async function cancelAssistantTask(params: {
   });
 
   return { ok: true, task: updated, canceledTargets };
+}
+
+export async function removeAssistantTask(params: {
+  ownerUserId: string;
+  taskId: string;
+}): Promise<
+  | { ok: true; taskId: string; removedTargets: number }
+  | { ok: false; status: number; error: string }
+> {
+  const task = await getAssistantTaskById(params.taskId);
+  if (!task) {
+    return { ok: false, status: 404, error: "Task not found" };
+  }
+  if (task.owner_user_id !== params.ownerUserId) {
+    return { ok: false, status: 403, error: "Forbidden" };
+  }
+  if (task.status !== "completed" && task.status !== "partial" && task.status !== "canceled") {
+    return { ok: false, status: 400, error: "Task is still active" };
+  }
+
+  const targets = await listTaskTargetsByTask(task.id);
+  await deleteTaskTargetsByTask({ taskId: task.id, ownerUserId: params.ownerUserId });
+  await deleteAssistantTask({ id: task.id, ownerUserId: params.ownerUserId });
+
+  return { ok: true, taskId: task.id, removedTargets: targets.length };
 }
