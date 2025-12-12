@@ -341,19 +341,41 @@ export function PromptPane({
       const canAddPoll = typeof onAddPollToPreview === "function";
       if (!canAddPoll) return null;
       return (
-        <div key={`${entryKey}-poll`} className={styles.chatGeneratedPollRow}>
-          <button
-            type="button"
-            className={`${styles.chatGeneratedButton} ${styles.chatGeneratedPrimary}`.trim()}
-            onClick={() =>
-              onAddPollToPreview?.({
-                question: displayQuestion,
-                options: optionList,
-              })
-            }
-          >
-            Add to preview
-          </button>
+        <div key={`${entryKey}-poll`} className={styles.chatPollBlock}>
+          <p className={styles.chatPollQuestion}>{displayQuestion}</p>
+          <ul className={styles.chatPollOptionsList} role="list">
+            {optionList.map((option, index) => (
+              <li key={`${entryKey}-poll-option-${index}`} className={styles.chatPollOption}>
+                <span className={styles.chatPollOptionBullet} aria-label={`Option ${index + 1}`}>
+                  {Array.isArray((poll as { thumbnails?: (string | null)[] | null }).thumbnails) &&
+                  typeof (poll as { thumbnails?: (string | null)[] | null }).thumbnails?.[index] === "string" &&
+                  (poll as { thumbnails?: (string | null)[] | null }).thumbnails?.[index]?.trim() ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={(poll as { thumbnails: (string | null)[] }).thumbnails![index] as string}
+                      alt=""
+                      className={styles.chatPollOptionThumb}
+                    />
+                  ) : null}
+                </span>
+                <span className={styles.chatPollOptionLabel}>{option}</span>
+              </li>
+            ))}
+          </ul>
+          <div className={styles.chatPollActions}>
+            <button
+              type="button"
+              className={`${styles.chatGeneratedButton} ${styles.chatGeneratedPrimary}`.trim()}
+              onClick={() =>
+                onAddPollToPreview?.({
+                  question: displayQuestion,
+                  options: optionList,
+                })
+              }
+            >
+              Add to preview
+            </button>
+          </div>
         </div>
       );
     },
@@ -373,16 +395,18 @@ export function PromptPane({
           Array.isArray(entry.attachments) ? entry.attachments : [],
         );
         const messageText = typeof entry.content === "string" ? entry.content.trim() : "";
+        const pollNode = entry.poll ? renderPollPreview(entry.poll, key) : null;
         const showBubble =
           role === "user" ||
           inlineAttachments.length > 0 ||
-          (!imageAttachments.length && messageText.length > 0);
+          (!imageAttachments.length && (messageText.length > 0 || pollNode));
         const inlineAttachmentNode =
           inlineAttachments.length > 0 ? renderInlineAttachments(inlineAttachments, key) : null;
         const bubbleNode = showBubble ? (
           <div className={bubbleClass}>
             {messageText ? <div className={styles.chatMessageText}>{entry.content}</div> : null}
             {inlineAttachmentNode}
+            {pollNode}
           </div>
         ) : null;
 
@@ -454,13 +478,11 @@ export function PromptPane({
                 );
               })
             : null;
-        const pollNode = entry.poll ? renderPollPreview(entry.poll, key) : null;
 
         return (
           <li key={key} className={styles.msgRow} data-role={role}>
             {bubbleNode}
             {generatedNodes}
-            {pollNode}
           </li>
         );
       }),

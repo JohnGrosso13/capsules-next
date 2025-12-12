@@ -28,6 +28,7 @@ export const composerAttachmentSchema = z.object({
 const composerChatPollSchema = z.object({
   question: z.string(),
   options: z.array(z.string()),
+  thumbnails: z.array(z.string().nullable()).optional().nullable(),
 });
 
 export const composerChatMessageSchema = z.object({

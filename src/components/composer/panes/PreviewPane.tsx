@@ -28,7 +28,6 @@ export function PreviewPane({
         data-kind={previewState.kind}
         data-empty={previewState.empty ? "true" : undefined}
       >
-        <p className={styles.previewPaneTitle}>Preview</p>
         <div className={styles.previewStage}>{previewState.body}</div>
         {previewState.helper ? (
           <p className={styles.previewHelper}>{previewState.helper}</p>

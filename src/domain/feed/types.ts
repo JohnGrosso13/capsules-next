@@ -18,6 +18,7 @@ export type FeedPoll = {
   counts?: number[] | null;
   totalVotes?: number | null;
   userVote?: number | null;
+  thumbnails?: (string | null)[] | null;
 };
 
 export type FeedInsert = {

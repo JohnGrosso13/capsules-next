@@ -300,6 +300,10 @@ function coerceDraftToChatReply(
   replyMode: "chat" | "draft" | null,
 ): PromptResponse {
   if (response.action !== "draft_post") return response;
+  const hasPoll =
+    typeof (response.post as { poll?: unknown })?.poll === "object" &&
+    (response.post as { poll?: unknown }).poll !== null;
+  if (hasPoll) return response;
   if (replyMode === "draft") return response;
   const kind =
     typeof (response.post as { kind?: unknown })?.kind === "string"

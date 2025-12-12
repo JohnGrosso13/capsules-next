@@ -21,6 +21,7 @@ export type ComposerChatAttachment = {
 export type ComposerChatPoll = {
   question: string;
   options: string[];
+  thumbnails?: (string | null)[] | null;
 };
 
 export type ComposerChatMessage = {
@@ -88,7 +89,7 @@ export function sanitizeComposerChatAttachment(
 
 function sanitizeComposerChatPoll(value: unknown): ComposerChatPoll | null {
   if (!value || typeof value !== "object") return null;
-  const record = value as { question?: unknown; options?: unknown };
+  const record = value as { question?: unknown; options?: unknown; thumbnails?: unknown };
   const question =
     typeof record.question === "string" && record.question.trim().length
       ? record.question.trim()
@@ -101,6 +102,12 @@ function sanitizeComposerChatPoll(value: unknown): ComposerChatPoll | null {
       return String(option).trim();
     })
     .filter((option) => option.length);
+  const thumbnailsRaw = Array.isArray(record.thumbnails) ? record.thumbnails : [];
+  const thumbnailsInput = thumbnailsRaw.map((entry) => {
+    if (typeof entry === "string") return entry.trim();
+    if (entry == null) return "";
+    return String(entry).trim();
+  });
   const structured = ensurePollStructure({
     kind: "poll",
     content: "",
@@ -109,18 +116,29 @@ function sanitizeComposerChatPoll(value: unknown): ComposerChatPoll | null {
     poll: {
       question,
       options,
+      thumbnails: thumbnailsInput,
     },
   });
   const normalizedQuestion = structured.question.trim();
   const normalizedOptions = structured.options.map((option) => option.trim());
+  const normalizedThumbs = structured.thumbnails ?? [];
   const hasQuestion = normalizedQuestion.length > 0;
   const hasOptions = normalizedOptions.some((option) => option.length > 0);
   if (!hasQuestion && !hasOptions) return null;
   const cleanedOptions = normalizedOptions.filter((option) => option.length);
   const safeOptions = cleanedOptions.length ? cleanedOptions : [];
+  const safeThumbs =
+    safeOptions.length && normalizedThumbs.length
+      ? safeOptions.map((_, index) => {
+          const raw = normalizedThumbs[index];
+          const value = typeof raw === "string" ? raw.trim() : "";
+          return value.length ? value : null;
+        })
+      : [];
   return {
     question: normalizedQuestion,
     options: safeOptions.length ? safeOptions : ["Option 1", "Option 2"],
+    ...(safeThumbs.length ? { thumbnails: safeThumbs } : {}),
   };
 }
 

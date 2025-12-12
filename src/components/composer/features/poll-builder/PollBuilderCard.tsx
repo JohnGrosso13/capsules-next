@@ -66,9 +66,24 @@ export function PollBuilderCard({
         <ul className={`${pollStyles.previewPollOptions} ${pollStyles.pollEditorOptions}`} role="list">
           {pollStructure.options.map((option, index) => {
             const allowRemoval = pollStructure.options.length > 2;
+            const thumbnail =
+              Array.isArray(pollStructure.thumbnails) &&
+              typeof pollStructure.thumbnails[index] === "string" &&
+              pollStructure.thumbnails[index]?.trim().length
+                ? pollStructure.thumbnails[index]
+                : null;
             return (
               <li key={`poll-option-${index}`} className={pollStyles.pollEditorOptionRow}>
-                <span className={pollStyles.previewPollOptionBullet}>{index + 1}</span>
+                <span className={pollStyles.previewPollOptionBullet} aria-hidden={thumbnail ? "true" : "false"}>
+                  {thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnail}
+                      alt=""
+                      className={pollStyles.previewPollOptionThumb}
+                    />
+                  ) : null}
+                </span>
                 <input
                   ref={(element) => registerPollOptionRef(index, element)}
                   className={`${pollStyles.previewPollOptionLabel} ${pollStyles.pollEditorOptionInput}`}

@@ -26,6 +26,7 @@ function normalizeText(value: unknown): string | null {
 async function searchGoogleCustomSearch(
   query: string,
   limit: number,
+  freshnessDays: number | null,
 ): Promise<WebSearchSnippet[]> {
   const params = new URLSearchParams({
     key: serverEnv.GOOGLE_CUSTOM_SEARCH_KEY as string,
@@ -35,6 +36,14 @@ async function searchGoogleCustomSearch(
     safe: "active",
     fields: "items(title,link,snippet,displayLink)",
   });
+  const clampedFreshness =
+    freshnessDays && Number.isFinite(freshnessDays)
+      ? Math.min(Math.max(Math.round(freshnessDays), 1), 720)
+      : null;
+  if (clampedFreshness) {
+    params.set("dateRestrict", `d${clampedFreshness}`);
+    params.set("sort", "date");
+  }
 
   try {
     const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`, {
@@ -72,7 +81,7 @@ async function searchGoogleCustomSearch(
 
 export async function searchWeb(
   query: string,
-  { limit = 4 }: { limit?: number } = {},
+  { limit = 4, freshnessDays = null }: { limit?: number; freshnessDays?: number | null } = {},
 ): Promise<WebSearchSnippet[]> {
   const trimmed = query.trim();
   if (!trimmed.length) return [];
@@ -82,7 +91,7 @@ export async function searchWeb(
     return [];
   }
 
-  const googleResults = await searchGoogleCustomSearch(trimmed, clampedLimit);
+  const googleResults = await searchGoogleCustomSearch(trimmed, clampedLimit, freshnessDays);
   return googleResults;
 }
 

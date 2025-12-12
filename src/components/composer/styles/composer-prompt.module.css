@@ -1124,6 +1124,75 @@
   align-self: flex-start;
 }
 
+.chatPollBlock {
+  margin-top: 0.6rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chatPollQuestion {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--composer-text, var(--text));
+}
+
+.chatPollOptionsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chatPollOption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(
+    in srgb,
+    rgba(255, 255, 255, 0.05) 80%,
+    var(--composer-rail-shell, rgba(10, 13, 32, 0.9))
+  );
+}
+
+.chatPollOptionBullet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.45rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 70%, transparent),
+    color-mix(in srgb, rgba(15, 23, 42, 0.96) 70%, transparent)
+  );
+  color: transparent;
+  font-size: 0;
+  overflow: hidden;
+}
+
+.chatPollOptionThumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.chatPollOptionLabel {
+  font-size: 0.87rem;
+  color: var(--composer-text, var(--text-2));
+}
+
+.chatPollActions {
+  margin-top: 0.5rem;
+}
+
 .chatGeneratedButton {
   appearance: none;
   border: 1px solid var(--composer-quick-chip-border);

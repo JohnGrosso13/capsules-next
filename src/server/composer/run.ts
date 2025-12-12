@@ -16,7 +16,11 @@ import {
   type ChatMessage,
   type ToolCallDefinition,
 } from "@/lib/ai/prompter/core";
-import { generateImageFromPrompt, editImageWithInstruction } from "@/lib/ai/prompter/images";
+import {
+  generateImageFromPrompt,
+  editImageWithInstruction,
+  storeComposerImageMemory,
+} from "@/lib/ai/prompter/images";
 import { generateVideoFromPrompt, editVideoWithInstruction } from "@/lib/ai/video";
 import { safeRandomUUID } from "@/lib/random";
 import {
@@ -189,6 +193,12 @@ const TOOL_DEFINITIONS: ToolCallDefinition[] = [
           description: "How many results to fetch (1-6).",
           minimum: 1,
           maximum: 6,
+        },
+        freshness_days: {
+          type: "integer",
+          description: "Clamp results to the most recent N days when the user asks for something new.",
+          minimum: 1,
+          maximum: 720,
         },
       },
     },
@@ -645,6 +655,18 @@ async function handleRenderImage(
     runContext.stylePreset = stylePreset;
   }
   const result = await generateImageFromPrompt(rawPrompt, mergedOptions, runContext);
+  let memoryId: string | null = null;
+  if (runtime.ownerId) {
+    try {
+      memoryId = await storeComposerImageMemory({
+        ownerId: runtime.ownerId,
+        mediaUrl: result.url,
+        prompt: rawPrompt,
+      });
+    } catch (error) {
+      console.warn("composer_image_memory_index_failed", error);
+    }
+  }
   return {
     status: "succeeded",
     kind: "image",
@@ -653,6 +675,7 @@ async function handleRenderImage(
     provider: result.provider,
     runId: result.runId,
     metadata: result.metadata ?? null,
+    memoryId,
   };
 }
 
@@ -735,6 +758,18 @@ async function handleEditImage(
   };
 
   const result = await editImageWithInstruction(sourceUrl, prompt, mergedOptions, runContext);
+  let memoryId: string | null = null;
+  if (runtime.ownerId) {
+    try {
+      memoryId = await storeComposerImageMemory({
+        ownerId: runtime.ownerId,
+        mediaUrl: result.url,
+        prompt,
+      });
+    } catch (error) {
+      console.warn("composer_image_edit_memory_index_failed", error);
+    }
+  }
   return {
     status: "succeeded",
     kind: "image",
@@ -743,6 +778,7 @@ async function handleEditImage(
     provider: result.provider,
     runId: result.runId,
     metadata: result.metadata ?? null,
+    memoryId,
     referenceAttachmentId: attachment.id,
   };
 }
@@ -1411,6 +1447,47 @@ async function handleFetchContext(
   };
 }
 
+function clampFreshnessDays(value: number | null): number | null {
+  if (!value || !Number.isFinite(value)) return null;
+  const safe = Math.round(value);
+  if (safe <= 0) return null;
+  return Math.min(Math.max(safe, 1), 720);
+}
+
+function inferFreshnessDays(query: string, latestUserText: string): number | null {
+  const haystack = `${query} ${latestUserText}`.toLowerCase();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const startOfYear = new Date(currentYear, 0, 1);
+  const daysSinceYearStart = Math.max(
+    1,
+    Math.ceil((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+  if (/\b(this\s+week|past\s+week|last\s+week)\b/.test(haystack)) {
+    return 21;
+  }
+  if (
+    /\b(this\s+month|past\s+month|last\s+month|past\s+couple\s+months|few\s+months|past\s+few\s+months)\b/.test(
+      haystack,
+    )
+  ) {
+    return 120;
+  }
+  if (/\b(this\s+season|holiday\s+season|this\s+(spring|summer|fall|autumn|winter))\b/.test(haystack)) {
+    return 180;
+  }
+  if (/\b(this\s+year|current\s+year)\b/.test(haystack) || haystack.includes(String(currentYear))) {
+    return Math.min(365, daysSinceYearStart);
+  }
+  if (/\b(last\s+year|past\s+year|previous\s+year)\b/.test(haystack)) {
+    return 365;
+  }
+  if (/\b(recent|recently|latest|new\b|newest|upcoming|fresh)\b/.test(haystack)) {
+    return 240;
+  }
+  return null;
+}
+
 async function handleSearchWeb(
   args: Record<string, unknown>,
   runtime: RuntimeContext,
@@ -1419,6 +1496,14 @@ async function handleSearchWeb(
   const query = rawQuery.length ? rawQuery : runtime.latestUserText;
   const limitRaw = typeof args.limit === "number" ? args.limit : undefined;
   const limit = limitRaw && Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 6)) : 4;
+  const freshnessInput =
+    typeof args.freshness_days === "number"
+      ? args.freshness_days
+      : typeof args.freshness_days === "string"
+        ? Number.parseInt(args.freshness_days, 10)
+        : null;
+  const inferredFreshness = inferFreshnessDays(query, runtime.latestUserText);
+  const freshnessDays = clampFreshnessDays(freshnessInput ?? inferredFreshness);
 
   if (!query.trim().length) {
     throw new Error("search_web requires a query.");
@@ -1427,7 +1512,7 @@ async function handleSearchWeb(
     return { status: "error", message: "Web search is not configured." };
   }
 
-  const results = await searchWeb(query, { limit });
+  const results = await searchWeb(query, { limit, ...(freshnessDays ? { freshnessDays } : {}) });
   if (!results.length) {
     return { status: "empty", query };
   }
@@ -1499,7 +1584,17 @@ const TOOL_HANDLERS: Record<
 
 type ReplyMode = "chat" | "draft";
 
-function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
+function buildSystemPrompt({
+  replyMode = null,
+  composeOptions = null,
+  latestUserText = "",
+}: {
+  replyMode?: ReplyMode | null;
+  composeOptions?: ComposeDraftOptions | null;
+  latestUserText?: string;
+} = {}): string {
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
   const base = [
     "You are Capsules AI, the creative brain inside Composer.",
     "Decide whether the user wants free-form help or a publishable post.",
@@ -1514,7 +1609,34 @@ function buildSystemPrompt(replyMode: ReplyMode | null = null): string {
     "Do NOT paste raw media URLs (images, videos, downloads) into your `message`; attachments are already shared with the user.",
     "Use analyze_document / summarize_video / fetch_context / search_web / search_images / embed_text / generate_pdf / generate_pptx tools whenever needed.",
     "If the user supplies an existing post, treat it as the current draft and adjust only requested sections.",
+    `Today's date is ${todayIso}; when the user asks for anything new/recent/this season/this year, prioritize releases and facts from the last 12 months and include the year in names when relevant.`,
+    "For freshness-sensitive asks (recent/new/latest/this week/month/year/season/upcoming), call search_web before listing specifics and set freshness_days to limit results to the last few months.",
   ];
+
+  const preferRaw = (composeOptions?.rawOptions as { prefer?: unknown } | null)?.prefer;
+  const composeRaw = (composeOptions?.rawOptions as { compose?: unknown } | null)?.compose;
+  const prefer = typeof preferRaw === "string" ? preferRaw.toLowerCase() : null;
+  const compose = typeof composeRaw === "string" ? composeRaw.toLowerCase() : null;
+  const pollRequested =
+    prefer === "poll" ||
+    compose === "poll" ||
+    /\b(poll|survey|vote|questionnaire|ballot)\b/i.test(latestUserText || "");
+
+  if (pollRequested) {
+    base.push(
+      "User wants a poll: always return action:'draft_post' with post.kind:'poll' and post.poll:{question,options[]} plus any intro/CTA in post.content. Do not return chat_reply for poll requests.",
+    );
+    base.push(
+      "Poll hygiene: keep 2-6 short, distinct options (no overlaps or yes/no unless asked), avoid stale picks older than last year, and prefer timely releases using search_web with freshness_days when the topic depends on current events.",
+    );
+    base.push(
+      "For polls whose options are specific entities (games, shows, products, teams, etc.), also attach post.poll.thumbnails as an array of image URLs matching each option in order. Use search_images for each option name to find a representative square thumbnail; prefer thumbnailUrl when available, otherwise url. If image search fails or images would be misleading, omit post.poll.thumbnails instead of inventing URLs.",
+    );
+  } else {
+    base.push(
+      "If the user explicitly asks for a poll, switch to action:'draft_post' with post.kind:'poll' and post.poll filled; keep options specific and current.",
+    );
+  }
 
   if (replyMode === "chat") {
     base.push("User replyMode is chat-only: you MUST return action:'chat_reply' (never draft_post) for this turn.");
@@ -1552,6 +1674,10 @@ function coerceDraftToChatResponse(
   assistantAttachments: ComposerChatAttachment[] | null,
 ): PromptResponse {
   if (validated.action !== "draft_post") return validated;
+  const hasPoll =
+    typeof (validated.post as { poll?: unknown })?.poll === "object" &&
+    (validated.post as { poll?: unknown }).poll !== null;
+  if (hasPoll) return validated;
   if (replyMode === "draft") return validated;
   const kind =
     typeof (validated.post as { kind?: unknown })?.kind === "string"
@@ -1599,7 +1725,7 @@ export async function runComposerToolSession(
   const ownerId = context.ownerId ?? null;
   const historyMessages = mapConversationToMessages(history, selectHistoryLimit(userText));
   const contextMessages = buildContextMessages(context);
-  const userPayload: Record<string, unknown> = { instruction: userText };
+  const userPayload: Record<string, unknown> = { instruction: userText, currentDate: new Date().toISOString() };
   const safePost = sanitizePostForModel(incomingPost);
   if (safePost) {
     userPayload.post = safePost;
@@ -1632,7 +1758,7 @@ export async function runComposerToolSession(
   const replyMode: ReplyMode | null = rawReplyMode === "chat" || rawReplyMode === "draft" ? rawReplyMode : null;
 
   const messages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(replyMode) },
+    { role: "system", content: buildSystemPrompt({ replyMode, composeOptions: context, latestUserText: userText }) },
     ...contextMessages,
     ...historyMessages,
     { role: "user", content: JSON.stringify(userPayload) },

@@ -169,6 +169,18 @@ export function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
                 aria-pressed={isSelected}
                 aria-busy={isPending ? true : undefined}
               >
+                <span className={styles.pollOptionThumbnail}>
+                  {Array.isArray(poll.thumbnails) &&
+                  typeof poll.thumbnails[index] === "string" &&
+                  poll.thumbnails[index]?.trim() ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={poll.thumbnails[index] as string}
+                      alt=""
+                      className={styles.pollOptionThumbnailImg}
+                    />
+                  ) : null}
+                </span>
                 <span className={styles.pollOptionLabel}>{option}</span>
                 <span className={styles.pollOptionMeta}>
                   {showStats && percent !== null ? (

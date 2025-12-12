@@ -100,6 +100,9 @@ export function mergeComposerRawPost(
     merged.poll = {
       question: structured.question,
       options: [...structured.options],
+      ...(structured.thumbnails && structured.thumbnails.length
+        ? { thumbnails: structured.thumbnails }
+        : {}),
     };
   } else if (!draft.poll) {
     delete merged.poll;

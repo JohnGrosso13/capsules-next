@@ -12,26 +12,46 @@ export function mergePollStructures(
   prevDraft: ComposerDraft | null,
   nextDraft: ComposerDraft | null,
   options?: PollMergeOptions,
-): { question: string; options: string[] } | null {
+): { question: string; options: string[]; thumbnails?: (string | null)[] | null } | null {
   const prevPoll = prevDraft?.poll ? ensurePollStructure(prevDraft) : null;
   const nextPoll = nextDraft?.poll ? ensurePollStructure(nextDraft) : null;
   if (!prevPoll && !nextPoll) {
     return null;
   }
   if (!prevPoll) {
-    return nextPoll ? { question: nextPoll.question, options: [...nextPoll.options] } : null;
+    return nextPoll
+      ? {
+          question: nextPoll.question,
+          options: [...nextPoll.options],
+          ...(nextPoll.thumbnails && nextPoll.thumbnails.length
+            ? { thumbnails: [...nextPoll.thumbnails] }
+            : {}),
+        }
+      : null;
   }
   if (!nextPoll) {
-    return { question: prevPoll.question, options: [...prevPoll.options] };
+    return {
+      question: prevPoll.question,
+      options: [...prevPoll.options],
+      ...(prevPoll.thumbnails && prevPoll.thumbnails.length
+        ? { thumbnails: [...prevPoll.thumbnails] }
+        : {}),
+    };
   }
   if (options?.preserveOptions && prevPoll) {
     const question =
       nextPoll.question.trim().length > 0 ? nextPoll.question : prevPoll.question;
     const preserved = [...prevPoll.options];
+    const preservedThumbs = [...(prevPoll.thumbnails ?? [])];
     while (preserved.length < 2) {
       preserved.push("");
+      preservedThumbs.push(null);
     }
-    return { question, options: preserved };
+    return {
+      question,
+      options: preserved,
+      ...(preservedThumbs.length ? { thumbnails: preservedThumbs } : {}),
+    };
   }
   const question = nextPoll.question.trim().length > 0 ? nextPoll.question : prevPoll.question;
   const length = Math.max(prevPoll.options.length, nextPoll.options.length, 2);
@@ -46,7 +66,18 @@ export function mergePollStructures(
   while (mergedOptions.length < 2) {
     mergedOptions.push("");
   }
-  return { question, options: mergedOptions };
+  const mergedThumbs = Array.from({ length }, (_, index) => {
+    const nextThumb = nextPoll.thumbnails?.[index];
+    if (typeof nextThumb === "string" && nextThumb.trim().length) return nextThumb;
+    const prevThumb = prevPoll.thumbnails?.[index];
+    if (typeof prevThumb === "string" && prevThumb.trim().length) return prevThumb;
+    return null;
+  });
+  return {
+    question,
+    options: mergedOptions,
+    ...(mergedThumbs.length ? { thumbnails: mergedThumbs } : {}),
+  };
 }
 
 export function mergeComposerDrafts(

@@ -50,10 +50,11 @@ export function usePollBuilder({ draft, onDraftChange }: UsePollBuilderParams): 
         poll: {
           question: value,
           options: [...pollStructure.options],
+          thumbnails: pollStructure.thumbnails,
         },
       });
     },
-    [onDraftChange, pollStructure.options],
+    [onDraftChange, pollStructure.options, pollStructure.thumbnails],
   );
 
   const handlePollOptionInput = React.useCallback(
@@ -65,10 +66,11 @@ export function usePollBuilder({ draft, onDraftChange }: UsePollBuilderParams): 
         poll: {
           question: pollStructure.question,
           options: nextOptions,
+          thumbnails: pollStructure.thumbnails,
         },
       });
     },
-    [onDraftChange, pollStructure.options, pollStructure.question],
+    [onDraftChange, pollStructure.options, pollStructure.question, pollStructure.thumbnails],
   );
 
   const handleAddPollOption = React.useCallback(
@@ -80,15 +82,18 @@ export function usePollBuilder({ draft, onDraftChange }: UsePollBuilderParams): 
           ? afterIndex + 1
           : nextOptions.length;
       nextOptions.splice(insertAt, 0, "");
+      const nextThumbs = [...pollStructure.thumbnails];
+      nextThumbs.splice(insertAt, 0, null);
       onDraftChange({
         poll: {
           question: pollStructure.question,
           options: nextOptions,
+          thumbnails: nextThumbs,
         },
       });
       setPendingFocusIndex(insertAt);
     },
-    [onDraftChange, pollStructure.options, pollStructure.question],
+    [onDraftChange, pollStructure.options, pollStructure.question, pollStructure.thumbnails],
   );
 
   const handleRemovePollOption = React.useCallback(
@@ -98,28 +103,35 @@ export function usePollBuilder({ draft, onDraftChange }: UsePollBuilderParams): 
         const nextOptions = pollStructure.options.map((option, optionIndex) =>
           optionIndex === index ? "" : option,
         );
+        const nextThumbs = pollStructure.thumbnails.map((thumb, thumbIndex) =>
+          thumbIndex === index ? null : thumb,
+        );
         onDraftChange({
           poll: {
             question: pollStructure.question,
             options: nextOptions,
+            thumbnails: nextThumbs,
           },
         });
         setPendingFocusIndex(index);
         return;
       }
       const nextOptions = pollStructure.options.filter((_, optionIndex) => optionIndex !== index);
+      const nextThumbs = pollStructure.thumbnails.filter((_, optionIndex) => optionIndex !== index);
       if (nextOptions.length < 2) {
         nextOptions.push("");
+        nextThumbs.push(null);
       }
       onDraftChange({
         poll: {
           question: pollStructure.question,
           options: nextOptions,
+          thumbnails: nextThumbs,
         },
       });
       setPendingFocusIndex(Math.min(index, nextOptions.length - 1));
     },
-    [onDraftChange, pollStructure.options, pollStructure.question],
+    [onDraftChange, pollStructure.options, pollStructure.question, pollStructure.thumbnails],
   );
 
   const handlePollBodyInput = React.useCallback(

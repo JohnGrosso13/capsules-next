@@ -68,16 +68,6 @@
   align-self: center;
 }
 
-.previewPaneTitle {
-  margin: 0 0 12px;
-  text-align: center;
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--composer-rail-tab-color-strong, var(--composer-text));
-}
-
 .previewTypeBadge {
   display: inline-flex;
   align-items: center;

@@ -84,7 +84,7 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
       : typeof (post as { memory_id?: unknown }).memory_id === "string"
         ? ((post as { memory_id: string }).memory_id ?? "").trim() || null
         : null;
-  let poll: { question: string; options: string[] } | null = null;
+  let poll: { question: string; options: string[]; thumbnails?: (string | null)[] | null } | null = null;
   const pollValue = post.poll;
   if (pollValue && typeof pollValue === "object") {
     const pollRecord = pollValue as Record<string, unknown>;
@@ -94,18 +94,27 @@ export function normalizeDraftFromPost(post: Record<string, unknown>): ComposerD
     const options = optionsRaw
       .map((option: unknown) => String(option ?? ""))
       .map((option) => option.trim());
+    const thumbsRaw = Array.isArray(pollRecord.thumbnails) ? pollRecord.thumbnails : [];
+    const thumbnails = thumbsRaw.map((entry: unknown) => {
+      if (typeof entry === "string") return entry.trim();
+      if (entry == null) return "";
+      return String(entry).trim();
+    });
     const structured = ensurePollStructure({
       kind: "poll",
       content,
       mediaUrl,
       mediaPrompt,
-      poll: { question, options },
+      poll: { question, options, thumbnails },
     });
     poll = structured;
   }
-  let kind = rawKind || "text";
+  let kind = rawKind || (poll ? "poll" : "text");
+  if (poll && String(kind).toLowerCase() === "text") {
+    kind = "poll";
+  }
   if (!kind) {
-    kind = "text";
+    kind = poll ? "poll" : "text";
   }
   const suggestionsValue = post.suggestions;
   const suggestions = Array.isArray(suggestionsValue)

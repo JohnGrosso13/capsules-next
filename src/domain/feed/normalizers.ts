@@ -99,6 +99,18 @@ function normalizeFeedPoll(rawPoll: unknown): FeedPoll | null {
     return null;
   }
 
+  const thumbSources = Array.isArray(source["thumbnails"])
+    ? (source["thumbnails"] as unknown[])
+    : [];
+  const thumbnails: (string | null)[] = options.map((_, index) => {
+    const raw = thumbSources[index];
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    return null;
+  });
+
   const countCandidates = [
     source["counts"],
     source["voteCounts"],
@@ -145,6 +157,7 @@ function normalizeFeedPoll(rawPoll: unknown): FeedPoll | null {
     counts,
     totalVotes,
     userVote,
+    ...(thumbnails.some((url) => url && url.length) ? { thumbnails } : {}),
   };
 }
 
