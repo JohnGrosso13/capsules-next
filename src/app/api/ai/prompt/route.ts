@@ -172,6 +172,9 @@ function buildAssistantAttachments(
   post: Record<string, unknown> | null | undefined,
 ): ComposerChatAttachment[] | null {
   if (!post) return null;
+  if (typeof (post as { poll?: unknown }).poll === "object" && (post as { poll?: unknown }).poll !== null) {
+    return null;
+  }
   const mediaUrl =
     typeof (post as { mediaUrl?: unknown }).mediaUrl === "string"
       ? ((post as { mediaUrl: string }).mediaUrl ?? "").trim()

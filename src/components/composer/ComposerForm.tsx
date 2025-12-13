@@ -318,6 +318,51 @@ export function ComposerForm({
     handleRemovePollOption,
   } = usePollBuilder({ draft: workingDraft, onDraftChange: updateDraft });
 
+  // If the working poll has no thumbnails but the latest assistant poll in history does,
+  // backfill thumbnails so the poll preview shows images returned by the model.
+  const latestAssistantPollThumbs = React.useMemo(() => {
+    const entry = [...conversationHistory]
+      .reverse()
+      .find(
+        (item) =>
+          item?.role === "assistant" &&
+          item.poll &&
+          Array.isArray(item.poll.thumbnails) &&
+          item.poll.thumbnails.some((thumb) => typeof thumb === "string" && thumb.trim().length),
+      );
+    if (!entry?.poll) return null;
+    return {
+      options: Array.isArray(entry.poll.options) ? entry.poll.options.map((opt) => `${opt}`.trim()) : [],
+      thumbnails: entry.poll.thumbnails ?? [],
+    };
+  }, [conversationHistory]);
+
+  React.useEffect(() => {
+    if (!pollStructure) return;
+    const hasThumbs =
+      Array.isArray(pollStructure.thumbnails) &&
+      pollStructure.thumbnails.some((thumb) => typeof thumb === "string" && thumb.trim().length);
+    if (hasThumbs) return;
+    if (!latestAssistantPollThumbs) return;
+    const normalizedThumbs = pollStructure.options.map((_, index) => {
+      const raw = latestAssistantPollThumbs.thumbnails[index];
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (trimmed.length) return trimmed;
+      }
+      return null;
+    });
+    const hasRecovered = normalizedThumbs.some(Boolean);
+    if (!hasRecovered) return;
+    updateDraft({
+      poll: {
+        question: pollStructure.question,
+        options: [...pollStructure.options],
+        thumbnails: normalizedThumbs,
+      },
+    });
+  }, [latestAssistantPollThumbs, pollStructure, updateDraft]);
+
   const {
     fileInputRef,
     handleAttachClick,
@@ -651,7 +696,7 @@ export function ComposerForm({
   );
 
   const handleAddPollToPreview = React.useCallback(
-    (poll: { question: string; options: string[] }) => {
+    (poll: { question: string; options: string[]; thumbnails?: (string | null)[] | null }) => {
       if (!poll) return;
       const question = typeof poll.question === "string" ? poll.question.trim() : "";
       const optionsRaw = Array.isArray(poll.options) ? poll.options : [];
@@ -669,6 +714,16 @@ export function ComposerForm({
               0,
               Math.max(2, cleanedOptions.length + 2),
             );
+      const thumbnailsRaw = Array.isArray(poll.thumbnails) ? poll.thumbnails : [];
+      const normalizedThumbnails = normalizedOptions.map((_, index) => {
+        const rawThumb = thumbnailsRaw[index];
+        if (typeof rawThumb === "string") {
+          const trimmed = rawThumb.trim();
+          return trimmed.length ? trimmed : null;
+        }
+        return null;
+      });
+      const hasThumbnails = normalizedThumbnails.some(Boolean);
       const nextKind =
         normalizeComposerKind(workingDraft.kind) === "text" ? "poll" : workingDraft.kind;
       updateDraft({
@@ -676,6 +731,7 @@ export function ComposerForm({
         poll: {
           question,
           options: normalizedOptions,
+          ...(hasThumbnails ? { thumbnails: normalizedThumbnails } : {}),
         },
       });
       actions.setPreviewOpen(true);
@@ -734,6 +790,7 @@ export function ComposerForm({
     pollHasStructure,
     pollHelperText,
     pollPreviewCard,
+    autoCaption: message ?? null,
     onPostContentChange: handlePostContentChange,
   });
 
@@ -749,17 +806,18 @@ export function ComposerForm({
     [actions],
   );
 
-  const showVibePrompt = React.useMemo(
-    () =>
-      Boolean(
-        displayAttachment &&
-          displayAttachment.status === "ready" &&
-          !attachmentUploading &&
-          !loading &&
-          !message,
-      ),
-    [displayAttachment, attachmentUploading, loading, message],
-  );
+  const showVibePrompt = React.useMemo(() => {
+    const kind = normalizeComposerKind(workingDraft.kind);
+    const hasPollDraft = pollHasStructure && kind === "poll";
+    return Boolean(
+      displayAttachment &&
+        displayAttachment.status === "ready" &&
+        !attachmentUploading &&
+        !loading &&
+        !message &&
+        !hasPollDraft,
+    );
+  }, [attachmentUploading, displayAttachment, loading, message, pollHasStructure, workingDraft.kind]);
 
   const showQuickPromptBubble = React.useMemo(
     () =>
@@ -1111,6 +1169,27 @@ export function ComposerForm({
         : {})}
     />
   );
+  const effectiveDisplayAttachment = React.useMemo(() => {
+    if (!displayAttachment) return null;
+    if ((displayAttachment.source ?? "").toLowerCase() !== "ai") return displayAttachment;
+    const displayUrl = (displayAttachment.url ?? "").trim();
+    if (!displayUrl) return displayAttachment;
+    const hasGeneratedMatch = renderedHistory.some((entry) =>
+      Array.isArray(entry.attachments)
+        ? entry.attachments.some((attachment) => {
+            const role = (attachment.role ?? "").toLowerCase();
+            const source = (attachment.source ?? "").toLowerCase();
+            const isGenerated = role === "output" || source === "ai";
+            if (!isGenerated) return false;
+            const url = (attachment.url ?? "").trim();
+            const thumb = (attachment.thumbnailUrl ?? "").trim();
+            return url === displayUrl || (thumb && thumb === displayUrl);
+          })
+        : false,
+    );
+    return hasGeneratedMatch ? null : displayAttachment;
+  }, [displayAttachment, renderedHistory]);
+
   const mainContent = (
     <PromptPane
       summaryControls={summaryControls}
@@ -1121,7 +1200,7 @@ export function ComposerForm({
       message={message}
       loading={loading}
       loadingKind={loadingKind}
-      displayAttachment={displayAttachment}
+      displayAttachment={effectiveDisplayAttachment}
       attachmentKind={attachmentKind}
       attachmentStatusLabel={attachmentStatusLabel ?? null}
       attachmentDisplayUrl={attachmentDisplayUrl ?? null}

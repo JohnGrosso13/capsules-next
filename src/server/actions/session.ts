@@ -45,6 +45,16 @@ export async function ensureUserSession(): Promise<UserSessionContext> {
     avatar_url: user.imageUrl ?? null,
   });
 
+  // Lightweight debug hook to help diagnose Memory issues in dev.
+  // This will log which Supabase user id is being used for the current Clerk user.
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[ensureUserSession] resolved user", {
+      supabaseUserId,
+      clerkUserId: user.id,
+      email: primaryEmail ?? null,
+    });
+  }
+
   return {
     supabaseUserId,
     clerkUserId: user.id,

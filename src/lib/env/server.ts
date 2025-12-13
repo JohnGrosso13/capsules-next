@@ -187,6 +187,11 @@ const serverEnvSchema = z.object({
   PRINTFUL_STORE_ID: optionalString,
   PRINTFUL_WEBHOOK_SECRET: optionalString,
   PRINTFUL_V2_ENABLED: optionalBooleanFlag,
+  RUNWAY_API_KEY: optionalString,
+  RUNWAY_BASE_URL: optionalUrl,
+  RUNWAY_VIDEO_MODEL: optionalString,
+  RUNWAY_VIDEO_RESOLUTION: optionalString,
+  RUNWAY_VIDEO_MAX_DURATION: optionalVideoDuration,
 });
 
 const rawServerEnv = {
@@ -309,6 +314,11 @@ const rawServerEnv = {
   PRINTFUL_STORE_ID: readEnv("PRINTFUL_STORE_ID"),
   PRINTFUL_WEBHOOK_SECRET: readEnv("PRINTFUL_WEBHOOK_SECRET"),
   PRINTFUL_V2_ENABLED: readEnv("PRINTFUL_V2_ENABLED"),
+  RUNWAY_API_KEY: readEnv("RUNWAY_API_KEY"),
+  RUNWAY_BASE_URL: readEnv("RUNWAY_BASE_URL"),
+  RUNWAY_VIDEO_MODEL: readEnv("RUNWAY_VIDEO_MODEL"),
+  RUNWAY_VIDEO_RESOLUTION: readEnv("RUNWAY_VIDEO_RESOLUTION"),
+  RUNWAY_VIDEO_MAX_DURATION: readEnv("RUNWAY_VIDEO_MAX_DURATION"),
 } satisfies Record<string, string | undefined>;
 
 const parsedServerEnv = serverEnvSchema.safeParse(rawServerEnv);

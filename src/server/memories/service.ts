@@ -554,7 +554,7 @@ const ASSET_SOURCE_TOKENS = [
   "capsule_asset",
   "capsule_brand_asset",
 ];
-const UPLOAD_SOURCE_EXCLUDE_TOKENS = [...BANNER_SOURCE_TOKENS, ...ASSET_SOURCE_TOKENS];
+const _UPLOAD_SOURCE_EXCLUDE_TOKENS = [...BANNER_SOURCE_TOKENS, ...ASSET_SOURCE_TOKENS];
 const COMPOSER_IMAGE_TOKENS = ["composer_image", "ai_image", "image_generation"];
 const COMPOSER_CREATION_TOKENS = ["composer_creation", "capsule_creation"];
 
@@ -642,11 +642,11 @@ function resolveMemoryKindFilters(kind: string | null | undefined): MemoryKindFi
     return { dbKinds: ["upload"], sourceIncludes: COMPOSER_CREATION_TOKENS, sourceExcludes: null };
   }
   if (normalized === "post_memory") {
-    return { dbKinds: null, sourceIncludes: ["post_memory"], sourceExcludes: null };
-  }
-  if (normalized === "upload") {
-    return { dbKinds: ["upload"], sourceIncludes: null, sourceExcludes: UPLOAD_SOURCE_EXCLUDE_TOKENS };
-  }
+      return { dbKinds: null, sourceIncludes: ["post_memory"], sourceExcludes: null };
+    }
+    if (normalized === "upload") {
+      return { dbKinds: ["upload"], sourceIncludes: null, sourceExcludes: null };
+    }
   return { dbKinds: [normalized], sourceIncludes: null, sourceExcludes: null };
 }
 
@@ -750,6 +750,7 @@ export async function listMemories({
     if (isMissingTable(result.error)) {
       return fetchLegacyMemoryItems(ownerId, filters, pageSize, origin ?? null, cursor ?? null);
     }
+    console.warn("memories list query failed", result.error);
     throw result.error;
   }
 

@@ -57,15 +57,24 @@ export function extractSafetyDecision(
   return null;
 }
 
-export function parsePublicStorageObject(url: string): { bucket: string; key: string } | null {
+type SupabaseStorageObject = { bucket: string; key: string; isPublic: boolean };
+
+function parseSupabaseStorageObject(url: string): SupabaseStorageObject | null {
   try {
     const u = new URL(url);
-    const match = u.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+    const match = u.pathname.match(
+      /\/storage\/v1\/object\/(?:(public|authenticated)\/)?([^/]+)\/(.+)$/,
+    );
     if (!match) return null;
-    const bucket = match[1];
-    const key = match[2];
+    const visibility = match[1] || "";
+    const bucket = match[2];
+    const key = match[3];
     if (!bucket || !key) return null;
-    return { bucket: decodeURIComponent(bucket), key: decodeURIComponent(key) };
+    return {
+      bucket: decodeURIComponent(bucket),
+      key: decodeURIComponent(key),
+      isPublic: visibility === "public",
+    };
   } catch {
     return null;
   }
@@ -139,19 +148,39 @@ export function rewriteR2MediaUrl(url: string): string | null {
   }
 }
 
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+const SIGNED_URL_CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
 export async function ensureAccessibleMediaUrl(candidate: string | null): Promise<string | null> {
   const value = normalizeMediaUrl(candidate);
   if (!value) return null;
   const r2Url = rewriteR2MediaUrl(value);
   if (r2Url) return r2Url;
-  const parsed = parsePublicStorageObject(value);
+
+  const parsed = parseSupabaseStorageObject(value);
   if (!parsed) return value;
+
+  // Public Supabase assets are already accessible; avoid expensive signing calls.
+  if (parsed.isPublic) {
+    return value;
+  }
+
+  const cacheKey = `${parsed.bucket}/${parsed.key}`;
+  const now = Date.now();
+  const cached = signedUrlCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.url;
+  }
+
   try {
     const supabase = getSupabaseAdminClient();
     const signed = await supabase.storage
       .from(parsed.bucket)
-      .createSignedUrl(parsed.key, 3600 * 24 * 365);
-    return signed.data?.signedUrl ?? value;
+      .createSignedUrl(parsed.key, SIGNED_URL_TTL_SECONDS);
+    const signedUrl = signed.data?.signedUrl ?? value;
+    signedUrlCache.set(cacheKey, { url: signedUrl, expiresAt: now + SIGNED_URL_CACHE_TTL_MS });
+    return signedUrl;
   } catch {
     return value;
   }

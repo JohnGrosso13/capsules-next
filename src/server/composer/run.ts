@@ -1,5 +1,6 @@
 import type { ComposerChatAttachment, ComposerChatMessage } from "@/lib/composer/chat-types";
 import { extractComposerImageOptions, type ComposerImageQuality } from "@/lib/composer/image-settings";
+import { ensurePollStructure } from "@/lib/composer/draft";
 import { promptResponseSchema, type PromptResponse } from "@/shared/schemas/ai";
 import { embedText, captionVideo } from "@/lib/ai/openai";
 import {
@@ -495,6 +496,15 @@ function applyToolMediaToResponse(
   response: PromptResponse,
   toolRuns: ToolRunResult[],
 ): { response: PromptResponse; attachments: ComposerChatAttachment[] | null } {
+  // If the response is already a poll draft, ignore any tool media (we don't want hero images for polls).
+  if (
+    response.action === "draft_post" &&
+    typeof (response.post as { poll?: unknown })?.poll === "object" &&
+    (response.post as { poll?: unknown }).poll !== null
+  ) {
+    return { response, attachments: null };
+  }
+
   const media = findLatestMediaResult(toolRuns);
   if (!media) return { response, attachments: null };
 
@@ -626,10 +636,131 @@ function applyToolMediaToResponse(
   };
 }
 
+function sanitizePollDraftResponse(
+  response: PromptResponse,
+  attachments: ComposerChatAttachment[] | null,
+): { response: PromptResponse; attachments: ComposerChatAttachment[] | null } {
+  if (response.action !== "draft_post") return { response, attachments };
+  const hasPoll =
+    typeof (response.post as { poll?: unknown })?.poll === "object" &&
+    (response.post as { poll?: unknown }).poll !== null;
+  if (!hasPoll) return { response, attachments };
+
+  const cleanedPost = { ...(response.post as Record<string, unknown>) };
+  cleanedPost.kind = "poll";
+  delete cleanedPost.mediaUrl;
+  delete (cleanedPost as { media_url?: unknown }).media_url;
+  delete cleanedPost.mediaPrompt;
+  delete (cleanedPost as { media_prompt?: unknown }).media_prompt;
+  delete cleanedPost.thumbnailUrl;
+  delete (cleanedPost as { thumbnail_url?: unknown }).thumbnail_url;
+  delete cleanedPost.playbackUrl;
+  delete (cleanedPost as { playback_url?: unknown }).playback_url;
+  delete cleanedPost.mediaDurationSeconds;
+  delete (cleanedPost as { duration_seconds?: unknown }).duration_seconds;
+  delete cleanedPost.muxPlaybackId;
+  delete (cleanedPost as { mux_playback_id?: unknown }).mux_playback_id;
+  delete cleanedPost.muxAssetId;
+  delete (cleanedPost as { mux_asset_id?: unknown }).mux_asset_id;
+  delete cleanedPost.videoRunId;
+  delete cleanedPost.videoRunStatus;
+  delete cleanedPost.videoRunError;
+  delete cleanedPost.memoryId;
+
+  return {
+    response: { ...response, post: cleanedPost },
+    attachments: null,
+  };
+}
+
+async function fillMissingPollThumbnails(
+  post: Record<string, unknown> | null | undefined,
+): Promise<{ question: string; options: string[]; thumbnails?: (string | null)[] | null } | null> {
+  if (!post) return null;
+  const poll = (post as { poll?: unknown }).poll;
+  if (!poll || typeof poll !== "object") return null;
+
+  const structured = ensurePollStructure({
+    kind: "poll",
+    content: "",
+    mediaUrl: null,
+    mediaPrompt: null,
+    poll: poll as { question: string; options: string[]; thumbnails?: (string | null)[] | null },
+  });
+
+  const options = structured.options.map((option) => option.trim());
+  const thumbnails = [...structured.thumbnails];
+  const missingIndexes = thumbnails
+    .map((thumb, index) => ({ thumb, index }))
+    .filter(({ thumb, index }) => !thumb && options[index]?.length)
+    .map(({ index }) => index);
+
+  if (!missingIndexes.length) return null;
+
+  if (!isGoogleImageSearchConfigured()) {
+    return null;
+  }
+
+  async function lookupThumb(query: string): Promise<string | null> {
+    const searches = [
+      query,
+      `${query} cover art`,
+      `${query} box art`,
+      `${query} game cover`,
+    ];
+    for (const q of searches) {
+      try {
+        const results = await searchGoogleImages(q, { limit: 1 });
+        const first = results[0];
+        const picked = first?.thumbnail?.trim() || first?.link?.trim() || null;
+        if (picked) return picked;
+      } catch (error) {
+        console.warn("poll thumbnail search failed", { query: q, error });
+      }
+    }
+    return null;
+  }
+
+  // Limit to avoid hammering the image search API.
+  const maxLookups = 6;
+  for (const index of missingIndexes.slice(0, maxLookups)) {
+    const query = options[index];
+    if (!query) continue;
+    const picked = await lookupThumb(query);
+    if (picked) {
+      thumbnails[index] = picked;
+    }
+  }
+
+  const hasNew = thumbnails.some((thumb, index) => {
+    const original = structured.thumbnails[index];
+    return thumb && thumb !== original;
+  });
+  if (!hasNew) return null;
+
+  return {
+    question: structured.question,
+    options: structured.options,
+    thumbnails,
+  };
+}
+
 async function handleRenderImage(
   args: Record<string, unknown>,
   runtime: RuntimeContext,
 ): Promise<Record<string, unknown>> {
+  const pollIntent =
+    /\b(poll|survey|vote|questionnaire|ballot)\b/i.test(runtime.latestUserText || "") ||
+    ((runtime.composeOptions.rawOptions as { prefer?: unknown } | null)?.prefer ?? "")
+      .toString()
+      .toLowerCase() === "poll" ||
+    ((runtime.composeOptions.rawOptions as { compose?: unknown } | null)?.compose ?? "")
+      .toString()
+      .toLowerCase() === "poll";
+  if (pollIntent) {
+    return { status: "skipped", reason: "render_image is disabled for poll-only requests" };
+  }
+
   const rawPrompt = typeof args.prompt === "string" ? args.prompt.trim() : "";
   if (!rawPrompt) {
     throw new Error("render_image requires a prompt.");
@@ -806,14 +937,38 @@ async function handleRenderVideo(
   const attachmentId =
     typeof args.reference_attachment_id === "string" ? args.reference_attachment_id.trim() : null;
   const reference = pickVideoAttachment(runtime, attachmentId);
-  const videoContext = {
+  const referenceImage = pickImageAttachment(runtime, null);
+  const videoContext: {
+    capsuleId: string | null;
+    ownerUserId: string | null;
+    options: Record<string, unknown>;
+    sourceUrl?: string | null;
+  } = {
     capsuleId: runtime.capsuleId,
     ownerUserId: runtime.ownerId,
+    options: {},
+    sourceUrl: null,
   };
 
+  let augmentedPrompt = prompt;
+  if (!reference && referenceImage && referenceImage.url) {
+    const accessibleImageUrl =
+      (await ensureAccessibleMediaUrl(referenceImage.url).catch(() => null)) ?? referenceImage.url;
+    if (accessibleImageUrl) {
+      augmentedPrompt = `${prompt}\n\nVisual reference: ${accessibleImageUrl}\nUse the palette, layout vibe, and key elements from the reference image, but do not copy exact UI text.`;
+      videoContext.options.sourceKind = "image";
+      videoContext.options.referenceImageUrl = accessibleImageUrl;
+      videoContext.sourceUrl = accessibleImageUrl;
+    }
+  }
+
   const result = reference
-    ? await editVideoWithInstruction(reference.url, prompt, { ...videoContext, mode: "edit" })
-    : await generateVideoFromPrompt(prompt, { ...videoContext, mode: "generate" });
+    ? await editVideoWithInstruction(reference.url, augmentedPrompt, { ...videoContext, mode: "edit" })
+    : await generateVideoFromPrompt(augmentedPrompt, {
+        ...videoContext,
+        mode: "generate",
+        sourceUrl: videoContext.sourceUrl ?? null,
+      });
 
   return {
     status: "succeeded",
@@ -1613,30 +1768,36 @@ function buildSystemPrompt({
     "For freshness-sensitive asks (recent/new/latest/this week/month/year/season/upcoming), call search_web before listing specifics and set freshness_days to limit results to the last few months.",
   ];
 
-  const preferRaw = (composeOptions?.rawOptions as { prefer?: unknown } | null)?.prefer;
-  const composeRaw = (composeOptions?.rawOptions as { compose?: unknown } | null)?.compose;
+    const preferRaw = (composeOptions?.rawOptions as { prefer?: unknown } | null)?.prefer;
+    const composeRaw = (composeOptions?.rawOptions as { compose?: unknown } | null)?.compose;
   const prefer = typeof preferRaw === "string" ? preferRaw.toLowerCase() : null;
   const compose = typeof composeRaw === "string" ? composeRaw.toLowerCase() : null;
-  const pollRequested =
-    prefer === "poll" ||
-    compose === "poll" ||
-    /\b(poll|survey|vote|questionnaire|ballot)\b/i.test(latestUserText || "");
+    const pollRequested =
+      prefer === "poll" ||
+      compose === "poll" ||
+      /\b(poll|survey|vote|questionnaire|ballot)\b/i.test(latestUserText || "");
 
-  if (pollRequested) {
-    base.push(
-      "User wants a poll: always return action:'draft_post' with post.kind:'poll' and post.poll:{question,options[]} plus any intro/CTA in post.content. Do not return chat_reply for poll requests.",
-    );
-    base.push(
-      "Poll hygiene: keep 2-6 short, distinct options (no overlaps or yes/no unless asked), avoid stale picks older than last year, and prefer timely releases using search_web with freshness_days when the topic depends on current events.",
-    );
-    base.push(
-      "For polls whose options are specific entities (games, shows, products, teams, etc.), also attach post.poll.thumbnails as an array of image URLs matching each option in order. Use search_images for each option name to find a representative square thumbnail; prefer thumbnailUrl when available, otherwise url. If image search fails or images would be misleading, omit post.poll.thumbnails instead of inventing URLs.",
-    );
-  } else {
-    base.push(
-      "If the user explicitly asks for a poll, switch to action:'draft_post' with post.kind:'poll' and post.poll filled; keep options specific and current.",
-    );
-  }
+    if (pollRequested) {
+      base.push(
+        "User wants a poll: always return action:'draft_post' with post.kind:'poll' and post.poll:{question,options[]} plus any intro/CTA in post.content. Do not return chat_reply for poll requests.",
+      );
+      base.push(
+        "Poll hygiene: keep 2-6 short, distinct options (no overlaps or yes/no unless asked), avoid stale picks older than last year, and prefer timely releases using search_web with freshness_days when the topic depends on current events.",
+      );
+      base.push(
+        "For polls whose options are specific entities (games, shows, products, teams, etc.), also attach post.poll.thumbnails as an array of image URLs matching each option in order. Use search_images for each option name to find a representative square thumbnail; prefer thumbnailUrl when available, otherwise url. If image search fails or images would be misleading, omit post.poll.thumbnails instead of inventing URLs.",
+      );
+      base.push(
+        "For poll requests, do NOT call render_image or render_video unless the user explicitly asks for a new visual; focus on the poll itself and lightweight thumbnails via search_images instead of generating full hero images.",
+      );
+      base.push(
+        "When editing an existing poll, keep any existing post.poll.thumbnails aligned to unchanged options; if you change options, re-run search_images to return fresh thumbnails in post.poll.thumbnails for the new option list.",
+      );
+    } else {
+      base.push(
+        "If the user explicitly asks for a poll, switch to action:'draft_post' with post.kind:'poll' and post.poll filled; keep options specific and current.",
+      );
+    }
 
   if (replyMode === "chat") {
     base.push("User replyMode is chat-only: you MUST return action:'chat_reply' (never draft_post) for this turn.");
@@ -1844,10 +2005,31 @@ export async function runComposerToolSession(
 
     try {
       const validated = promptResponseSchema.parse(parsed);
-      const { response: hydrated, attachments: toolAttachments } = applyToolMediaToResponse(
+      const { response: hydratedWithMedia, attachments: toolAttachments } = applyToolMediaToResponse(
         validated,
         toolRuns,
       );
+      const { response: hydratedPollSafe, attachments: pollSafeAttachments } = sanitizePollDraftResponse(
+        hydratedWithMedia,
+        toolAttachments,
+      );
+      let hydrated = hydratedPollSafe;
+
+      if (
+        hydrated.action === "draft_post" &&
+        typeof (hydrated.post as { poll?: unknown })?.poll === "object" &&
+        (hydrated.post as { poll?: unknown }).poll !== null
+      ) {
+        const filled = await fillMissingPollThumbnails(
+          hydrated.post as Record<string, unknown>,
+        );
+        if (filled) {
+          hydrated = {
+            ...hydrated,
+            post: { ...(hydrated.post as Record<string, unknown>), poll: filled },
+          };
+        }
+      }
       if (hydrated.action === "chat_reply") {
         const replyText = typeof hydrated.message === "string" ? hydrated.message.trim() : "";
         if (!replyText.length) {
@@ -1859,7 +2041,7 @@ export async function runComposerToolSession(
           continue;
         }
         return {
-          response: coerceDraftToChatResponse(hydrated, replyMode, toolAttachments),
+          response: coerceDraftToChatResponse(hydrated, replyMode, pollSafeAttachments),
           messages,
           raw,
         };
@@ -1877,7 +2059,7 @@ export async function runComposerToolSession(
         continue;
       }
       return {
-        response: coerceDraftToChatResponse(hydrated, replyMode, toolAttachments),
+        response: coerceDraftToChatResponse(hydrated, replyMode, pollSafeAttachments),
         messages,
         raw,
       };

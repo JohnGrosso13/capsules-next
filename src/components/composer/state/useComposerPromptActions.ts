@@ -24,6 +24,7 @@ import type { ThemePreviewState } from "../context/ThemePreviewProvider";
 import type { ComposerAiApplyResult } from "./useComposerAi";
 
 const IMAGE_EXTENSION_RE = /\.(apng|avif|bmp|gif|jpe?g|jfif|pjpeg|pjp|png|svg|webp)$/i;
+const VIDEO_PROMPT_TIMEOUT_MS = 16 * 60 * 1000; // allow long-running video renders
 
 function isImageLike(url: string | null | undefined): boolean {
   if (!url || typeof url !== "string") return false;
@@ -241,6 +242,8 @@ export function useComposerPromptActions({
           : null;
       const effectiveAttachments =
         normalizedAttachments || (fallbackAttachment ? [fallbackAttachment] : undefined);
+      const expectVideo = shouldExpectVideoResponse(trimmedPrompt, effectiveAttachments ?? null);
+      const timeoutMs = expectVideo ? VIDEO_PROMPT_TIMEOUT_MS : undefined;
 
       const createdAt = new Date().toISOString();
       const workingMessageId = safeRandomUUID();
@@ -332,6 +335,7 @@ export function useComposerPromptActions({
           stream: true,
           onStreamMessage: updateWorking,
           signal: controller.signal,
+          ...(timeoutMs ? { timeoutMs } : {}),
         });
         if (!isRequestActive(requestToken)) return;
         setState((prev) => ({
@@ -624,6 +628,10 @@ export function useComposerPromptActions({
       const expectVideo = shouldExpectVideoResponse(trimmed, attachmentList ?? null);
       const expectImage =
         !expectVideo && (snapshot.draft?.kind ?? "").toLowerCase() === "image";
+      const pollIntent = /\b(poll|survey|vote|questionnaire|ballot)\b/i.test(trimmed);
+      const visualIntent = /\b(image|photo|picture|graphic|logo|banner|poster|thumbnail|icon|avatar|render|illustration|design|art|shot|frame|visual)\b/i.test(
+        trimmed,
+      );
       const preserveSummary = options?.preserveSummary ?? Boolean(snapshot.summaryResult);
       const fallbackAttachment =
         !attachmentList?.length && expectImage ? buildFallbackImageAttachment(snapshot) : null;
@@ -713,16 +721,22 @@ export function useComposerPromptActions({
         if (options?.mode === "chatOnly") {
           requestOptions.replyMode = "chat";
         }
+        const hasPollDraft =
+          Boolean(snapshot.rawPost && typeof (snapshot.rawPost as { poll?: unknown }).poll === "object") ||
+          Boolean(snapshot.draft?.poll);
+        const rawPostForRequest =
+          hasPollDraft && visualIntent && !pollIntent ? null : snapshot.rawPost;
         const payload = await callAiPrompt({
           message: trimmed,
           ...(Object.keys(requestOptions).length ? { options: requestOptions } : {}),
-          ...(snapshot.rawPost && options?.mode !== "chatOnly" ? { post: snapshot.rawPost } : {}),
+          ...(rawPostForRequest && options?.mode !== "chatOnly" ? { post: rawPostForRequest } : {}),
           ...(effectiveAttachments ? { attachments: effectiveAttachments } : {}),
           history: previousHistory,
           ...(threadIdForRequest ? { threadId: threadIdForRequest } : {}),
           ...(activeCapsuleId ? { capsuleId: activeCapsuleId } : {}),
           useContext: smartContextEnabled,
           signal: controller.signal,
+          ...(expectVideo ? { timeoutMs: VIDEO_PROMPT_TIMEOUT_MS } : {}),
         });
         if (!isRequestActive(requestToken)) return;
         handleAiResponse(trimmed, payload, options?.mode ?? "default");

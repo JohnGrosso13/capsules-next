@@ -51,7 +51,8 @@ function buildVariantConfig(variant: PrompterVariant): PrompterVariantConfig {
     allowVoice: true,
     allowIntentMenu: true,
     allowIntentHints: true,
-    allowTools: true,
+    // Disable tool chips (e.g., "Create a poll", "Clear tool") for the default variant.
+    allowTools: false,
     allowNavigation: true,
     enableDragAndDrop: true,
     multilineInput: false,

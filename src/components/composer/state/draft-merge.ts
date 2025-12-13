@@ -68,9 +68,39 @@ export function mergePollStructures(
   }
   const mergedThumbs = Array.from({ length }, (_, index) => {
     const nextThumb = nextPoll.thumbnails?.[index];
-    if (typeof nextThumb === "string" && nextThumb.trim().length) return nextThumb;
-    const prevThumb = prevPoll.thumbnails?.[index];
-    if (typeof prevThumb === "string" && prevThumb.trim().length) return prevThumb;
+    if (typeof nextThumb === "string" && nextThumb.trim().length) return nextThumb.trim();
+    const option = mergedOptions[index]?.trim();
+    if (!option) return null;
+    const normalizedOption = option.toLowerCase();
+    const normalizedPrevAtIndex =
+      typeof prevPoll.options[index] === "string"
+        ? prevPoll.options[index]!.trim().toLowerCase()
+        : "";
+    const candidateIndexes: number[] = [];
+    if (normalizedPrevAtIndex === normalizedOption) {
+      candidateIndexes.push(index);
+    }
+    const movedIndex =
+      candidateIndexes.length > 0
+        ? -1
+        : prevPoll.options.findIndex(
+            (value, optionIndex) =>
+              optionIndex !== index && value.trim().toLowerCase() === normalizedOption,
+          );
+    if (movedIndex >= 0) {
+      candidateIndexes.push(movedIndex);
+    }
+    for (const candidate of candidateIndexes) {
+      const prevThumb = prevPoll.thumbnails?.[candidate];
+      if (typeof prevThumb === "string" && prevThumb.trim().length) return prevThumb;
+    }
+    const prevMatchIndex = prevPoll.options.findIndex(
+      (value) => value.trim().toLowerCase() === normalizedOption,
+    );
+    if (prevMatchIndex >= 0) {
+      const prevMatchThumb = prevPoll.thumbnails?.[prevMatchIndex];
+      if (typeof prevMatchThumb === "string" && prevMatchThumb.trim().length) return prevMatchThumb;
+    }
     return null;
   });
   return {
@@ -161,8 +191,13 @@ export function mergeComposerDrafts(
   ) {
     merged.mediaDurationSeconds = previousDuration;
   }
-  if (mergedPoll || prevDraft.poll || nextDraft.poll) {
+  const nextIsPoll = nextKind === "poll";
+  if (nextIsPoll) {
     merged.poll = mergedPoll ?? nextDraft.poll ?? prevDraft.poll ?? null;
+  } else if (typeof nextDraft.poll !== "undefined") {
+    merged.poll = nextDraft.poll ?? null;
+  } else {
+    merged.poll = null;
   }
 
   const prevContentHas =

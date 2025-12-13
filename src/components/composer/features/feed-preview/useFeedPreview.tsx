@@ -29,6 +29,7 @@ type UseFeedPreviewParams = {
   pollHelperText: string;
   pollPreviewCard: React.ReactNode;
   onPostContentChange?: (value: string) => void;
+  autoCaption?: string | null;
 };
 
 export type FeedPreviewController = {
@@ -45,6 +46,7 @@ export function useFeedPreview({
   pollHasStructure,
   pollHelperText,
   pollPreviewCard,
+  autoCaption,
   onPostContentChange,
 }: UseFeedPreviewParams): FeedPreviewController {
   const handlePostContentChange = React.useCallback(
@@ -60,7 +62,7 @@ export function useFeedPreview({
     let kind = activeKind;
     let label = activeKindLabel;
     const contentRaw = workingDraft.content ?? "";
-    const content = contentRaw.trim();
+    const autoCaptionValue = (autoCaption ?? "").trim();
     const titleRaw = workingDraft.title ?? "";
     const title = titleRaw.trim();
     const mediaPrompt = (workingDraft.mediaPrompt ?? "").trim();
@@ -74,6 +76,13 @@ export function useFeedPreview({
     const attachmentThumb =
       displayAttachment?.thumbUrl ?? workingDraft.mediaThumbnailUrl ?? null;
     const clipDurationSeconds = workingDraft.mediaDurationSeconds ?? null;
+    const isAiAttachment =
+      (displayAttachment?.source ?? "").toLowerCase() === "ai" ||
+      (displayAttachment?.role ?? "").toLowerCase() === "output";
+    const matchesAutoCaption =
+      isAiAttachment && autoCaptionValue.length > 0 && contentRaw.trim() === autoCaptionValue;
+    const contentForRender = matchesAutoCaption ? "" : contentRaw;
+    const content = contentForRender.trim();
 
     const renderPlaceholder = (message: string) => (
       <div className={styles.previewPlaceholderCard}>
@@ -103,7 +112,7 @@ export function useFeedPreview({
               <textarea
                 id="composer-preview-post-body"
                 className={styles.previewPostTextarea}
-                value={contentRaw}
+                value={contentForRender}
                 onChange={handlePostContentChange}
                 placeholder="Refine the caption you'd like to publish with this visual"
                 rows={4}
@@ -137,8 +146,38 @@ export function useFeedPreview({
       kind = "poll";
       label = "Poll";
       empty = false;
+      const hasMedia = Boolean(mediaUrl);
+      const pollVisual =
+        hasMedia && attachmentDisplayUrl
+          ? attachmentDisplayUrl
+          : hasMedia
+            ? mediaUrl
+            : null;
+      const pollAlt = attachmentName ?? (mediaPrompt || "Poll visual");
+      const pollFigure = pollVisual ? (
+        <div className={styles.previewMediaStack}>
+          <figure className={styles.previewMediaFrame} data-kind="image">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pollVisual ?? undefined}
+              alt={pollAlt}
+            />
+            {mediaPrompt || attachmentName ? (
+              <figcaption>{mediaPrompt || attachmentName}</figcaption>
+            ) : null}
+          </figure>
+        </div>
+      ) : null;
+      const pollTitle =
+        title.length > 0 ? <h3 className={styles.previewPostTitle}>{title}</h3> : null;
       helper = pollHelperText;
-      body = pollPreviewCard;
+      body = (
+        <div className={styles.previewComposite}>
+          {pollFigure}
+          {pollTitle}
+          {pollPreviewCard}
+        </div>
+      );
     } else {
       switch (kind) {
         case "poll": {
@@ -177,14 +216,12 @@ export function useFeedPreview({
           empty = !mediaUrl;
           const durationLabel = formatClipDuration(clipDurationSeconds);
           const captionSeparator = " \u2022 ";
-          helper = [mediaPrompt || attachmentName, durationLabel].filter(Boolean).join(captionSeparator);
+          helper = durationLabel || null;
           if (empty) {
             body = renderPlaceholder("Drop a clip or describe scenes to preview them here.");
           } else {
-            const captionParts = [];
-            if (mediaPrompt) captionParts.push(mediaPrompt);
-            if (durationLabel) captionParts.push(durationLabel);
-            const copyPreview = renderPostCopy();
+            const captionParts = durationLabel ? [durationLabel] : [];
+            const copyPreview = renderPostCopy(canEditPostCopy);
             body = (
               <div className={styles.previewMediaStack}>
                 <figure className={styles.previewMediaFrame} data-kind="video">
@@ -285,6 +322,7 @@ export function useFeedPreview({
     activeKindLabel,
     attachmentDisplayUrl,
     attachmentFullUrl,
+    autoCaption,
     displayAttachment,
     pollHasStructure,
     pollHelperText,

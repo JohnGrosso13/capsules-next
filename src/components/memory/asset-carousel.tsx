@@ -216,6 +216,7 @@ export type MemoryAssetCarouselProps = {
   icon: React.ReactNode;
   variants?: MemoryAssetVariant[] | null;
   kind?: string | null;
+  pageSize?: number;
   viewAllHref?: string;
   viewAllLabel?: string;
   emptySignedOut: string;
@@ -229,6 +230,7 @@ export function MemoryAssetCarousel({
   icon,
   variants = [],
   kind = null,
+  pageSize,
   viewAllHref,
   viewAllLabel = "View All",
   emptySignedOut,
@@ -236,14 +238,16 @@ export function MemoryAssetCarousel({
   emptyNone,
   initialItems,
 }: MemoryAssetCarouselProps) {
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   const memoryOptions = initialItems
     ? {
         initialPage: {
           items: initialItems,
           hasMore: false,
         },
+        pageSize: effectivePageSize,
       }
-    : {};
+    : { pageSize: effectivePageSize };
 
   const { user, items, loading, error } = useMemoryUploads(kind, memoryOptions);
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
@@ -289,7 +293,7 @@ export function MemoryAssetCarousel({
   }, []);
 
   const totalItems = filteredItems.length;
-  const pageSize = React.useMemo(() => {
+  const visibleCount = React.useMemo(() => {
     if (totalItems === 0) return 0;
     return Math.max(1, Math.min(MAX_VISIBLE, slidesPerView, totalItems));
   }, [slidesPerView, totalItems]);
@@ -299,45 +303,45 @@ export function MemoryAssetCarousel({
       setOffset(0);
       return;
     }
-    if (pageSize === 0 || totalItems <= pageSize) {
+    if (visibleCount === 0 || totalItems <= visibleCount) {
       setOffset(0);
       return;
     }
     setOffset((previous) => previous % totalItems);
-  }, [pageSize, totalItems]);
+  }, [visibleCount, totalItems]);
 
   const visibleItems = React.useMemo(() => {
-    if (pageSize === 0) return [];
+    if (visibleCount === 0) return [];
     const result: DisplayMemoryUpload[] = [];
-    for (let index = 0; index < pageSize; index += 1) {
+    for (let index = 0; index < visibleCount; index += 1) {
       const item = filteredItems[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [filteredItems, offset, pageSize, totalItems]);
+  }, [filteredItems, offset, totalItems, visibleCount]);
 
   React.useEffect(() => {
     queueMicrotask(() => emblaApi?.reInit());
   }, [emblaApi, visibleItems]);
 
-  const hasRotation = pageSize > 0 && totalItems > pageSize;
+  const hasRotation = visibleCount > 0 && totalItems > visibleCount;
 
   const handleShowPrev = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0 || pageSize === 0) return;
+    if (!hasRotation || totalItems === 0 || visibleCount === 0) return;
     setOffset((previous) => {
-      const next = (previous - pageSize) % totalItems;
+      const next = (previous - visibleCount) % totalItems;
       return next < 0 ? next + totalItems : next;
     });
-  }, [hasRotation, pageSize, totalItems]);
+  }, [hasRotation, totalItems, visibleCount]);
 
   const handleShowNext = React.useCallback(() => {
-    if (!hasRotation || totalItems === 0 || pageSize === 0) return;
-    setOffset((previous) => (previous + pageSize) % totalItems);
-  }, [hasRotation, pageSize, totalItems]);
+    if (!hasRotation || totalItems === 0 || visibleCount === 0) return;
+    setOffset((previous) => (previous + visibleCount) % totalItems);
+  }, [hasRotation, totalItems, visibleCount]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--carousel-visible-count": Math.max(1, pageSize) }) as React.CSSProperties,
-    [pageSize],
+    () => ({ "--carousel-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
+    [visibleCount],
   );
 
   const navDisabled = loading || !hasRotation || visibleItems.length === 0;
@@ -422,8 +426,9 @@ export function MemoryAssetCarousel({
 }
 
 export function CapsuleAssetsCarousel(
-  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+  { initialItems, pageSize }: { initialItems?: MemoryUploadItem[]; pageSize?: number } = {},
 ) {
+  const sizeProps = pageSize ? { pageSize } : {};
   return (
     <MemoryAssetCarousel
       title="Capsule Assets"
@@ -435,13 +440,15 @@ export function CapsuleAssetsCarousel(
       emptyLoading="Loading your capsule assets..."
       emptyNone="No capsule assets saved yet. Customize a capsule or profile to add one."
       initialItems={initialItems}
+      {...sizeProps}
     />
   );
 }
 
 export function SavedCreationsCarousel(
-  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+  { initialItems, pageSize }: { initialItems?: MemoryUploadItem[]; pageSize?: number } = {},
 ) {
+  const sizeProps = pageSize ? { pageSize } : {};
   return (
     <MemoryAssetCarousel
       title="Saved Creations"
@@ -453,11 +460,15 @@ export function SavedCreationsCarousel(
       emptyLoading="Loading your creations..."
       emptyNone="No creations saved yet. Generate an image or video in the composer and tap Save."
       initialItems={initialItems}
+      {...sizeProps}
     />
   );
 }
 
-export function AiImagesCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
+export function AiImagesCarousel(
+  { initialItems, pageSize }: { initialItems?: MemoryUploadItem[]; pageSize?: number } = {},
+) {
+  const sizeProps = pageSize ? { pageSize } : {};
   return (
     <MemoryAssetCarousel
       title="AI Images"
@@ -469,6 +480,7 @@ export function AiImagesCarousel({ initialItems }: { initialItems?: MemoryUpload
       emptyLoading="Loading your AI images..."
       emptyNone="No AI images yet. Generate an image in the composer to see it here."
       initialItems={initialItems}
+      {...sizeProps}
     />
   );
 }

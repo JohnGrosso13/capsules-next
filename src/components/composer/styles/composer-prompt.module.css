@@ -72,6 +72,20 @@
   justify-content: flex-start;
 }
 
+.msgRowInner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.msgRow[data-role="user"] .msgRowInner {
+  align-items: flex-end;
+}
+
+.msgRow[data-role="ai"] .msgRowInner {
+  align-items: flex-start;
+}
+
 .msgBubble {
   max-width: min(82%, 720px);
   padding: 16px 20px;

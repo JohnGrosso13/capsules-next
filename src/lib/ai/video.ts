@@ -1,4 +1,5 @@
 import { postOpenAIJson, fetchOpenAI } from "@/adapters/ai/openai/server";
+import { fetchRunway, hasRunwayApiKey, postRunwayJson } from "@/adapters/ai/runway/server";
 import { getR2SignedObjectUrl } from "@/adapters/storage/r2/provider";
 import { buildMuxPlaybackUrl, muxVideoClient } from "@/adapters/mux/server";
 import { uploadBufferToStorage } from "@/lib/supabase/storage";
@@ -14,6 +15,15 @@ const ALLOWED_DURATIONS = [4, 8, 12] as const;
 const DEFAULT_DURATION = 8;
 const POLL_INTERVAL_MS = 8000;
 const MAX_POLL_ITERATIONS = 120; // ~16 minutes at 8s polling
+const MAX_VIDEO_JOB_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 4000;
+const RETRYABLE_VIDEO_ERROR_CODES = new Set(["video_generation_failed"]);
+
+const RUNWAY_DEFAULT_MODEL = "gen-4-aleph";
+const RUNWAY_POLL_INTERVAL_MS = 7000;
+const RUNWAY_MAX_POLL_ITERATIONS = 160; // ~18 minutes
+const RUNWAY_DEFAULT_RESOLUTION: (typeof ALLOWED_RESOLUTIONS)[number] = "1280x720";
+const RUNWAY_DEFAULT_DURATION = 8;
 
 type OpenAIVideoJobStatus = "queued" | "in_progress" | "completed" | "failed" | string;
 
@@ -38,6 +48,20 @@ type VideoRunContext = {
   mode: "generate" | "edit";
   sourceUrl?: string | null;
   options?: Record<string, unknown>;
+};
+
+type RunwayGenerationStatus = "pending" | "running" | "succeeded" | "failed" | "canceled" | string;
+
+type RunwayGeneration = {
+  id: string;
+  status: RunwayGenerationStatus;
+  output?: unknown;
+  error?: { message?: string; type?: string } | string | null;
+  assets?: {
+    video?: string | null;
+    thumbnail?: string | null;
+    poster?: string | null;
+  };
 };
 
 export type VideoGenerationResult = {
@@ -91,6 +115,26 @@ function resolveVideoDuration(): (typeof ALLOWED_DURATIONS)[number] {
     console.warn(`Video duration ${raw}s is not supported. Using closest allowed value: ${nearest}s.`);
   }
   return nearest;
+}
+
+function resolveRunwayVideoModel(): string {
+  return (serverEnv.RUNWAY_VIDEO_MODEL ?? RUNWAY_DEFAULT_MODEL).trim();
+}
+
+function resolveRunwayVideoResolution(): (typeof ALLOWED_RESOLUTIONS)[number] {
+  const raw = serverEnv.RUNWAY_VIDEO_RESOLUTION?.trim() ?? "";
+  if (ALLOWED_RESOLUTIONS.includes(raw as (typeof ALLOWED_RESOLUTIONS)[number])) {
+    return raw as (typeof ALLOWED_RESOLUTIONS)[number];
+  }
+  return RUNWAY_DEFAULT_RESOLUTION;
+}
+
+function resolveRunwayVideoDuration(): (typeof ALLOWED_DURATIONS)[number] {
+  const raw = Number(serverEnv.RUNWAY_VIDEO_MAX_DURATION ?? RUNWAY_DEFAULT_DURATION);
+  if (ALLOWED_DURATIONS.includes(raw as (typeof ALLOWED_DURATIONS)[number])) {
+    return raw as (typeof ALLOWED_DURATIONS)[number];
+  }
+  return RUNWAY_DEFAULT_DURATION;
 }
 
 function normalizeSeconds(value: string | number | null | undefined): number | null {
@@ -197,6 +241,28 @@ async function downloadVideoContent(
   return { bytes: new Uint8Array(buffer), contentType };
 }
 
+function parseResolution(value: string | null | undefined): { width: number; height: number } {
+  const fallback = { width: 1280, height: 720 };
+  if (!value) return fallback;
+  const match = value.match(/^(\d+)x(\d+)$/);
+  if (!match) return fallback;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return fallback;
+  return { width, height };
+}
+
+async function downloadRemoteAsset(url: string): Promise<{ bytes: Uint8Array; contentType: string | null }> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Failed to download asset (${response.status}${body ? `: ${body}` : ""})`);
+  }
+  const buffer = await response.arrayBuffer();
+  const contentType = response.headers.get("content-type");
+  return { bytes: new Uint8Array(buffer), contentType };
+}
+
 async function persistVideoAsset(params: {
   runId: string;
   ownerUserId?: string | null;
@@ -287,88 +353,122 @@ async function runOpenAIVideoPipeline(
     status: "pending",
   });
 
-  const attempt: AiVideoRunAttempt = {
-    attempt: (runRecord.attempts?.length ?? 0) + 1,
-    stage: context.mode === "edit" ? "edit" : "generate",
-    model,
-    provider: "openai",
-    startedAt: new Date().toISOString(),
-  };
+  const baseAttemptIndex = runRecord.attempts?.length ?? 0;
+  let attempts: AiVideoRunAttempt[] = runRecord.attempts ?? [];
+  let lastError: Error | null = null;
 
-  await updateAiVideoRun(runRecord.id, {
-    status: "running",
-    attempts: [...(runRecord.attempts ?? []), attempt],
-  });
+  for (let attemptIndex = 0; attemptIndex < MAX_VIDEO_JOB_ATTEMPTS; attemptIndex += 1) {
+    const attemptNumber = baseAttemptIndex + attemptIndex + 1;
+    const attempt: AiVideoRunAttempt = {
+      attempt: attemptNumber,
+      stage: context.mode === "edit" ? "edit" : "generate",
+      model,
+      provider: "openai",
+      startedAt: new Date().toISOString(),
+    };
 
-  let job: OpenAIVideoJob;
-  try {
-    job = await createVideoJob(prompt, { model, size: resolution, seconds: durationSeconds });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Video generation failed.";
+    attempts = [...attempts, attempt];
     await updateAiVideoRun(runRecord.id, {
-      status: "failed",
-      errorMessage: message,
-      attempts: [
-        ...(runRecord.attempts ?? []),
-        { ...attempt, completedAt: new Date().toISOString(), errorMessage: message },
-      ],
-      completedAt: new Date().toISOString(),
+      status: "running",
+      attempts,
+      errorCode: null,
+      errorMessage: null,
     });
-    throw new Error(`OpenAI video generation failed: ${message}`);
-  }
 
-  let status = job.status;
-  let polledJob = job;
-  let pollCount = 0;
-  while (status !== "completed") {
-    if (status === "failed") {
-      const message = polledJob.error?.message ?? "OpenAI video generation failed.";
-      await updateAiVideoRun(runRecord.id, {
-        status: "failed",
-        errorCode: polledJob.error?.code ?? null,
+    let job: OpenAIVideoJob;
+    try {
+      job = await createVideoJob(prompt, { model, size: resolution, seconds: durationSeconds });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Video generation failed.";
+      const failureAttempt: AiVideoRunAttempt = {
+        ...attempt,
+        completedAt: new Date().toISOString(),
         errorMessage: message,
-        responseMetadata: polledJob as unknown as Record<string, unknown>,
-        attempts: [
-          ...(runRecord.attempts ?? []),
-          {
-            ...attempt,
-            completedAt: new Date().toISOString(),
-            errorCode: polledJob.error?.code ?? null,
-            errorMessage: message,
-          },
-        ],
-        completedAt: new Date().toISOString(),
-      });
-      throw new Error(message);
-    }
-    if (pollCount >= MAX_POLL_ITERATIONS) {
+      };
+      attempts = [...attempts.slice(0, -1), failureAttempt];
+      const shouldRetry = attemptIndex + 1 < MAX_VIDEO_JOB_ATTEMPTS;
       await updateAiVideoRun(runRecord.id, {
-        status: "failed",
-        errorMessage: "Video generation timed out.",
-        attempts: [
-          ...(runRecord.attempts ?? []),
-          {
-            ...attempt,
-            completedAt: new Date().toISOString(),
-            errorMessage: "Timed out polling OpenAI for video completion.",
-          },
-        ],
-        completedAt: new Date().toISOString(),
+        status: shouldRetry ? "running" : "failed",
+        errorMessage: message,
+        errorCode: null,
+        attempts,
+        ...(shouldRetry ? {} : { completedAt: new Date().toISOString() }),
       });
-      throw new Error("Video generation timed out.");
+      lastError = new Error(`OpenAI video generation failed: ${message}`);
+      if (shouldRetry) {
+        await wait(RETRY_DELAY_MS);
+        continue;
+      }
+      throw lastError;
     }
-    await wait(POLL_INTERVAL_MS);
-    pollCount += 1;
-    polledJob = await retrieveVideoJob(job.id);
-    status = polledJob.status;
-  }
 
-  await updateAiVideoRun(runRecord.id, {
-    status: "uploading",
-    responseMetadata: polledJob as unknown as Record<string, unknown>,
-  });
+    let status = job.status;
+    let polledJob = job;
+    let pollCount = 0;
+    let failed = false;
+    while (status !== "completed") {
+      if (status === "failed") {
+        failed = true;
+        const errorCode = polledJob.error?.code ?? null;
+        const message = polledJob.error?.message ?? "OpenAI video generation failed.";
+        const failureAttempt: AiVideoRunAttempt = {
+          ...attempt,
+          completedAt: new Date().toISOString(),
+          errorCode,
+          errorMessage: message,
+        };
+        attempts = [...attempts.slice(0, -1), failureAttempt];
+        const shouldRetry =
+          attemptIndex + 1 < MAX_VIDEO_JOB_ATTEMPTS && RETRYABLE_VIDEO_ERROR_CODES.has(errorCode ?? "");
+        await updateAiVideoRun(runRecord.id, {
+          status: shouldRetry ? "running" : "failed",
+          errorCode,
+          errorMessage: message,
+          responseMetadata: polledJob as unknown as Record<string, unknown>,
+          attempts,
+          ...(shouldRetry ? {} : { completedAt: new Date().toISOString() }),
+        });
+        lastError = new Error(`OpenAI video generation failed (${errorCode ?? "unknown"}): ${message}`);
+        if (shouldRetry) {
+          await wait(RETRY_DELAY_MS);
+          break;
+        }
+        throw lastError;
+      }
+      if (pollCount >= MAX_POLL_ITERATIONS) {
+        const timeoutMessage = "Video generation timed out.";
+        const failureAttempt: AiVideoRunAttempt = {
+          ...attempt,
+          completedAt: new Date().toISOString(),
+          errorMessage: timeoutMessage,
+        };
+        attempts = [...attempts.slice(0, -1), failureAttempt];
+        await updateAiVideoRun(runRecord.id, {
+          status: "failed",
+          errorMessage: timeoutMessage,
+          attempts,
+          completedAt: new Date().toISOString(),
+        });
+        lastError = new Error(timeoutMessage);
+        throw lastError;
+      }
+      await wait(POLL_INTERVAL_MS);
+      pollCount += 1;
+      polledJob = await retrieveVideoJob(job.id);
+      status = polledJob.status;
+    }
 
-  const videoContent = await downloadVideoContent(polledJob.id);
+    if (failed) {
+      // We already set state and decided whether to retry.
+      continue;
+    }
+
+    await updateAiVideoRun(runRecord.id, {
+      status: "uploading",
+      responseMetadata: polledJob as unknown as Record<string, unknown>,
+    });
+
+    const videoContent = await downloadVideoContent(polledJob.id);
   let thumbnailContent: { bytes: Uint8Array; contentType: string | null } | null = null;
   try {
     thumbnailContent = await downloadVideoContent(polledJob.id, "thumbnail");
@@ -383,10 +483,10 @@ async function runOpenAIVideoPipeline(
     thumbnail: thumbnailContent,
   });
 
-  const completedAttempt: AiVideoRunAttempt = {
-    ...attempt,
-    completedAt: new Date().toISOString(),
-  };
+    const completedAttempt: AiVideoRunAttempt = {
+      ...attempt,
+      completedAt: new Date().toISOString(),
+    };
 
   const playbackUrl =
     persisted.playbackUrl ||
@@ -440,6 +540,296 @@ async function runOpenAIVideoPipeline(
 
   const durationSecondsValue = normalizeSeconds(polledJob.seconds);
 
+    attempts = [...attempts.slice(0, -1), completedAttempt];
+    await updateAiVideoRun(runRecord.id, {
+      status: "succeeded",
+      videoUrl: playbackUrl,
+      thumbnailUrl: persisted.posterUrl ?? persisted.thumbnailUrl ?? null,
+      muxAssetId: persisted.assetId,
+      muxPlaybackId: persisted.playbackId,
+      muxPosterUrl: persisted.posterUrl,
+      durationSeconds: durationSecondsValue,
+      sizeBytes: persisted.sizeBytes ?? null,
+      responseMetadata,
+      attempts,
+      completedAt: new Date().toISOString(),
+    });
+
+    return {
+      url: fallbackMp4 ?? playbackUrl,
+      playbackUrl,
+      posterUrl: persisted.posterUrl ?? persisted.thumbnailUrl ?? null,
+      provider: "openai",
+      runId: runRecord.id,
+      model,
+      thumbnailUrl: persisted.thumbnailUrl ?? persisted.posterUrl ?? null,
+      durationSeconds: durationSecondsValue,
+      muxAssetId: persisted.assetId,
+      muxPlaybackId: persisted.playbackId,
+      memoryId,
+      runStatus: "succeeded",
+    };
+  }
+
+  throw lastError ?? new Error("OpenAI video generation failed after retries.");
+}
+
+function extractRunwayOutputs(generation: RunwayGeneration): {
+  videoUrl: string | null;
+  thumbnailUrl: string | null;
+} {
+  const outputs = (() => {
+    if (Array.isArray(generation.output)) return generation.output;
+    if (generation.output && typeof generation.output === "object") {
+      return Object.values(generation.output as Record<string, unknown>);
+    }
+    return [];
+  })();
+  const candidates = outputs
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (entry && typeof entry === "object" && typeof (entry as { url?: unknown }).url === "string") {
+        return ((entry as { url: string }).url ?? "").trim();
+      }
+      return null;
+    })
+    .filter((entry): entry is string => Boolean(entry && entry.trim().length));
+
+  const assetVideo: string | null =
+    typeof generation.assets?.video === "string" && generation.assets.video.trim().length
+      ? generation.assets.video.trim()
+      : null;
+  const assetThumb: string | null =
+    typeof generation.assets?.thumbnail === "string" && generation.assets.thumbnail.trim().length
+      ? generation.assets.thumbnail.trim()
+      : typeof generation.assets?.poster === "string" && generation.assets.poster.trim().length
+        ? generation.assets.poster.trim()
+        : null;
+
+  const primary = candidates.length > 0 ? candidates[0] ?? null : null;
+  const secondary = candidates.length > 1 ? candidates[1] ?? null : null;
+
+  return {
+    videoUrl: primary ?? assetVideo ?? null,
+    thumbnailUrl: assetThumb ?? secondary ?? null,
+  };
+}
+
+async function createRunwayVideoJob(
+  prompt: string,
+  sourceUrl: string | null,
+  options: { resolution: string; seconds: number; sourceKind?: "video" | "image" | null },
+): Promise<RunwayGeneration> {
+  const { width, height } = parseResolution(options.resolution);
+  const sourceKind = options.sourceKind ?? (sourceUrl ? "video" : null);
+  const payload: Record<string, unknown> = {
+    model: resolveRunwayVideoModel(),
+    input: {
+      prompt,
+      ...(sourceUrl
+        ? sourceKind === "image"
+          ? { image: sourceUrl, mode: "image_to_video" }
+          : { video: sourceUrl, mode: "video_to_video" }
+        : { mode: "text_to_video" }),
+      width,
+      height,
+      seconds: options.seconds,
+    },
+    output: {
+      format: "mp4",
+    },
+  };
+
+  const response = await postRunwayJson<RunwayGeneration>("/generations", payload);
+  if (!response.ok || !response.data) {
+    const message =
+      (response.parsedBody as { message?: string } | null)?.message ??
+      (typeof response.rawBody === "string" && response.rawBody.length ? response.rawBody : null) ??
+      "Failed to create Runway video job.";
+    throw new Error(message);
+  }
+  return response.data;
+}
+
+async function retrieveRunwayGeneration(id: string): Promise<RunwayGeneration> {
+  const response = await fetchRunway(`/generations/${encodeURIComponent(id)}`, { method: "GET" });
+  const raw = await response.text().catch(() => "");
+  if (!response.ok) {
+    throw new Error(`Runway generation ${id} lookup failed (${response.status}): ${raw}`);
+  }
+  try {
+    return JSON.parse(raw) as RunwayGeneration;
+  } catch {
+    throw new Error("Runway generation response could not be parsed.");
+  }
+}
+
+async function runRunwayVideoPipeline(
+  prompt: string,
+  context: VideoRunContext,
+): Promise<VideoGenerationResult> {
+  const resolution = resolveRunwayVideoResolution();
+  const durationSeconds = resolveRunwayVideoDuration();
+
+  const runRecord = await createAiVideoRun({
+    ownerUserId: context.ownerUserId ?? null,
+    capsuleId: context.capsuleId ?? null,
+    mode: context.mode,
+    sourceUrl: context.sourceUrl ?? null,
+    userPrompt: prompt,
+    resolvedPrompt: prompt,
+    provider: "runway",
+    model: resolveRunwayVideoModel(),
+    options: {
+      resolution,
+      seconds: durationSeconds,
+      ...(context.options ?? {}),
+    },
+    status: "pending",
+  });
+
+  let attempts: AiVideoRunAttempt[] = runRecord.attempts ?? [];
+  const attempt: AiVideoRunAttempt = {
+    attempt: (attempts?.length ?? 0) + 1,
+    stage: context.mode === "edit" ? "edit" : "generate",
+    model: resolveRunwayVideoModel(),
+    provider: "runway",
+    startedAt: new Date().toISOString(),
+  };
+  attempts = [...attempts, attempt];
+  await updateAiVideoRun(runRecord.id, { status: "running", attempts });
+
+  let job: RunwayGeneration;
+  try {
+    job = await createRunwayVideoJob(
+      prompt,
+      context.sourceUrl ?? null,
+      {
+        resolution,
+        seconds: durationSeconds,
+        sourceKind:
+          typeof context.options?.sourceKind === "string"
+            ? (context.options.sourceKind as "video" | "image")
+            : context.sourceUrl
+              ? "video"
+              : null,
+      },
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Runway video generation failed.";
+    const failureAttempt: AiVideoRunAttempt = {
+      ...attempt,
+      completedAt: new Date().toISOString(),
+      errorMessage: message,
+    };
+    attempts = [...attempts.slice(0, -1), failureAttempt];
+    await updateAiVideoRun(runRecord.id, {
+      status: "failed",
+      errorMessage: message,
+      attempts,
+      completedAt: new Date().toISOString(),
+    });
+    throw new Error(message);
+  }
+
+  let polled = job;
+  let status = job.status;
+  let pollCount = 0;
+  while (status !== "succeeded") {
+    if (status === "failed" || status === "canceled") {
+      const rawError =
+        typeof polled.error === "string"
+          ? polled.error
+          : (polled.error as { message?: string } | null | undefined)?.message ?? "Runway generation failed.";
+      const failureAttempt: AiVideoRunAttempt = {
+        ...attempt,
+        completedAt: new Date().toISOString(),
+        errorMessage: rawError,
+      };
+      attempts = [...attempts.slice(0, -1), failureAttempt];
+      await updateAiVideoRun(runRecord.id, {
+        status: "failed",
+        errorMessage: rawError,
+        attempts,
+        completedAt: new Date().toISOString(),
+      });
+      throw new Error(rawError);
+    }
+    if (pollCount >= RUNWAY_MAX_POLL_ITERATIONS) {
+      const timeoutMessage = "Runway video generation timed out.";
+      const failureAttempt: AiVideoRunAttempt = {
+        ...attempt,
+        completedAt: new Date().toISOString(),
+        errorMessage: timeoutMessage,
+      };
+      attempts = [...attempts.slice(0, -1), failureAttempt];
+      await updateAiVideoRun(runRecord.id, {
+        status: "failed",
+        errorMessage: timeoutMessage,
+        attempts,
+        completedAt: new Date().toISOString(),
+      });
+      throw new Error(timeoutMessage);
+    }
+    await wait(RUNWAY_POLL_INTERVAL_MS);
+    pollCount += 1;
+    polled = await retrieveRunwayGeneration(job.id);
+    status = polled.status;
+  }
+
+  await updateAiVideoRun(runRecord.id, {
+    status: "uploading",
+    responseMetadata: polled as unknown as Record<string, unknown>,
+  });
+
+  const { videoUrl, thumbnailUrl } = extractRunwayOutputs(polled);
+  if (!videoUrl) {
+    throw new Error("Runway generation did not return a video URL.");
+  }
+
+  const videoContent = await downloadRemoteAsset(videoUrl);
+  let thumbContent: { bytes: Uint8Array; contentType: string | null } | null = null;
+  if (thumbnailUrl) {
+    try {
+      thumbContent = await downloadRemoteAsset(thumbnailUrl);
+    } catch (error) {
+      console.warn("Failed to download Runway thumbnail", error);
+    }
+  }
+
+  const persisted = await persistVideoAsset({
+    runId: runRecord.id,
+    ownerUserId: context.ownerUserId ?? null,
+    video: videoContent,
+    thumbnail: thumbContent,
+  });
+
+  const completedAttempt: AiVideoRunAttempt = {
+    ...attempt,
+    completedAt: new Date().toISOString(),
+  };
+  attempts = [...attempts.slice(0, -1), completedAttempt];
+
+  const durationSecondsValue = normalizeSeconds(
+    (polled as unknown as { seconds?: number } | null)?.seconds ?? durationSeconds,
+  );
+  const playbackUrl =
+    persisted.playbackUrl ||
+    buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "m3u8" }) ||
+    persisted.storageUrl;
+  const fallbackMp4 =
+    buildMuxPlaybackUrl(persisted.playbackId ?? undefined, { extension: "mp4" }) ?? playbackUrl;
+
+  const responseMetadata: Record<string, unknown> = {
+    playbackUrl: playbackUrl ?? fallbackMp4,
+    posterUrl: persisted.posterUrl ?? persisted.thumbnailUrl ?? null,
+    muxAssetId: persisted.assetId,
+    muxPlaybackId: persisted.playbackId,
+    storageUrl: persisted.storageUrl,
+    storageKey: persisted.storageKey,
+    provider: "runway",
+  };
+
   await updateAiVideoRun(runRecord.id, {
     status: "succeeded",
     videoUrl: playbackUrl,
@@ -450,7 +840,7 @@ async function runOpenAIVideoPipeline(
     durationSeconds: durationSecondsValue,
     sizeBytes: persisted.sizeBytes ?? null,
     responseMetadata,
-    attempts: [...(runRecord.attempts ?? []), completedAttempt],
+    attempts,
     completedAt: new Date().toISOString(),
   });
 
@@ -458,14 +848,14 @@ async function runOpenAIVideoPipeline(
     url: fallbackMp4 ?? playbackUrl,
     playbackUrl,
     posterUrl: persisted.posterUrl ?? persisted.thumbnailUrl ?? null,
-    provider: "openai",
+    provider: "runway",
     runId: runRecord.id,
-    model,
+    model: resolveRunwayVideoModel(),
     thumbnailUrl: persisted.thumbnailUrl ?? persisted.posterUrl ?? null,
     durationSeconds: durationSecondsValue,
     muxAssetId: persisted.assetId,
     muxPlaybackId: persisted.playbackId,
-    memoryId,
+    memoryId: null,
     runStatus: "succeeded",
   };
 }
@@ -486,5 +876,14 @@ export async function editVideoWithInstruction(
   if (!source) {
     throw new Error("A source video URL is required to perform an edit.");
   }
-  throw new Error("Video editing is not supported with the current video provider.");
+  if (!hasRunwayApiKey()) {
+    throw new Error("Video editing is not configured; add RUNWAY_API_KEY to enable edits.");
+  }
+  return runRunwayVideoPipeline(_instruction, { ..._context, sourceUrl: source, mode: "edit" });
 }
+
+// Expose internals for isolated tests
+export const __test__ = {
+  parseResolution,
+  extractRunwayOutputs,
+};

@@ -85,7 +85,7 @@ function hasImageLikeExtension(url: string | null | undefined): boolean {
 
 function isImageAttachment(
   attachment: ComposerChatAttachment | null | undefined,
-): attachment is ComposerChatAttachment {
+): boolean {
   if (!attachment) return false;
   const mime = (attachment.mimeType ?? "").toLowerCase();
   if (mime.startsWith("image/")) return true;
@@ -97,29 +97,55 @@ function isImageAttachment(
 function isGeneratedImageAttachment(
   attachment: ComposerChatAttachment | null | undefined,
 ): attachment is ComposerChatAttachment {
-  if (!isImageAttachment(attachment)) return false;
+  if (!attachment || !isImageAttachment(attachment)) return false;
   const role = (attachment.role ?? "").toLowerCase();
   const source = (attachment.source ?? "").toLowerCase();
   return role === "output" || source === "ai";
+}
+
+const VIDEO_EXTENSION_RE = /\.(mp4|m4v|mov|webm|mkv)$/i;
+
+function hasVideoLikeExtension(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const normalized = url.split("?")[0]?.toLowerCase() ?? "";
+  return VIDEO_EXTENSION_RE.test(normalized);
+}
+
+function isVideoAttachment(
+  attachment: ComposerChatAttachment | null | undefined,
+): boolean {
+  if (!attachment) return false;
+  const mime = (attachment.mimeType ?? "").toLowerCase();
+  if (mime.startsWith("video/")) return true;
+  if (hasVideoLikeExtension(attachment.url)) return true;
+  if (hasVideoLikeExtension(attachment.thumbnailUrl)) return true;
+  return false;
 }
 
 function partitionAttachments(
   attachments: ComposerChatAttachment[] | null | undefined,
 ): {
   imageAttachments: Array<{ attachment: ComposerChatAttachment; generated: boolean }>;
+  videoAttachments: Array<{ attachment: ComposerChatAttachment; generated: boolean }>;
   inlineAttachments: ComposerChatAttachment[];
 } {
   const imageAttachments: Array<{ attachment: ComposerChatAttachment; generated: boolean }> = [];
+  const videoAttachments: Array<{ attachment: ComposerChatAttachment; generated: boolean }> = [];
   const inlineAttachments: ComposerChatAttachment[] = [];
-  if (!Array.isArray(attachments)) return { imageAttachments, inlineAttachments };
-  attachments.forEach((attachment) => {
+  const list: ComposerChatAttachment[] = Array.isArray(attachments) ? attachments : [];
+  list.forEach((attachment: ComposerChatAttachment) => {
     if (isImageAttachment(attachment)) {
       imageAttachments.push({ attachment, generated: isGeneratedImageAttachment(attachment) });
+    } else if (isVideoAttachment(attachment)) {
+      const role = (attachment.role ?? "").toLowerCase();
+      const source = (attachment.source ?? "").toLowerCase();
+      const generated = role === "output" || source === "ai";
+      videoAttachments.push({ attachment, generated });
     } else {
       inlineAttachments.push(attachment);
     }
   });
-  return { imageAttachments, inlineAttachments };
+  return { imageAttachments, videoAttachments, inlineAttachments };
 }
 
 export function PromptPane({
@@ -337,6 +363,15 @@ export function PromptPane({
               0,
               Math.max(2, cleanedOptions.length + 2),
             );
+      const optionThumbnails = optionList.map((_, index) => {
+        const rawThumb = Array.isArray(poll.thumbnails) ? poll.thumbnails[index] : null;
+        if (typeof rawThumb === "string") {
+          const trimmed = rawThumb.trim();
+          return trimmed.length ? trimmed : null;
+        }
+        return null;
+      });
+      const hasOptionThumbnails = optionThumbnails.some(Boolean);
       const displayQuestion = question || "Poll draft";
       const canAddPoll = typeof onAddPollToPreview === "function";
       if (!canAddPoll) return null;
@@ -347,12 +382,10 @@ export function PromptPane({
             {optionList.map((option, index) => (
               <li key={`${entryKey}-poll-option-${index}`} className={styles.chatPollOption}>
                 <span className={styles.chatPollOptionBullet} aria-label={`Option ${index + 1}`}>
-                  {Array.isArray((poll as { thumbnails?: (string | null)[] | null }).thumbnails) &&
-                  typeof (poll as { thumbnails?: (string | null)[] | null }).thumbnails?.[index] === "string" &&
-                  (poll as { thumbnails?: (string | null)[] | null }).thumbnails?.[index]?.trim() ? (
+                  {optionThumbnails[index] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={(poll as { thumbnails: (string | null)[] }).thumbnails![index] as string}
+                      src={optionThumbnails[index] as string}
                       alt=""
                       className={styles.chatPollOptionThumb}
                     />
@@ -370,6 +403,7 @@ export function PromptPane({
                 onAddPollToPreview?.({
                   question: displayQuestion,
                   options: optionList,
+                  ...(hasOptionThumbnails ? { thumbnails: optionThumbnails } : {}),
                 })
               }
             >
@@ -391,7 +425,7 @@ export function PromptPane({
             ? `${styles.msgBubble} ${styles.userBubble}`
             : `${styles.msgBubble} ${styles.aiBubble}`;
         const key = entry.id || `${keyPrefix}-${role}-${index}`;
-        const { imageAttachments, inlineAttachments } = partitionAttachments(
+        const { imageAttachments, videoAttachments, inlineAttachments } = partitionAttachments(
           Array.isArray(entry.attachments) ? entry.attachments : [],
         );
         const messageText = typeof entry.content === "string" ? entry.content.trim() : "";
@@ -399,7 +433,7 @@ export function PromptPane({
         const showBubble =
           role === "user" ||
           inlineAttachments.length > 0 ||
-          (!imageAttachments.length && (messageText.length > 0 || pollNode));
+          (!imageAttachments.length && !videoAttachments.length && (messageText.length > 0 || pollNode));
         const inlineAttachmentNode =
           inlineAttachments.length > 0 ? renderInlineAttachments(inlineAttachments, key) : null;
         const bubbleNode = showBubble ? (
@@ -410,7 +444,7 @@ export function PromptPane({
           </div>
         ) : null;
 
-        const generatedNodes =
+        const generatedImageNodes =
           imageAttachments.length > 0
             ? imageAttachments.map(({ attachment, generated }, attachmentIndex) => {
                 const attachmentKey = `${key}-gen-${attachment.id || attachmentIndex}`;
@@ -479,10 +513,81 @@ export function PromptPane({
               })
             : null;
 
+        const generatedVideoNodes =
+          videoAttachments.length > 0
+            ? videoAttachments.map(({ attachment, generated }, attachmentIndex) => {
+                const attachmentKey = `${key}-gen-video-${attachment.id || attachmentIndex}`;
+                const playbackSrc =
+                  typeof attachment.url === "string" && attachment.url.trim().length
+                    ? attachment.url.trim()
+                    : null;
+                if (!playbackSrc) return null;
+                const defaultCaption = generated ? "Generated clip" : "Attached clip";
+                const generatedCaption = attachment.name?.trim() || defaultCaption;
+                const helperLabel =
+                  attachment.name && generatedCaption !== attachment.name ? attachment.name : null;
+                const canAddToPreview =
+                  typeof onAddAttachmentToPreview === "function" &&
+                  typeof attachment.url === "string" &&
+                  attachment.url.trim().length > 0;
+                return (
+                  <div key={attachmentKey} className={styles.chatGeneratedAttachment}>
+                    <div className={styles.chatGeneratedMediaWrap}>
+                      <video
+                        className={styles.chatGeneratedMedia}
+                        src={playbackSrc}
+                        controls
+                        preload="metadata"
+                        poster={
+                          typeof attachment.thumbnailUrl === "string" && attachment.thumbnailUrl.trim().length
+                            ? attachment.thumbnailUrl.trim()
+                            : undefined
+                        }
+                      />
+                    </div>
+                    <div className={styles.chatGeneratedMeta}>
+                      <div className={styles.chatGeneratedActions}>
+                        {attachment.url ? (
+                          <a
+                            className={`${styles.chatGeneratedButton} ${styles.chatGeneratedGhost}`.trim()}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            download
+                          >
+                            Download
+                          </a>
+                        ) : null}
+                        {canAddToPreview ? (
+                          <button
+                            type="button"
+                            className={`${styles.chatGeneratedButton} ${styles.chatGeneratedPrimary}`.trim()}
+                            onClick={() => onAddAttachmentToPreview?.(attachment)}
+                          >
+                            Add to preview
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className={styles.chatGeneratedText}>
+                        {generatedCaption ? <p>{generatedCaption}</p> : null}
+                        {helperLabel ? (
+                          <span className={styles.chatGeneratedSubdued}>{helperLabel}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            : null;
+
+        const generatedNodes = [...(generatedImageNodes ?? []), ...(generatedVideoNodes ?? [])];
+
         return (
           <li key={key} className={styles.msgRow} data-role={role}>
-            {bubbleNode}
-            {generatedNodes}
+            <div className={styles.msgRowInner}>
+              {bubbleNode}
+              {generatedNodes}
+            </div>
           </li>
         );
       }),

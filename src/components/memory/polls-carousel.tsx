@@ -56,6 +56,32 @@ function formatTimestamp(iso: string | null | undefined): string | null {
   }
 }
 
+function truncate(value: string, limit = 160): string {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit - 1).trimEnd()}...`;
+}
+
+function firstSentence(value: string, limit = 140): string {
+  const trimmed = value.trim();
+  if (!trimmed.length) return "";
+
+  const periodIndex = trimmed.indexOf(".");
+  const questionIndex = trimmed.indexOf("?");
+  const exclamationIndex = trimmed.indexOf("!");
+
+  const candidates = [periodIndex, questionIndex, exclamationIndex].filter(
+    (index) => index >= 0,
+  );
+  const sentenceEnd = candidates.length ? Math.min(...candidates) : -1;
+
+  const base =
+    sentenceEnd >= 0 && sentenceEnd + 1 <= limit
+      ? trimmed.slice(0, sentenceEnd + 1)
+      : trimmed;
+
+  return truncate(base, limit);
+}
+
 export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
   return items
     .map((item) => {
@@ -118,9 +144,13 @@ function getSlidesPerView(): number {
   return 1;
 }
 
-export function PollsCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
+type PollsProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
+
+export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   const { user, items, loading, error } = useMemoryUploads("poll", {
     initialPage: initialItems ? { items: initialItems, hasMore: false } : undefined,
+    pageSize: effectivePageSize,
   });
   const polls = React.useMemo(() => buildPolls(items), [items]);
 
@@ -128,7 +158,7 @@ export function PollsCarousel({ initialItems }: { initialItems?: MemoryUploadIte
   const [offset, setOffset] = React.useState(0);
 
   const totalItems = polls.length;
-  const pageSize = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
+  const visibleCount = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -148,34 +178,34 @@ export function PollsCarousel({ initialItems }: { initialItems?: MemoryUploadIte
   }, [totalItems]);
 
   const visiblePolls = React.useMemo(() => {
-    if (pageSize === 0) return [];
+    if (visibleCount === 0) return [];
     const result: PollCard[] = [];
-    for (let index = 0; index < pageSize; index += 1) {
+    for (let index = 0; index < visibleCount; index += 1) {
       const item = polls[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, pageSize, polls, totalItems]);
+  }, [offset, polls, totalItems, visibleCount]);
 
-  const hasRotation = pageSize > 0 && totalItems > pageSize;
+  const hasRotation = visibleCount > 0 && totalItems > visibleCount;
   const navDisabled = loading || !hasRotation || visiblePolls.length === 0;
 
   const handlePrev = React.useCallback(() => {
     if (!hasRotation) return;
     setOffset((current) => {
-      const next = (current - pageSize) % totalItems;
+      const next = (current - visibleCount) % totalItems;
       return next < 0 ? next + totalItems : next;
     });
-  }, [hasRotation, pageSize, totalItems]);
+  }, [hasRotation, totalItems, visibleCount]);
 
   const handleNext = React.useCallback(() => {
     if (!hasRotation) return;
-    setOffset((current) => (current + pageSize) % totalItems);
-  }, [hasRotation, pageSize, totalItems]);
+    setOffset((current) => (current + visibleCount) % totalItems);
+  }, [hasRotation, totalItems, visibleCount]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--recap-visible-count": Math.max(1, pageSize) }) as React.CSSProperties,
-    [pageSize],
+    () => ({ "--recap-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
+    [visibleCount],
   );
 
   return (
@@ -226,33 +256,47 @@ export function PollsCarousel({ initialItems }: { initialItems?: MemoryUploadIte
           ) : (
             <div className={styles.viewport}>
               <div className={styles.container} style={containerStyle}>
-                {visiblePolls.map((poll) => (
-                  <article key={poll.id} className={styles.card}>
-                    <div className={styles.cardHeader}>
-                      <span className={styles.badge}>Poll</span>
-                      {poll.updatedAt ? <span className={styles.timestamp}>{poll.updatedAt}</span> : null}
-                    </div>
-                    <h4 className={styles.cardTitle}>{poll.question}</h4>
-                    {poll.summary ? <p className={styles.summary}>{poll.summary}</p> : null}
-                    {poll.options.length ? (
-                      <div className={styles.highlights}>
-                        {poll.options.slice(0, 3).map((option, index) => {
-                          const pct =
-                            poll.totalVotes > 0 ? Math.round((option.votes / poll.totalVotes) * 100) : 0;
-                          return (
-                            <span key={`${poll.id}-option-${index}`} className={styles.highlight}>
-                              {option.label} — {option.votes} vote{option.votes === 1 ? "" : "s"} ({pct}%)
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    <div className={styles.footer}>
-                      <span className={styles.memoryId}>Memory #{poll.memoryId.slice(0, 8)}</span>
-                      <span>Total votes: {poll.totalVotes}</span>
-                    </div>
-                  </article>
-                ))}
+                {visiblePolls.map((poll) => {
+                  const summarySource = poll.question || poll.summary || "";
+                  const summaryText =
+                    summarySource.length > 0
+                      ? firstSentence(summarySource, 120)
+                      : "Poll snapshot";
+                  const topOptions = [...poll.options]
+                    .sort((a, b) => b.votes - a.votes)
+                    .slice(0, 2);
+
+                  return (
+                    <article
+                      key={poll.id}
+                      className={`${styles.card} ${styles.pollCard}`}
+                    >
+                      <p className={styles.pollSummary}>{summaryText}</p>
+                      {topOptions.length ? (
+                        <>
+                          <div className={styles.pollDivider} />
+                          <div className={styles.pollOptions}>
+                            {topOptions.map((option, index) => {
+                              const pct =
+                                poll.totalVotes > 0
+                                  ? Math.round((option.votes / poll.totalVotes) * 100)
+                                  : 0;
+                              return (
+                                <div
+                                  key={`${poll.id}-option-${index}`}
+                                  className={styles.pollOption}
+                                >
+                                  <span className={styles.pollOptionLabel}>{option.label}</span>
+                                  <span className={styles.pollOptionValue}>{pct}%</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
             </div>
           )

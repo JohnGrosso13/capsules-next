@@ -29,67 +29,74 @@ export const metadata: Metadata = {
 
 export const runtime = "nodejs";
 
-const MEMORY_PAGE_LIMIT = 48;
-const MEMORY_FETCH_TIMEOUT_MS = 5000;
+const MEMORY_SEED_LIMIT = 24;
 
-async function loadMemoryPageData(): Promise<{
+type MemorySeeds = {
+  partyRecaps: MemoryUploadItem[];
+  polls: MemoryUploadItem[];
+  savedPosts: MemoryUploadItem[];
   uploads: MemoryUploadItem[];
   aiImages: MemoryUploadItem[];
   aiVideos: MemoryUploadItem[];
-  partyRecaps: MemoryUploadItem[];
-  polls: MemoryUploadItem[];
-  postMemories: MemoryUploadItem[];
-  creations: MemoryUploadItem[];
-}> {
-  const session = await ensureUserSession();
-  const origin = await resolveRequestOrigin();
-  const baseParams = {
-    ownerId: session.supabaseUserId,
+  pdfs: MemoryUploadItem[];
+  powerpoints: MemoryUploadItem[];
+  savedCreations: MemoryUploadItem[];
+  assets: MemoryUploadItem[];
+};
+
+async function loadMemorySeeds(ownerId: string, origin: string | null): Promise<MemorySeeds> {
+  // We reuse the uploads list for multiple carousels (uploads, PDFs, PPTs) to avoid extra queries.
+  const uploadPromise = listMemories({
+    ownerId,
+    kind: "upload",
     origin,
-    limit: MEMORY_PAGE_LIMIT,
-  };
+    limit: MEMORY_SEED_LIMIT,
+  });
 
-  const fetchKind = async (kind: string) => {
-    try {
-      const timer = new Promise<"timeout">((resolve) =>
-        setTimeout(() => resolve("timeout"), MEMORY_FETCH_TIMEOUT_MS),
-      );
-      const result = (await Promise.race([
-        listMemories({ ...baseParams, kind }),
-        timer,
-      ])) as MemoryUploadItem[] | "timeout";
-      if (result === "timeout") return [] as MemoryUploadItem[];
-      return result;
-    } catch (error) {
-      console.warn("memory page preload failed", kind, error);
-      return [] as MemoryUploadItem[];
-    }
-  };
+  const [
+    partyRecapsResult,
+    pollsResult,
+    savedPostsResult,
+    uploadsResult,
+    aiImagesResult,
+    aiVideosResult,
+    savedCreationsResult,
+    assetsResult,
+  ] = await Promise.allSettled([
+    listMemories({ ownerId, kind: "party_summary", origin, limit: MEMORY_SEED_LIMIT }),
+    listMemories({ ownerId, kind: "poll", origin, limit: MEMORY_SEED_LIMIT }),
+    listMemories({ ownerId, kind: "post_memory", origin, limit: MEMORY_SEED_LIMIT }),
+    uploadPromise,
+    listMemories({ ownerId, kind: "composer_image", origin, limit: MEMORY_SEED_LIMIT }),
+    listMemories({ ownerId, kind: "video", origin, limit: MEMORY_SEED_LIMIT }),
+    listMemories({ ownerId, kind: "composer_creation", origin, limit: MEMORY_SEED_LIMIT }),
+    listMemories({ ownerId, kind: null, origin, limit: MEMORY_SEED_LIMIT }),
+  ]);
 
-  const [uploads, aiImages, aiVideos, partyRecaps, polls, postMemories, creations] =
-    await Promise.all([
-      fetchKind("upload"),
-      fetchKind("composer_image"),
-      fetchKind("video"),
-      fetchKind("party_summary"),
-      fetchKind("poll"),
-      fetchKind("post_memory"),
-      fetchKind("composer_creation"),
-    ]);
+  const unpack = (result: PromiseSettledResult<unknown>): MemoryUploadItem[] =>
+    result.status === "fulfilled" && Array.isArray(result.value)
+      ? (result.value as MemoryUploadItem[])
+      : [];
+
+  const uploads = unpack(uploadsResult);
 
   return {
+    partyRecaps: unpack(partyRecapsResult),
+    polls: unpack(pollsResult),
+    savedPosts: unpack(savedPostsResult),
     uploads,
-    aiImages,
-    aiVideos,
-    partyRecaps,
-    polls,
-    postMemories,
-    creations,
+    aiImages: unpack(aiImagesResult),
+    aiVideos: unpack(aiVideosResult),
+    pdfs: uploads,
+    powerpoints: uploads,
+    savedCreations: unpack(savedCreationsResult),
+    assets: unpack(assetsResult),
   };
 }
 
 export default async function MemoryPage() {
-  const data = await loadMemoryPageData();
+  const [session, origin] = await Promise.all([ensureUserSession(), resolveRequestOrigin()]);
+  const seeds = await loadMemorySeeds(session.supabaseUserId, origin);
 
   return (
     <AppPage activeNav="memory" showDiscoveryRightRail>
@@ -98,16 +105,16 @@ export default async function MemoryPage() {
           <h1>Memory</h1>
           <p>Upload files, media, and documents. Capsule AI will recall them instantly.</p>
         </header>
-        <PartyRecapsCarousel initialItems={data.partyRecaps} />
-        <PollsCarousel initialItems={data.polls} />
-        <PostMemoriesCarousel initialItems={data.postMemories} />
-        <UploadsCarousel initialItems={data.uploads} />
-        <AiImagesCarousel initialItems={data.aiImages} />
-        <AiVideosCarousel initialItems={data.aiVideos} />
-        <PowerpointsCarousel initialItems={data.uploads} />
-        <PdfsCarousel initialItems={data.uploads} />
-        <SavedCreationsCarousel initialItems={data.creations} />
-        <CapsuleAssetsCarousel />
+        <PartyRecapsCarousel initialItems={seeds.partyRecaps} />
+        <PollsCarousel initialItems={seeds.polls} />
+        <PostMemoriesCarousel initialItems={seeds.savedPosts} />
+        <UploadsCarousel initialItems={seeds.uploads} pageSize={MEMORY_SEED_LIMIT} />
+        <AiImagesCarousel initialItems={seeds.aiImages} pageSize={MEMORY_SEED_LIMIT} />
+        <AiVideosCarousel initialItems={seeds.aiVideos} pageSize={MEMORY_SEED_LIMIT} />
+        <PowerpointsCarousel initialItems={seeds.powerpoints} pageSize={MEMORY_SEED_LIMIT} />
+        <PdfsCarousel initialItems={seeds.pdfs} pageSize={MEMORY_SEED_LIMIT} />
+        <SavedCreationsCarousel initialItems={seeds.savedCreations} pageSize={MEMORY_SEED_LIMIT} />
+        <CapsuleAssetsCarousel initialItems={seeds.assets} pageSize={MEMORY_SEED_LIMIT} />
       </section>
     </AppPage>
   );

@@ -50,6 +50,18 @@ export async function POST(req: Request) {
       limit,
       cursor,
     });
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[api/memory/list] response", {
+        ownerId,
+        kind,
+        limit,
+        cursor,
+        origin: requestOrigin ?? null,
+        count: Array.isArray(items) ? items.length : 0,
+      });
+    }
+
     return NextResponse.json({ items });
   } catch (error) {
     console.error("memory list error", error);

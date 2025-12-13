@@ -21,6 +21,7 @@ export type CallAiPromptParams = {
   onStreamMessage?: (content: string) => void;
   endpoint?: string;
   signal?: AbortSignal;
+  timeoutMs?: number;
 };
 
 export async function callAiPrompt({
@@ -36,7 +37,13 @@ export async function callAiPrompt({
   onStreamMessage,
   endpoint = "/api/ai/prompt",
   signal,
+  timeoutMs,
 }: CallAiPromptParams): Promise<PromptResponse> {
+  const DEFAULT_TIMEOUT_MS = 120_000;
+  const resolvedTimeoutMs =
+    typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : DEFAULT_TIMEOUT_MS;
   const prepStarted = performance.now();
   const baseBody: Record<string, unknown> = { message };
   if (options && Object.keys(options).length) baseBody.options = options;
@@ -77,7 +84,7 @@ export async function callAiPrompt({
   const runRequest = async (streamMode: boolean, allowFallback: boolean): Promise<PromptResponse> => {
     const body = { ...baseBody, ...(streamMode ? { stream: true } : {}) };
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort("ai_prompt_timeout"), 120000);
+    const timeoutId = setTimeout(() => controller.abort("ai_prompt_timeout"), resolvedTimeoutMs);
     let externalAbortListener: (() => void) | null = null;
     if (signal) {
       if (signal.aborted) {

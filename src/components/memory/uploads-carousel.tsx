@@ -510,7 +510,10 @@ export function UploadsCarousel({
   );
 }
 
-export function AiVideosCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
+type UploadVariantProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
+
+export function AiVideosCarousel({ initialItems, pageSize }: UploadVariantProps = {}) {
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   return (
     <UploadsCarousel
       title="AI Videos"
@@ -523,12 +526,13 @@ export function AiVideosCarousel({ initialItems }: { initialItems?: MemoryUpload
       emptyNone="No AI videos yet. Generate a video in the AI composer to see it here."
       filterItems={isAiVideoMemory}
       initialItems={initialItems}
-      pageSize={48}
+      pageSize={effectivePageSize}
     />
   );
 }
 
-export function PdfsCarousel({ initialItems }: { initialItems?: MemoryUploadItem[] } = {}) {
+export function PdfsCarousel({ initialItems, pageSize }: UploadVariantProps = {}) {
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   return (
     <UploadsCarousel
       title="PDFs"
@@ -541,14 +545,15 @@ export function PdfsCarousel({ initialItems }: { initialItems?: MemoryUploadItem
       emptyNone="No PDFs yet. Generate a PDF to see it here."
       filterItems={isPdfMemory}
       initialItems={initialItems}
-      pageSize={48}
+      pageSize={effectivePageSize}
     />
   );
 }
 
 export function PowerpointsCarousel(
-  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
+  { initialItems, pageSize }: UploadVariantProps = {},
 ) {
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   return (
     <UploadsCarousel
       title="Powerpoints"
@@ -561,7 +566,7 @@ export function PowerpointsCarousel(
       emptyNone="No Powerpoints yet. Generate a PPTX in Composer to see it here."
       filterItems={isPowerpointMemory}
       initialItems={initialItems}
-      pageSize={48}
+      pageSize={effectivePageSize}
     />
   );
 }

@@ -40,7 +40,7 @@ type SharedPage = {
 
 const sharedCache = new Map<string, SharedPage>();
 const sharedInFlight = new Map<string, Promise<SharedPage>>();
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 12000;
 
 function buildCacheKey(
   user: AuthClientUser | null,

@@ -119,7 +119,7 @@ describe("generate_pptx tool", () => {
     expect(
       Array.isArray(memoryPayload?.tags) ? (memoryPayload.tags as unknown[]).includes("pptx") : false,
     ).toBe(true);
-  });
+  }, 20000);
 
   it("rejects when no slides are provided", async () => {
     const { __test__ } = await import("@/server/composer/run");

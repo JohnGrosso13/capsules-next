@@ -91,11 +91,13 @@ function getSlidesPerView(): number {
   return 1;
 }
 
-export function PostMemoriesCarousel(
-  { initialItems }: { initialItems?: MemoryUploadItem[] } = {},
-) {
+type PostMemoriesProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
+
+export function PostMemoriesCarousel({ initialItems, pageSize }: PostMemoriesProps = {}) {
+  const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   const { user, items, loading, error } = useMemoryUploads("post_memory", {
     initialPage: initialItems ? { items: initialItems, hasMore: false } : undefined,
+    pageSize: effectivePageSize,
   });
   const posts = React.useMemo(() => buildSavedPosts(items), [items]);
 
@@ -103,7 +105,7 @@ export function PostMemoriesCarousel(
   const [offset, setOffset] = React.useState(0);
 
   const totalItems = posts.length;
-  const pageSize = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
+  const visibleCount = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -123,34 +125,34 @@ export function PostMemoriesCarousel(
   }, [totalItems]);
 
   const visiblePosts = React.useMemo(() => {
-    if (pageSize === 0) return [];
+    if (visibleCount === 0) return [];
     const result: SavedPostCard[] = [];
-    for (let index = 0; index < pageSize; index += 1) {
+    for (let index = 0; index < visibleCount; index += 1) {
       const item = posts[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, pageSize, posts, totalItems]);
+  }, [offset, posts, totalItems, visibleCount]);
 
-  const hasRotation = pageSize > 0 && totalItems > pageSize;
+  const hasRotation = visibleCount > 0 && totalItems > visibleCount;
   const navDisabled = loading || !hasRotation || visiblePosts.length === 0;
 
   const handlePrev = React.useCallback(() => {
     if (!hasRotation) return;
     setOffset((current) => {
-      const next = (current - pageSize) % totalItems;
+      const next = (current - visibleCount) % totalItems;
       return next < 0 ? next + totalItems : next;
     });
-  }, [hasRotation, pageSize, totalItems]);
+  }, [hasRotation, totalItems, visibleCount]);
 
   const handleNext = React.useCallback(() => {
     if (!hasRotation) return;
-    setOffset((current) => (current + pageSize) % totalItems);
-  }, [hasRotation, pageSize, totalItems]);
+    setOffset((current) => (current + visibleCount) % totalItems);
+  }, [hasRotation, totalItems, visibleCount]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--recap-visible-count": Math.max(1, pageSize) }) as React.CSSProperties,
-    [pageSize],
+    () => ({ "--recap-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
+    [visibleCount],
   );
 
   return (
