@@ -1520,19 +1520,66 @@
   gap: 12px;
 }
 .storeToggle {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
+  display: inline-flex;
+  gap: 10px;
   align-items: center;
-  font-size: 0.85rem;
-  color: var(--text-2, rgba(203, 213, 225, 0.78));
+  font-size: 0.9rem;
+  color: var(--text-2, rgba(203, 213, 225, 0.82));
 }
 .storeToggle input {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  accent-color: var(--color-brand, var(--capsule-brand));
+  appearance: none;
+  border-radius: 6px;
+  border: 1px solid var(--store-control-border);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 90%, transparent),
+      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.05)) 80%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 10%, transparent),
+    0 10px 20px rgba(5, 10, 30, 0.28);
+  cursor: pointer;
+  position: relative;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    transform 140ms ease;
+}
+.storeToggle input:disabled {
   cursor: not-allowed;
+  opacity: 0.7;
+}
+.storeToggle input:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 60%, transparent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 50%, transparent),
+    0 10px 22px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 18%, rgba(5, 10, 30, 0.28));
+}
+.storeToggle input:checked {
+  border-color: color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 70%, transparent);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 50%, transparent),
+      color-mix(in srgb, var(--color-accent, var(--capsule-accent, var(--color-brand))) 42%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 12%, transparent),
+    0 12px 26px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 26%, transparent);
+}
+.storeToggle input:checked::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-on-brand, rgba(255, 255, 255, 0.98)) 92%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 26%, transparent);
 }
 .storeMainColumn {
   display: grid;
@@ -1814,43 +1861,142 @@
   font-weight: 800;
   color: var(--text, rgba(255, 255, 255, 0.95));
 }
-	.storeProductDescription {
-	  margin: 0;
-	  color: var(--text-2, rgba(203, 213, 225, 0.8));
-	  font-size: 0.9rem;
-	  line-height: 1.5;
-	}
+.storeProductDescription {
+  margin: 0;
+  color: var(--text-2, rgba(203, 213, 225, 0.8));
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
 	.storeProductEditor {
 	  display: grid;
-	  gap: 12px;
+	  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+	  gap: clamp(16px, 2vw, 22px);
+	  align-items: start;
 	}
+.storeEditorMediaColumn {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  width: 100%;
+  align-content: start;
+  min-width: 0;
+}
+.storeEditorFieldColumn {
+  display: grid;
+  gap: clamp(12px, 1.6vw, 16px);
+  min-width: 0;
+}
+.storeFieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
 	.storeField,
 	.storeFieldInline {
 	  display: grid;
-	  gap: 6px;
+	  gap: 8px;
 	}
 	.storeFieldInline {
 	  max-width: 200px;
 	}
+.storeFieldLabel {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.storeInfoIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--store-control-border);
+  background:
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.06)) 88%, transparent),
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 70%, transparent)
+    );
+  color: var(--text-2, rgba(203, 213, 225, 0.82));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 10%, transparent),
+    0 10px 24px rgba(5, 10, 30, 0.32);
+  cursor: help;
+}
+.storeInfoIcon svg {
+  width: 12px;
+  height: 12px;
+}
 	.storeField span,
 	.storeFieldInline span {
 	  font-size: 0.85rem;
-	  color: var(--text-2, rgba(203, 213, 225, 0.82));
-	}
+ color: var(--text-2, rgba(203, 213, 225, 0.82));
+}
 	.storeField input,
 	.storeFieldInline input,
 	.storeField textarea {
 	  width: 100%;
-	  padding: 10px 12px;
+	  padding: 12px 14px;
 	  border-radius: 12px;
 	  border: 1px solid var(--store-product-card-border);
-	  background: color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 90%, transparent);
+	  background:
+	    linear-gradient(
+	      145deg,
+	      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.04)) 82%, transparent),
+	      color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 86%, transparent)
+	    );
 	  color: var(--text, rgba(255, 255, 255, 0.95));
+	  box-shadow:
+	    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 8%, transparent),
+	    0 12px 26px rgba(5, 10, 30, 0.3);
 	}
-	.storeField textarea {
-	  resize: vertical;
-	  min-height: 96px;
-	}
+.storeField textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+.storeField select,
+.storeFieldInline select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--store-product-card-border);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.04)) 82%, transparent),
+      color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 86%, transparent)
+    );
+  color: var(--text, rgba(255, 255, 255, 0.95));
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+.storeField input:focus-visible,
+.storeField textarea:focus-visible,
+.storeFieldInline input:focus-visible,
+.storeField select:focus,
+.storeFieldInline select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 60%, transparent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 60%, var(--store-product-card-border)),
+    0 14px 28px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 16%, rgba(5, 10, 30, 0.28));
+}
+.storeField option,
+.storeFieldInline option {
+  color: #0f172a;
+  background: #f8fafc;
+}
+@media (prefers-color-scheme: dark) {
+  .storeField option,
+  .storeFieldInline option {
+    color: rgba(255, 255, 255, 0.95);
+    background: #0f172a;
+  }
+}
 	.storeMediaEditor {
 	  display: grid;
 	  gap: 10px;
@@ -1922,6 +2068,70 @@
 	  object-fit: cover;
 	  display: block;
 	}
+.storeVariants {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--store-product-card-border);
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.05)) 80%, transparent),
+      color-mix(in srgb, var(--surface-overlay, rgba(10, 14, 30, 0.9)) 82%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent),
+    0 16px 28px rgba(5, 10, 30, 0.28);
+}
+.storeVariantsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.storeVariantsHeader h4 {
+  margin: 0;
+  color: var(--text, rgba(255, 255, 255, 0.95));
+  font-size: 0.95rem;
+}
+.storeVariantRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--store-product-card-border);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 90%, transparent),
+      color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.05)) 70%, transparent)
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent),
+    0 12px 24px rgba(5, 10, 30, 0.25);
+}
+.storeVariantRow input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--store-product-card-border);
+  background: color-mix(in srgb, var(--surface, rgba(12, 17, 34, 0.64)) 86%, transparent);
+  color: var(--text, rgba(255, 255, 255, 0.95));
+}
+.storeVariantRow button {
+  justify-self: end;
+}
+.storeVariantRow input:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 60%, transparent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 20%, rgba(5, 10, 30, 0.3)),
+    inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 10%, transparent);
+}
 	.storeProductFooter {
 	  display: flex;
 	  justify-content: space-between;
@@ -1949,12 +2159,28 @@
 	  transform: translateY(-1px);
 	  box-shadow: var(--store-action-shadow-hover);
 	}
-	.storeEditorActions {
-	  display: flex;
-	  justify-content: flex-end;
-	  gap: 10px;
-	  margin-top: 4px;
-	}
+.storeEditorActions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--store-product-card-border);
+}
+.storeToggleGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.storeEditorButtons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .storePanel {
   display: grid;
   gap: 14px;
@@ -2648,6 +2874,21 @@
 	  border-color: color-mix(in srgb, var(--color-danger, var(--capsule-danger-accent)) 80%, transparent);
 	}
 
+@media (max-width: 960px) {
+  .storeProductEditor {
+    grid-template-columns: 1fr;
+  }
+  .storeEditorMediaColumn {
+    max-width: none;
+  }
+  .storeEditorActions {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+  .storeEditorButtons {
+    justify-content: flex-start;
+  }
+}
 @media (max-width: 1280px) {
   .storeGrid {
     grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);

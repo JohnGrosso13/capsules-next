@@ -21,8 +21,27 @@ export function useCapsuleCustomizerMemory({
   updateSelectedBanner,
   onResetPromptHistory,
 }: UseCustomizerMemoryOptions) {
-  const { user, envelope, items, loading, error, refresh } = useMemoryUploads("upload");
+  const {
+    user,
+    envelope,
+    items,
+    loading,
+    error,
+    refresh,
+    hasMore: uploadsHasMore,
+    loadMore: loadMoreUploads,
+  } = useMemoryUploads("upload", { enablePaging: true, pageSize: 24 });
+  const {
+    envelope: assetsEnvelope,
+    items: assetItems,
+    loading: assetsLoading,
+    error: assetsError,
+    refresh: refreshAssets,
+    hasMore: assetsHasMore,
+    loadMore: loadMoreAssets,
+  } = useMemoryUploads(null, { enablePaging: true, pageSize: 24 });
   const memoryButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const [memoryPickerTab, setMemoryPickerTab] = React.useState<"uploads" | "assets">("uploads");
 
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const origin = React.useMemo(
@@ -30,14 +49,22 @@ export function useCapsuleCustomizerMemory({
     [],
   );
 
-  const processedMemories = React.useMemo<DisplayMemoryUpload[]>(
+  const processedUploads = React.useMemo<DisplayMemoryUpload[]>(
     () => computeDisplayUploads(items, { origin, cloudflareEnabled }),
     [cloudflareEnabled, items, origin],
   );
+  const processedAssets = React.useMemo<DisplayMemoryUpload[]>(
+    () =>
+      computeDisplayUploads(
+        assetItems.filter((item) => (item.kind ?? "").toLowerCase() !== "upload"),
+        { origin, cloudflareEnabled },
+      ),
+    [assetItems, cloudflareEnabled, origin],
+  );
 
   const recentMemories = React.useMemo<DisplayMemoryUpload[]>(
-    () => processedMemories.slice(0, 4),
-    [processedMemories],
+    () => processedUploads.slice(0, 4),
+    [processedUploads],
   );
 
   const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
@@ -88,11 +115,11 @@ export function useCapsuleCustomizerMemory({
   );
 
   const handleQuickPick = React.useCallback(() => {
-    const firstMemory = processedMemories[0];
+    const firstMemory = processedUploads[0];
     if (firstMemory) {
       handleMemoryPick(firstMemory);
     }
-  }, [handleMemoryPick, processedMemories]);
+  }, [handleMemoryPick, processedUploads]);
 
   const fetchMemoryAssetUrl = React.useCallback(
     async (memoryIdRaw: string): Promise<string> => {
@@ -149,11 +176,66 @@ export function useCapsuleCustomizerMemory({
     [envelope],
   );
 
+  const searchMemories = React.useCallback(
+    async ({
+      tab,
+      query,
+      page,
+      pageSize,
+    }: {
+      tab: "uploads" | "assets";
+      query: string;
+      page: number;
+      pageSize: number;
+    }) => {
+      const authEnvelope = envelope ?? assetsEnvelope;
+      if (!authEnvelope) {
+        return { items: [] as DisplayMemoryUpload[], hasMore: false, error: "Sign in to search memories." };
+      }
+
+      const response = await fetch("/api/memory/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: authEnvelope,
+          q: query,
+          page,
+          limit: pageSize,
+          kind: tab === "uploads" ? "upload" : undefined,
+        }),
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        return { items: [] as DisplayMemoryUpload[], hasMore: false, error: "Search failed. Try again." };
+      }
+
+      const json = (await response.json().catch(() => null)) as { items?: DisplayMemoryUpload[] } | null;
+      const rawItems = Array.isArray(json?.items) ? json?.items : [];
+      const processed = computeDisplayUploads(rawItems, { origin, cloudflareEnabled });
+      const filtered =
+        tab === "uploads"
+          ? processed.filter((item) => (item.kind ?? "").toLowerCase() === "upload")
+          : processed.filter((item) => (item.kind ?? "").toLowerCase() !== "upload");
+      return {
+        items: filtered,
+        hasMore: rawItems.length >= pageSize,
+        error: null,
+      };
+    },
+    [assetsEnvelope, cloudflareEnabled, envelope, origin],
+  );
+
   React.useEffect(() => {
     if (!open) {
       setMemoryPickerOpen(false);
     }
   }, [open]);
+
+  React.useEffect(() => {
+    if (!memoryPickerOpen) return;
+    void refresh();
+    void refreshAssets();
+  }, [memoryPickerOpen, refresh, refreshAssets]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -189,15 +271,29 @@ export function useCapsuleCustomizerMemory({
     envelope,
     loading,
     error,
-    processedMemories,
+    uploadsLoading: loading,
+    uploadsError: error,
+    assetsLoading,
+    assetsError,
+    uploadsHasMore,
+    assetsHasMore,
+    loadMoreUploads,
+    loadMoreAssets,
+    processedMemories: processedUploads,
+    processedUploads,
+    processedAssets,
     recentMemories,
     memoryPickerOpen,
+    memoryPickerTab,
+    setMemoryPickerTab,
     openMemoryPicker,
     closeMemoryPicker,
     handleMemorySelect,
     handleMemoryPick,
     handleQuickPick,
     refresh,
+    refreshAssets,
+    searchMemories,
     memoryButtonRef,
     fetchMemoryAssetUrl,
   } as const;

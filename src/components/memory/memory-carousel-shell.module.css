@@ -1,0 +1,71 @@
+.carouselShell {
+  position: relative;
+  --memory-nav-space: 48px;
+  padding: 4px var(--memory-nav-space) 0;
+}
+
+.viewport {
+  overflow: hidden;
+}
+
+.container {
+  --memory-gap: 12px;
+  --memory-visible-count: 1;
+  --memory-slide-max: 240px;
+  --memory-slide-width: min(
+    var(--memory-slide-max),
+    calc(
+      (100% - (var(--memory-visible-count) - 1) * var(--memory-gap)) /
+        var(--memory-visible-count)
+    )
+  );
+  display: flex;
+  gap: var(--memory-gap);
+  padding: 2px;
+}
+
+.slide {
+  flex: 0 0 var(--memory-slide-width);
+  max-width: var(--memory-slide-width);
+}
+
+.card {
+  flex: 0 0 var(--memory-slide-width);
+  max-width: var(--memory-slide-width);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.navButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
+.navButton[data-side="prev"] {
+  left: 8px;
+}
+
+.navButton[data-side="next"] {
+  right: 8px;
+}
+
+.navButton[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .container {
+    --memory-slide-max: 100%;
+  }
+}

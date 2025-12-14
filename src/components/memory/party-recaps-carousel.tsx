@@ -7,6 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { MemoryUploadItem } from "./uploads-types";
+import layoutStyles from "./memory-carousel-shell.module.css";
 import styles from "./party-recaps-carousel.module.css";
 
 type RecapCard = {
@@ -108,11 +109,11 @@ function buildRecaps(items: MemoryUploadItem[]): RecapCard[] {
 }
 
 function getSlidesPerView(): number {
-  if (typeof window === "undefined") return 1;
+  if (typeof window === "undefined") return 2;
   const width = window.innerWidth;
-  if (width >= 1200) return 3;
-  if (width >= 768) return 2;
-  return 1;
+  if (width >= 960) return 4;
+  if (width >= 640) return 3;
+  return 2;
 }
 
 type PartyRecapsProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
@@ -175,7 +176,7 @@ export function PartyRecapsCarousel({ initialItems, pageSize }: PartyRecapsProps
   }, [hasRotation, totalItems, visibleCount]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--recap-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
+    () => ({ "--memory-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
     [visibleCount],
   );
 
@@ -202,11 +203,11 @@ export function PartyRecapsCarousel({ initialItems, pageSize }: PartyRecapsProps
         </div>
       </div>
 
-      <div className={styles.carouselShell}>
+      <div className={layoutStyles.carouselShell}>
         <Button
           variant="secondary"
           size="icon"
-          className={styles.navButton}
+          className={layoutStyles.navButton}
           data-side="prev"
           data-hidden={!visibleRecaps.length}
           leftIcon={<CaretLeft size={18} weight="bold" />}
@@ -226,10 +227,10 @@ export function PartyRecapsCarousel({ initialItems, pageSize }: PartyRecapsProps
               No party recaps yet. Enable summaries in a live party and generate a recap to see it here.
             </div>
           ) : (
-            <div className={styles.viewport}>
-              <div className={styles.container} style={containerStyle}>
+            <div className={layoutStyles.viewport}>
+              <div className={layoutStyles.container} style={containerStyle}>
                 {visibleRecaps.map((recap) => (
-                  <article key={recap.id} className={styles.card}>
+                  <article key={recap.id} className={`${layoutStyles.card} ${styles.card}`}>
                     <div className={styles.cardHeader}>
                       <span className={styles.badge}>Party recap</span>
                       {recap.createdAt ? (
@@ -261,7 +262,7 @@ export function PartyRecapsCarousel({ initialItems, pageSize }: PartyRecapsProps
         <Button
           variant="secondary"
           size="icon"
-          className={styles.navButton}
+          className={layoutStyles.navButton}
           data-side="next"
           data-hidden={!visibleRecaps.length}
           leftIcon={<CaretRight size={18} weight="bold" />}

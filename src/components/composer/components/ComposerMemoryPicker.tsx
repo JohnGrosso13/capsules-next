@@ -23,9 +23,21 @@ type ComposerMemoryPickerProps = {
   uploads: DisplayMemoryUpload[];
   uploadsLoading: boolean;
   uploadsError: string | null;
+  uploadsHasMore?: boolean;
+  onLoadMoreUploads?: () => void;
   assets: DisplayMemoryUpload[];
   assetsLoading: boolean;
   assetsError: string | null;
+  assetsHasMore?: boolean;
+  onLoadMoreAssets?: () => void;
+  searchEnabled?: boolean;
+  searchPageSize?: number;
+  onSearch?: (params: {
+    tab: MemoryPickerTab;
+    query: string;
+    page: number;
+    pageSize: number;
+  }) => Promise<{ items: DisplayMemoryUpload[]; hasMore: boolean; error?: string | null }>;
   onSelect(memory: DisplayMemoryUpload): void;
   onClose(): void;
 };
@@ -56,12 +68,28 @@ export function ComposerMemoryPicker({
   uploads,
   uploadsLoading,
   uploadsError,
+  uploadsHasMore,
+  onLoadMoreUploads,
   assets,
   assetsLoading,
   assetsError,
+  assetsHasMore,
+  onLoadMoreAssets,
+  searchEnabled,
+  searchPageSize,
+  onSearch,
   onSelect,
   onClose,
 }: ComposerMemoryPickerProps) {
+  const searchAllowed = Boolean(onSearch && searchEnabled);
+  const searchPageSizeResolved = searchAllowed ? Math.max(searchPageSize ?? 24, 1) : 0;
+  const [searchText, setSearchText] = React.useState("");
+  const [searchPage, setSearchPage] = React.useState(0);
+  const [searchItems, setSearchItems] = React.useState<DisplayMemoryUpload[]>([]);
+  const [searchHasMore, setSearchHasMore] = React.useState(false);
+  const [searchLoading, setSearchLoading] = React.useState(false);
+  const [searchError, setSearchError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     if (!open || typeof window === "undefined") return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -76,18 +104,92 @@ export function ComposerMemoryPicker({
     };
   }, [open, onClose]);
 
+  React.useEffect(() => {
+    setSearchPage(0);
+    setSearchItems([]);
+    setSearchHasMore(false);
+    setSearchError(null);
+  }, [activeTab, open]);
+
+  React.useEffect(() => {
+    if (open) return;
+    setSearchText("");
+    setSearchPage(0);
+    setSearchItems([]);
+    setSearchHasMore(false);
+    setSearchError(null);
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!searchAllowed || !searchText.trim()) {
+      setSearchItems([]);
+      setSearchHasMore(false);
+      setSearchError(null);
+      setSearchLoading(false);
+      setSearchPage(0);
+      return;
+    }
+    let cancelled = false;
+    const runSearch = async () => {
+      setSearchLoading(true);
+      setSearchError(null);
+      try {
+        const result = await onSearch?.({
+          tab: activeTab,
+          query: searchText,
+          page: searchPage,
+          pageSize: searchPageSizeResolved,
+        });
+        if (cancelled || !result) return;
+        setSearchItems((previous) =>
+          searchPage === 0 ? result.items : [...previous, ...result.items],
+        );
+        setSearchHasMore(Boolean(result.hasMore));
+        setSearchError(result.error ?? null);
+      } catch (error) {
+        if (cancelled) return;
+        setSearchError(
+          error instanceof Error && error.message ? error.message : "Search failed. Try again.",
+        );
+        setSearchHasMore(false);
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    };
+    void runSearch();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, onSearch, searchAllowed, searchPage, searchPageSizeResolved, searchText]);
+
   if (!open) return null;
 
   const showingUploads = activeTab === "uploads";
-  const items = showingUploads ? uploads : assets;
-  const loading = showingUploads ? uploadsLoading : assetsLoading;
-  const error = showingUploads ? uploadsError : assetsError;
+  const isSearching = searchAllowed && Boolean(searchText.trim());
+  const items = isSearching ? searchItems : showingUploads ? uploads : assets;
+  const loading = isSearching ? searchLoading : showingUploads ? uploadsLoading : assetsLoading;
+  const error = isSearching ? searchError : showingUploads ? uploadsError : assetsError;
   const emptyMessage = showingUploads
-    ? "No uploads yet. Drop something into Memory to see it here."
-    : "No capsule assets yet. Generate art in the customizer to save new memories.";
+    ? isSearching
+      ? "No uploads match your search."
+      : "No uploads yet. Drop something into Memory to see it here."
+    : isSearching
+      ? "No capsule assets match your search."
+      : "No capsule assets yet. Generate art in the customizer to save new memories.";
   const loadingMessage = showingUploads
     ? "Loading your uploads..."
     : "Loading your capsule assets...";
+  const hasMore = isSearching
+    ? searchHasMore
+    : showingUploads
+      ? Boolean(uploadsHasMore)
+      : Boolean(assetsHasMore);
+  const handleLoadMore =
+    isSearching && searchAllowed
+      ? () => setSearchPage((prev) => prev + 1)
+      : showingUploads
+        ? onLoadMoreUploads
+        : onLoadMoreAssets;
 
   const renderCard = (item: DisplayMemoryUpload) => {
     const { title, subtitle } = showingUploads ? describeUpload(item) : describeAsset(item);
@@ -168,8 +270,41 @@ export function ComposerMemoryPicker({
           </button>
         </div>
 
+        {searchAllowed ? (
+          <div className={styles.memoryPickerToolbar}>
+            <label className={styles.memoryPickerSearch}>
+              <span className={styles.srOnly}>Search memories</span>
+              <input
+                type="search"
+                placeholder="Search memories..."
+                value={searchText}
+                onChange={(event) => {
+                  setSearchText(event.target.value);
+                  setSearchPage(0);
+                }}
+              />
+            </label>
+            {searchText ? (
+              <button
+                type="button"
+                className={styles.memoryPickerClear}
+                onClick={() => {
+                  setSearchText("");
+                  setSearchPage(0);
+                  setSearchItems([]);
+                  setSearchHasMore(false);
+                  setSearchError(null);
+                }}
+                aria-label="Clear search"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className={styles.memoryPickerContent}>
-          {loading ? (
+          {loading && items.length === 0 ? (
             <div className={styles.memoryPickerStatus}>{loadingMessage}</div>
           ) : error ? (
             <div className={`${styles.memoryPickerStatus} ${styles.memoryPickerStatusError}`}>
@@ -181,6 +316,19 @@ export function ComposerMemoryPicker({
             <div className={styles.memoryPickerGrid}>{items.map((item) => renderCard(item))}</div>
           )}
         </div>
+
+        {hasMore && handleLoadMore ? (
+          <div className={styles.memoryPickerFooter}>
+            <button
+              type="button"
+              className={styles.memoryPickerLoadMore}
+              onClick={handleLoadMore}
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Load more"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

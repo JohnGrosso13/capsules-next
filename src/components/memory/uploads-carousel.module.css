@@ -86,13 +86,6 @@
   --carousel-gap: 10px;
   --carousel-visible-count: 1;
   --carousel-slide-max: 128px;
-  --carousel-slide-width: min(
-    var(--carousel-slide-max),
-    calc(
-      (100% - (var(--carousel-visible-count) - 1) * var(--carousel-gap)) /
-        var(--carousel-visible-count)
-    )
-  );
   display: flex;
   gap: var(--carousel-gap);
   padding: 2px;
@@ -100,8 +93,8 @@
 
 .slide {
   position: relative;
-  flex: 0 0 var(--carousel-slide-width);
-  max-width: var(--carousel-slide-width);
+  flex: 0 0 var(--memory-slide-width, 100%);
+  max-width: var(--memory-slide-width, 100%);
 }
 
 .cardButton {

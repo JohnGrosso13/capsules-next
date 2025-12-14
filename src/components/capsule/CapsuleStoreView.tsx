@@ -9,6 +9,7 @@ import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
 import { useMemoryUploads } from "@/components/memory/use-memory-uploads";
 import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
+import type { MemoryPickerTab } from "@/components/composer/components/ComposerMemoryPicker";
 import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
 import {
   type BillingSnapshot,
@@ -72,9 +73,24 @@ type CatalogAdminControls = {
   productDraft: StoreProductDraft | null;
   memoryPickerFor: string | null;
   memoryUploads: DisplayMemoryUpload[];
+  memoryAssets: DisplayMemoryUpload[];
   memoryUser: { id: string } | null;
   memoryLoading: boolean;
   memoryError: string | null;
+  memoryUploadsHasMore: boolean;
+  memoryAssetsHasMore: boolean;
+  onLoadMoreMemoryUploads: () => void;
+  onLoadMoreMemoryAssets: () => void;
+  onSearchMemories: (params: {
+    tab: MemoryPickerTab;
+    query: string;
+    page: number;
+    pageSize: number;
+  }) => Promise<{ items: DisplayMemoryUpload[]; hasMore: boolean; error?: string | null }>;
+  memoryAssetsLoading: boolean;
+  memoryAssetsError: string | null;
+  memoryPickerTab: MemoryPickerTab;
+  onMemoryTabChange: (tab: MemoryPickerTab) => void;
   onRefreshMemories: () => void;
   reorderMode: boolean;
   draggingProductId: string | null;
@@ -124,9 +140,19 @@ function createReadonlyAdminControls(fileInputRef: React.RefObject<HTMLInputElem
     productDraft: null,
     memoryPickerFor: null,
     memoryUploads: [],
+    memoryAssets: [],
     memoryUser: null,
     memoryLoading: false,
     memoryError: null,
+    memoryUploadsHasMore: false,
+    memoryAssetsHasMore: false,
+    onLoadMoreMemoryUploads: () => {},
+    onLoadMoreMemoryAssets: () => {},
+    onSearchMemories: async () => ({ items: [], hasMore: false, error: "Not available" }),
+    memoryAssetsLoading: false,
+    memoryAssetsError: null,
+    memoryPickerTab: "uploads",
+    onMemoryTabChange: noop as CatalogAdminControls["onMemoryTabChange"],
     onRefreshMemories: noop,
     reorderMode: false,
     draggingProductId: null,
@@ -1196,9 +1222,19 @@ function StorefrontExperience({
             productDraft={catalogAdmin.productDraft}
             memoryPickerFor={catalogAdmin.memoryPickerFor}
             memoryUploads={catalogAdmin.memoryUploads}
+            memoryAssets={catalogAdmin.memoryAssets}
             memoryUser={catalogAdmin.memoryUser}
             memoryLoading={catalogAdmin.memoryLoading}
             memoryError={catalogAdmin.memoryError}
+            memoryUploadsHasMore={catalogAdmin.memoryUploadsHasMore}
+            memoryAssetsHasMore={catalogAdmin.memoryAssetsHasMore}
+            onLoadMoreMemoryUploads={catalogAdmin.onLoadMoreMemoryUploads}
+            onLoadMoreMemoryAssets={catalogAdmin.onLoadMoreMemoryAssets}
+            onSearchMemories={catalogAdmin.onSearchMemories}
+            memoryAssetsLoading={catalogAdmin.memoryAssetsLoading}
+            memoryAssetsError={catalogAdmin.memoryAssetsError}
+            memoryPickerTab={catalogAdmin.memoryPickerTab}
+            onMemoryTabChange={catalogAdmin.onMemoryTabChange}
             onRefreshMemories={catalogAdmin.onRefreshMemories}
             reorderMode={catalogAdmin.reorderMode}
             sortMode={sortMode}
@@ -1483,6 +1519,7 @@ function useFounderProductAdmin({
   const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
   const [productDraft, setProductDraft] = React.useState<StoreProductDraft | null>(null);
   const [memoryPickerFor, setMemoryPickerFor] = React.useState<string | null>(null);
+  const [memoryPickerTab, setMemoryPickerTab] = React.useState<MemoryPickerTab>("uploads");
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [reorderMode, setReorderMode] = React.useState(false);
   const [heroProductId, setHeroProductId] = React.useState<string | null>(null);
@@ -1492,16 +1529,100 @@ function useFounderProductAdmin({
 
   const {
     user: memoryUser,
+    envelope: memoryEnvelope,
     items: memoryItems,
     loading: memoryLoading,
     error: memoryError,
     refresh: refreshMemories,
-  } = useMemoryUploads("upload");
+    hasMore: memoryHasMore,
+    loadMore: loadMoreMemoryUploads,
+  } = useMemoryUploads("upload", { enablePaging: true, pageSize: 24 });
+  const {
+    user: _memoryAssetUser,
+    envelope: memoryAssetsEnvelope,
+    items: memoryAssetItems,
+    loading: memoryAssetsLoading,
+    error: memoryAssetsError,
+    refresh: refreshMemoryAssets,
+    hasMore: memoryAssetsHasMore,
+    loadMore: loadMoreMemoryAssets,
+  } = useMemoryUploads(null, { enablePaging: true, pageSize: 24 });
   const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
   const currentOrigin = React.useMemo(() => (typeof window !== "undefined" ? window.location.origin : null), []);
   const memoryUploads = React.useMemo(
     () => computeDisplayUploads(memoryItems, { origin: currentOrigin, cloudflareEnabled }),
     [cloudflareEnabled, currentOrigin, memoryItems],
+  );
+  const filteredAssetItems = React.useMemo(
+    () => memoryAssetItems.filter((item) => (item.kind ?? "").toLowerCase() !== "upload"),
+    [memoryAssetItems],
+  );
+  const memoryAssets = React.useMemo(
+    () => computeDisplayUploads(filteredAssetItems, { origin: currentOrigin, cloudflareEnabled }),
+    [cloudflareEnabled, currentOrigin, filteredAssetItems],
+  );
+  const refreshAllMemories = React.useCallback(() => {
+    void refreshMemories();
+    void refreshMemoryAssets();
+  }, [refreshMemories, refreshMemoryAssets]);
+  React.useEffect(() => {
+    if (!memoryPickerFor) return;
+    void refreshAllMemories();
+  }, [memoryPickerFor, refreshAllMemories]);
+  const setMemoryPickerTarget = React.useCallback(
+    (productId: string | null) => {
+      setMemoryPickerFor(productId);
+    },
+    [],
+  );
+
+  const searchMemoriesForPicker = React.useCallback(
+    async ({
+      tab,
+      query,
+      page,
+      pageSize,
+    }: {
+      tab: MemoryPickerTab;
+      query: string;
+      page: number;
+      pageSize: number;
+    }) => {
+      const envelope = memoryEnvelope ?? memoryAssetsEnvelope;
+      if (!envelope) {
+        return { items: [] as DisplayMemoryUpload[], hasMore: false, error: "Sign in to search memories." };
+      }
+
+      const response = await fetch("/api/memory/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: envelope,
+          q: query,
+          limit: pageSize,
+          page,
+          kind: tab === "uploads" ? "upload" : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        return { items: [] as DisplayMemoryUpload[], hasMore: false, error: "Search failed. Try again." };
+      }
+
+      const json = (await response.json()) as { items?: DisplayMemoryUpload[] };
+      const rawItems = Array.isArray(json.items) ? json.items : [];
+      const processed = computeDisplayUploads(rawItems, { origin: currentOrigin, cloudflareEnabled });
+      const filtered =
+        tab === "uploads"
+          ? processed.filter((item) => (item.kind ?? "").toLowerCase() === "upload")
+          : processed.filter((item) => (item.kind ?? "").toLowerCase() !== "upload");
+      return {
+        items: filtered,
+        hasMore: rawItems.length >= pageSize,
+        error: null,
+      };
+    },
+    [cloudflareEnabled, currentOrigin, memoryAssetsEnvelope, memoryEnvelope],
   );
 
   const beginEditingProduct = React.useCallback((product: StoreProduct) => {
@@ -1977,10 +2098,20 @@ function useFounderProductAdmin({
     productDraft,
     memoryPickerFor,
     memoryUploads,
+    memoryAssets,
     memoryUser,
     memoryLoading,
     memoryError,
-    onRefreshMemories: refreshMemories,
+    memoryUploadsHasMore: Boolean(memoryHasMore),
+    memoryAssetsHasMore: Boolean(memoryAssetsHasMore),
+    onLoadMoreMemoryUploads: loadMoreMemoryUploads,
+    onLoadMoreMemoryAssets: loadMoreMemoryAssets,
+    onSearchMemories: searchMemoriesForPicker,
+    memoryAssetsLoading,
+    memoryAssetsError,
+    memoryPickerTab,
+    onMemoryTabChange: setMemoryPickerTab,
+    onRefreshMemories: refreshAllMemories,
     reorderMode,
     draggingProductId,
     heroProductId,
@@ -1996,7 +2127,7 @@ function useFounderProductAdmin({
     onFileInputChange: handleFileInputChange,
     onOpenImagePicker: openImagePicker,
     onHandleMemorySelect: handleMemorySelect,
-    onSetMemoryPickerFor: setMemoryPickerFor,
+    onSetMemoryPickerFor: setMemoryPickerTarget,
     onToggleFeatured: toggleFeatured,
     onToggleActive: toggleActive,
     onDeleteProduct: deleteProduct,

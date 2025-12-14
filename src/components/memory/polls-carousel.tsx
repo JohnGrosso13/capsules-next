@@ -7,6 +7,8 @@ import { Button, ButtonLink } from "@/components/ui/button";
 
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { MemoryUploadItem } from "./uploads-types";
+import layoutStyles from "./memory-carousel-shell.module.css";
+import cardStyles from "./uploads-carousel.module.css";
 import styles from "./party-recaps-carousel.module.css";
 
 type PollOption = {
@@ -137,11 +139,11 @@ export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
 }
 
 function getSlidesPerView(): number {
-  if (typeof window === "undefined") return 1;
+  if (typeof window === "undefined") return 2;
   const width = window.innerWidth;
-  if (width >= 1200) return 3;
-  if (width >= 768) return 2;
-  return 1;
+  if (width >= 960) return 4;
+  if (width >= 640) return 3;
+  return 2;
 }
 
 type PollsProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
@@ -204,7 +206,7 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
   }, [hasRotation, totalItems, visibleCount]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--recap-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
+    () => ({ "--memory-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
     [visibleCount],
   );
 
@@ -232,11 +234,11 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
         </div>
       </div>
 
-      <div className={styles.carouselShell}>
+      <div className={layoutStyles.carouselShell}>
         <Button
           variant="secondary"
           size="icon"
-          className={styles.navButton}
+          className={layoutStyles.navButton}
           data-side="prev"
           data-hidden={!visiblePolls.length}
           leftIcon={<CaretLeft size={18} weight="bold" />}
@@ -254,8 +256,8 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
           ) : !polls.length ? (
             <div className={styles.empty}>No polls saved yet. Save a poll to Memory to see it.</div>
           ) : (
-            <div className={styles.viewport}>
-              <div className={styles.container} style={containerStyle}>
+            <div className={layoutStyles.viewport}>
+              <div className={layoutStyles.container} style={containerStyle}>
                 {visiblePolls.map((poll) => {
                   const summarySource = poll.question || poll.summary || "";
                   const summaryText =
@@ -267,34 +269,45 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
                     .slice(0, 2);
 
                   return (
-                    <article
-                      key={poll.id}
-                      className={`${styles.card} ${styles.pollCard}`}
-                    >
-                      <p className={styles.pollSummary}>{summaryText}</p>
-                      {topOptions.length ? (
-                        <>
-                          <div className={styles.pollDivider} />
-                          <div className={styles.pollOptions}>
-                            {topOptions.map((option, index) => {
-                              const pct =
-                                poll.totalVotes > 0
-                                  ? Math.round((option.votes / poll.totalVotes) * 100)
-                                  : 0;
-                              return (
-                                <div
-                                  key={`${poll.id}-option-${index}`}
-                                  className={styles.pollOption}
-                                >
-                                  <span className={styles.pollOptionLabel}>{option.label}</span>
-                                  <span className={styles.pollOptionValue}>{pct}%</span>
-                                </div>
-                              );
-                            })}
+                    <div key={poll.id} className={layoutStyles.slide}>
+                      <button
+                        type="button"
+                        className={cardStyles.cardButton}
+                        aria-label={`View poll "${poll.question}"`}
+                      >
+                        <article className={cardStyles.card}>
+                          <div className={cardStyles.media}>
+                            <div className={styles.pollSummary}>
+                              {summaryText}
+                            </div>
                           </div>
-                        </>
-                      ) : null}
-                    </article>
+                          <div className={cardStyles.meta}>
+                            <div className={cardStyles.metaHeader}>
+                              <span className={cardStyles.metaBadge}>Poll</span>
+                              {poll.updatedAt ? (
+                                <span className={cardStyles.metaTimestamp}>
+                                  {poll.updatedAt}
+                                </span>
+                              ) : null}
+                            </div>
+                            <h4 className={cardStyles.metaTitle}>{poll.question}</h4>
+                            {topOptions.length ? (
+                              <p className={cardStyles.metaDesc}>
+                                {topOptions
+                                  .map((option) => {
+                                    const pct =
+                                      poll.totalVotes > 0
+                                        ? Math.round((option.votes / poll.totalVotes) * 100)
+                                        : 0;
+                                    return `${option.label} · ${pct}%`;
+                                  })
+                                  .join(" • ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        </article>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -305,7 +318,7 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
         <Button
           variant="secondary"
           size="icon"
-          className={styles.navButton}
+          className={layoutStyles.navButton}
           data-side="next"
           data-hidden={!visiblePolls.length}
           leftIcon={<CaretRight size={18} weight="bold" />}

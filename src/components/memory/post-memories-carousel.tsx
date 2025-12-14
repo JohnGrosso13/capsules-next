@@ -7,6 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { MemoryUploadItem } from "./uploads-types";
+import layoutStyles from "./memory-carousel-shell.module.css";
 import styles from "./party-recaps-carousel.module.css";
 
 export type SavedPostCard = {
@@ -84,11 +85,11 @@ export function buildSavedPosts(items: MemoryUploadItem[]): SavedPostCard[] {
 }
 
 function getSlidesPerView(): number {
-  if (typeof window === "undefined") return 1;
+  if (typeof window === "undefined") return 2;
   const width = window.innerWidth;
-  if (width >= 1200) return 3;
-  if (width >= 768) return 2;
-  return 1;
+  if (width >= 960) return 4;
+  if (width >= 640) return 3;
+  return 2;
 }
 
 type PostMemoriesProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
@@ -151,7 +152,7 @@ export function PostMemoriesCarousel({ initialItems, pageSize }: PostMemoriesPro
   }, [hasRotation, totalItems, visibleCount]);
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--recap-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
+    () => ({ "--memory-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
     [visibleCount],
   );
 
@@ -179,11 +180,11 @@ export function PostMemoriesCarousel({ initialItems, pageSize }: PostMemoriesPro
         </div>
       </div>
 
-      <div className={styles.carouselShell}>
+      <div className={layoutStyles.carouselShell}>
         <Button
           variant="secondary"
           size="icon"
-          className={styles.navButton}
+          className={layoutStyles.navButton}
           data-side="prev"
           data-hidden={!visiblePosts.length}
           leftIcon={<CaretLeft size={18} weight="bold" />}
@@ -203,10 +204,10 @@ export function PostMemoriesCarousel({ initialItems, pageSize }: PostMemoriesPro
               No saved posts yet. Tap the Memory icon on a post to save it.
             </div>
           ) : (
-            <div className={styles.viewport}>
-              <div className={styles.container} style={containerStyle}>
+            <div className={layoutStyles.viewport}>
+              <div className={layoutStyles.container} style={containerStyle}>
                 {visiblePosts.map((post) => (
-                  <article key={post.id} className={styles.card}>
+                  <article key={post.id} className={`${layoutStyles.card} ${styles.card}`}>
                     <div className={styles.cardHeader}>
                       <span className={styles.badge}>Saved</span>
                       {post.createdAt ? <span className={styles.timestamp}>{post.createdAt}</span> : null}
@@ -227,7 +228,7 @@ export function PostMemoriesCarousel({ initialItems, pageSize }: PostMemoriesPro
         <Button
           variant="secondary"
           size="icon"
-          className={styles.navButton}
+          className={layoutStyles.navButton}
           data-side="next"
           data-hidden={!visiblePosts.length}
           leftIcon={<CaretRight size={18} weight="bold" />}

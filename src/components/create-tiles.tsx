@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import styles from "./create-tiles.module.css";
 
 export type CreateTileKey =
-  | "growth"
+  | "mystore"
   | "events"
   | "content"
   | "moderation"
@@ -27,7 +27,7 @@ const TILE_META: Record<
   CreateTileKey,
   { title: string; icon: React.ReactNode; bullets: string[]; ctaLabel?: string }
 > = {
-  growth: {
+  mystore: {
     icon: <ChartLineUp weight="fill" />,
     title: "My Store",
     bullets: [
@@ -113,8 +113,8 @@ export function CreateTiles() {
         router.push("/create/insights");
         return;
       }
-      if (key === "growth") {
-        router.push("/create/growth");
+      if (key === "mystore") {
+        router.push("/create/mystore");
         return;
       }
       if (key === "ladders") {

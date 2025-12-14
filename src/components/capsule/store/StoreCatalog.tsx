@@ -5,6 +5,7 @@ import {
   CaretDown,
   CaretUp,
   ImageSquare,
+  Info,
   MagnifyingGlass,
   MagicWand,
   PushPinSimple,
@@ -14,6 +15,8 @@ import {
   ImagesSquare,
 } from "@phosphor-icons/react/dist/ssr";
 import capTheme from "@/app/(authenticated)/capsule/capsule.module.css";
+import { ComposerMemoryPicker } from "@/components/composer/components/ComposerMemoryPicker";
+import type { MemoryPickerTab } from "@/components/composer/components/ComposerMemoryPicker";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import type { StoreProduct, StoreProductDraft, StoreProductVariant } from "./types";
 
@@ -35,9 +38,24 @@ type StoreCatalogProps = {
   productDraft: StoreProductDraft | null;
   memoryPickerFor: string | null;
   memoryUploads: DisplayMemoryUpload[];
+  memoryAssets: DisplayMemoryUpload[];
   memoryUser: { id: string } | null;
   memoryLoading: boolean;
   memoryError: string | null;
+  memoryUploadsHasMore?: boolean;
+  memoryAssetsHasMore?: boolean;
+  onLoadMoreMemoryUploads?: () => void;
+  onLoadMoreMemoryAssets?: () => void;
+  onSearchMemories?: (params: {
+    tab: MemoryPickerTab;
+    query: string;
+    page: number;
+    pageSize: number;
+  }) => Promise<{ items: DisplayMemoryUpload[]; hasMore: boolean; error?: string | null }>;
+  memoryAssetsLoading: boolean;
+  memoryAssetsError: string | null;
+  memoryPickerTab: MemoryPickerTab;
+  onMemoryTabChange: (tab: MemoryPickerTab) => void;
   onRefreshMemories: () => void;
   reorderMode: boolean;
   sortMode: "best" | "new" | "manual";
@@ -96,10 +114,20 @@ function StoreCatalog({
   productDraft,
   memoryPickerFor,
   memoryUploads,
-  memoryUser,
+  memoryAssets,
+  memoryUser: _memoryUser,
   memoryLoading,
   memoryError,
-  onRefreshMemories,
+  memoryUploadsHasMore,
+  memoryAssetsHasMore,
+  onLoadMoreMemoryUploads,
+  onLoadMoreMemoryAssets,
+  onSearchMemories,
+  memoryAssetsLoading,
+  memoryAssetsError,
+  memoryPickerTab,
+  onMemoryTabChange,
+  onRefreshMemories: _onRefreshMemories,
   reorderMode,
   sortMode,
   draggingProductId,
@@ -397,6 +425,19 @@ function StoreCatalog({
                   const titleValue = draft ? draft.title : product.title;
                   const descriptionValue = draft ? draft.description : product.description;
                   const priceValue = draft ? draft.price : product.price.toString();
+                  const currentKind = draft?.kind ?? product.kind;
+                  const currentFulfillment = draft?.fulfillmentKind ?? product.fulfillmentKind;
+                  const isPhysicalPrintful = currentKind === "physical";
+                  const showFulfillmentUrl =
+                    currentKind !== "physical" &&
+                    (currentFulfillment === "download" || currentFulfillment === "external");
+                  const inventoryManaged = isPhysicalPrintful || currentFulfillment === "download";
+                  const fulfillmentInfo = isPhysicalPrintful
+                    ? "Physical items are fulfilled by Printful."
+                    : "Choose how customers receive this item.";
+                  const inventoryInfo = inventoryManaged
+                    ? "Inventory is managed automatically for this fulfillment type."
+                    : "Set how many units are available for this product.";
                   const selectedVariantId = resolveSelectedVariantId(product);
                   const selectedVariant = resolveVariant(product, selectedVariantId);
                   const displayPrice = selectedVariant?.price ?? product.price;
@@ -497,16 +538,18 @@ function StoreCatalog({
                             onSaveProductDraft();
                           }}
                         >
-                          <div className={capTheme.storeProductImage} data-has-image={imageUrl ? "true" : undefined}>
-                            {imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={imageUrl} alt={titleValue || "Store product image"} loading="lazy" />
-                            ) : (
-                              <div className={capTheme.storeImagePlaceholder}>
-                                <ImageSquare size={22} weight="duotone" />
-                                <span>Upload an image</span>
-                              </div>
-                            )}
+                          <div className={capTheme.storeEditorMediaColumn}>
+                            <div className={capTheme.storeProductImage} data-has-image={imageUrl ? "true" : undefined}>
+                              {imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={imageUrl} alt={titleValue || "Store product image"} loading="lazy" />
+                              ) : (
+                                <div className={capTheme.storeImagePlaceholder}>
+                                  <ImageSquare size={22} weight="duotone" />
+                                  <span>Upload an image</span>
+                                </div>
+                              )}
+                            </div>
                             <div className={capTheme.storeMediaEditor}>
                               <div className={capTheme.storeMediaControls}>
                                 <button type="button" className={capTheme.storeMediaButton} onClick={onOpenImagePicker}>
@@ -518,245 +561,298 @@ function StoreCatalog({
                                   className={capTheme.storeMediaButton}
                                   data-variant="ghost"
                                   onClick={() => onSetMemoryPickerFor(product.id)}
+                              >
+                              <ImagesSquare size={16} weight="bold" />
+                              Browse memories
+                            </button>
+                            {imageUrl ? (
+                              <button
+                                type="button"
+                                className={capTheme.storeGhostButton}
+                                onClick={() => onClearDraftImage(product.id)}
+                              >
+                                Remove image
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                          </div>
+
+                          <div className={capTheme.storeEditorFieldColumn}>
+                            <label className={capTheme.storeField}>
+                              <div className={capTheme.storeFieldLabel}>
+                                <span>Title</span>
+                                <span
+                                  className={capTheme.storeInfoIcon}
+                                  title="Shown on your storefront and checkout."
+                                  aria-label="Shown on your storefront and checkout."
                                 >
-                                  <ImagesSquare size={16} weight="bold" />
-                                  Browse memories
+                                  <Info size={12} weight="bold" />
+                                </span>
+                              </div>
+                              <input
+                                type="text"
+                                value={titleValue}
+                                onChange={(event) => onUpdateDraftField("title", event.target.value)}
+                                required
+                              />
+                            </label>
+                            <label className={capTheme.storeField}>
+                              <div className={capTheme.storeFieldLabel}>
+                                <span>Description</span>
+                                <span
+                                  className={capTheme.storeInfoIcon}
+                                  title="Short summary buyers see before purchasing."
+                                  aria-label="Short summary buyers see before purchasing."
+                                >
+                                  <Info size={12} weight="bold" />
+                                </span>
+                              </div>
+                              <textarea
+                                rows={3}
+                                value={descriptionValue}
+                                onChange={(event) => onUpdateDraftField("description", event.target.value)}
+                              />
+                            </label>
+
+                            <div className={capTheme.storeFieldRow}>
+                              <label className={capTheme.storeField}>
+                                <div className={capTheme.storeFieldLabel}>
+                                  <span>Price</span>
+                                  <span
+                                    className={capTheme.storeInfoIcon}
+                                    title="Displayed price buyers will see."
+                                    aria-label="Displayed price buyers will see."
+                                  >
+                                    <Info size={12} weight="bold" />
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  step="0.01"
+                                  value={priceValue}
+                                  onChange={(event) => onUpdateDraftField("price", event.target.value)}
+                                />
+                              </label>
+                              {isPhysicalPrintful ? null : (
+                                <label className={capTheme.storeField}>
+                                  <div className={capTheme.storeFieldLabel}>
+                                    <span>SKU (optional)</span>
+                                    <span
+                                      className={capTheme.storeInfoIcon}
+                                      title="Internal code for your own tracking."
+                                      aria-label="Internal code for your own tracking."
+                                    >
+                                      <Info size={12} weight="bold" />
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={draft?.sku ?? product.sku ?? ""}
+                                    onChange={(event) => onUpdateDraftField("sku", event.target.value)}
+                                    placeholder="SKU for this product"
+                                  />
+                                </label>
+                              )}
+                            </div>
+
+                            <div className={capTheme.storeFieldRow}>
+                              <label className={capTheme.storeField}>
+                                <div className={capTheme.storeFieldLabel}>
+                                  <span>Kind</span>
+                                  <span
+                                    className={capTheme.storeInfoIcon}
+                                    title="Choose whether this is physical, digital, or a service."
+                                    aria-label="Choose whether this is physical, digital, or a service."
+                                  >
+                                    <Info size={12} weight="bold" />
+                                  </span>
+                                </div>
+                                <select
+                                  value={draft?.kind ?? product.kind}
+                                  onChange={(event) => onUpdateDraftField("kind", event.target.value)}
+                                >
+                                  <option value="physical">Physical</option>
+                                  <option value="digital">Digital</option>
+                                  <option value="service">Service</option>
+                                </select>
+                              </label>
+                              <label className={capTheme.storeField}>
+                                <div className={capTheme.storeFieldLabel}>
+                                  <span>Fulfillment</span>
+                                  <span
+                                    className={capTheme.storeInfoIcon}
+                                    title={fulfillmentInfo}
+                                    aria-label={fulfillmentInfo}
+                                  >
+                                    <Info size={12} weight="bold" />
+                                  </span>
+                                </div>
+                                <select
+                                  value={currentFulfillment}
+                                  onChange={(event) => onUpdateDraftField("fulfillmentKind", event.target.value)}
+                                  disabled={isPhysicalPrintful}
+                                >
+                                  <option value="ship">Ship to customer</option>
+                                  {!isPhysicalPrintful ? <option value="download">Download link</option> : null}
+                                  {!isPhysicalPrintful ? <option value="external">External fulfillment</option> : null}
+                                </select>
+                              </label>
+                            </div>
+
+                            <div className={capTheme.storeFieldRow}>
+                              <label className={capTheme.storeField}>
+                                <div className={capTheme.storeFieldLabel}>
+                                  <span>Inventory</span>
+                                  <span
+                                    className={capTheme.storeInfoIcon}
+                                    title={inventoryInfo}
+                                    aria-label={inventoryInfo}
+                                  >
+                                    <Info size={12} weight="bold" />
+                                  </span>
+                                </div>
+                                <input
+                                  type="number"
+                                  value={(draft?.inventoryCount ?? product.inventoryCount ?? "").toString()}
+                                  onChange={(event) =>
+                                    onUpdateDraftField("inventoryCount", Number.parseInt(event.target.value, 10))
+                                  }
+                                  placeholder={inventoryManaged ? "Managed automatically" : "0"}
+                                  disabled={inventoryManaged}
+                                />
+                              </label>
+                              {showFulfillmentUrl ? (
+                                <label className={capTheme.storeField}>
+                                  <div className={capTheme.storeFieldLabel}>
+                                    <span>Fulfillment URL (optional)</span>
+                                    <span
+                                      className={capTheme.storeInfoIcon}
+                                      title="Link or download buyers receive after purchase."
+                                      aria-label="Link or download buyers receive after purchase."
+                                    >
+                                      <Info size={12} weight="bold" />
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="url"
+                                    value={draft?.fulfillmentUrl ?? product.fulfillmentUrl ?? ""}
+                                    onChange={(event) => onUpdateDraftField("fulfillmentUrl", event.target.value)}
+                                    placeholder="https://..."
+                                  />
+                                </label>
+                              ) : null}
+                            </div>
+
+                            <div className={capTheme.storeVariants}>
+                              <div className={capTheme.storeVariantsHeader}>
+                                <div className={capTheme.storeFieldLabel}>
+                                  <h4>Variants</h4>
+                                  <span
+                                    className={capTheme.storeInfoIcon}
+                                    title="Create options like sizes or colors with their own price and stock."
+                                    aria-label="Create options like sizes or colors with their own price and stock."
+                                  >
+                                    <Info size={12} weight="bold" />
+                                  </span>
+                                </div>
+                                <button type="button" className={capTheme.storeActionButton} onClick={onAddDraftVariant}>
+                                  Add option
                                 </button>
-                                {imageUrl ? (
+                              </div>
+                              {(draft?.variants ?? product.variants).map((variant) => (
+                                <div key={variant.id} className={capTheme.storeVariantRow}>
+                                  <input
+                                    type="text"
+                                    value={variant.label}
+                                    onChange={(event) => onUpdateDraftVariant(variant.id, { label: event.target.value })}
+                                    placeholder="Label"
+                                  />
+                                  <input
+                                    type="number"
+                                    value={variant.price ?? ""}
+                                    onChange={(event) =>
+                                      onUpdateDraftVariant(variant.id, {
+                                        price: event.target.value === "" ? null : Number(event.target.value),
+                                      })
+                                    }
+                                    placeholder="Price"
+                                  />
+                                  {inventoryManaged ? null : (
+                                    <input
+                                      type="number"
+                                      value={variant.inventoryCount ?? ""}
+                                      onChange={(event) =>
+                                        onUpdateDraftVariant(variant.id, {
+                                          inventoryCount: event.target.value === "" ? null : Number(event.target.value),
+                                        })
+                                      }
+                                      placeholder="Inventory"
+                                    />
+                                  )}
+                                  {isPhysicalPrintful ? null : (
+                                    <input
+                                      type="text"
+                                      value={variant.sku ?? ""}
+                                      onChange={(event) =>
+                                        onUpdateDraftVariant(variant.id, { sku: event.target.value || null })
+                                      }
+                                      placeholder="SKU"
+                                    />
+                                  )}
+                                  {isPhysicalPrintful ? null : (
+                                    <input
+                                      type="text"
+                                      value={variant.printfulVariantId ?? ""}
+                                      onChange={(event) =>
+                                        onUpdateDraftVariant(variant.id, {
+                                          printfulVariantId: event.target.value || null,
+                                        })
+                                      }
+                                      placeholder="Printful variant ID"
+                                    />
+                                  )}
                                   <button
                                     type="button"
                                     className={capTheme.storeGhostButton}
-                                    onClick={() => onClearDraftImage(product.id)}
+                                    onClick={() => onRemoveDraftVariant(variant.id)}
                                   >
-                                    Remove image
+                                    Remove
                                   </button>
-                                ) : null}
-                              </div>
-                              {memoryPickerFor === product.id ? (
-                                <div className={capTheme.storeMemoryPicker}>
-                                  <div className={capTheme.storeMemoryHeader}>
-                                    <span>Select a memory</span>
-                                    <div className={capTheme.storeMemoryButtons}>
-                                      <button
-                                        type="button"
-                                        className={capTheme.storeGhostButton}
-                                        onClick={() => onRefreshMemories()}
-                                        disabled={memoryLoading}
-                                      >
-                                        {memoryLoading ? "Refreshing..." : "Refresh"}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={capTheme.storeGhostButton}
-                                        onClick={() => onSetMemoryPickerFor(null)}
-                                      >
-                                        Close
-                                      </button>
-                                    </div>
-                                  </div>
-                                  {!memoryUser ? (
-                                    <p className={capTheme.storeMemoryStatus}>Sign in to use memories.</p>
-                                  ) : memoryError ? (
-                                    <p className={capTheme.storeMemoryStatus}>{memoryError}</p>
-                                  ) : memoryLoading ? (
-                                    <p className={capTheme.storeMemoryStatus}>Loading memories...</p>
-                                  ) : memoryUploads.length === 0 ? (
-                                    <p className={capTheme.storeMemoryStatus}>No memories yet.</p>
-                                  ) : (
-                                    <div className={capTheme.storeMemoryGrid}>
-                                      {memoryUploads.map((upload) => (
-                                        <button
-                                          key={upload.id}
-                                          type="button"
-                                          className={capTheme.storeMemoryCard}
-                                          onClick={() => onHandleMemorySelect(upload)}
-                                        >
-                                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                                          <img src={upload.displayUrl} alt={upload.title ?? "Memory upload"} loading="lazy" />
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
-                              ) : null}
+                              ))}
                             </div>
-                          </div>
 
-                          <label className={capTheme.storeField}>
-                            <span>Title</span>
-                            <input
-                              type="text"
-                              value={titleValue}
-                              onChange={(event) => onUpdateDraftField("title", event.target.value)}
-                              required
-                            />
-                          </label>
-                          <label className={capTheme.storeField}>
-                            <span>Description</span>
-                            <textarea
-                              rows={3}
-                              value={descriptionValue}
-                              onChange={(event) => onUpdateDraftField("description", event.target.value)}
-                            />
-                          </label>
-                          <label className={capTheme.storeField}>
-                            <span>Price</span>
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min={0}
-                              step="0.01"
-                              value={priceValue}
-                              onChange={(event) => onUpdateDraftField("price", event.target.value)}
-                            />
-                          </label>
-                          <label className={capTheme.storeField}>
-                            <span>SKU (optional)</span>
-                            <input
-                              type="text"
-                              value={draft?.sku ?? product.sku ?? ""}
-                              onChange={(event) => onUpdateDraftField("sku", event.target.value)}
-                              placeholder="SKU for this product"
-                            />
-                          </label>
-
-                          <div className={capTheme.storeFieldRow}>
-                            <label className={capTheme.storeField}>
-                              <span>Kind</span>
-                              <select
-                                value={draft?.kind ?? product.kind}
-                                onChange={(event) => onUpdateDraftField("kind", event.target.value)}
-                              >
-                                <option value="physical">Physical</option>
-                                <option value="digital">Digital</option>
-                                <option value="service">Service</option>
-                              </select>
-                            </label>
-                            <label className={capTheme.storeField}>
-                              <span>Fulfillment</span>
-                              <select
-                                value={draft?.fulfillmentKind ?? product.fulfillmentKind}
-                                onChange={(event) => onUpdateDraftField("fulfillmentKind", event.target.value)}
-                              >
-                                <option value="ship">Ship to customer</option>
-                                <option value="download">Download link</option>
-                                <option value="external">External fulfillment</option>
-                              </select>
-                            </label>
-                          </div>
-
-                          <div className={capTheme.storeFieldRow}>
-                            <label className={capTheme.storeField}>
-                              <span>Inventory</span>
-                              <input
-                                type="number"
-                                value={(draft?.inventoryCount ?? product.inventoryCount ?? "").toString()}
-                                onChange={(event) =>
-                                  onUpdateDraftField("inventoryCount", Number.parseInt(event.target.value, 10))
-                                }
-                                placeholder="0"
-                              />
-                            </label>
-                            <label className={capTheme.storeField}>
-                              <span>Fulfillment URL</span>
-                              <input
-                                type="url"
-                                value={draft?.fulfillmentUrl ?? product.fulfillmentUrl ?? ""}
-                                onChange={(event) => onUpdateDraftField("fulfillmentUrl", event.target.value)}
-                                placeholder="https://..."
-                              />
-                            </label>
-                          </div>
-
-                          <div className={capTheme.storeVariants}>
-                            <div className={capTheme.storeVariantsHeader}>
-                              <h4>Variants</h4>
-                              <button type="button" className={capTheme.storeActionButton} onClick={onAddDraftVariant}>
-                                Add option
-                              </button>
-                            </div>
-                            {(draft?.variants ?? product.variants).map((variant) => (
-                              <div key={variant.id} className={capTheme.storeVariantRow}>
-                                <input
-                                  type="text"
-                                  value={variant.label}
-                                  onChange={(event) => onUpdateDraftVariant(variant.id, { label: event.target.value })}
-                                  placeholder="Label"
-                                />
-                                <input
-                                  type="number"
-                                  value={variant.price ?? ""}
-                                  onChange={(event) =>
-                                    onUpdateDraftVariant(variant.id, {
-                                      price: event.target.value === "" ? null : Number(event.target.value),
-                                    })
-                                  }
-                                  placeholder="Price"
-                                />
-                                <input
-                                  type="number"
-                                  value={variant.inventoryCount ?? ""}
-                                  onChange={(event) =>
-                                    onUpdateDraftVariant(variant.id, {
-                                      inventoryCount: event.target.value === "" ? null : Number(event.target.value),
-                                    })
-                                  }
-                                  placeholder="Inventory"
-                                />
-                                <input
-                                  type="text"
-                                  value={variant.sku ?? ""}
-                                  onChange={(event) => onUpdateDraftVariant(variant.id, { sku: event.target.value || null })}
-                                  placeholder="SKU"
-                                />
-                                <input
-                                  type="text"
-                                  value={variant.printfulVariantId ?? ""}
-                                  onChange={(event) =>
-                                    onUpdateDraftVariant(variant.id, {
-                                      printfulVariantId: event.target.value || null,
-                                    })
-                                  }
-                                  placeholder="Printful variant ID"
-                                />
-                                <button
-                                  type="button"
-                                  className={capTheme.storeGhostButton}
-                                  onClick={() => onRemoveDraftVariant(variant.id)}
-                                >
-                                  Remove
+                            <div className={capTheme.storeEditorActions}>
+                              <div className={capTheme.storeToggleGroup}>
+                                <label className={capTheme.storeToggle}>
+                                  <input
+                                    type="checkbox"
+                                    checked={draft ? draft.active : product.active}
+                                    onChange={(event) => onUpdateDraftField("active", event.target.checked)}
+                                  />
+                                  <span>Active</span>
+                                </label>
+                                <label className={capTheme.storeToggle}>
+                                  <input
+                                    type="checkbox"
+                                    checked={draft ? draft.featured : product.featured}
+                                    onChange={(event) => onUpdateDraftField("featured", event.target.checked)}
+                                  />
+                                  <span>Featured</span>
+                                </label>
+                              </div>
+                              <div className={capTheme.storeEditorButtons}>
+                                <button type="button" className={capTheme.storeGhostButton} onClick={onCancelEditingProduct}>
+                                  Cancel
+                                </button>
+                                {saveError ? <p className={capTheme.checkoutError}>{saveError}</p> : null}
+                                <button type="submit" className={capTheme.storePrimaryButton} disabled={savingProduct}>
+                                  {savingProduct ? "Saving..." : "Save changes"}
                                 </button>
                               </div>
-                            ))}
-                          </div>
-
-                          <div className={capTheme.storeEditorActions}>
-                            <div className={capTheme.storeToggleGroup}>
-                              <label className={capTheme.storeToggle}>
-                                <input
-                                  type="checkbox"
-                                  checked={draft ? draft.active : product.active}
-                                  onChange={(event) => onUpdateDraftField("active", event.target.checked)}
-                                />
-                                <span>Active</span>
-                              </label>
-                              <label className={capTheme.storeToggle}>
-                                <input
-                                  type="checkbox"
-                                  checked={draft ? draft.featured : product.featured}
-                                  onChange={(event) => onUpdateDraftField("featured", event.target.checked)}
-                                />
-                                <span>Featured</span>
-                              </label>
-                            </div>
-                            <div className={capTheme.storeEditorButtons}>
-                              <button type="button" className={capTheme.storeGhostButton} onClick={onCancelEditingProduct}>
-                                Cancel
-                              </button>
-                              {saveError ? <p className={capTheme.checkoutError}>{saveError}</p> : null}
-                              <button type="submit" className={capTheme.storePrimaryButton} disabled={savingProduct}>
-                                {savingProduct ? "Saving..." : "Save changes"}
-                              </button>
                             </div>
                           </div>
                         </form>
@@ -834,6 +930,31 @@ function StoreCatalog({
           </section>
         </div>
       </div>
+      {isFounder ? (
+        <ComposerMemoryPicker
+          open={Boolean(memoryPickerFor)}
+          activeTab={memoryPickerTab}
+          onTabChange={onMemoryTabChange}
+          uploads={memoryUploads}
+          uploadsLoading={memoryLoading}
+          uploadsError={memoryError}
+          uploadsHasMore={Boolean(memoryUploadsHasMore)}
+          onLoadMoreUploads={onLoadMoreMemoryUploads ?? (() => {})}
+          assets={memoryAssets}
+          assetsLoading={memoryAssetsLoading}
+          assetsError={memoryAssetsError}
+          assetsHasMore={Boolean(memoryAssetsHasMore)}
+          onLoadMoreAssets={onLoadMoreMemoryAssets ?? (() => {})}
+          searchEnabled
+          searchPageSize={24}
+          onSearch={
+            onSearchMemories ??
+            (async () => ({ items: [], hasMore: false, error: "Search unavailable" }))
+          }
+          onSelect={(upload) => onHandleMemorySelect(upload)}
+          onClose={() => onSetMemoryPickerFor(null)}
+        />
+      ) : null}
     </>
   );
 }

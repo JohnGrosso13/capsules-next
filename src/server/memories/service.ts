@@ -774,11 +774,15 @@ export async function searchMemories({
   ownerId,
   query,
   limit,
+  page = 0,
+  filters,
   origin,
 }: {
   ownerId: string;
   query: string;
   limit: number;
+  page?: number;
+  filters?: { kinds?: string[] | null | undefined };
   origin?: string | null;
 }) {
   const trimmed = query.trim();
@@ -831,10 +835,13 @@ export async function searchMemories({
 
   if (searchIndex) {
     try {
+      const kindsFilter = filters?.kinds?.filter(Boolean);
+      const filtersForSearch = kindsFilter && kindsFilter.length ? { kinds: kindsFilter } : undefined;
       const matches = await searchIndex.search({
         ownerId,
         text: trimmed,
         limit: Math.max(limit * 3, limit),
+        ...(filtersForSearch ? { filters: filtersForSearch } : {}),
       });
       matches.forEach((match, index) => {
         const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
@@ -854,10 +861,12 @@ export async function searchMemories({
     }
   }
 
-  const ids = candidateOrder.slice(0, limit);
+  const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 0;
+  const start = safePage * limit;
+  const ids = candidateOrder.slice(start, start + limit);
   if (!ids.length) {
     const fallback = await listMemories({ ownerId, origin: origin ?? null });
-    return fallback.slice(0, limit);
+    return fallback.slice(start, start + limit);
   }
 
   try {
@@ -919,16 +928,26 @@ export async function searchMemories({
     }
 
     if (ordered.length) {
-      return Promise.all(
+      const sanitized = await Promise.all(
         ordered.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
       );
+      if (filters?.kinds?.length) {
+        const allowed = new Set(filters.kinds.map((kind) => kind.toLowerCase()));
+        return sanitized.filter(
+          (item) =>
+            typeof item.kind === "string" && allowed.has(item.kind.toLowerCase()),
+        );
+      }
+      return sanitized;
     }
   } catch (error) {
     console.warn("memory search hydrate failed", error);
   }
 
   const fallback = await listMemories({ ownerId, origin: origin ?? null });
-  return fallback.slice(0, limit);
+  const safePageFallback = Number.isFinite(page) && page > 0 ? Math.floor(page) : 0;
+  const startFallback = safePageFallback * limit;
+  return fallback.slice(startFallback, startFallback + limit);
 }
 
 export async function deleteMemories({

@@ -10,7 +10,11 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const userPayload = (body?.user as Record<string, unknown>) ?? {};
   const query = (body?.q as string) ?? "";
-  const limit = Number(body?.limit ?? 24);
+  const limitRaw = Number(body?.limit ?? 24);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 60) : 24;
+  const pageRaw = Number(body?.page);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 0;
+  const kind = typeof body?.kind === "string" && body.kind.trim().length ? body.kind.trim() : null;
   const ownerId = await ensureUserFromRequest(req, userPayload, { allowGuests: false });
   if (!ownerId) {
     return NextResponse.json({ error: "auth required" }, { status: 401 });
@@ -22,7 +26,21 @@ export async function POST(req: Request) {
 
   try {
     const requestOrigin = deriveRequestOrigin(req);
-    const items = await searchMemories({ ownerId, query, limit, origin: requestOrigin ?? null });
+    let filters: { kinds?: string[] | null } | undefined;
+    if (kind) {
+      filters = { kinds: [kind] };
+    }
+    const searchParams: Parameters<typeof searchMemories>[0] = {
+      ownerId,
+      query,
+      limit,
+      page,
+      origin: requestOrigin ?? null,
+    };
+    if (filters) {
+      searchParams.filters = filters;
+    }
+    const items = await searchMemories(searchParams);
     return NextResponse.json({ items });
   } catch (error) {
     console.error("memory search error", error);

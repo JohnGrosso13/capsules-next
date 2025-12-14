@@ -118,17 +118,31 @@ export type CapsuleChatState = {
 
 export type CapsuleMemoryState = {
   user: MemoryHookReturn["user"];
-  loading: MemoryHookReturn["loading"];
-  error: MemoryHookReturn["error"];
+  loading: MemoryHookReturn["uploadsLoading"];
+  error: MemoryHookReturn["uploadsError"];
+  uploadsLoading: MemoryHookReturn["uploadsLoading"];
+  uploadsError: MemoryHookReturn["uploadsError"];
+  assetsLoading: MemoryHookReturn["assetsLoading"];
+  assetsError: MemoryHookReturn["assetsError"];
+  uploadsHasMore: MemoryHookReturn["uploadsHasMore"];
+  assetsHasMore: MemoryHookReturn["assetsHasMore"];
+  loadMoreUploads: MemoryHookReturn["loadMoreUploads"];
+  loadMoreAssets: MemoryHookReturn["loadMoreAssets"];
   processedMemories: MemoryHookReturn["processedMemories"];
+  processedUploads: MemoryHookReturn["processedUploads"];
+  processedAssets: MemoryHookReturn["processedAssets"];
   recentMemories: MemoryHookReturn["recentMemories"];
   isPickerOpen: MemoryHookReturn["memoryPickerOpen"];
+  tab: MemoryHookReturn["memoryPickerTab"];
+  setTab: MemoryHookReturn["setMemoryPickerTab"];
   openPicker: MemoryHookReturn["openMemoryPicker"];
   closePicker: MemoryHookReturn["closeMemoryPicker"];
   onSelectMemory: MemoryHookReturn["handleMemorySelect"];
   onPickMemory: MemoryHookReturn["handleMemoryPick"];
   onQuickPick: MemoryHookReturn["handleQuickPick"];
   refresh: MemoryHookReturn["refresh"];
+  refreshAssets: MemoryHookReturn["refreshAssets"];
+  searchMemories: MemoryHookReturn["searchMemories"];
   buttonRef: MemoryHookReturn["memoryButtonRef"];
 };
 
@@ -608,22 +622,6 @@ export function useCapsuleCustomizerState(
   fetchMemoryAssetRef.current = memory.fetchMemoryAssetUrl;
   refreshMemoriesRef.current = memory.refresh;
 
-  const {
-    user,
-    loading,
-    error,
-    processedMemories,
-    recentMemories,
-    memoryPickerOpen,
-    openMemoryPicker,
-    closeMemoryPicker,
-    handleMemorySelect,
-    handleMemoryPick,
-    handleQuickPick,
-    refresh,
-    memoryButtonRef,
-  } = memory;
-
   React.useEffect(() => {
     if (!open) return;
     resetConversation(assistantIntro, clarifierPreset);
@@ -692,19 +690,33 @@ export function useCapsuleCustomizerState(
       onToggleSmartContext: handleToggleSmartContext,
     },
     memory: {
-      user,
-      loading,
-      error,
-      processedMemories,
-      recentMemories,
-      isPickerOpen: memoryPickerOpen,
-      openPicker: openMemoryPicker,
-      closePicker: closeMemoryPicker,
-      onSelectMemory: handleMemorySelect,
-      onPickMemory: handleMemoryPick,
-      onQuickPick: handleQuickPick,
-      refresh,
-      buttonRef: memoryButtonRef,
+      user: memory.user,
+      loading: memory.uploadsLoading,
+      error: memory.uploadsError,
+      uploadsLoading: memory.uploadsLoading,
+      uploadsError: memory.uploadsError,
+      assetsLoading: memory.assetsLoading,
+      assetsError: memory.assetsError,
+      uploadsHasMore: memory.uploadsHasMore,
+      assetsHasMore: memory.assetsHasMore,
+      loadMoreUploads: memory.loadMoreUploads,
+      loadMoreAssets: memory.loadMoreAssets,
+      processedMemories: memory.processedMemories,
+      processedUploads: memory.processedUploads,
+      processedAssets: memory.processedAssets,
+      recentMemories: memory.recentMemories,
+      isPickerOpen: memory.memoryPickerOpen,
+      tab: memory.memoryPickerTab,
+      setTab: memory.setMemoryPickerTab,
+      openPicker: memory.openMemoryPicker,
+      closePicker: memory.closeMemoryPicker,
+      onSelectMemory: memory.handleMemorySelect,
+      onPickMemory: memory.handleMemoryPick,
+      onQuickPick: memory.handleQuickPick,
+      refresh: memory.refresh,
+      refreshAssets: memory.refreshAssets,
+      searchMemories: memory.searchMemories,
+      buttonRef: memory.memoryButtonRef,
     },
     preview: {
       selected: previewState.selected,

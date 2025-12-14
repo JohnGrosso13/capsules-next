@@ -20,6 +20,7 @@ import {
 import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { DisplayMemoryUpload, MemoryUploadItem } from "./uploads-types";
+import layoutStyles from "./memory-carousel-shell.module.css";
 import styles from "./uploads-carousel.module.css";
 import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
@@ -328,7 +329,9 @@ export function UploadsCarousel({
   );
 
   const containerStyle = React.useMemo<React.CSSProperties>(
-    () => ({ "--carousel-visible-count": Math.max(1, visiblePageSize) }) as React.CSSProperties,
+    () => ({
+      "--memory-visible-count": Math.max(1, visiblePageSize),
+    }) as React.CSSProperties,
     [visiblePageSize],
   );
 
@@ -463,11 +466,11 @@ export function UploadsCarousel({
           </div>
         ) : null}
 
-        <div className={styles.carouselShell}>
+        <div className={layoutStyles.carouselShell}>
           <Button
             variant="secondary"
             size="icon"
-            className={styles.navButton}
+            className={layoutStyles.navButton}
             data-side="prev"
             data-hidden={!visibleItems.length}
             leftIcon={<CaretLeft size={18} weight="bold" />}
@@ -475,16 +478,16 @@ export function UploadsCarousel({
             aria-label={`Previous ${title.toLowerCase()}`}
             disabled={navDisabled}
           />
-          <div className={styles.viewport} ref={setViewportRef}>
-            <div className={styles.container} style={containerStyle}>
+          <div className={layoutStyles.viewport} ref={setViewportRef}>
+            <div className={layoutStyles.container} style={containerStyle}>
               {hasSlides
                 ? visibleItems.map((item) => (
-                    <div className={styles.slide} key={item.id}>
+                    <div className={`${layoutStyles.slide} ${styles.slide}`} key={item.id}>
                       {renderCard(item)}
                     </div>
                   ))
                 : (
-                  <div className={styles.slide}>
+                  <div className={`${layoutStyles.slide} ${styles.slide}`}>
                     <div className={styles.empty}>{emptyContent}</div>
                   </div>
                 )}
@@ -493,7 +496,7 @@ export function UploadsCarousel({
           <Button
             variant="secondary"
             size="icon"
-            className={styles.navButton}
+            className={layoutStyles.navButton}
             data-side="next"
             data-hidden={!visibleItems.length}
             leftIcon={<CaretRight size={18} weight="bold" />}
