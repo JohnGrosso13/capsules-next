@@ -9,9 +9,12 @@ import { ensureSupabaseUser } from "@/lib/auth/payload";
 import {
   CapsuleMembershipError,
   getUserCapsules,
+  type CapsuleSummary,
 } from "@/server/capsules/service";
 import { loadStoreCatalog } from "@/server/store/service";
 
+import { StoreCapsuleGate } from "../StoreCapsuleGate";
+import { StoreNavigation } from "../StoreNavigation";
 import styles from "../mystore.page.module.css";
 
 export const metadata: Metadata = {
@@ -19,7 +22,7 @@ export const metadata: Metadata = {
   description: "Manage and feature products for your Capsule storefront.",
 };
 
-type MyStoreProductsPageProps = { searchParams?: { capsuleId?: string } };
+type MyStoreProductsPageProps = { searchParams?: { capsuleId?: string; switch?: string; view?: string } };
 
 function buildFormatter(currency: string) {
   const normalized = currency && currency.trim().length ? currency.toUpperCase() : "USD";
@@ -90,12 +93,13 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
     (capsule) => capsule.ownership === "owner",
   );
   const requestedCapsuleId = searchParams?.capsuleId?.trim() ?? null;
-  const selectedCapsule =
-    (requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) : null) ??
-    ownedCapsules[0] ??
-    null;
+  const selectedCapsule: CapsuleSummary | null =
+    requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
   const selectedCapsuleLogo =
     selectedCapsule?.logoUrl && selectedCapsule.logoUrl.trim().length ? selectedCapsule.logoUrl : null;
+  const selectedCapsuleId = selectedCapsule?.id ?? null;
+  const showSelector = !selectedCapsule;
+  const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
 
   let catalogProducts: Awaited<ReturnType<typeof loadStoreCatalog>>["products"] = [];
   let catalogError: string | null = null;
@@ -119,7 +123,30 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
   const sortedProducts = [...catalogProducts].sort((a, b) => a.sortOrder - b.sortOrder);
   const displayProducts = sortedProducts.length ? sortedProducts : MOCK_PRODUCTS;
 
-  const manageHref = selectedCapsule ? `/capsule?capsuleId=${selectedCapsule.id}&tab=store` : "#";
+  const manageHref = selectedCapsuleId ? `/capsule?capsuleId=${selectedCapsuleId}&tab=store` : "#";
+
+  if (showSelector) {
+    return (
+      <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
+        <div className={styles.shell} data-surface="store">
+          <header className={styles.header}>
+            <div className={styles.headerTop}>
+              <div className={styles.brand}>
+                <div className={styles.brandMark} aria-hidden="true" />
+                <div className={styles.brandMeta}>
+                  <div className={styles.brandTitle}>My Store</div>
+                  <div className={styles.brandSubtitle}>Pick a store to manage products</div>
+                </div>
+              </div>
+            </div>
+            <div className={styles.headerBottom}>
+              <StoreCapsuleGate capsules={ownedCapsules} selectedCapsuleId={null} />
+            </div>
+          </header>
+        </div>
+      </AppPage>
+    );
+  }
 
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
@@ -145,24 +172,10 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
                 <div className={styles.brandSubtitle}>
                   {selectedCapsule
                     ? selectedCapsule.name ?? "Capsule store"
-                    : "Choose a capsule to view products"}
+                    : "Use Capsule Gate to pick your store"}
                 </div>
               </div>
             </div>
-            <nav className={styles.headerNav} aria-label="Store navigation">
-              <button className={styles.headerNavItem} type="button">
-                Home
-              </button>
-              <button className={styles.headerNavItem} type="button" data-active="true">
-                Products
-              </button>
-              <button className={styles.headerNavItem} type="button">
-                Orders
-              </button>
-              <button className={styles.headerNavItem} type="button">
-                Reports
-              </button>
-            </nav>
             <div className={styles.headerActions}>
               <a
                 href={manageHref}
@@ -172,30 +185,29 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
               >
                 + New product
               </a>
+              <a href={switchHref} className={styles.chipButton} data-variant="ghost">
+                Open Capsule Gate
+              </a>
               <button className={styles.iconButtonSimple} type="button" aria-label="Notifications">
                 <span className={styles.iconDot} />
               </button>
             </div>
           </div>
           <div className={styles.headerBottom}>
-            <div className={styles.capsuleSwitcher}>
-              {ownedCapsules.length ? (
-                ownedCapsules.map((capsule) => (
-                  <a
-                    key={capsule.id}
-                    className={styles.chipButton}
-                    data-active={capsule.id === selectedCapsule?.id ? "true" : undefined}
-                    href={`?capsuleId=${capsule.id}`}
-                  >
-                    {capsule.name || "Untitled capsule"}
-                  </a>
-                ))
-              ) : (
-                <p className={styles.emptyHint}>
-                  You don&apos;t own a capsule yet. Launch one from your Capsule page to start selling.
-                </p>
-              )}
-            </div>
+            {showSelector ? (
+              <StoreCapsuleGate
+                capsules={ownedCapsules}
+                selectedCapsuleId={selectedCapsuleId}
+              />
+            ) : (
+              <div className={styles.storeNavCard}>
+                <StoreNavigation
+                  capsuleId={selectedCapsuleId}
+                  active="products"
+                  disabled={!selectedCapsule}
+                />
+              </div>
+            )}
           </div>
         </header>
 

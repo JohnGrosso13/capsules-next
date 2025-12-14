@@ -214,6 +214,22 @@ class AblyRealtimeConnection implements RealtimeClient {
     return new AblyPresenceChannel(channel);
   }
 
+  onConnectionStateChange(handler: (state: string) => void): () => void {
+    const listener = (stateChange: AblyTypes.ConnectionStateChange) => {
+      if (stateChange?.current) {
+        handler(stateChange.current);
+      }
+    };
+    this.client.connection.on(listener);
+    return () => {
+      try {
+        this.client.connection.off(listener);
+      } catch {
+        // ignore cleanup failures
+      }
+    };
+  }
+
   clientId(): string | null {
     const id = this.client.auth.clientId;
     return id ? String(id) : null;
@@ -221,8 +237,16 @@ class AblyRealtimeConnection implements RealtimeClient {
 
   async close(): Promise<void> {
     try {
+      // Avoid noisy errors if Ably already closed itself.
+      if (this.client.connection.state === "closed") {
+        return;
+      }
       await this.client.close();
-    } catch (error) {
+    } catch (error: unknown) {
+      const record = error as { code?: number; message?: string };
+      if (record?.code === 80017 || record?.message?.includes?.("Connection closed")) {
+        return;
+      }
       console.error("Ably close error", error);
     }
   }
@@ -234,21 +258,33 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
   private refCount = 0;
   private fetchAuth: (() => Promise<RealtimeAuthPayload>) | null = null;
 
-  private async createClient(): Promise<AblyRealtimeConnection> {
+  private async performAuthWithRetry(): Promise<ReturnType<typeof normalizeAblyAuth>> {
     if (!this.fetchAuth) {
       throw new Error("Ably auth provider is not configured");
     }
-    const initialAuth = await this.fetchAuth();
-    const normalizedInitial = normalizeAblyAuth(initialAuth);
+    const attempts = 3;
+    let delay = 200;
+    let lastError: unknown = null;
+    for (let i = 0; i < attempts; i += 1) {
+      try {
+        const auth = await this.fetchAuth();
+        return normalizeAblyAuth(auth);
+      } catch (error) {
+        lastError = error;
+        if (i === attempts - 1) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay = Math.min(delay * 2, 1200);
+      }
+    }
+    throw lastError ?? new Error("Ably auth failed");
+  }
+
+  private async createClient(): Promise<AblyRealtimeConnection> {
+    const normalizedInitial = await this.performAuthWithRetry();
     const options: Ably.Types.ClientOptions = {
       authCallback: async (_, callback) => {
         try {
-          const fetchAuth = this.fetchAuth;
-          if (!fetchAuth) {
-            throw new Error("Ably auth provider is not configured");
-          }
-          const nextAuth = await fetchAuth();
-          const normalized = normalizeAblyAuth(nextAuth);
+          const normalized = await this.performAuthWithRetry();
           callback(null, normalized.token);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -298,7 +334,10 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
       try {
         await connection.close();
       } catch (error) {
-        console.error("Ably release close error", error);
+        const record = error as { code?: number; message?: string };
+        if (record?.code !== 80017 && !record?.message?.includes?.("Connection closed")) {
+          console.error("Ably release close error", error);
+        }
       }
     }
     this.clientPromise = null;

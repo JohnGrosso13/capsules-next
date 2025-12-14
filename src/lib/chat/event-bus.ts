@@ -15,6 +15,7 @@ type ChatEventBusConnectOptions = {
   requestToken: (envelope: RealtimeEnvelope) => Promise<RealtimeAuthPayload>;
   subscribeOptions?: RealtimeSubscribeOptions | undefined;
   channelResolver: (clientId: string) => string;
+  onConnectionLost?: () => void;
 };
 
 export type ChatEventHandler = (event: RealtimeEvent) => void;
@@ -28,7 +29,9 @@ export class RealtimeChatEventBus {
   private client: RealtimeClient | null = null;
   private factory: RealtimeClientFactory | null = null;
   private unsubscribe: (() => void) | null = null;
+  private connectionStateCleanup: (() => void) | null = null;
   private options: ChatEventBusConnectOptions | null = null;
+  private channelName: string | null = null;
 
   async connect(
     options: ChatEventBusConnectOptions,
@@ -44,6 +47,14 @@ export class RealtimeChatEventBus {
     }
     const channelName = options.channelResolver(clientId);
     const cleanup = await client.subscribe(channelName, handler, options.subscribeOptions);
+    if (typeof client.onConnectionStateChange === "function") {
+      this.connectionStateCleanup = client.onConnectionStateChange((state) => {
+        if (state === "failed" || state === "closed" || state === "suspended") {
+          options.onConnectionLost?.();
+        }
+      }) as (() => void) | null;
+    }
+    this.channelName = channelName;
     this.client = client;
     this.factory = options.factory;
     this.unsubscribe = cleanup;
@@ -51,6 +62,21 @@ export class RealtimeChatEventBus {
   }
 
   async disconnect(): Promise<void> {
+    if (this.connectionStateCleanup) {
+      try {
+        this.connectionStateCleanup();
+      } catch {
+        // ignore cleanup failures
+      }
+      this.connectionStateCleanup = null;
+    }
+    if (this.client && this.channelName) {
+      try {
+        await this.client.presence(this.channelName).leave();
+      } catch {
+        // ignore presence cleanup failures
+      }
+    }
     if (this.unsubscribe) {
       try {
         this.unsubscribe();
@@ -69,6 +95,7 @@ export class RealtimeChatEventBus {
     this.client = null;
     this.factory = null;
     this.options = null;
+    this.channelName = null;
   }
 
   async publishToChannels(

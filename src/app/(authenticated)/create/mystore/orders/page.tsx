@@ -9,9 +9,12 @@ import {
   CapsuleMembershipError,
   getUserCapsules,
   requireCapsuleOwnership,
+  type CapsuleSummary,
 } from "@/server/capsules/service";
 import { listOrdersForCapsuleOwner } from "@/server/store/service";
 
+import { StoreCapsuleGate } from "../StoreCapsuleGate";
+import { StoreNavigation } from "../StoreNavigation";
 import styles from "../mystore.page.module.css";
 
 export const metadata: Metadata = {
@@ -19,7 +22,7 @@ export const metadata: Metadata = {
   description: "All orders for your Capsule storefront.",
 };
 
-type MyStoreOrdersPageProps = { searchParams?: { capsuleId?: string } };
+type MyStoreOrdersPageProps = { searchParams?: { capsuleId?: string; switch?: string; view?: string } };
 
 type OwnerOrderEntry = Awaited<ReturnType<typeof listOrdersForCapsuleOwner>>[number];
 
@@ -242,12 +245,13 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
     (capsule) => capsule.ownership === "owner",
   );
   const requestedCapsuleId = searchParams?.capsuleId?.trim() ?? null;
-  const selectedCapsule =
-    (requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) : null) ??
-    ownedCapsules[0] ??
-    null;
+  const selectedCapsule: CapsuleSummary | null =
+    requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
   const selectedCapsuleLogo =
     selectedCapsule?.logoUrl && selectedCapsule.logoUrl.trim().length ? selectedCapsule.logoUrl : null;
+  const selectedCapsuleId = selectedCapsule?.id ?? null;
+  const showSelector = !selectedCapsule;
+  const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
 
   let orders: OwnerOrderEntry[] = [];
   let ordersError: string | null = null;
@@ -266,6 +270,29 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
     ordersError = "You do not own this capsule.";
   }
 
+  if (showSelector) {
+    return (
+      <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
+        <div className={styles.shell} data-surface="store">
+          <header className={styles.header}>
+            <div className={styles.headerTop}>
+              <div className={styles.brand}>
+                <div className={styles.brandMark} aria-hidden="true" />
+                <div className={styles.brandMeta}>
+                  <div className={styles.brandTitle}>My Store</div>
+                  <div className={styles.brandSubtitle}>Pick a store to view orders</div>
+                </div>
+              </div>
+            </div>
+            <div className={styles.headerBottom}>
+              <StoreCapsuleGate capsules={ownedCapsules} selectedCapsuleId={null} />
+            </div>
+          </header>
+        </div>
+      </AppPage>
+    );
+  }
+
   const currency = orders[0]?.order.currency ?? MOCK_ORDER_ENTRIES[0]?.order.currency ?? "usd";
   const formatCents = buildFormatter(currency);
   const sortedOrders = [...orders].sort(
@@ -273,7 +300,7 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
   );
   const displayOrders = sortedOrders.length ? sortedOrders : MOCK_ORDER_ENTRIES;
 
-  const manageHref = selectedCapsule ? `/capsule?capsuleId=${selectedCapsule.id}&tab=store` : "#";
+  const manageHref = selectedCapsuleId ? `/capsule?capsuleId=${selectedCapsuleId}&tab=store` : "#";
 
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
@@ -299,24 +326,10 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
                 <div className={styles.brandSubtitle}>
                   {selectedCapsule
                     ? selectedCapsule.name ?? "Capsule store"
-                    : "Choose a capsule to view orders"}
+                    : "Use Capsule Gate to pick your store"}
                 </div>
               </div>
             </div>
-            <nav className={styles.headerNav} aria-label="Store navigation">
-              <button className={styles.headerNavItem} type="button">
-                Home
-              </button>
-              <button className={styles.headerNavItem} type="button">
-                Products
-              </button>
-              <button className={styles.headerNavItem} type="button" data-active="true">
-                Orders
-              </button>
-              <button className={styles.headerNavItem} type="button">
-                Reports
-              </button>
-            </nav>
             <div className={styles.headerActions}>
               <a
                 href={manageHref}
@@ -326,30 +339,29 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
               >
                 + New product
               </a>
+              <a href={switchHref} className={styles.chipButton} data-variant="ghost">
+                Open Capsule Gate
+              </a>
               <button className={styles.iconButtonSimple} type="button" aria-label="Notifications">
                 <span className={styles.iconDot} />
               </button>
             </div>
           </div>
           <div className={styles.headerBottom}>
-            <div className={styles.capsuleSwitcher}>
-              {ownedCapsules.length ? (
-                ownedCapsules.map((capsule) => (
-                  <a
-                    key={capsule.id}
-                    className={styles.chipButton}
-                    data-active={capsule.id === selectedCapsule?.id ? "true" : undefined}
-                    href={`?capsuleId=${capsule.id}`}
-                  >
-                    {capsule.name || "Untitled capsule"}
-                  </a>
-                ))
-              ) : (
-                <p className={styles.emptyHint}>
-                  You don&apos;t own a capsule yet. Launch one from your Capsule page to start selling.
-                </p>
-              )}
-            </div>
+            {showSelector ? (
+              <StoreCapsuleGate
+                capsules={ownedCapsules}
+                selectedCapsuleId={selectedCapsuleId}
+              />
+            ) : (
+              <div className={styles.storeNavCard}>
+                <StoreNavigation
+                  capsuleId={selectedCapsuleId}
+                  active="orders"
+                  disabled={!selectedCapsule}
+                />
+              </div>
+            )}
           </div>
         </header>
 

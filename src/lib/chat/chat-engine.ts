@@ -51,6 +51,9 @@ const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
 const TYPING_EVENT_REFRESH_MS = 2500;
 const TYPING_EVENT_IDLE_TIMEOUT_MS = 5000;
 const TYPING_EVENT_TTL_MS = 6000;
+const TYPING_LOCAL_DEBOUNCE_MS = 400;
+const RETRY_DELAY_MS = 250;
+const RETRY_MAX_DELAY_MS = 1200;
 
 type StartChatResult = {
   id: string;
@@ -80,6 +83,13 @@ export class ChatEngine {
   private resolvedSelfClientId: string | null = null;
   private realtimeConnected = false;
   private supabaseUserId: string | null = null;
+  private lastConnectOptions: ConnectDependencies | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectBackoffMs = 2000;
+  private realtimeStatus: "disconnected" | "connecting" | "connected" | "degraded" = "disconnected";
+  private statusListeners = new Set<
+    (status: "disconnected" | "connecting" | "connected" | "degraded") => void
+  >();
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
   private conversationHistoryLoaded = new Set<string>();
   private conversationHistoryLoading = new Map<string, Promise<void>>();
@@ -87,7 +97,9 @@ export class ChatEngine {
   private inboxLoading: Promise<void> | null = null;
   private directChannelWatermarkKey: string | null = null;
   private directChannelWatermarkMs: number | null = null;
+  private disableWatermarkPersistence = false;
   private typingStates = new Map<string, { active: boolean; lastSent: number; timeout: number | null }>();
+  private typingNotifyAt = new Map<string, number>();
 
   constructor(store?: ChatStore) {
     this.store = store ?? new ChatStore();
@@ -174,11 +186,27 @@ export class ChatEngine {
   }
 
   async connectRealtime(options: ConnectDependencies): Promise<void> {
-    await this.disconnectRealtime();
+    this.lastConnectOptions = options;
+    this.setRealtimeStatus("connecting");
+    const sameIdentity = Boolean(
+      options.currentUserId &&
+        this.supabaseUserId &&
+        options.currentUserId.trim() === this.supabaseUserId.trim(),
+    );
+    if (this.realtimeConnected && sameIdentity && this.eventBus) {
+      return;
+    }
+    if (!sameIdentity) {
+      await this.disconnectRealtime();
+    } else if (this.eventBus) {
+      // preserve store state when we only need to re-establish the wire.
+      await this.disconnectRealtime({ preserveData: true });
+    }
     this.realtimeConnected = false;
     if (!options.currentUserId || !options.envelope || !options.factory) {
       this.resolvedSelfClientId = null;
       this.store.setSelfClientId(null);
+      this.setRealtimeStatus("disconnected");
       return;
     }
     const eventBus = new RealtimeChatEventBus();
@@ -189,6 +217,19 @@ export class ChatEngine {
         requestToken: options.requestToken,
         subscribeOptions: this.buildDirectChannelSubscribeOptions(),
         channelResolver: (clientId) => getChatDirectChannel(clientId),
+        onConnectionLost: () => {
+          const factory = options.factory;
+          if (factory) {
+            try {
+              factory.reset();
+            } catch {
+              // ignore reset failures; we'll still attempt reconnect
+            }
+          }
+          this.realtimeConnected = false;
+          this.setRealtimeStatus("degraded");
+          this.scheduleReconnect();
+        },
       },
       (event) => {
         this.handleRealtimeEvent(event);
@@ -206,6 +247,8 @@ export class ChatEngine {
       this.store.setSelfClientId(connection.clientId);
       this.clientChannelName = connection.channelName;
       this.realtimeConnected = true;
+      this.reconnectBackoffMs = 2000;
+      this.setRealtimeStatus("connected");
     } catch (error) {
       if (this.connectPromise === connectOperation) {
         this.connectPromise = null;
@@ -218,11 +261,17 @@ export class ChatEngine {
       this.resolvedSelfClientId = null;
       this.store.setSelfClientId(null);
       this.realtimeConnected = false;
+      this.setRealtimeStatus("degraded");
+      this.scheduleReconnect();
     }
   }
 
-  async disconnectRealtime(): Promise<void> {
+  async disconnectRealtime(options: { preserveData?: boolean } = {}): Promise<void> {
     await this.waitForPendingConnect();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.eventBus) {
       try {
         await this.eventBus.disconnect();
@@ -232,11 +281,14 @@ export class ChatEngine {
     }
     this.eventBus = null;
     this.clientChannelName = null;
-    this.resolvedSelfClientId = null;
     this.realtimeConnected = false;
-    this.store.setSelfClientId(null);
+    this.setRealtimeStatus("disconnected");
+    if (!options.preserveData) {
+      this.resolvedSelfClientId = null;
+      this.store.setSelfClientId(null);
+      this.resetInboxState();
+    }
     this.resetTypingState();
-    this.resetInboxState();
   }
 
   startDirectChat(
@@ -595,6 +647,16 @@ export class ChatEngine {
     const trimmed = typeof conversationId === "string" ? conversationId.trim() : "";
     if (!trimmed) return;
     if (typing) {
+      const now = Date.now();
+      const last = this.typingNotifyAt.get(trimmed) ?? 0;
+      if (now - last < TYPING_LOCAL_DEBOUNCE_MS) {
+        return;
+      }
+      this.typingNotifyAt.set(trimmed, now);
+    } else {
+      this.typingNotifyAt.delete(trimmed);
+    }
+    if (typing) {
       this.beginTyping(trimmed);
     } else {
       this.stopTyping(trimmed, true);
@@ -603,14 +665,17 @@ export class ChatEngine {
 
   private buildDirectChannelSubscribeOptions(): RealtimeSubscribeOptions | undefined {
     const params: Record<string, string> = {};
+    const now = Date.now();
     if (Number.isFinite(this.directChannelWatermarkMs) && this.directChannelWatermarkMs) {
-      const start = Math.max(0, Math.trunc(this.directChannelWatermarkMs - 1000));
-      if (start > 0) {
-        params.start = String(start);
+      const rawStart = Math.max(0, Math.trunc(this.directChannelWatermarkMs - 1000));
+      const maxWindowMs = 2 * 60 * 1000;
+      const clampedStart = Math.min(rawStart, Math.max(0, now - maxWindowMs));
+      if (clampedStart > 0 && clampedStart >= now - maxWindowMs) {
+        params.start = String(clampedStart);
       }
     }
     if (!params.start) {
-      params.rewind = "5m";
+      params.rewind = "2m";
     }
     return Object.keys(params).length ? { params } : undefined;
   }
@@ -626,6 +691,7 @@ export class ChatEngine {
       this.directChannelWatermarkMs = null;
       return;
     }
+    this.disableWatermarkPersistence = false;
     const key = `${DIRECT_CHANNEL_WATERMARK_PREFIX}${userId}`;
     this.directChannelWatermarkKey = key;
     try {
@@ -704,6 +770,7 @@ export class ChatEngine {
       });
     }
     this.typingStates.clear();
+    this.typingNotifyAt.clear();
   }
 
   isRealtimeConnected(): boolean {
@@ -755,16 +822,20 @@ export class ChatEngine {
     if (!key) return;
     if (this.directChannelWatermarkMs === null) {
       try {
-        window.localStorage.removeItem(key);
+        if (!this.disableWatermarkPersistence) {
+          window.localStorage.removeItem(key);
+        }
       } catch {
-        // ignore storage failures
+        this.disableWatermarkPersistence = true;
       }
       return;
     }
     try {
-      window.localStorage.setItem(key, String(this.directChannelWatermarkMs));
+      if (!this.disableWatermarkPersistence) {
+        window.localStorage.setItem(key, String(this.directChannelWatermarkMs));
+      }
     } catch {
-      // ignore storage failures
+      this.disableWatermarkPersistence = true;
     }
   }
 
@@ -825,9 +896,10 @@ export class ChatEngine {
     }
     const existing = this.conversationHistoryLoading.get(normalizedId);
     if (existing) return existing;
-    const promise = this.loadConversationHistory(normalizedId)
+    const promise = this.retryWithBackoff(async () => this.loadConversationHistory(normalizedId))
       .catch((error) => {
         console.error("chat history load error", { conversationId: normalizedId, error });
+        this.setRealtimeStatus("degraded");
       })
       .finally(() => {
         this.conversationHistoryLoading.delete(normalizedId);
@@ -856,9 +928,10 @@ export class ChatEngine {
     }
     const selfId = this.resolveSelfId();
     if (!selfId) return;
-    const promise = this.loadInbox()
+    const promise = this.retryWithBackoff(async () => this.loadInbox())
       .catch((error) => {
         console.error("chat inbox load error", error);
+        this.setRealtimeStatus("degraded");
       })
       .finally(() => {
         this.inboxLoading = null;
@@ -1186,5 +1259,59 @@ export class ChatEngine {
       console.error("ChatEngine deleteMessage error", error);
       throw error;
     }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) return;
+    const options = this.lastConnectOptions;
+    if (!options || !options.currentUserId || !options.envelope || !options.factory) {
+      return;
+    }
+    const delay = this.reconnectBackoffMs;
+    this.reconnectBackoffMs = Math.min(this.reconnectBackoffMs * 2, 15000);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      void this.connectRealtime(options);
+    }, delay);
+  }
+
+  onStatusChange(listener: (status: typeof this.realtimeStatus) => void): () => void {
+    this.statusListeners.add(listener);
+    listener(this.realtimeStatus);
+    return () => {
+      this.statusListeners.delete(listener);
+    };
+  }
+
+  getRealtimeStatus(): typeof this.realtimeStatus {
+    return this.realtimeStatus;
+  }
+
+  private setRealtimeStatus(status: typeof this.realtimeStatus): void {
+    if (this.realtimeStatus === status) return;
+    this.realtimeStatus = status;
+    this.statusListeners.forEach((listener) => {
+      try {
+        listener(status);
+      } catch {
+        // ignore listener errors
+      }
+    });
+  }
+
+  private async retryWithBackoff<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+    let lastError: unknown = null;
+    let delay = RETRY_DELAY_MS;
+    for (let i = 0; i < attempts; i += 1) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        if (i === attempts - 1) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay = Math.min(delay * 2, RETRY_MAX_DELAY_MS);
+      }
+    }
+    throw lastError ?? new Error("retry failed");
   }
 }

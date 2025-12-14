@@ -51,6 +51,10 @@ export interface RealtimeClient {
   publish(channel: string, name: string, payload: unknown): Promise<void>;
   presence(channel: string): RealtimePresenceChannel;
   clientId(): string | null;
+  /**
+   * Optional connection-state listener; implementations may return a cleanup function.
+   */
+  onConnectionStateChange?(handler: (state: string) => void): (() => void) | void;
   close(): Promise<void>;
 }
 

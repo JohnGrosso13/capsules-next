@@ -61,6 +61,7 @@ export type ChatContextValue = {
   currentUserId: string | null;
   selfClientId: string | null;
   isReady: boolean;
+  realtimeStatus: "disconnected" | "connecting" | "connected" | "degraded";
   startChat: (target: ChatFriendTarget, options?: { activate?: boolean }) => StartChatResult | null;
   startGroupChat: (input: CreateGroupChatInput) => Promise<StartChatResult | null>;
   addParticipantsToGroup: (conversationId: string, targets: ChatFriendTarget[]) => Promise<void>;
@@ -174,8 +175,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const [snapshot, setSnapshot] = React.useState(() => engine.getSnapshot());
   const [isReady, setIsReady] = React.useState(false);
+  const [realtimeStatus, setRealtimeStatus] = React.useState(engine.getRealtimeStatus());
 
   React.useEffect(() => engine.subscribe(setSnapshot), [engine]);
+  React.useEffect(() => engine.onStatusChange(setRealtimeStatus), [engine]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -216,16 +219,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [engine, viewerId]);
 
   React.useEffect(() => {
+    const identity = user?.id ?? null;
     const envelope = buildRealtimeEnvelope(user);
     const factory = getRealtimeClientFactory();
+    if (!identity || !factory) {
+      void engine.disconnectRealtime({ preserveData: true });
+      return;
+    }
     void engine.connectRealtime({
-      currentUserId: user?.id ?? null,
+      currentUserId: identity,
       envelope,
       factory,
       requestToken: requestRealtimeToken,
     });
     return () => {
-      void engine.disconnectRealtime();
+      void engine.disconnectRealtime({ preserveData: true });
     };
   }, [engine, user]);
 
@@ -350,9 +358,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const sendMessage = React.useCallback(
     async (conversationId: string, input: ChatMessageSendInput) => {
+      if (realtimeStatus === "disconnected") {
+        throw new Error("Chat is offline. Trying to reconnect.");
+      }
       await engine.sendMessage(conversationId, input);
     },
-    [engine],
+    [engine, realtimeStatus],
   );
 
   const toggleMessageReaction = React.useCallback(
@@ -396,6 +407,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       currentUserId,
       selfClientId,
       isReady,
+      realtimeStatus,
       startChat,
       startGroupChat,
       addParticipantsToGroup,
@@ -417,6 +429,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       currentUserId,
       selfClientId,
       isReady,
+      realtimeStatus,
       startChat,
       startGroupChat,
       addParticipantsToGroup,

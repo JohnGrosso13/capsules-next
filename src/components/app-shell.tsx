@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
@@ -17,6 +16,7 @@ import { PrimaryHeader } from "@/components/primary-header";
 import { MobileHeader } from "@/components/mobile-header";
 import { DiscoveryRail } from "@/components/rail/DiscoveryRail";
 import { LiveChatRail, type LiveChatRailProps } from "@/components/live/LiveChatRail";
+import { ConnectionsRailIsland } from "@/components/rail/ConnectionsRailIsland";
 import { HOME_COMPOSER_CHIPS, EXPLORE_COMPOSER_CHIPS, CREATE_COMPOSER_CHIPS, CAPSULE_COMPOSER_CHIPS, MEMORY_COMPOSER_CHIPS, PROFILE_COMPOSER_CHIPS, SETTINGS_COMPOSER_CHIPS, LIVE_COMPOSER_CHIPS, STUDIO_COMPOSER_CHIPS, MARKET_COMPOSER_CHIPS } from "@/lib/prompter/chips";
 import { usePrompterChips } from "@/hooks/usePrompterChips";
 import { useCurrentUser } from "@/services/auth/client";
@@ -47,17 +47,6 @@ function RailPlaceholder() {
     </div>
   );
 }
-
-const ConnectionsRailIsland = dynamic(
-  () =>
-    import("@/components/rail/ConnectionsRailIsland").then((mod) => ({
-      default: mod.ConnectionsRailIsland,
-    })),
-  {
-    ssr: false,
-    loading: () => <RailPlaceholder />,
-  },
-);
 
 type NavKey = "home" | "explore" | "create" | "capsule" | "market" | "memory" | "profile" | "settings" | "live" | "studio";
 type CapsuleTab = "live" | "feed" | "store";
