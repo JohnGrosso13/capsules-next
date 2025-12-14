@@ -131,6 +131,18 @@ type PollVoteViewerRow = {
   option_index: number | null;
 };
 
+type PostShareCountRow = {
+  share_count: number | null;
+};
+
+type PostShareInsertRow = {
+  id?: string | null;
+  post_id: string;
+  capsule_id?: string | null;
+  user_id?: string | null;
+  channel?: string | null;
+};
+
 function isMissingPollVotesTable(error: DatabaseError | null): boolean {
   if (!error) return false;
   const code = (error.code ?? "").toUpperCase();
@@ -528,6 +540,32 @@ export async function deletePostLike(postId: string, userId: string): Promise<nu
     .fetch();
   if (result.error) throw decorateDatabaseError("posts.likes.delete", result.error);
   return (result.data ?? []).length;
+}
+
+export async function insertPostShare(input: {
+  postId: string;
+  capsuleId?: string | null;
+  userId?: string | null;
+  channel?: string | null;
+}): Promise<void> {
+  const payload: PostShareInsertRow = {
+    post_id: input.postId,
+    capsule_id: input.capsuleId ?? null,
+    user_id: input.userId ?? null,
+    channel: input.channel ?? null,
+  };
+  const result = await db.from("post_shares").insert([payload]).select("id").fetch();
+  if (result.error) throw decorateDatabaseError("posts.shares.insert", result.error);
+}
+
+export async function fetchPostShareCount(postId: string): Promise<number> {
+  const result = await db
+    .from("posts_view")
+    .select<PostShareCountRow>("share_count")
+    .eq("id", postId)
+    .maybeSingle();
+  if (result.error) throw decorateDatabaseError("posts.shares.count", result.error);
+  return Number(result.data?.share_count ?? 0);
 }
 
 export async function listMemoryIdsForPostOwnerAndSource(

@@ -48,6 +48,10 @@ export function StoreCapsuleGate({ capsules, selectedCapsuleId, show = true }: S
         capsules={capsules}
         selectedCapsule={selectedCapsule}
         onSelectionChange={handleSelectionChange}
+        selectorTitle="Pick a store to manage"
+        selectorSubtitle={null}
+        showMemberships={false}
+        showFollowers={false}
       />
     </div>
   );

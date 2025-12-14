@@ -274,16 +274,7 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
     return (
       <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
         <div className={styles.shell} data-surface="store">
-          <header className={styles.header}>
-            <div className={styles.headerTop}>
-              <div className={styles.brand}>
-                <div className={styles.brandMark} aria-hidden="true" />
-                <div className={styles.brandMeta}>
-                  <div className={styles.brandTitle}>My Store</div>
-                  <div className={styles.brandSubtitle}>Pick a store to view orders</div>
-                </div>
-              </div>
-            </div>
+          <header className={`${styles.header} ${styles.headerBare}`}>
             <div className={styles.headerBottom}>
               <StoreCapsuleGate capsules={ownedCapsules} selectedCapsuleId={null} />
             </div>

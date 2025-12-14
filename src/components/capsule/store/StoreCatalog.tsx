@@ -9,8 +9,6 @@ import {
   MagnifyingGlass,
   MagicWand,
   PushPinSimple,
-  ShareFat,
-  UsersThree,
   UploadSimple,
   ImagesSquare,
 } from "@phosphor-icons/react/dist/ssr";
@@ -172,6 +170,14 @@ function StoreCatalog({
         backgroundImage: `url("${storeBannerUrl}")`,
       } as React.CSSProperties)
     : undefined;
+  const myOrdersHref =
+    capsuleId && isFounder
+      ? `/create/mystore/orders?capsuleId=${encodeURIComponent(capsuleId)}`
+      : "/create/mystore/orders";
+  const myProductsHref =
+    capsuleId && isFounder
+      ? `/create/mystore/products?capsuleId=${encodeURIComponent(capsuleId)}`
+      : "/create/mystore/products";
   const [heroActionsMenuOpen, setHeroActionsMenuOpen] = React.useState(false);
   const heroActionsMenuRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -217,7 +223,7 @@ function StoreCatalog({
             <div className={capTheme.storeHeroActionsMenu} ref={heroActionsMenuRef}>
               <button
                 type="button"
-                className={capTheme.storeGhostButton}
+                className={`${capTheme.heroCustomizeBtn} ${capTheme.storeHeroActionsTrigger ?? ""}`.trim()}
                 onClick={() => setHeroActionsMenuOpen((open) => !open)}
                 aria-expanded={heroActionsMenuOpen}
                 aria-haspopup="menu"
@@ -241,24 +247,16 @@ function StoreCatalog({
                       <span>Edit banner</span>
                     </button>
                   ) : null}
-                  <button type="button" className={capTheme.storeHeroActionsMenuItem} role="menuitem">
-                    <ShareFat size={16} weight="bold" />
-                    <span>Share store</span>
-                  </button>
-                  <button type="button" className={capTheme.storeHeroActionsMenuItem} role="menuitem">
-                    <UsersThree size={16} weight="bold" />
-                    <span>Invite friends</span>
-                  </button>
                   {isFounder && capsuleId ? (
                     <a
                       className={capTheme.storeHeroActionsMenuItem}
                       role="menuitem"
-                      href={`/orders?capsuleId=${encodeURIComponent(capsuleId)}`}
+                      href={myProductsHref}
                     >
-                      <span>Seller orders</span>
+                      <span>My products</span>
                     </a>
                   ) : null}
-                  <a className={capTheme.storeHeroActionsMenuItem} role="menuitem" href="/orders">
+                  <a className={capTheme.storeHeroActionsMenuItem} role="menuitem" href={myOrdersHref}>
                     <span>My orders</span>
                   </a>
                 </div>

@@ -48,6 +48,8 @@ export type CapsuleHeroProps = {
   onSelectMedia: () => void;
   onSelectFiles: () => void;
   errorMessage?: string | null;
+  onShare?: (() => void) | null;
+  shareDisabled?: boolean;
 };
 
 const HERO_LINKS = ["Featured", "Members", "History", "Events", "Media", "Files"] as const;
@@ -71,6 +73,8 @@ export function CapsuleHero({
   onSelectMedia,
   onSelectFiles,
   errorMessage,
+  onShare,
+  shareDisabled = false,
 }: CapsuleHeroProps) {
   const _displayName = capsuleName ?? "Customize this capsule";
   const heroBannerStyle = bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined;
@@ -208,6 +212,9 @@ export function CapsuleHero({
           <button
             type="button"
             className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+            onClick={onShare ?? undefined}
+            disabled={shareDisabled || !onShare}
+            aria-label="Share capsule"
           >
             <ShareFat size={16} weight="bold" />
             Share

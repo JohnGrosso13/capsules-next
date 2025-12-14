@@ -94,6 +94,8 @@ type FeedPostViewerProps = {
   canRemember: boolean;
   onToggleMemory(post: HomeFeedPost, desired: boolean): Promise<unknown> | unknown;
   friendControls?: FeedPostViewerFriendControls | null;
+  onShare?: (post: HomeFeedPost) => void;
+  shareCountOverride?: number | null;
 };
 
 export function FeedPostViewer({
@@ -119,6 +121,8 @@ export function FeedPostViewer({
   canRemember,
   onToggleMemory,
   friendControls,
+  onShare,
+  shareCountOverride,
 }: FeedPostViewerProps) {
   const draftComposerRef = React.useRef<HTMLTextAreaElement | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -143,7 +147,12 @@ export function FeedPostViewer({
       ? Math.max(0, post.comments)
       : 0;
   const likeCount = typeof post?.likes === "number" ? Math.max(0, post.likes) : 0;
-  const shareCount = typeof post?.shares === "number" ? Math.max(0, post.shares) : 0;
+  const shareCount =
+    typeof shareCountOverride === "number"
+      ? Math.max(0, shareCountOverride)
+      : typeof post?.shares === "number"
+        ? Math.max(0, post.shares)
+        : 0;
   const viewerLiked = Boolean(post?.viewerLiked ?? post?.viewer_liked ?? false);
 
   const resolvedUserId =
@@ -470,6 +479,13 @@ export function FeedPostViewer({
       label: "Share",
       icon: <ShareNetwork weight="duotone" />,
       count: shareCount,
+      handler: (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (post) {
+          onShare?.(post);
+        }
+      },
     },
   ];
 

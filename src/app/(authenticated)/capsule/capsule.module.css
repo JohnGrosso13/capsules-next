@@ -1056,23 +1056,26 @@
   justify-content: flex-end;
 }
 .storeHeroActions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    justify-content: flex-start;
-    pointer-events: auto;
-  }
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
+  pointer-events: auto;
+}
+.storeHeroActionsTrigger {
+  font-weight: 600;
+}
 .storeHeroActionsBelow {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-top: 12px;
-  }
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 12px;
+}
 .storeHeroActionsMenu {
   position: relative;
 }

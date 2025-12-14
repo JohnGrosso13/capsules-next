@@ -22,6 +22,7 @@ import { useFeedSummary } from "@/components/home-feed/useFeedSummary";
 import { useFeedComments } from "@/components/home-feed/useFeedComments";
 import { useFeedCommentUI } from "@/components/home-feed/useFeedCommentUI";
 import { useFeedLightbox } from "@/components/home-feed/useFeedLightbox";
+import ShareSheet from "@/components/home-feed/ShareSheet";
 import { buildPostMediaCollections } from "@/components/home-feed/utils";
 import {
   buildLightboxItemsFromGallery,
@@ -30,6 +31,7 @@ import {
 import { PromoRow } from "@/components/promo-row";
 import { useCurrentUser } from "@/services/auth/client";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
+import { buildPostShareMessage, buildPostShareUrl, getPostCapsuleId } from "@/lib/share";
 
 const CommentPanel = dynamic(
 
@@ -709,6 +711,113 @@ export function HomeFeedList({
 
   } = useFeedLightbox();
 
+  const [sharePayload, setSharePayload] = React.useState<{
+    url: string | null;
+    title: string;
+    text: string;
+  } | null>(null);
+  const [shareCounts, setShareCounts] = React.useState<Record<string, number | undefined>>({});
+
+  const getShareOverride = React.useCallback(
+    (postId: string, fallback?: number | null): number | null => {
+      const value = shareCounts[postId];
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof fallback === "number" && Number.isFinite(fallback)) return fallback;
+      return null;
+    },
+    [shareCounts],
+  );
+
+  const buildSharePayload = React.useCallback(
+    (post: HomeFeedPost) => {
+      const url = buildPostShareUrl(post, currentOrigin);
+      const message = buildPostShareMessage(post);
+      return { url, ...message };
+    },
+    [currentOrigin],
+  );
+
+  const resolveShareTargetId = React.useCallback((post: HomeFeedPost) => {
+    const candidates = [post.dbId, post.id].filter(
+      (value): value is string => typeof value === "string" && value.trim().length > 0,
+    );
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const candidate of candidates) {
+      if (uuidPattern.test(candidate)) return candidate;
+    }
+    return null;
+  }, []);
+
+  const recordShare = React.useCallback(
+    async (post: HomeFeedPost) => {
+      const targetId = resolveShareTargetId(post);
+      if (!targetId) return;
+      const capsuleId = getPostCapsuleId(post);
+      try {
+        const response = await fetch("/api/posts/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId: targetId,
+            capsuleId,
+          }),
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as { shares?: number | null };
+        if (typeof data?.shares === "number" && Number.isFinite(data.shares)) {
+          setShareCounts((prev) => ({ ...prev, [post.id]: data.shares as number }));
+        } else {
+          setShareCounts((prev) => {
+            const raw = prev[post.id];
+            const base =
+              Number.isFinite(raw) && typeof raw === "number"
+                ? raw
+                : typeof post.shares === "number" && Number.isFinite(post.shares)
+                  ? post.shares
+                  : 0;
+            const nextValue = Math.max(0, base + 1);
+            return { ...prev, [post.id]: nextValue };
+          });
+        }
+      } catch (error) {
+        console.warn("share logging failed", error);
+      }
+    },
+    [resolveShareTargetId],
+  );
+
+  const handleSharePost = React.useCallback(
+    async (post: HomeFeedPost) => {
+      const payload = buildSharePayload(post);
+      setSharePayload(payload);
+      void recordShare(post);
+    },
+    [buildSharePayload, recordShare],
+  );
+
+  const closeShareSheet = React.useCallback(() => setSharePayload(null), []);
+
+  const handleNativeShareFromSheet = React.useCallback(() => {
+    if (!sharePayload?.url) return;
+    if (typeof navigator === "undefined" || typeof navigator.share !== "function") return;
+    const data = { title: sharePayload.title, text: sharePayload.text, url: sharePayload.url };
+    const supported = typeof navigator.canShare === "function" ? navigator.canShare(data) : true;
+    if (!supported) return;
+    void navigator.share(data).catch((error) => {
+      if (error && typeof error === "object" && (error as DOMException)?.name === "AbortError") {
+        return;
+      }
+      console.warn("Native share failed from sheet", error);
+    });
+  }, [sharePayload]);
+
+  const canUseNativeShare = React.useMemo(
+    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
+    [],
+  );
+
   React.useEffect(() => {
     if (!focusPostId) {
       openedFocusRef.current = null;
@@ -801,6 +910,13 @@ export function HomeFeedList({
 
     ? postItems.find((entry) => entry.id === lightbox.postId) ?? lightbox.post ?? null
 
+    : null;
+
+  const viewerShareCountOverride = viewerPost
+    ? getShareOverride(
+        viewerPost.id,
+        typeof viewerPost.shares === "number" ? viewerPost.shares : null,
+      )
     : null;
 
   const viewerAttachment = lightbox ? lightbox.items[lightbox.index] ?? null : null;
@@ -1212,6 +1328,10 @@ export function HomeFeedList({
               const threadForPost = commentThreads[post.id] ?? null;
 
               const commentCount = threadForPost ? threadForPost.comments.length : baseCommentCount;
+              const shareCountOverride = getShareOverride(
+                post.id,
+                typeof post.shares === "number" ? post.shares : null,
+              );
 
               const handlePostLightboxOpen = (payload: { postId: string; index: number; items: LightboxImageItem[] }) => {
                 lightboxCacheRef.current.set(post.id, payload.items);
@@ -1265,15 +1385,17 @@ export function HomeFeedList({
                     onToggleMemory={onToggleMemory}
                     onDelete={onDelete}
                     onOpenLightbox={handlePostLightboxOpen}
-                    onAskDocument={handleAskDocument}
-                    onSummarizeDocument={summarizeDocument}
-                    priority={isPriority}
-                    onCommentClick={(currentPost, anchor) => onCommentClickOverride ? onCommentClickOverride(currentPost) : handleCommentButtonClick(currentPost, anchor)}
-                  />
+                  onAskDocument={handleAskDocument}
+                  onSummarizeDocument={summarizeDocument}
+                  priority={isPriority}
+                  onCommentClick={(currentPost, anchor) => onCommentClickOverride ? onCommentClickOverride(currentPost) : handleCommentButtonClick(currentPost, anchor)}
+                  onShare={handleSharePost}
+                  shareCountOverride={shareCountOverride ?? null}
+                />
 
-                </div>
+              </div>
 
-              );
+            );
 
             })}
 
@@ -1350,6 +1472,10 @@ export function HomeFeedList({
 
           friendControls={viewerFriendControls}
 
+          onShare={handleSharePost}
+
+          shareCountOverride={viewerShareCountOverride ?? null}
+
         />
 
       ) : null}
@@ -1374,8 +1500,12 @@ export function HomeFeedList({
             typeof activeCommentPost.likes === "number" ? activeCommentPost.likes : null
           }
           shareCount={
-            typeof activeCommentPost.shares === "number" ? activeCommentPost.shares : null
+            getShareOverride(
+              activeCommentPost.id,
+              typeof activeCommentPost.shares === "number" ? activeCommentPost.shares : null,
+            )
           }
+          onShare={handleSharePost}
           viewerLiked={Boolean(
             activeCommentPost.viewerLiked ?? activeCommentPost.viewer_liked ?? false,
           )}
@@ -1395,6 +1525,15 @@ export function HomeFeedList({
         />
 
       ) : null}
+      <ShareSheet
+        open={Boolean(sharePayload)}
+        url={sharePayload?.url ?? null}
+        title={sharePayload?.title ?? "Share post"}
+        text={sharePayload?.text ?? ""}
+        canNativeShare={canUseNativeShare}
+        onNativeShare={handleNativeShareFromSheet}
+        onClose={closeShareSheet}
+      />
     </>
 
   );

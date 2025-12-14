@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  transpilePackages: ["@supabase/auth-js", "@supabase/supabase-js"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.r2.cloudflarestorage.com" },

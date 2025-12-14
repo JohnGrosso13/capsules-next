@@ -22,6 +22,7 @@ import type {
 
 type StoreCheckoutSheetProps = {
   open: boolean;
+  ordersHref?: string;
   step: CheckoutStep;
   steps: CheckoutStep[];
   stepDetails: Record<CheckoutStep, { label: string; description: string }>;
@@ -69,6 +70,7 @@ type StoreCheckoutSheetProps = {
 
 function StoreCheckoutSheet({
   open,
+  ordersHref,
   step,
   steps,
   stepDetails,
@@ -106,6 +108,7 @@ function StoreCheckoutSheet({
   formatCurrency,
 }: StoreCheckoutSheetProps) {
   if (!open) return null;
+  const resolvedOrdersHref = ordersHref ?? "/create/mystore/orders";
 
   return (
     <div className={capTheme.checkoutOverlay} role="dialog" aria-modal="true" aria-label="Checkout">
@@ -612,8 +615,8 @@ function StoreCheckoutSheet({
                       : "Shipping will be assigned before fulfillment."
                     : "Digital delivery"}
                 </p>
-                <div className={capTheme.storeSupportActions}>
-                  <a className={capTheme.storeActionButton} href="/orders">
+              <div className={capTheme.storeSupportActions}>
+                  <a className={capTheme.storeActionButton} href={resolvedOrdersHref}>
                     View all my orders
                   </a>
                   <button type="button" className={capTheme.storeGhostButton} onClick={onClose}>
@@ -773,7 +776,7 @@ function StoreCheckoutSheet({
                 {step === "shipping" ? "Back to cart" : step === "confirmation" ? "Back to store" : "Back"}
               </button>
               {step === "confirmation" ? (
-                <a className={capTheme.storePrimaryButton} href="/orders">
+                <a className={capTheme.storePrimaryButton} href={resolvedOrdersHref}>
                   View all my orders
                 </a>
               ) : step === "review" ? (

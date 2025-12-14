@@ -24,6 +24,8 @@ type CapsuleGateProps = {
   autoActivate?: boolean;
   selectorTitle?: React.ReactNode;
   selectorSubtitle?: React.ReactNode;
+  showMemberships?: boolean;
+  showFollowers?: boolean;
 };
 
 type PlaceholderCapsule = {
@@ -292,6 +294,8 @@ export function CapsuleGate({
   autoActivate = true,
   selectorTitle = "Choose a Capsule",
   selectorSubtitle = "Pick a space to open and jump back into the action.",
+  showMemberships = true,
+  showFollowers = true,
 }: CapsuleGateProps) {
   const [capsuleList, setCapsuleList] = React.useState<CapsuleSummary[]>(() => capsules);
 
@@ -595,50 +599,54 @@ export function CapsuleGate({
             </p>
           )}
         </section>
-        <section className={styles.section} aria-label="Memberships">
-          <header className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Memberships</h3>
-            <span className={styles.sectionBadge}>{memberCapsules.length}</span>
-          </header>
-          {hasMemberCapsules ? (
-            <div className={styles.grid}>
-              {memberCapsules.map((capsule) => (
-                <CapsuleSelectorTile
-                  key={capsule.id}
-                  capsule={capsule}
-                  onSelect={handleSelect}
-                  onLeave={handleLeaveCapsule}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className={styles.sectionMessage}>
-              You&apos;re not a member of any capsules yet. Accept an invite or request to join to
-              see them here.
-            </p>
-          )}
-        </section>
-        <section className={styles.section} aria-label="Followed Capsules">
-          <header className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Followed Capsules</h3>
-            <span className={styles.sectionBadge}>{followedCapsules.length}</span>
-          </header>
-          {hasFollowedCapsules ? (
-            <div className={styles.grid}>
-              {followedCapsules.map((capsule) => (
-                <CapsuleSelectorTile
-                  key={capsule.id}
-                  capsule={capsule}
-                  onSelect={handleSelect}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className={styles.sectionMessage}>
-              Follow capsules you care about to access them quickly.
-            </p>
-          )}
-        </section>
+        {showMemberships ? (
+          <section className={styles.section} aria-label="Memberships">
+            <header className={styles.sectionHeader}>
+              <h3 className={styles.sectionTitle}>Memberships</h3>
+              <span className={styles.sectionBadge}>{memberCapsules.length}</span>
+            </header>
+            {hasMemberCapsules ? (
+              <div className={styles.grid}>
+                {memberCapsules.map((capsule) => (
+                  <CapsuleSelectorTile
+                    key={capsule.id}
+                    capsule={capsule}
+                    onSelect={handleSelect}
+                    onLeave={handleLeaveCapsule}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className={styles.sectionMessage}>
+                You&apos;re not a member of any capsules yet. Accept an invite or request to join to
+                see them here.
+              </p>
+            )}
+          </section>
+        ) : null}
+        {showFollowers ? (
+          <section className={styles.section} aria-label="Followed Capsules">
+            <header className={styles.sectionHeader}>
+              <h3 className={styles.sectionTitle}>Followed Capsules</h3>
+              <span className={styles.sectionBadge}>{followedCapsules.length}</span>
+            </header>
+            {hasFollowedCapsules ? (
+              <div className={styles.grid}>
+                {followedCapsules.map((capsule) => (
+                  <CapsuleSelectorTile
+                    key={capsule.id}
+                    capsule={capsule}
+                    onSelect={handleSelect}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className={styles.sectionMessage}>
+                Follow capsules you care about to access them quickly.
+              </p>
+            )}
+          </section>
+        ) : null}
       </div>
       <div className={styles.footer}>
         <span className={styles.footerText}>Need another space?</span>

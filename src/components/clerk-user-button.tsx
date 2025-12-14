@@ -42,7 +42,7 @@ export function ClerkUserButton({
       <UserButton.Action label="manageAccount" />
       <UserButton.Link
         label="My orders"
-        href="/orders"
+        href="/create/mystore/orders"
         labelIcon={<ShoppingBagOpen size={18} weight="duotone" />}
       />
       <UserButton.Link

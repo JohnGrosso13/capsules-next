@@ -37,11 +37,17 @@ export function normalizePost(row: Record<string, unknown>) {
     userName: ((row.user_name as string) ?? null) as string | null,
     userAvatar: ((row.user_avatar as string) ?? null) as string | null,
     capsuleId: ((row.capsule_id as string) ?? null) as string | null,
-    tags: Array.isArray(row.tags) ? (row.tags as string[]) : undefined,
-    likes: typeof row.likes_count === "number" ? row.likes_count : 0,
-    comments: typeof row.comments_count === "number" ? row.comments_count : undefined,
-    hotScore: typeof row.hot_score === "number" ? row.hot_score : undefined,
-    rankScore: typeof row.rank_score === "number" ? row.rank_score : undefined,
+  tags: Array.isArray(row.tags) ? (row.tags as string[]) : undefined,
+  likes: typeof row.likes_count === "number" ? row.likes_count : 0,
+  shares:
+    typeof (row as Record<string, unknown>)["share_count"] === "number"
+      ? ((row as Record<string, unknown>)["share_count"] as number)
+      : typeof (row as Record<string, unknown>)["shares"] === "number"
+        ? ((row as Record<string, unknown>)["shares"] as number)
+        : 0,
+  comments: typeof row.comments_count === "number" ? row.comments_count : undefined,
+  hotScore: typeof row.hot_score === "number" ? row.hot_score : undefined,
+  rankScore: typeof row.rank_score === "number" ? row.rank_score : undefined,
     ts: String(
       (row.created_at as string) ?? (row.updated_at as string) ?? new Date().toISOString(),
     ),
@@ -76,6 +82,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     comments: 2,
     hotScore: 0,
     rankScore: 0,
+    shares: 0,
     source: "demo",
     ownerUserId: null,
     viewerLiked: false,
@@ -99,6 +106,7 @@ const FALLBACK_POST_SEEDS: Array<Omit<NormalizedPost, "ts">> = [
     comments: 0,
     hotScore: 0,
     rankScore: 0,
+    shares: 0,
     source: "demo",
     ownerUserId: null,
     viewerLiked: false,

@@ -353,6 +353,11 @@ function StorefrontExperience({
     () => (isFounder ? products : products.filter((product) => product.active)),
     [isFounder, products],
   );
+  const ordersHref = React.useMemo(
+    () =>
+      capsuleId ? `/create/mystore/orders?capsuleId=${encodeURIComponent(capsuleId)}` : "/create/mystore/orders",
+    [capsuleId],
+  );
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [checkoutTotals, setCheckoutTotals] = React.useState<{
@@ -1329,7 +1334,7 @@ function StorefrontExperience({
               </header>
               {connectStatus.error ? <p className={capTheme.checkoutError}>{connectStatus.error}</p> : null}
               <div className={capTheme.storeSupportActions}>
-                <a className={capTheme.storeActionButton} href={`/orders?capsuleId=${capsuleId}`}>
+                <a className={capTheme.storeActionButton} href={ordersHref}>
                   View seller orders
                 </a>
                 <button
@@ -1454,6 +1459,7 @@ function StorefrontExperience({
 
           <StoreCheckoutSheet
             open={checkoutOpen}
+            ordersHref={ordersHref}
             step={checkoutStep}
             steps={checkoutSteps}
             stepDetails={checkoutStepDetails}

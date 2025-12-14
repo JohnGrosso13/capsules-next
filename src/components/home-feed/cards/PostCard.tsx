@@ -68,6 +68,8 @@ type PostCardProps = {
   onAskDocument(doc: DocumentCardData): void;
   onSummarizeDocument(doc: DocumentCardData): void;
   onCommentClick(post: HomeFeedPost, anchor: HTMLElement): void;
+  onShare?: (post: HomeFeedPost) => void;
+  shareCountOverride?: number | null;
   priority?: boolean;
 };
 
@@ -96,6 +98,8 @@ export function PostCard({
   onAskDocument,
   onSummarizeDocument,
   onCommentClick,
+  onShare,
+  shareCountOverride,
   variant = "full",
   priority = false,
 }: PostCardProps) {
@@ -162,7 +166,12 @@ export function PostCard({
   );
 
   const likeCount = typeof post.likes === "number" ? Math.max(0, post.likes) : 0;
-  const shareCount = typeof post.shares === "number" ? Math.max(0, post.shares) : 0;
+  const shareCount =
+    typeof shareCountOverride === "number"
+      ? Math.max(0, shareCountOverride)
+      : typeof post.shares === "number"
+        ? Math.max(0, post.shares)
+        : 0;
   const viewerLiked = Boolean(post.viewerLiked ?? post.viewer_liked ?? false);
 
   const mediaCollections: PostMediaCollections = React.useMemo(
@@ -237,9 +246,24 @@ export function PostCard({
         label: "Share",
         icon: <ShareNetwork weight="duotone" />,
         count: shareCount,
+        handler: (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onShare?.(post);
+        },
       },
     ],
-    [viewerLiked, likeCount, likePending, onToggleLike, post, commentCount, onCommentClick, shareCount],
+    [
+      viewerLiked,
+      likeCount,
+      likePending,
+      onToggleLike,
+      post,
+      commentCount,
+      onCommentClick,
+      shareCount,
+      onShare,
+    ],
   );
 
   return (

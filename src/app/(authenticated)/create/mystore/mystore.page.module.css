@@ -32,6 +32,18 @@
   -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
 
+.headerBare {
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+
+.headerBare .headerBottom {
+  padding-top: 0;
+  border-top: none;
+}
+
 .headerTop {
   display: flex;
   align-items: center;
@@ -196,17 +208,11 @@
 
 .capsuleGatePanel {
   width: 100%;
-  border-radius: 18px;
-  padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 82%, var(--color-brand));
-  background:
-    radial-gradient(140% 180% at 0% 0%, color-mix(in srgb, var(--color-brand) 18%, var(--color-accent) 12%), transparent 60%),
-    radial-gradient(120% 160% at 100% -10%, color-mix(in srgb, var(--color-brand) 12%, var(--color-accent) 10%), transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-elevated) 94%, transparent), color-mix(in srgb, var(--surface-app) 88%, transparent));
-  box-shadow:
-    0 18px 34px rgba(5, 10, 30, 0.58),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.78);
+  border-radius: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
 }
 
 .capsuleSwitcher {

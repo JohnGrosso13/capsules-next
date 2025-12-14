@@ -157,8 +157,8 @@ export function resolveNavigationTarget(text: string): NavigationTarget | null {
     },
     {
       regex: /\b(orders?|purchases?|order\s+history|receipts?)\b/,
-      path: "/orders",
-      label: "Orders",
+      path: "/create/mystore/orders",
+      label: "Store orders",
     },
   ];
 

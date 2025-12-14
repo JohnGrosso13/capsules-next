@@ -56,6 +56,7 @@ const normalizedPostSchema = z.object({
   capsuleId: z.string().nullable(),
   tags: z.array(z.string()).optional(),
   likes: z.number(),
+  shares: z.number().optional(),
   comments: z.number().optional(),
   hotScore: z.number().optional(),
   rankScore: z.number().optional(),

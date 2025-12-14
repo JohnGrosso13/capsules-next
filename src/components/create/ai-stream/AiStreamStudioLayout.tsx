@@ -823,6 +823,10 @@ function AiStreamStudioLayoutInner({
     return indicators;
   }, [activeSession, keyRotationSuggested, simulcastErrorCount, streamOverview]);
 
+  const gatingView = !selectedCapsule || selectorOpen;
+  const showNavigation = !gatingView;
+  const contentTab = gatingView ? "studio" : activeTab;
+
   const embedCodeSnippet = React.useMemo(() => {
     if (!streamOverview?.playback.playbackId) return null;
     return `<mux-player stream-type="live" playback-id="${streamOverview.playback.playbackId}"></mux-player>`;
@@ -880,6 +884,8 @@ function AiStreamStudioLayoutInner({
             capsules={capsules}
             selectedCapsule={selectedCapsule}
             onSelectionChange={handleCapsuleChange}
+            showMemberships={false}
+            showFollowers={false}
           />
         </>
       );
@@ -1428,48 +1434,50 @@ const renderEncoderContent = () => {
 
   return (
     <div className={`${capTheme.theme} ${styles.shellWrap}`}>
-      <header className={styles.navBar}>
-        <div
-          className={`${capTheme.tabStrip} ${styles.navTabs}`}
-          role="tablist"
-          aria-label="AI Stream Studio sections"
-          style={{ gridTemplateColumns: `repeat(${TAB_ITEMS.length}, minmax(0, 1fr))` }}
-        >
-          {TAB_ITEMS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            const indicator = navIndicators[tab.id];
-            const baseClass = `${capTheme.tab}`;
-            const btnClass = isActive ? `${baseClass} ${capTheme.tabActive}` : baseClass;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={btnClass}
-                onClick={() => handleTabChange(tab.id)}
-              >
-                {tab.icon}
-                <span className={styles.navButtonLabel}>{tab.label}</span>
-                {indicator ? (
-                  <span className={styles.navBadge}>
-                    <Badge variant="soft" tone={indicator.tone} size="sm">
-                      {indicator.label}
-                    </Badge>
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </header>
+      {showNavigation ? (
+        <header className={styles.navBar}>
+          <div
+            className={`${capTheme.tabStrip} ${styles.navTabs}`}
+            role="tablist"
+            aria-label="AI Stream Studio sections"
+            style={{ gridTemplateColumns: `repeat(${TAB_ITEMS.length}, minmax(0, 1fr))` }}
+          >
+            {TAB_ITEMS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              const indicator = navIndicators[tab.id];
+              const baseClass = `${capTheme.tab}`;
+              const btnClass = isActive ? `${baseClass} ${capTheme.tabActive}` : baseClass;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={btnClass}
+                  onClick={() => handleTabChange(tab.id)}
+                >
+                  {tab.icon}
+                  <span className={styles.navButtonLabel}>{tab.label}</span>
+                  {indicator ? (
+                    <span className={styles.navBadge}>
+                      <Badge variant="soft" tone={indicator.tone} size="sm">
+                        {indicator.label}
+                      </Badge>
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </header>
+      ) : null}
 
       <main className={styles.contentArea}>
-        {activeTab === "studio"
+        {contentTab === "studio"
           ? renderStudioContent()
-          : activeTab === "producer"
+          : contentTab === "producer"
             ? renderProducerContent()
-            : activeTab === "encoder"
+            : contentTab === "encoder"
               ? renderEncoderContent()
               : renderClipsContent()}
       </main>

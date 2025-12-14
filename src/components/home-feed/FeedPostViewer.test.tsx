@@ -151,4 +151,30 @@ describe("FeedPostViewer sidebar controls", () => {
     });
     expect(onRequest).toHaveBeenCalledTimes(1);
   });
+
+  it("invokes onShare when share action is clicked", async () => {
+    const onShare = vi.fn();
+    await act(async () => {
+      root.render(<FeedPostViewer {...baseProps} onShare={onShare} />);
+    });
+    const shareButton = container.querySelector(
+      'button[data-action-key="share"]',
+    ) as HTMLButtonElement | null;
+    expect(shareButton).not.toBeNull();
+    await act(async () => {
+      shareButton?.click();
+    });
+    expect(onShare).toHaveBeenCalledWith(basePost);
+  });
+
+  it("shows shareCountOverride in the share action", async () => {
+    await act(async () => {
+      root.render(<FeedPostViewer {...baseProps} shareCountOverride={5} />);
+    });
+    const shareButton = container.querySelector(
+      'button[data-action-key="share"]',
+    ) as HTMLButtonElement | null;
+    expect(shareButton?.textContent ?? "").toContain("5");
+    expect(shareButton?.getAttribute("aria-label") ?? "").toContain("5");
+  });
 });

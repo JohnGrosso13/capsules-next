@@ -110,6 +110,8 @@ export function LiveStudioTab({
         capsules={capsules}
         selectedCapsule={selectedCapsule}
         onSelectionChange={onCapsuleChange}
+        showMemberships={false}
+        showFollowers={false}
       />
     );
   }

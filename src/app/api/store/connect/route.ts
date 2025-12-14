@@ -121,8 +121,10 @@ export async function POST(req: Request) {
 
   try {
     const baseUrl = serverEnv.SITE_URL;
-    const returnUrl = `${baseUrl}/orders?capsuleId=${encodeURIComponent(parsed.data.capsuleId)}`;
-    const refreshUrl = `${baseUrl}/orders?capsuleId=${encodeURIComponent(parsed.data.capsuleId)}&onboarding=1`;
+    const returnUrl = `${baseUrl}/create/mystore/orders?capsuleId=${encodeURIComponent(parsed.data.capsuleId)}`;
+    const refreshUrl = `${baseUrl}/create/mystore/orders?capsuleId=${encodeURIComponent(
+      parsed.data.capsuleId,
+    )}&onboarding=1`;
     const { url, account } = await createConnectOnboardingLink(parsed.data.capsuleId, { refreshUrl, returnUrl });
     return validatedJson(
       onboardingResponseSchema,

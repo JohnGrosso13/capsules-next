@@ -30,7 +30,7 @@ describe("resolveNavigationTarget", () => {
 
   it("navigates to Orders", () => {
     const target = resolveNavigationTarget("orders page please");
-    expect(target).toEqual({ kind: "route", path: "/orders", label: "Orders" });
+    expect(target).toEqual({ kind: "route", path: "/create/mystore/orders", label: "Store orders" });
   });
 
   it("opens general settings", () => {
