@@ -46,7 +46,7 @@ const mutedText: Record<string, unknown> = {
 };
 
 export const clerkAppearance: Appearance = {
-  layout: { shimmer: false },
+  layout: { shimmer: false, socialButtonsVariant: "blockButton" },
   variables: {
     colorPrimary: "var(--color-brand, #6366f1)",
     colorText: "var(--color-fg, #f8fafc)",
@@ -58,10 +58,10 @@ export const clerkAppearance: Appearance = {
     colorInputText: "var(--color-fg, #f8fafc)",
     colorShimmer: "color-mix(in srgb, var(--color-brand, #6366f1) 35%, rgba(255,255,255,0.25))",
     borderRadius: "16px",
-    fontFamily: 'var(--font-sans, "Inter", "Segoe UI Variable", system-ui, sans-serif)',
+    fontFamily: 'var(--font-sans, \"Inter\", \"Segoe UI Variable\", system-ui, sans-serif)',
   },
-    elements: {
-      rootBox: { color: "var(--color-fg, #f8fafc)" },
+  elements: {
+    rootBox: { color: "var(--color-fg, #f8fafc)" },
     card: { ...glassPanel, padding: "18px" },
     headerTitle: { letterSpacing: "-0.01em", color: "var(--color-fg, #f8fafc)" },
     headerSubtitle: mutedText,
@@ -111,6 +111,28 @@ export const clerkAppearance: Appearance = {
         "1px solid color-mix(in srgb, var(--color-border, rgba(255,255,255,0.16)) 75%, var(--color-brand, #6366f1) 25%)",
       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1)",
       paddingTop: "12px",
+    },
+    socialButtonsBlockButton: {
+      minHeight: "46px",
+      fontSize: "0.95rem",
+    },
+    socialButtonsBlockButtonText: {
+      color: "var(--color-fg, #f8fafc)",
+      fontWeight: 600,
+    },
+    socialButtonsBlockButtonArrow: {
+      color: "var(--color-fg-muted, rgba(248,250,252,0.9))",
+    },
+    socialButtonsIconButton: {
+      width: "46px",
+      height: "46px",
+    },
+    socialButtonsProviderIcon: {
+      width: "22px",
+      height: "22px",
+    },
+    socialButtonsProviderIcon__apple: {
+      filter: "invert(1)",
     },
     modalBackdrop: {
       background:

@@ -223,6 +223,110 @@ export function resolvePrintfulSignatureHeader(headers: Headers): string | null 
   return null;
 }
 
+export async function quotePrintfulShipping(params: {
+  recipient: {
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    postal?: string | null;
+    address1?: string | null;
+    phone?: string | null;
+    name?: string | null;
+    email?: string | null;
+  };
+  items: { variantId: number; quantity: number }[];
+}): Promise<
+  | {
+      rates: { id: string; label: string; priceCents: number; currency: string; etaMinDays: number | null; etaMaxDays: number | null }[];
+    }
+  | null
+> {
+  if (!hasPrintfulCredentials()) return null;
+  if (!params.items.length) return null;
+
+  const endpoint = new URL(`${getPrintfulApiBase()}/shipping/rates`);
+  const payload: Record<string, unknown> = {
+    recipient: {
+      country_code: params.recipient.country ?? undefined,
+      state_code: params.recipient.region ?? undefined,
+      city: params.recipient.city ?? undefined,
+      zip: params.recipient.postal ?? undefined,
+      address1: params.recipient.address1 ?? undefined,
+      phone: params.recipient.phone ?? undefined,
+      name: params.recipient.name ?? undefined,
+      email: params.recipient.email ?? undefined,
+    },
+    items: params.items.map((item) => ({
+      sync_variant_id: item.variantId,
+      quantity: item.quantity,
+    })),
+  };
+
+  const response = await fetch(endpoint.toString(), {
+    method: "POST",
+    headers: {
+      ...getPrintfulHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.warn("printful.shipping.quote_failed", response.status, text);
+    return null;
+  }
+
+  type PrintfulRate = {
+    id?: string;
+    name?: string;
+    service?: string;
+    rate?: string | number;
+    currency?: string | null;
+    delivery_days?: { from?: number | null; to?: number | null };
+    days?: number | null;
+  };
+  const json = (await response.json()) as { result?: { rates?: PrintfulRate[] } | PrintfulRate[] | null };
+  const ratesArray: PrintfulRate[] | undefined =
+    Array.isArray(json?.result) ? (json?.result as PrintfulRate[]) : (json?.result as { rates?: PrintfulRate[] })?.rates;
+  if (!ratesArray?.length) return null;
+  const [bestCandidate, ...rest] = ratesArray;
+  if (!bestCandidate) return null;
+  const rates = [bestCandidate, ...rest]
+    .map((rate, index) => {
+      const parsedRate =
+        typeof rate.rate === "number"
+          ? rate.rate
+          : typeof rate.rate === "string"
+            ? Number.parseFloat(rate.rate)
+            : null;
+      if (parsedRate === null || !Number.isFinite(parsedRate)) return null;
+      const currency =
+        typeof rate.currency === "string" && rate.currency.trim().length ? rate.currency.toLowerCase() : "usd";
+      const etaMin = rate.delivery_days?.from ?? null;
+      const etaMax = rate.delivery_days?.to ?? rate.days ?? null;
+      const label = rate.name ?? rate.service ?? "Shipping";
+      const id =
+        rate.id ??
+        rate.service ??
+        (label && label.trim().length ? label.toLowerCase().replace(/\s+/g, "-") : `rate-${index}`);
+      return {
+        id,
+        label,
+        priceCents: Math.max(0, Math.round(parsedRate * 100)),
+        currency,
+        etaMinDays: typeof etaMin === "number" && Number.isFinite(etaMin) ? etaMin : null,
+        etaMaxDays: typeof etaMax === "number" && Number.isFinite(etaMax) ? etaMax : null,
+      };
+    })
+    .filter(Boolean) as { id: string; label: string; priceCents: number; currency: string; etaMinDays: number | null; etaMaxDays: number | null }[];
+
+  if (!rates.length) return null;
+  rates.sort((a, b) => a.priceCents - b.priceCents);
+  return { rates };
+}
+
+
 export function verifyPrintfulSignature(body: string, signatureHeader: string | null): boolean {
   const secret = serverEnv.PRINTFUL_WEBHOOK_SECRET;
   if (!secret) return false;

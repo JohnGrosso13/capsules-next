@@ -44,6 +44,7 @@ import {
   normalizePrintfulWebhookPayload,
   resolvePrintfulSignatureHeader,
   verifyPrintfulSignature,
+  quotePrintfulShipping,
 } from "./printful";
 import { resolveConnectCharge } from "./connect";
 
@@ -66,6 +67,7 @@ export type CheckoutRequest = {
   cart: StoreCartLine[];
   contact: { email: string; phone?: string | null };
   shippingOptionId?: string | null;
+  shippingRateId?: string | null;
   shippingAddress?: StoreAddress | null;
   billingAddress?: StoreAddress | null;
   billingSameAsShipping?: boolean;
@@ -86,6 +88,14 @@ export type CheckoutResponse = {
   totalCents: number;
   currency: string;
   stripeTaxCalculationId: string | null;
+  shippingRates?: {
+    id: string;
+    label: string;
+    priceCents: number;
+    currency: string;
+    etaMinDays: number | null;
+    etaMaxDays: number | null;
+  }[];
 };
 
 const DEFAULT_CURRENCY = "usd";
@@ -270,25 +280,46 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
     (entry) => entry.product.fulfillmentKind === "ship" || entry.product.kind === "physical",
   );
 
-  const shippingOptions = await listShippingOptions(capsuleId);
   let shippingCostCents = 0;
-  let chosenShippingId: string | null = null;
+  let shippingRates: CheckoutResponse["shippingRates"] = undefined;
   if (shippingRequired) {
-    const selected = payload.shippingOptionId
-      ? shippingOptions.find((option) => option.id === payload.shippingOptionId) ?? null
-      : shippingOptions[0] ?? null;
-    if (!selected) {
-      throw new Error("Shipping option is required for physical items");
+    if (!shippingAddress || !shippingAddress.country || !shippingAddress.postal || !shippingAddress.city) {
+      throw new StoreCheckoutError(400, "shipping_address_required", "Shipping address is required for physical items");
     }
-    shippingCostCents = selected.priceCents;
-    chosenShippingId = selected.id;
+    const quoteItems = items
+      .map((entry) => {
+        const variantId = resolvePrintfulVariantId(entry.variant?.metadata ?? entry.product.metadata ?? {});
+        if (!variantId) return null;
+        return { variantId, quantity: entry.quantity };
+      })
+      .filter(Boolean) as { variantId: number; quantity: number }[];
+
+    const quote = await quotePrintfulShipping({
+      recipient: {
+        country: shippingAddress.country ?? null,
+        region: shippingAddress.region ?? null,
+        city: shippingAddress.city ?? null,
+        postal: shippingAddress.postal ?? null,
+        address1: shippingAddress.line1 ?? null,
+        phone: shippingAddress.phone ?? contact.phone ?? null,
+        name: shippingAddress.name ?? contact.email ?? null,
+        email: contact.email ?? null,
+      },
+      items: quoteItems,
+    });
+    if (!quote?.rates?.length) {
+      throw new StoreCheckoutError(400, "shipping_unavailable", "Shipping is not available for this address or items.");
+    }
+    shippingRates = quote.rates;
+    const selectedRate =
+      quote.rates.find((rate) => rate.id === payload.shippingRateId) ?? quote.rates[0] ?? null;
+    if (!selectedRate) {
+      throw new StoreCheckoutError(400, "shipping_unavailable", "Shipping is not available for this address or items.");
+    }
+    shippingCostCents = selectedRate.priceCents;
   }
 
-  const currency =
-    items[0]?.product.currency ??
-    shippingOptions[0]?.currency ??
-    activeProducts[0]?.currency ??
-    DEFAULT_CURRENCY;
+  const currency = items[0]?.product.currency ?? activeProducts[0]?.currency ?? DEFAULT_CURRENCY;
 
   const taxCalculation = await calculateTax({
     items: items.map((line) => ({
@@ -318,7 +349,6 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
       variant_id: entry.variant?.id ?? null,
       quantity: entry.quantity,
     })),
-    shipping_option_id: chosenShippingId,
     stripe_tax_calculation_id: taxCalculation.stripeCalculationId,
     promo_code: payload.promoCode ?? null,
     platform_fee_cents: platformFeeCents,
@@ -370,7 +400,6 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
     billing_region: (billingSameAsShipping ? shippingAddress?.region : billingAddress?.region) ?? null,
     billing_postal_code: (billingSameAsShipping ? shippingAddress?.postal : billingAddress?.postal) ?? null,
     billing_country: (billingSameAsShipping ? shippingAddress?.country : billingAddress?.country) ?? null,
-    shipping_option_id: chosenShippingId ?? null,
   });
 
   await insertOrderItems(
@@ -443,6 +472,7 @@ export async function createCheckoutIntent(payload: CheckoutRequest): Promise<Ch
     totalCents: taxCalculation.totalCents,
     currency,
     stripeTaxCalculationId: taxCalculation.stripeCalculationId,
+    shippingRates: shippingRates ?? [],
   };
 }
 

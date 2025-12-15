@@ -32,6 +32,10 @@ const onboardingResponseSchema = z.object({
   onboardingComplete: z.boolean(),
 });
 
+function redactStripeSecrets(message: string): string {
+  return message.replace(/\b(sk|rk|pk|whsec)_[A-Za-z0-9]+\b/gi, "$1_[redacted]");
+}
+
 async function requireCapsuleOwner(capsuleId: string) {
   const { userId } = await auth();
   if (!userId) {
@@ -137,7 +141,11 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error("store.connect.onboarding_error", error);
-    const message = error instanceof Error ? error.message : "Failed to start Stripe onboarding";
-    return returnError(500, "connect_onboarding_failed", message);
+    const raw = error instanceof Error ? error.message : "Failed to start Stripe onboarding";
+    const sanitized = redactStripeSecrets(raw);
+    const friendly = sanitized.toLowerCase().includes("api key")
+      ? "Stripe configuration is invalid. Check STRIPE_SECRET_KEY and Connect flags."
+      : sanitized;
+    return returnError(500, "connect_onboarding_failed", friendly);
   }
 }

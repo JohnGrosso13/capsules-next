@@ -8,6 +8,8 @@ export type LadderToast = {
   title: string;
   description?: string;
   persist?: boolean;
+  /** Optional override for how long the toast stays visible (in milliseconds) when not persisted. */
+  durationMs?: number;
 };
 
 export const useToastNotifications = () => {
@@ -28,9 +30,15 @@ export const useToastNotifications = () => {
       const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setToasts((prev) => [...prev, { ...toast, id }]);
       if (!toast.persist) {
+        const duration =
+          typeof toast.durationMs === "number"
+            ? toast.durationMs
+            : toast.tone === "danger"
+              ? 6000
+              : 4200;
         const timeout = window.setTimeout(() => {
           dismissToast(id);
-        }, toast.tone === "danger" ? 6000 : 4200);
+        }, duration);
         timers.current[id] = timeout;
       }
       return id;

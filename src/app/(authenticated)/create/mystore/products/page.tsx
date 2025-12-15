@@ -124,6 +124,10 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
   const displayProducts = sortedProducts.length ? sortedProducts : MOCK_PRODUCTS;
 
   const manageHref = selectedCapsuleId ? `/capsule?capsuleId=${selectedCapsuleId}&tab=store` : "#";
+  const productEditorBase = "/create/mystore/products/editor";
+  const productEditorHref = selectedCapsuleId
+    ? `${productEditorBase}?capsuleId=${selectedCapsuleId}`
+    : "#";
 
   if (showSelector) {
     return (
@@ -158,18 +162,18 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
                   />
                 ) : null}
               </div>
-              <div className={styles.brandMeta}>
-                <div className={styles.brandTitle}>My Store</div>
-                <div className={styles.brandSubtitle}>
-                  {selectedCapsule
-                    ? selectedCapsule.name ?? "Capsule store"
+            <div className={styles.brandMeta}>
+              <div className={styles.brandTitle}>My Store</div>
+              <div className={styles.brandSubtitle}>
+                {selectedCapsule
+                  ? selectedCapsule.name ?? "Capsule store"
                     : "Use Capsule Gate to pick your store"}
                 </div>
               </div>
             </div>
             <div className={styles.headerActions}>
               <a
-                href={manageHref}
+                href={productEditorHref}
                 className={styles.newProductButton}
                 aria-disabled={!selectedCapsule}
                 data-disabled={!selectedCapsule ? "true" : undefined}
@@ -213,7 +217,7 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
               </div>
               <div className={styles.headerActions}>
                 <a
-                  href={manageHref}
+                  href={productEditorHref}
                   className={styles.newProductButton}
                   aria-disabled={!selectedCapsule}
                   data-disabled={!selectedCapsule ? "true" : undefined}
@@ -275,7 +279,12 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
             )}
           </section>
 
-          <ProductWizardMock manageHref={manageHref} disabled={!selectedCapsule} />
+          <ProductWizardMock
+            manageHref={manageHref}
+            builderHref={productEditorBase}
+            capsuleId={selectedCapsuleId}
+            disabled={!selectedCapsule}
+          />
         </main>
       </div>
     </AppPage>

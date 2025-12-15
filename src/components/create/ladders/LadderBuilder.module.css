@@ -50,14 +50,13 @@
 
 .wizardPanel {
   position: relative;
-  /* Reduce internal padding to free horizontal space. */
-  padding: clamp(10px, 1.6vw, 16px);
-  /* Keep this container purely structural so we don't introduce an extra
-     outline/background around the stepper + form cluster. */
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-  isolation: initial;
+  padding: 0;
+  border-radius: 24px;
+  border: 1px solid var(--ladder-border-soft);
+  background: color-mix(in srgb, var(--ladder-surface-strong) 96%, transparent);
+  box-shadow: 0 18px 40px rgba(4, 6, 20, 0.7);
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .panelGlow {
@@ -68,10 +67,10 @@
 
 /* Naming panel: connects title input with the AI prompter */
 .namingPanel {
-  border-radius: 24px;
+  border-radius: 0;
   background: transparent;
-  box-shadow:
-    inset 0 0 0 1px var(--studio-border-soft, rgba(255, 255, 255, 0.12));
+  /* Remove the inner outline so the main section feels like a single surface inside the wizard card. */
+  box-shadow: none;
   padding: 4px 0 0;
 }
 
@@ -90,6 +89,8 @@
 .namingBody {
   display: grid;
   gap: 12px;
+  /* Tighten the space below step controls so the footer row doesn't float with excess padding. */
+  padding-bottom: 8px;
 }
 .namingPrimary {
   display: flex;
@@ -902,10 +903,13 @@
     minmax(var(--ladder-stepper-basis, 230px), var(--ladder-stepper-fr, 0.3fr))
     minmax(0, 1fr)
     minmax(var(--ladder-preview-basis, 260px), var(--ladder-preview-fr, 0.32fr));
-  gap: clamp(8px, 1.2vw, 14px);
+  /* Keep the rail and form inside a single card; spacing comes from column padding rather than gaps. */
+  column-gap: 0;
+  row-gap: clamp(8px, 1.2vw, 14px);
   align-items: start;
   position: relative;
   z-index: 1;
+  padding: clamp(12px, 1.5vw, 18px);
 }
 
 .gridNoPreview {
@@ -962,6 +966,12 @@
   .stepperCol,
   .previewCol {
     display: none;
+  }
+
+  .formCol {
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
   }
 }
 
@@ -1154,14 +1164,13 @@
 }
 
 .stepperCol {
-  align-self: start;
+  align-self: stretch;
   position: relative;
   min-width: 0;
 }
 
 .stepperCol::before,
 .stepperCol::after {
-  /* Remove neon spine and background glow for a flatter, more neutral rail. */
   content: none;
 }
 
@@ -1170,6 +1179,10 @@
   flex-direction: column;
   gap: 22px;
   min-width: 0;
+  /* Single vertical divider separating steps from the main content, as in the reference UI. */
+  border-left: 1px solid var(--ladder-border-soft);
+  padding-left: clamp(18px, 1.6vw, 24px);
+  margin-left: clamp(10px, 1.2vw, 18px);
 }
 
 .formShell {
@@ -1533,7 +1546,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 6px;
+  /* Give the buttons a little more breathing room from the AI prompter while still sitting close to the card edge. */
+  padding-top: 10px;
   padding-bottom: 0;
   padding-left: 2px;
   padding-right: 2px;
@@ -1544,7 +1558,7 @@
   box-shadow: none;
   position: static;
   flex-wrap: wrap;
-  margin-top: 0;
+  margin-top: 4px;
   width: 100%;
   max-width: 860px;
   align-self: center;
@@ -1593,9 +1607,9 @@
   border: 1px solid color-mix(in srgb, var(--ladder-accent-3) 70%, rgba(34, 116, 223, 0.65));
   background: linear-gradient(140deg, var(--ladder-accent-1) 0%, var(--ladder-accent-2) 100%);
   color: #ffffff;
+  /* Align the Next button shadow with the global primary button style (subtle lift, not a full halo). */
   box-shadow:
-    0 14px 32px color-mix(in srgb, var(--ladder-accent-2) 42%, rgba(4, 6, 24, 0.85)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 6px 18px rgba(4, 10, 32, 0.6);
   padding: 10px 18px;
 }
 
@@ -1604,8 +1618,7 @@
   outline: none;
   transform: translateY(-1px);
   box-shadow:
-    0 18px 38px color-mix(in srgb, var(--ladder-accent-2) 52%, rgba(4, 6, 24, 0.9)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    0 10px 24px rgba(4, 10, 32, 0.75);
 }
 
 .desktopPreviewSheet {
@@ -1707,17 +1720,16 @@
   top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 12px;
+  gap: 12px;
+  padding: 4px 18px 4px 2px;
   max-width: 260px;
-  margin: 0 auto;
-  border-radius: 20px;
-  border: 1px solid var(--ladder-border-strong);
-  background: var(--ladder-surface-rail);
-  backdrop-filter: blur(12px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 16px 34px rgba(4, 6, 18, 0.5);
+  margin: 0;
+  /* Flatten the rail shell so the numbered steps feel like part of the same surface as the form. */
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
   z-index: 1;
 }
 
@@ -1737,9 +1749,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding-bottom: 4px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid var(--ladder-border-strong);
+  padding-bottom: 2px;
+  margin-bottom: 2px;
 }
 
 .stepperCollapse {
@@ -1785,6 +1796,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  counter-reset: ladder-step;
   padding: 0;
   margin: 12px 0 0;
 }
@@ -1796,24 +1808,37 @@
 }
 
 .stepItem {
+  position: relative;
   width: 100%;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 10px;
-  padding: 10px 10px;
+  padding: 8px 0 12px;
   min-height: 52px;
-  border-radius: 18px;
-  border: 1px solid var(--ladder-border-soft);
-  background: color-mix(in srgb, var(--ladder-surface-rail) 96%, transparent);
+  border-radius: 0;
+  border: none;
+  background: transparent;
   text-align: left;
   color: rgba(234, 238, 255, 0.78);
   cursor: pointer;
   transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    color 0.18s ease,
+    transform 0.18s ease;
+  counter-increment: ladder-step;
+}
+
+.stepItem::before {
+  /* Hide vertical connectors per request. */
+  content: none;
+}
+
+.stepItem:first-child::before {
+  top: 50%;
+}
+
+.stepItem:last-child::before {
+  bottom: 50%;
 }
 
 .stepItemCollapsed {
@@ -1826,24 +1851,21 @@
   box-shadow: none;
 }
 
+.stepItemCollapsed::before {
+  /* Hide the connecting line in the compact rail mode. */
+  content: none;
+}
+
 .stepItemCollapsed .stepCopy {
   display: none;
 }
 
 .stepItem:hover {
-  border-color: color-mix(in srgb, var(--ladder-accent-3) 72%, rgba(255, 255, 255, 0.3));
   transform: translateX(1px);
 }
 
 .stepItem[data-state="active"] {
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--ladder-accent-1) 24%, transparent), color-mix(in srgb, var(--ladder-accent-2) 22%, transparent)),
-    color-mix(in srgb, var(--ladder-surface-rail) 94%, transparent);
-  border-color: color-mix(in srgb, var(--ladder-accent-3) 72%, rgba(255, 255, 255, 0.4));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 10px 22px color-mix(in srgb, var(--ladder-accent-2) 40%, rgba(4, 6, 24, 0.85)),
-    var(--ladder-accent-glow);
+  background: transparent;
   color: var(--ladder-step-active-text);
 }
 
@@ -1855,27 +1877,43 @@
 }
 
 .stepBullet {
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.48);
+  border: 2px solid rgba(255, 255, 255, 0.32);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  margin-left: 2px;
+  background: var(--ladder-surface-rail, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(234, 238, 255, 0.84);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
+}
+
+.stepBullet::before {
+  /* Numbered index inside the bullet (1, 2, 3...). */
+  content: counter(ladder-step);
 }
 
 .stepItem[data-state="active"] .stepBullet {
   background: linear-gradient(135deg, var(--ladder-accent-1), var(--ladder-accent-2));
   border-color: color-mix(in srgb, var(--ladder-accent-3) 80%, #ffffff);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--ladder-accent-2) 80%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ladder-accent-2) 70%, transparent);
+  color: var(--text-on-brand, #ffffff);
 }
 
 .stepItem[data-state="complete"] .stepBullet {
   background: linear-gradient(145deg, color-mix(in srgb, var(--ladder-accent-1) 60%, transparent), color-mix(in srgb, var(--ladder-accent-2) 52%, transparent));
   border-color: color-mix(in srgb, var(--ladder-accent-2) 80%, rgba(255, 255, 255, 0.24));
   box-shadow: 0 0 8px color-mix(in srgb, var(--ladder-accent-2) 68%, transparent);
+  color: var(--text-on-brand, #ffffff);
 }
 
 .stepCopy {
@@ -2043,6 +2081,90 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.productMockupStage {
+  position: relative;
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--studio-border-soft, rgba(255, 255, 255, 0.08));
+  background: radial-gradient(circle at top, rgba(35, 47, 96, 0.85), rgba(10, 14, 32, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 22px 44px rgba(6, 10, 24, 0.5);
+  overflow: hidden;
+}
+
+.productMockupInner {
+  position: relative;
+  width: 100%;
+  padding-top: 133%;
+}
+
+.productMockupSurface {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at top, rgba(120, 150, 255, 0.3), transparent 55%),
+    radial-gradient(circle at bottom, rgba(20, 24, 52, 0.9), rgba(8, 10, 24, 0.96));
+}
+
+.productMockupSurface[data-kind="tee"],
+.productMockupSurface[data-kind="crewneck"],
+.productMockupSurface[data-kind="hoodie"] {
+  background:
+    radial-gradient(circle at top, rgba(120, 150, 255, 0.35), transparent 55%),
+    radial-gradient(circle at bottom, rgba(6, 10, 28, 0.95), rgba(2, 4, 16, 0.98));
+}
+
+.productMockupGarment {
+  position: relative;
+  width: 76%;
+  max-width: 320px;
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(7, 11, 26, 0.96), rgba(14, 20, 44, 0.98)),
+    radial-gradient(circle at top left, rgba(88, 115, 255, 0.25), transparent 60%);
+  box-shadow:
+    0 18px 40px rgba(5, 8, 22, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.productMockupGarment[data-kind="tee"]::before,
+.productMockupGarment[data-kind="crewneck"]::before,
+.productMockupGarment[data-kind="hoodie"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at top center, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(circle at bottom, rgba(0, 0, 0, 0.18), transparent 60%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.productMockupPrintArea {
+  position: absolute;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  background: rgba(4, 8, 24, 0.72);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.productMockupImage {
+  max-width: 160%;
+  max-height: 160%;
+  will-change: transform;
 }
 
 .previewSection {

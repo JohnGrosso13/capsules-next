@@ -34,24 +34,28 @@ export function useCapsuleStoreShippingOptions({
     setShippingOptions(normalizeOptions(initialOptions));
   }, [initialOptions]);
 
-  const addShippingOption = React.useCallback(() => {
-    const nextId = `shipping-${Date.now()}`;
-    const nextOrder = shippingOptions.length
-      ? Math.max(...shippingOptions.map((o) => o.sortOrder ?? 0)) + 1
-      : 0;
-    const fresh: ShippingOption = {
-      id: nextId,
-      label: "New option",
-      detail: "",
-      price: 0,
-      currency,
-      etaMinDays: null,
-      etaMaxDays: null,
-      active: true,
-      sortOrder: nextOrder,
-    };
-    setShippingOptions((previous) => [...previous, fresh]);
-  }, [currency, shippingOptions]);
+  const addShippingOption = React.useCallback(
+    (option?: Partial<ShippingOption>) => {
+      const nextId = option?.id ?? `shipping-${Date.now()}`;
+      const existingOrders = shippingOptions.map((o) => o.sortOrder ?? 0);
+      const nextOrder =
+        option?.sortOrder ??
+        (existingOrders.length ? Math.max(...existingOrders) + 1 : 0);
+      const fresh: ShippingOption = {
+        id: nextId,
+        label: option?.label ?? "New option",
+        detail: option?.detail ?? "",
+        price: option?.price ?? 0,
+        currency: option?.currency ?? currency,
+        etaMinDays: option?.etaMinDays ?? null,
+        etaMaxDays: option?.etaMaxDays ?? null,
+        active: option?.active ?? true,
+        sortOrder: nextOrder,
+      };
+      setShippingOptions((previous) => [...previous, fresh]);
+    },
+    [currency, shippingOptions],
+  );
 
   const updateShippingOptionField = React.useCallback(
     (optionId: string, field: keyof ShippingOption, value: unknown) => {

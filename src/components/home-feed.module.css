@@ -1123,26 +1123,29 @@
     color: rgba(255, 255, 255, 0.9);
   }
 
-  .postViewerClose {
-    position: absolute;
-    top: clamp(0.75rem, 2vw, 1.5rem);
-    right: clamp(0.75rem, 2vw, 1.5rem);
-    width: 42px;
-    height: 42px;
+  .postViewerActionButton {
+    min-width: 96px;
+    padding: 0.55rem 1.2rem;
     border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    background: rgba(5, 6, 13, 0.95);
-    color: #ffffff;
-    cursor: pointer;
-    transition: transform 160ms var(--motion-ease-standard, ease);
-    z-index: 4;
+    gap: 0.4rem;
+    border: none;
+    box-shadow: 0 10px 24px rgba(2, 4, 15, 0.5);
+    transition:
+      transform 140ms var(--motion-ease-standard, ease),
+      box-shadow 140ms var(--motion-ease-standard, ease),
+      border-color 140ms var(--motion-ease-standard, ease);
   }
 
   .postViewerClose:hover {
-    transform: scale(1.06);
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+    box-shadow: 0 16px 34px rgba(2, 4, 15, 0.66);
   }
 
   .postViewerPostNav {
@@ -1461,19 +1464,23 @@
   .postViewerComposerActions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .postViewerComposerSubmit {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    border: none;
-    border-radius: 999px;
-    padding: 0.55rem 1.1rem;
     background: var(--color-brand, #2563eb);
     color: var(--color-brand-foreground, #ffffff);
-    font-weight: 600;
-    cursor: pointer;
+  }
+
+  .postViewerClose {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-muted, rgba(15, 23, 42, 0.96)) 88%, transparent),
+      color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.96)) 90%, rgba(255, 255, 255, 0.04))
+    );
+    color: rgba(248, 250, 252, 0.96);
   }
 
   .postViewerComposerSubmit:disabled {

@@ -16,13 +16,16 @@ import { getStoreDashboard, type StoreDashboard } from "@/server/store/dashboard
 import { StoreCapsuleGate } from "./StoreCapsuleGate";
 import { StoreNavigation } from "./StoreNavigation";
 import styles from "./mystore.page.module.css";
+import { StoreSetup } from "./StoreSetup";
 
 export const metadata: Metadata = {
   title: "My Store - Capsules",
   description: "Orders, payouts, and catalog controls for your Capsule storefront.",
 };
 
-type MyStorePageProps = { searchParams?: { capsuleId?: string; switch?: string; view?: string } };
+type MyStoreSearchParams = { capsuleId?: string; switch?: string; view?: string };
+
+type MyStorePageProps = { searchParams?: MyStoreSearchParams | Promise<MyStoreSearchParams> };
 
 const EMPTY_SUMMARY = {
   grossLast30Cents: 0,
@@ -110,6 +113,11 @@ const MOCK_DASHBOARD_ORDERS: StoreDashboard["recentOrders"] = [
 ];
 
 export default async function MyStorePage({ searchParams }: MyStorePageProps) {
+  const resolvedSearchParams =
+    typeof searchParams === "object" && searchParams !== null && typeof (searchParams as Promise<unknown>).then === "function"
+      ? await (searchParams as Promise<MyStoreSearchParams>)
+      : ((searchParams as MyStoreSearchParams | undefined) ?? undefined);
+
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/create/mystore");
@@ -131,7 +139,7 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
   const ownedCapsules = (await getUserCapsules(supabaseUserId)).filter(
     (capsule) => capsule.ownership === "owner",
   );
-  const requestedCapsuleId = searchParams?.capsuleId?.trim() ?? null;
+  const requestedCapsuleId = resolvedSearchParams?.capsuleId?.trim() ?? null;
   const selectedCapsule: CapsuleSummary | null =
     requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
   const selectedCapsuleLogo =
@@ -139,7 +147,7 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
   const selectedCapsuleId = selectedCapsule?.id ?? null;
   const showSelector = !selectedCapsule;
   const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
-  const activeNav = searchParams?.view === "reports" ? "reports" : "home";
+  const activeNav = resolvedSearchParams?.view === "reports" ? "reports" : "home";
 
   let dashboard: StoreDashboard | null = null;
   let dashboardError: string | null = null;
@@ -164,7 +172,6 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
   const manageHref = selectedCapsuleId ? `/capsule?capsuleId=${selectedCapsuleId}&tab=store` : "#";
   const ordersHref = selectedCapsuleId ? `/create/mystore/orders?capsuleId=${selectedCapsuleId}` : "#";
   const productsHref = selectedCapsuleId ? `/create/mystore/products?capsuleId=${selectedCapsuleId}` : "#";
-  const payoutsHref = manageHref;
 
   const hasSales = summary.grossLast30Cents > 0;
   const hasOrders = summary.totalOrders > 0;
@@ -292,141 +299,150 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
           </section>
 
           <section className={styles.columnPrimary} aria-label="Store overview">
-            <section className={styles.card} aria-label="Sales overview">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Sales overview</h2>
-                  <p className={styles.cardSubtitle}>Performance for the last 30 days.</p>
+            {activeNav === "reports" ? (
+              <section className={styles.card} aria-label="Sales overview">
+                <header className={styles.cardHeaderRow}>
+                  <div>
+                    <h2 className={styles.cardTitle}>Sales overview</h2>
+                    <p className={styles.cardSubtitle}>Performance for the last 30 days.</p>
+                  </div>
+                  <button className={styles.rangePill} type="button">
+                    Last 30 days
+                    <span className={styles.rangeChevron} aria-hidden="true" />
+                  </button>
+                </header>
+                <div className={styles.salesBody}>
+                  <div className={styles.salesYAxis}>
+                    <span>$1,500</span>
+                    <span>$1,000</span>
+                    <span>$500</span>
+                    <span>$0</span>
+                  </div>
+                  <div className={styles.salesChart}>
+                    <div className={styles.salesChartGrid} aria-hidden="true" />
+                    <svg
+                      className={styles.salesChartSvg}
+                      viewBox="0 0 320 120"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      <defs>
+                        <linearGradient id="salesLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="var(--color-brand)" />
+                          <stop offset="50%" stopColor="color-mix(in srgb, var(--color-brand) 60%, var(--color-accent) 40%)" />
+                          <stop offset="100%" stopColor="var(--color-accent)" />
+                        </linearGradient>
+                        <linearGradient id="salesAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="color-mix(in srgb, var(--color-brand) 55%, var(--color-accent) 45%)" stopOpacity="0.45" />
+                          <stop offset="100%" stopColor="transparent" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        className={styles.salesChartArea}
+                        d="M0 86 C 32 40, 64 24, 96 60 C 128 96, 160 40, 192 52 C 224 64, 256 30, 288 48 C 304 56, 320 70, 320 70 L 320 120 L 0 120 Z"
+                        fill="url(#salesAreaGradient)"
+                      />
+                      <path
+                        className={styles.salesChartStroke}
+                        d="M0 86 C 32 40, 64 24, 96 60 C 128 96, 160 40, 192 52 C 224 64, 256 30, 288 48 C 304 56, 320 70, 320 70"
+                        fill="none"
+                        stroke="url(#salesLineGradient)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
+                      <g className={styles.salesChartDots}>
+                        <circle cx="0" cy="86" r="3.5" />
+                        <circle cx="64" cy="24" r="3.5" />
+                        <circle cx="128" cy="96" r="3.5" />
+                        <circle cx="192" cy="52" r="3.5" />
+                        <circle cx="256" cy="30" r="3.5" />
+                        <circle cx="320" cy="70" r="3.5" />
+                      </g>
+                    </svg>
+                  </div>
                 </div>
-                <button className={styles.rangePill} type="button">
-                  Last 30 days
-                  <span className={styles.rangeChevron} aria-hidden="true" />
-                </button>
-              </header>
-              <div className={styles.salesBody}>
-                <div className={styles.salesYAxis}>
-                  <span>$1,500</span>
-                  <span>$1,000</span>
-                  <span>$500</span>
-                  <span>$0</span>
+                <div className={styles.salesXAxis}>
+                  <span>Apr 1</span>
+                  <span>Apr 10</span>
+                  <span>Apr 20</span>
+                  <span>Apr 30</span>
                 </div>
-                <div className={styles.salesChart}>
-                  <div className={styles.salesChartGrid} aria-hidden="true" />
-                  <svg
-                    className={styles.salesChartSvg}
-                    viewBox="0 0 320 120"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  >
-                    <defs>
-                      <linearGradient id="salesLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="var(--color-brand)" />
-                        <stop offset="50%" stopColor="color-mix(in srgb, var(--color-brand) 60%, var(--color-accent) 40%)" />
-                        <stop offset="100%" stopColor="var(--color-accent)" />
-                      </linearGradient>
-                      <linearGradient id="salesAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="color-mix(in srgb, var(--color-brand) 55%, var(--color-accent) 45%)" stopOpacity="0.45" />
-                        <stop offset="100%" stopColor="transparent" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      className={styles.salesChartArea}
-                      d="M0 86 C 32 40, 64 24, 96 60 C 128 96, 160 40, 192 52 C 224 64, 256 30, 288 48 C 304 56, 320 70, 320 70 L 320 120 L 0 120 Z"
-                      fill="url(#salesAreaGradient)"
-                    />
-                    <path
-                      className={styles.salesChartStroke}
-                      d="M0 86 C 32 40, 64 24, 96 60 C 128 96, 160 40, 192 52 C 224 64, 256 30, 288 48 C 304 56, 320 70, 320 70"
-                      fill="none"
-                      stroke="url(#salesLineGradient)"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                    <g className={styles.salesChartDots}>
-                      <circle cx="0" cy="86" r="3.5" />
-                      <circle cx="64" cy="24" r="3.5" />
-                      <circle cx="128" cy="96" r="3.5" />
-                      <circle cx="192" cy="52" r="3.5" />
-                      <circle cx="256" cy="30" r="3.5" />
-                      <circle cx="320" cy="70" r="3.5" />
-                    </g>
-                  </svg>
-                </div>
-              </div>
-              <div className={styles.salesXAxis}>
-                <span>Apr 1</span>
-                <span>Apr 10</span>
-                <span>Apr 20</span>
-                <span>Apr 30</span>
-              </div>
-            </section>
+              </section>
+            ) : null}
 
-            <section className={styles.card} aria-label="Orders">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Orders</h2>
-                  <p className={styles.cardSubtitle}>Latest activity from your store.</p>
-                </div>
-                <a
-                  href={ordersHref}
-                  className={styles.cardLink}
-                  aria-disabled={!selectedCapsule}
-                  data-disabled={!selectedCapsule ? "true" : undefined}
-                >
-                  View all
-                </a>
-              </header>
-              {displayRecentOrders.length ? (
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th className={styles.tableHeaderCell}>Order</th>
-                      <th className={styles.tableHeaderCell}>Date</th>
-                      <th className={styles.tableHeaderCell}>Summary</th>
-                      <th className={styles.tableHeaderCell}>Status</th>
-                      <th className={styles.tableHeaderCellRight}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayRecentOrders.map((order) => {
-                      const ref = order.confirmationCode ?? order.id.slice(0, 8);
-                      const date = new Date(order.createdAt);
-                      const formattedDate = date.toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      });
-                      const statusTone = toneForStatus(order.paymentStatus);
-                      return (
-                        <tr key={order.id}>
-                          <td className={styles.tableCellMuted}>#{ref}</td>
-                          <td className={styles.tableCellMuted}>{formattedDate}</td>
-                          <td className={styles.tableCellPrimary}>
-                            {order.itemSummary}
-                            {order.itemCount > 1 ? ` (+${order.itemCount - 1} more)` : ""}
-                          </td>
-                          <td>
-                            <span className={styles.statusPill} data-tone={statusTone}>
-                              {formatStatus(order.paymentStatus)}
-                            </span>
-                          </td>
-                          <td className={styles.tableCellRight}>
-                            {formatCents.format(order.totalCents / 100)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <div className={styles.emptyCard}>
-                  <p>No orders yet. New purchases will appear here.</p>
-                </div>
-              )}
-            </section>
+            {activeNav !== "reports" ? (
+              <StoreSetup capsuleId={selectedCapsuleId} ordersHref={ordersHref} />
+            ) : null}
+
+            {activeNav !== "reports" ? (
+              <section className={styles.card} aria-label="Orders">
+                <header className={styles.cardHeaderRow}>
+                  <div>
+                    <h2 className={styles.cardTitle}>Orders</h2>
+                    <p className={styles.cardSubtitle}>Latest activity from your store.</p>
+                  </div>
+                  <a
+                    href={ordersHref}
+                    className={styles.cardLink}
+                    aria-disabled={!selectedCapsule}
+                    data-disabled={!selectedCapsule ? "true" : undefined}
+                  >
+                    View all
+                  </a>
+                </header>
+                {displayRecentOrders.length ? (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th className={styles.tableHeaderCell}>Order</th>
+                        <th className={styles.tableHeaderCell}>Date</th>
+                        <th className={styles.tableHeaderCell}>Summary</th>
+                        <th className={styles.tableHeaderCell}>Status</th>
+                        <th className={styles.tableHeaderCellRight}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayRecentOrders.map((order) => {
+                        const ref = order.confirmationCode ?? order.id.slice(0, 8);
+                        const date = new Date(order.createdAt);
+                        const formattedDate = date.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        });
+                        const statusTone = toneForStatus(order.paymentStatus);
+                        return (
+                          <tr key={order.id}>
+                            <td className={styles.tableCellMuted}>#{ref}</td>
+                            <td className={styles.tableCellMuted}>{formattedDate}</td>
+                            <td className={styles.tableCellPrimary}>
+                              {order.itemSummary}
+                              {order.itemCount > 1 ? ` (+${order.itemCount - 1} more)` : ""}
+                            </td>
+                            <td>
+                              <span className={styles.statusPill} data-tone={statusTone}>
+                                {formatStatus(order.paymentStatus)}
+                              </span>
+                            </td>
+                            <td className={styles.tableCellRight}>
+                              {formatCents.format(order.totalCents / 100)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className={styles.emptyCard}>
+                    <p>No orders yet. New purchases will appear here.</p>
+                  </div>
+                )}
+              </section>
+            ) : null}
           </section>
 
-          <section className={styles.columnSecondary} aria-label="Products and payouts">
+          {activeNav !== "reports" ? (
+            <section className={styles.columnSecondary} aria-label="Products and payouts">
             <section className={styles.card} aria-label="Products">
               <header className={styles.cardHeaderRow}>
                 <div>
@@ -482,50 +498,8 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
               )}
             </section>
 
-            <section className={styles.card} aria-label="Payouts and balances">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>Orders &amp; payouts</h2>
-                <p className={styles.cardSubtitle}>
-                  Stripe Connect setup and seller orders live inside the Capsule store editor.
-                </p>
-              </header>
-              <ul className={styles.linkList}>
-                <li className={styles.linkItem}>
-                  <div className={styles.linkMeta}>
-                    <div className={styles.linkLabel}>Open store editor</div>
-                    <p className={styles.linkHint}>
-                      Switch to founder mode to update products, shipping, and payouts.
-                    </p>
-                  </div>
-                  <a
-                    className={styles.chipButton}
-                    href={manageHref}
-                    aria-disabled={!selectedCapsule}
-                    data-disabled={!selectedCapsule ? "true" : undefined}
-                  >
-                    Open store
-                  </a>
-                </li>
-                <li className={styles.linkItem}>
-                  <div className={styles.linkMeta}>
-                    <div className={styles.linkLabel}>Stripe Connect status</div>
-                    <p className={styles.linkHint}>
-                      Finish onboarding in the store&apos;s &quot;Orders &amp; payouts&quot; section. Until
-                      then, payments may route through the platform account.
-                    </p>
-                  </div>
-                  <a
-                    className={styles.chipButton}
-                    href={payoutsHref}
-                    aria-disabled={!selectedCapsule}
-                    data-disabled={!selectedCapsule ? "true" : undefined}
-                  >
-                    Go to payouts
-                  </a>
-                </li>
-              </ul>
             </section>
-          </section>
+          ) : null}
         </main>
       </div>
     </AppPage>

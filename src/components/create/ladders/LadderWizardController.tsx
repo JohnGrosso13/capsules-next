@@ -410,6 +410,8 @@ export function LadderWizardController({
         tone: "info",
         title: "Draft restored",
         description: "We loaded your latest ladder edits so you can pick up where you left off.",
+        // Let this confirmation fade quickly so it doesn't linger over the builder.
+        durationMs: 2600,
       });
     },
     [pushToast],

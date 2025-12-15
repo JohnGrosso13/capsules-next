@@ -21,6 +21,7 @@ const checkoutRequestSchema = z.object({
     phone: z.string().optional().nullable(),
   }),
   shippingOptionId: z.string().optional().nullable(),
+  shippingRateId: z.string().optional().nullable(),
   shippingAddress: z
     .object({
       name: z.string().optional().nullable(),
@@ -67,6 +68,18 @@ const checkoutResponseSchema = z.object({
   totalCents: z.number(),
   currency: z.string(),
   stripeTaxCalculationId: z.string().nullable(),
+  shippingRates: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        priceCents: z.number(),
+        currency: z.string(),
+        etaMinDays: z.number().nullable(),
+        etaMaxDays: z.number().nullable(),
+      }),
+    )
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -124,6 +137,7 @@ export async function POST(req: Request) {
         variantId: entry.variantId ?? null,
       })),
       shippingOptionId: parsed.data.shippingOptionId ?? null,
+      shippingRateId: parsed.data.shippingRateId ?? null,
       shippingAddress: normalizeAddress(parsed.data.shippingAddress),
       billingAddress: normalizeAddress(parsed.data.billingAddress),
       billingSameAsShipping: parsed.data.billingSameAsShipping ?? true,

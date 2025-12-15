@@ -64,10 +64,24 @@ export function PromoRow() {
   const [activeLightboxIndex, setActiveLightboxIndex] = React.useState<number | null>(null);
   const [activeVideoIndex, setActiveVideoIndex] = React.useState<number | null>(null);
 
+  const dispatchHomeLightbox = React.useCallback((postId: string | null | undefined) => {
+    const trimmed = typeof postId === "string" ? postId.trim() : "";
+    if (!trimmed) return false;
+    window.dispatchEvent(new CustomEvent("capsules:lightbox:open", { detail: { postId: trimmed } }));
+    return true;
+  }, []);
+
   const openMediaViewer = React.useCallback(
     (tileId: string) => {
       const item = mediaLookup.get(tileId);
       if (!item) return;
+      const relatedPost = context.media[item.fallbackIndex] ?? null;
+      const postId = relatedPost?.id ?? null;
+      if (dispatchHomeLightbox(postId)) {
+        setActiveLightboxIndex(null);
+        setActiveVideoIndex(null);
+        return;
+      }
       if (item.kind === "video") {
         const videoIndex = videoIndexLookup.get(tileId);
         if (videoIndex === undefined) return;
@@ -80,7 +94,7 @@ export function PromoRow() {
       setActiveVideoIndex(null);
       setActiveLightboxIndex(imageIndex);
     },
-    [imageIndexLookup, mediaLookup, videoIndexLookup],
+    [context.media, dispatchHomeLightbox, imageIndexLookup, mediaLookup, videoIndexLookup],
   );
 
   const closeLightbox = React.useCallback(() => {

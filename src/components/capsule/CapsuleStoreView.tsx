@@ -22,6 +22,19 @@ import {
   type StoreProductVariant,
   type StoreViewMode,
 } from "./store/types";
+
+type CheckoutIntentResponse = {
+  orderId: string;
+  paymentIntentId: string;
+  clientSecret: string;
+  subtotalCents: number;
+  shippingCents: number;
+  taxCents: number;
+  totalCents: number;
+  currency: string;
+  stripeTaxCalculationId: string | null;
+  shippingRates?: { id: string; label: string; priceCents: number; currency: string; etaMinDays: number | null; etaMaxDays: number | null }[];
+};
 import { StoreCheckoutSheet } from "./store/StoreCheckoutSheet";
 import { StoreCatalog } from "./store/StoreCatalog";
 import { StoreCartSidebar } from "./store/StoreCartSidebar";
@@ -126,7 +139,7 @@ type ShippingAdminControls = {
   shippingOptions: ShippingOption[];
   shippingSaveBusy: boolean;
   shippingSaveError: string | null;
-  addShippingOption: () => void;
+  addShippingOption: (option?: Partial<ShippingOption>) => void;
   updateShippingOptionField: (optionId: string, field: keyof ShippingOption, value: unknown) => void;
   persistShippingOption: (optionId: string) => Promise<void>;
   deleteShippingOption: (optionId: string) => Promise<void>;
@@ -338,13 +351,14 @@ function StorefrontExperience({
   prompter,
   products,
   shippingOptions,
+  currency: _currency,
   storeError,
   setStoreError,
   catalogLoading,
   onCustomizeStoreBanner,
   formatCurrency,
   adminControls,
-  shippingAdmin,
+  shippingAdmin: _shippingAdmin,
   isFounder,
 }: StorefrontExperienceProps) {
   const fallbackFileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -373,6 +387,10 @@ function StorefrontExperience({
   const [paymentError, setPaymentError] = React.useState<string | null>(null);
   const [checkoutBusy, setCheckoutBusy] = React.useState(false);
   const confirmPaymentRef = React.useRef<(() => Promise<void>) | null>(null);
+  const [shippingRates, setShippingRates] = React.useState<
+    { id: string; label: string; priceCents: number; currency: string; etaMinDays: number | null; etaMaxDays: number | null }[]
+  >([]);
+  const lastShippingQuoteKeyRef = React.useRef<string | null>(null);
   const [orderSummary, setOrderSummary] = React.useState<{
     status: string;
     tracking?: string | null;
@@ -382,21 +400,6 @@ function StorefrontExperience({
     currency: string;
     items: { title: string; quantity: number; unitPriceCents: number }[];
   } | null>(null);
-  const [connectStatus, setConnectStatus] = React.useState<{
-    loading: boolean;
-    enabled: boolean;
-    requireAccount: boolean;
-    onboardingComplete: boolean;
-    accountId: string | null;
-    error: string | null;
-  }>({
-    loading: false,
-    enabled: false,
-    requireAccount: false,
-    onboardingComplete: false,
-    accountId: null,
-    error: null,
-  });
   const checkoutSteps = React.useMemo<CheckoutStep[]>(() => ["shipping", "billing", "review", "confirmation"], []);
   const checkoutStepDetails: Record<CheckoutStep, { label: string; description: string }> = {
     shipping: { label: "Shipping", description: "Contact & delivery" },
@@ -413,14 +416,25 @@ function StorefrontExperience({
     [],
   );
   const taxRate = 0.0825;
-  const availableShippingOptions = React.useMemo(
-    () => shippingOptions.filter((option) => option.active !== false),
-    [shippingOptions],
-  );
-  const defaultShipping = React.useMemo(
-    () => availableShippingOptions[1]?.id ?? availableShippingOptions[0]?.id ?? "",
-    [availableShippingOptions],
-  );
+  const availableShippingOptions = React.useMemo(() => shippingOptions, [shippingOptions]);
+  const runtimeShippingOptions = React.useMemo(() => {
+    if (shippingRates.length) {
+      return shippingRates.map((rate) => ({
+        id: rate.id,
+        label: rate.label,
+        price: rate.priceCents / 100,
+        currency: rate.currency.toUpperCase(),
+        detail:
+          rate.etaMinDays && rate.etaMaxDays
+            ? `${rate.etaMinDays}-${rate.etaMaxDays} business days`
+            : rate.etaMaxDays
+              ? `${rate.etaMaxDays}+ business days`
+              : "",
+        active: true,
+      }));
+    }
+    return availableShippingOptions;
+  }, [availableShippingOptions, shippingRates]);
   const defaultPayment = paymentOptions[0]?.id ?? "card";
   const [checkoutOpen, setCheckoutOpen] = React.useState(false);
   const [checkoutStep, setCheckoutStep] = React.useState<CheckoutStep>("shipping");
@@ -435,7 +449,7 @@ function StorefrontExperience({
     region: "",
     postal: "",
     country: "United States",
-    shippingOption: defaultShipping,
+    shippingOption: "",
     paymentMethod: defaultPayment,
     promoCode: "",
     notes: "",
@@ -683,25 +697,6 @@ function StorefrontExperience({
     [cartItems],
   );
 
-  const selectedShipping = React.useMemo(
-    () =>
-      shippingRequired
-        ? availableShippingOptions.find((option) => option.id === checkoutDetails.shippingOption) ?? null
-        : null,
-    [availableShippingOptions, checkoutDetails.shippingOption, shippingRequired],
-  );
-
-  React.useEffect(() => {
-    if (!shippingRequired) return;
-    const hasSelection = availableShippingOptions.some((option) => option.id === checkoutDetails.shippingOption);
-    if (!hasSelection) {
-      setCheckoutDetails((previous) => ({
-        ...previous,
-        shippingOption: availableShippingOptions[0]?.id ?? defaultShipping,
-      }));
-    }
-  }, [availableShippingOptions, checkoutDetails.shippingOption, defaultShipping, shippingRequired]);
-
   const buildAddressFromCheckout = React.useCallback(
     (target: "shipping" | "billing") => {
       if (target === "shipping") {
@@ -758,7 +753,7 @@ function StorefrontExperience({
     ],
   );
 
-  const fallbackShippingCost = shippingRequired && selectedShipping ? selectedShipping.price : 0;
+  const fallbackShippingCost = 0;
   const resolvedShippingCost = checkoutTotals?.shipping ?? fallbackShippingCost;
   const resolvedSubtotal = checkoutTotals?.subtotal ?? subtotal;
   const taxEstimate = checkoutTotals?.tax ?? Math.max(0, resolvedSubtotal + resolvedShippingCost) * taxRate;
@@ -795,7 +790,7 @@ function StorefrontExperience({
         email: contactEmail,
         phone: checkoutDetails.phone?.trim() || null,
       },
-      shippingOptionId: shippingRequired ? checkoutDetails.shippingOption ?? null : null,
+      shippingRateId: shippingRequired ? checkoutDetails.shippingOption || null : null,
       shippingAddress,
       billingAddress,
       billingSameAsShipping: checkoutDetails.billingSameAsShipping,
@@ -814,8 +809,8 @@ function StorefrontExperience({
     checkoutDetails.paymentMethod,
     checkoutDetails.phone,
     checkoutDetails.promoCode,
-    checkoutDetails.shippingOption,
     checkoutDetails.email,
+    checkoutDetails.shippingOption,
     shippingRequired,
   ]);
 
@@ -842,20 +837,23 @@ function StorefrontExperience({
         }
         throw new Error(message);
       }
-      const data: {
-        orderId: string;
-        paymentIntentId: string;
-        clientSecret: string;
-        subtotalCents: number;
-        shippingCents: number;
-        taxCents: number;
-        totalCents: number;
-        currency: string;
-        stripeTaxCalculationId: string | null;
-      } = await response.json();
+      const data: CheckoutIntentResponse = await response.json();
       setOrderId(data.orderId);
       setPaymentIntentId(data.paymentIntentId);
       setClientSecret(data.clientSecret);
+      const responseRates = Array.isArray((data as { shippingRates?: unknown }).shippingRates)
+        ? ((data as { shippingRates: typeof shippingRates }).shippingRates ?? [])
+        : [];
+      if (shippingRequired) {
+        if (!responseRates.length) {
+          throw new Error("Shipping rates are unavailable for this address.");
+        }
+        setShippingRates(responseRates);
+        const hasSelection = responseRates.some((rate) => rate.id === checkoutDetails.shippingOption);
+        if (!hasSelection) {
+          setCheckoutDetails((previous) => ({ ...previous, shippingOption: responseRates[0]?.id ?? "" }));
+        }
+      }
       setCheckoutTotals({
         subtotal: data.subtotalCents / 100,
         shipping: data.shippingCents / 100,
@@ -867,7 +865,7 @@ function StorefrontExperience({
     } finally {
       setCheckoutBusy(false);
     }
-  }, [buildCheckoutPayload]);
+  }, [buildCheckoutPayload, checkoutDetails.shippingOption, shippingRequired]);
 
   const loadOrderDetails = React.useCallback(async (id: string) => {
     try {
@@ -908,80 +906,6 @@ function StorefrontExperience({
     }
   }, []);
 
-  const refreshConnectStatus = React.useCallback(async () => {
-    if (!capsuleId) return;
-    setConnectStatus((previous) => ({ ...previous, loading: true, error: null }));
-    try {
-      const response = await fetch(`/api/store/connect?capsuleId=${encodeURIComponent(capsuleId)}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Unable to load payouts status");
-      }
-      const data: {
-        connectEnabled: boolean;
-        requireAccount: boolean;
-        platformFeeBasisPoints: number;
-        accountId: string | null;
-        onboardingComplete: boolean;
-        chargesEnabled: boolean;
-        payoutsEnabled: boolean;
-        detailsSubmitted: boolean;
-      } = await response.json();
-      setConnectStatus({
-        loading: false,
-        enabled: data.connectEnabled,
-        requireAccount: data.requireAccount,
-        onboardingComplete: data.onboardingComplete,
-        accountId: data.accountId,
-        error: null,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to load payouts status";
-      setConnectStatus((previous) => ({ ...previous, loading: false, error: message }));
-    }
-  }, [capsuleId]);
-
-  const startConnectOnboarding = React.useCallback(async () => {
-    if (!capsuleId) {
-      setStoreError("Capsule is not available.");
-      return;
-    }
-    setConnectStatus((previous) => ({ ...previous, loading: true, error: null }));
-    try {
-      const response = await fetch("/api/store/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ capsuleId }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message =
-          payload && typeof payload === "object" && "message" in (payload as Record<string, unknown>)
-            ? ((payload as { message?: string }).message ?? "Unable to start Stripe onboarding.")
-            : "Unable to start Stripe onboarding.";
-        throw new Error(message);
-      }
-      const onboardingUrl = (payload as { onboardingUrl?: string })?.onboardingUrl;
-      if (onboardingUrl && typeof window !== "undefined") {
-        window.open(onboardingUrl, "_blank", "noopener,noreferrer");
-      }
-      await refreshConnectStatus();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to start Stripe onboarding.";
-      setConnectStatus((previous) => ({ ...previous, error: message }));
-      setStoreError(message);
-    } finally {
-      setConnectStatus((previous) => ({ ...previous, loading: false }));
-    }
-  }, [capsuleId, refreshConnectStatus, setStoreError]);
-
-  React.useEffect(() => {
-    if (!isFounder || !capsuleId) return;
-    void refreshConnectStatus();
-  }, [capsuleId, isFounder, refreshConnectStatus]);
-
   const checkoutErrors = React.useMemo(() => {
     const errors: Record<string, string> = {};
     const email = checkoutDetails.email.trim();
@@ -994,11 +918,10 @@ function StorefrontExperience({
       if (checkoutDetails.region.trim().length < 2) errors.region = "Enter a state or region.";
       if (checkoutDetails.postal.trim().length < 3) errors.postal = "Enter a postal code.";
       if (!checkoutDetails.country.trim().length) errors.country = "Enter a country.";
-      const hasShippingSelection = availableShippingOptions.some((option) => option.id === checkoutDetails.shippingOption);
-      if (!availableShippingOptions.length) {
-        errors.shippingOption = "Shipping isn't configured yet for this capsule.";
-      } else if (!hasShippingSelection) {
-        errors.shippingOption = "Choose a shipping speed.";
+      if (!shippingRates.length) {
+        errors.shippingOption = "Shipping rates are unavailable for this address.";
+      } else if (!checkoutDetails.shippingOption.trim().length) {
+        errors.shippingOption = "Choose a shipping option.";
       }
     }
     if (needsBillingAddress) {
@@ -1012,7 +935,7 @@ function StorefrontExperience({
     if (!checkoutDetails.termsAccepted) errors.terms = "Please agree to the terms.";
     if (!hasItems) errors.cart = "Add at least one item to checkout.";
     return errors;
-  }, [availableShippingOptions, checkoutDetails, hasItems, needsBillingAddress, shippingRequired]);
+  }, [checkoutDetails, hasItems, needsBillingAddress, shippingRates.length, shippingRequired]);
 
   const errorFor = React.useCallback(
     (key: keyof typeof checkoutErrors) => (checkoutAttempted ? checkoutErrors[key] : undefined),
@@ -1021,6 +944,59 @@ function StorefrontExperience({
 
   const canPlaceOrder = hasItems && Object.keys(checkoutErrors).length === 0;
   const canPlaceOrderNow = canPlaceOrder && Boolean(clientSecret);
+
+  React.useEffect(() => {
+    if (!shippingRequired) return;
+    if (checkoutStep !== "shipping") return;
+    if (!hasItems) return;
+    const addressKey = [
+      checkoutDetails.address1.trim().toLowerCase(),
+      checkoutDetails.city.trim().toLowerCase(),
+      checkoutDetails.region.trim().toLowerCase(),
+      checkoutDetails.postal.trim().toLowerCase(),
+      checkoutDetails.country.trim().toLowerCase(),
+    ].join("|");
+    const ready =
+      checkoutDetails.address1.trim().length > 3 &&
+      checkoutDetails.city.trim().length > 1 &&
+      checkoutDetails.region.trim().length > 1 &&
+      checkoutDetails.postal.trim().length > 2 &&
+      checkoutDetails.country.trim().length > 1;
+    if (!ready) return;
+    if (lastShippingQuoteKeyRef.current === addressKey && shippingRates.length) return;
+    if (checkoutBusy) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await startCheckoutIntent();
+        if (!cancelled) {
+          lastShippingQuoteKeyRef.current = addressKey;
+        }
+      } catch (error) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "We couldn't fetch shipping for this address. Please try again.";
+        setPaymentError(message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    checkoutBusy,
+    checkoutDetails.address1,
+    checkoutDetails.city,
+    checkoutDetails.country,
+    checkoutDetails.postal,
+    checkoutDetails.region,
+    checkoutStep,
+    hasItems,
+    shippingRates.length,
+    shippingRequired,
+    startCheckoutIntent,
+  ]);
 
   const placeOrder = React.useCallback(async () => {
     setCheckoutAttempted(true);
@@ -1324,139 +1300,6 @@ function StorefrontExperience({
             </section>
           </div>
 
-          {isFounder && capsuleId ? (
-            <section className={capTheme.storePanel} style={{ marginTop: "16px" }}>
-              <header className={capTheme.storePanelHeader}>
-                <h3 style={{ margin: 0 }}>Orders & payouts</h3>
-                <p className={capTheme.checkoutHint} style={{ margin: 0 }}>
-                  Seller orders live here. Stripe Connect controls when payouts land in your account.
-                </p>
-              </header>
-              {connectStatus.error ? <p className={capTheme.checkoutError}>{connectStatus.error}</p> : null}
-              <div className={capTheme.storeSupportActions}>
-                <a className={capTheme.storeActionButton} href={ordersHref}>
-                  View seller orders
-                </a>
-                <button
-                  type="button"
-                  className={capTheme.storePrimaryButton}
-                  onClick={() => void startConnectOnboarding()}
-                  disabled={connectStatus.loading || (!connectStatus.enabled && !connectStatus.onboardingComplete)}
-                >
-                  {connectStatus.enabled
-                    ? connectStatus.onboardingComplete
-                      ? "Manage Stripe payouts"
-                      : "Connect payouts with Stripe"
-                    : "Connect disabled"}
-                </button>
-              </div>
-              <p className={capTheme.checkoutHint} style={{ marginTop: 8, marginBottom: 0 }}>
-                View fulfillment updates at the seller orders link above. If Stripe Connect is incomplete, payments
-                will route through the platform account until onboarding finishes.
-              </p>
-              <p className={capTheme.checkoutHint} style={{ marginTop: 4, marginBottom: 0 }}>
-                {connectStatus.enabled
-                  ? connectStatus.onboardingComplete
-                    ? "Payouts are routed to your Stripe account; platform fees apply at checkout."
-                    : connectStatus.requireAccount
-                      ? "Finish Stripe onboarding to take payments for this capsule."
-                      : "Complete Stripe onboarding so payouts can be sent to your account."
-                  : "Stripe Connect is disabled here; payments currently run on the platform account."}
-              </p>
-            </section>
-          ) : null}
-
-          {isFounder && shippingAdmin ? (
-            <section className={capTheme.storePanel} style={{ marginTop: "16px" }}>
-              <header className={capTheme.storePanelHeader}>
-                <h3 style={{ margin: 0 }}>Shipping options</h3>
-                <p className={capTheme.checkoutHint} style={{ margin: 0 }}>
-                  These options power checkout for physical products.
-                </p>
-              </header>
-              {shippingAdmin.shippingSaveError ? (
-                <p className={capTheme.checkoutError}>{shippingAdmin.shippingSaveError}</p>
-              ) : null}
-              <div className={capTheme.storeFieldColumn}>
-                {shippingAdmin.shippingOptions.map((option) => (
-                  <div key={option.id} className={capTheme.storeFieldRow}>
-                    <label className={capTheme.storeField}>
-                      <span>Label</span>
-                      <input
-                        type="text"
-                        value={option.label}
-                        onChange={(event) =>
-                          shippingAdmin.updateShippingOptionField(option.id, "label", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className={capTheme.storeField}>
-                      <span>Price</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={option.price}
-                        onChange={(event) =>
-                          shippingAdmin.updateShippingOptionField(
-                            option.id,
-                            "price",
-                            Number.parseFloat(event.target.value) || 0,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className={capTheme.storeField}>
-                      <span>Detail</span>
-                      <input
-                        type="text"
-                        value={option.detail ?? ""}
-                        onChange={(event) =>
-                          shippingAdmin.updateShippingOptionField(option.id, "detail", event.target.value)
-                        }
-                      />
-                    </label>
-                    <div className={capTheme.storeEditorActions}>
-                      <label className={capTheme.storeToggle}>
-                        <input
-                          type="checkbox"
-                          checked={option.active}
-                          onChange={(event) =>
-                            shippingAdmin.updateShippingOptionField(option.id, "active", event.target.checked)
-                          }
-                        />
-                        <span>Active</span>
-                      </label>
-                      <div className={capTheme.storeEditorButtons}>
-                        <button
-                          type="button"
-                          className={capTheme.storeGhostButton}
-                          onClick={() => shippingAdmin.deleteShippingOption(option.id)}
-                          disabled={shippingAdmin.shippingSaveBusy}
-                        >
-                          Remove
-                        </button>
-                        <button
-                          type="button"
-                          className={capTheme.storePrimaryButton}
-                          onClick={() => void shippingAdmin.persistShippingOption(option.id)}
-                          disabled={shippingAdmin.shippingSaveBusy}
-                        >
-                          {shippingAdmin.shippingSaveBusy ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className={capTheme.storeSupportActions}>
-                  <button type="button" className={capTheme.storeActionButton} onClick={shippingAdmin.addShippingOption}>
-                    Add shipping option
-                  </button>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
           <StoreCheckoutSheet
             open={checkoutOpen}
             ordersHref={ordersHref}
@@ -1466,9 +1309,9 @@ function StorefrontExperience({
             currentStepIndex={currentStepIndex}
             orderReference={orderReference}
             details={checkoutDetails}
-            shippingOptions={availableShippingOptions}
+            shippingOptions={runtimeShippingOptions}
             paymentOptions={paymentOptions}
-            selectedShipping={selectedShipping ?? null}
+            selectedShipping={null}
             selectedPaymentOption={selectedPaymentOption}
             shippingRequired={shippingRequired}
             needsBillingAddress={needsBillingAddress}

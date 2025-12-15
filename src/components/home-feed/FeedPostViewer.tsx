@@ -501,15 +501,6 @@ export function FeedPostViewer({
       onClick={handleOverlayClick}
     >
       <div className={styles.postViewerShell} onClick={handleShellClick}>
-        <button
-          type="button"
-          className={styles.postViewerClose}
-          aria-label="Close post viewer"
-          onClick={handleCloseButtonClick}
-        >
-          <X weight="bold" />
-        </button>
-
         <div className={styles.postViewerStage}>
           {canNavigatePrevPost ? (
             <button
@@ -747,11 +738,19 @@ export function FeedPostViewer({
             {commentError ? <p className={styles.postViewerComposerError}>{commentError}</p> : null}
             <div className={styles.postViewerComposerActions}>
               <button
+                type="button"
+                className={`${styles.postViewerActionButton} ${styles.postViewerClose}`}
+                onClick={handleCloseButtonClick}
+              >
+                <X weight="bold" size={16} />
+                Close
+              </button>
+              <button
                 type="submit"
-                className={styles.postViewerComposerSubmit}
+                className={`${styles.postViewerActionButton} ${styles.postViewerComposerSubmit}`}
                 disabled={!post || !commentDraft.trim().length || commentSubmitting}
               >
-                <PaperPlaneTilt weight="fill" />
+                <PaperPlaneTilt weight="fill" size={16} />
                 <span>{commentSubmitting ? "Posting..." : "Post"}</span>
               </button>
             </div>

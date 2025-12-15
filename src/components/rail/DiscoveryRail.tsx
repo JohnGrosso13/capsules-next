@@ -61,6 +61,9 @@ type CalendarDay = {
   hasEvents: boolean;
 };
 
+const RECOMMENDED_CAPSULE_LIMIT = 3;
+const WHATS_HOT_ENABLED = false;
+
 function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -591,11 +594,11 @@ export function DiscoveryRail() {
         } | null;
         if (!payload?.capsules?.length) {
           if (!cancelled) {
-            setRecommendedCapsules([]);
+            setRecommendedCapsules(FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT));
           }
           return;
         }
-        const items: Item[] = payload.capsules.slice(0, 3).map((capsule) => {
+        const mapped: Item[] = payload.capsules.slice(0, RECOMMENDED_CAPSULE_LIMIT).map((capsule) => {
           const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(capsule);
           const relative = formatRelativeDate(capsule.createdAt);
           const subtitle = capsule.slug ? `@${capsule.slug}` : "New capsule";
@@ -610,8 +613,20 @@ export function DiscoveryRail() {
             avatarInitial,
           };
         });
+        const filled =
+          mapped.length < RECOMMENDED_CAPSULE_LIMIT
+            ? [
+                ...mapped,
+                ...FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT - mapped.length).map(
+                  (fallback, index) => ({
+                    ...fallback,
+                    id: `${fallback.id}-fallback-${index}`,
+                  }),
+                ),
+              ]
+            : mapped;
         if (!cancelled) {
-          setRecommendedCapsules(items);
+          setRecommendedCapsules(filled);
         }
       } catch (error) {
         if (controller.signal.aborted || cancelled) return;
@@ -619,7 +634,7 @@ export function DiscoveryRail() {
           console.warn("discovery-rail: failed to load recent capsules", error);
         }
         if (!cancelled) {
-          setRecommendedCapsules(FALLBACK_CAPSULES);
+          setRecommendedCapsules(FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT));
         }
       } finally {
         if (!cancelled) {
@@ -730,6 +745,7 @@ export function DiscoveryRail() {
     { id: "t1", title: "What's Hot", subtitle: "AI logos in 60s", meta: "2.1k watching" },
     { id: "t2", title: "Capsules x Stream", subtitle: "OBS scene presets", meta: "1.3k watching" },
   ];
+  const showWhatsHot = WHATS_HOT_ENABLED;
 
   return (
     <div className={styles.container}>
@@ -741,6 +757,7 @@ export function DiscoveryRail() {
           action={{ label: "See all", href: "/explore" }}
           emptyMessage="No new capsules yet. Check again soon!"
           loading={showSkeleton}
+          skeletonCount={RECOMMENDED_CAPSULE_LIMIT}
         />
         <Section
           title="Upcoming Events"
@@ -752,12 +769,14 @@ export function DiscoveryRail() {
           emptyMessage="No ladders yet. Create one to see it here."
           loading={showSkeleton}
         />
-        <Section
-          title="What's Hot"
-          items={trending}
-          action={{ label: "More", onClick: () => {} }}
-          loading={showSkeleton}
-        />
+        {showWhatsHot ? (
+          <Section
+            title="What's Hot"
+            items={trending}
+            action={{ label: "More", onClick: () => {} }}
+            loading={showSkeleton}
+          />
+        ) : null}
       </div>
       <UpcomingEventsCalendarOverlayPortal
         events={upcomingEvents.filter(

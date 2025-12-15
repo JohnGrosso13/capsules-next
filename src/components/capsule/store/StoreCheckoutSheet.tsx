@@ -287,7 +287,7 @@ function StoreCheckoutSheet({
 
                       {!shippingOptions.length ? (
                         <p className={capTheme.checkoutError}>
-                          Shipping options are not available yet. Please contact the capsule owner.
+                          Shipping rates are unavailable for this address. Please confirm your address.
                         </p>
                       ) : (
                         <>
