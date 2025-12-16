@@ -190,6 +190,135 @@ function toStringId(value: unknown): string | null {
   return null;
 }
 
+type QueryTimeRange = {
+  since?: string | null;
+  until?: string | null;
+};
+
+function resolveQueryTimeRange(query: string): QueryTimeRange {
+  const lower = query.toLowerCase();
+  const range: QueryTimeRange = {};
+
+  const now = new Date();
+
+   const unitToMs = (unit: string): number => {
+    const normalized = unit.toLowerCase();
+    if (normalized.startsWith("day")) return 24 * 60 * 60 * 1000;
+    if (normalized.startsWith("week")) return 7 * 24 * 60 * 60 * 1000;
+    if (normalized.startsWith("month")) return 30 * 24 * 60 * 60 * 1000;
+    if (normalized.startsWith("year")) return 365 * 24 * 60 * 60 * 1000;
+    return 0;
+  };
+
+  const startOfDay = (date: Date) => {
+    const copy = new Date(date);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
+  };
+  const endOfDay = (date: Date) => {
+    const copy = new Date(date);
+    copy.setHours(23, 59, 59, 999);
+    return copy;
+  };
+
+  const setRange = (since: Date, until?: Date) => {
+    range.since = since.toISOString();
+    if (until) {
+      range.until = until.toISOString();
+    }
+  };
+
+  const numericLastMatch = query.match(/last\s+(\d+)\s*(days?|weeks?|months?|years?)/i);
+  if (numericLastMatch && typeof numericLastMatch[1] === "string") {
+    const amount = Number.parseInt(numericLastMatch[1], 10);
+    const unitSource = typeof numericLastMatch[2] === "string" ? numericLastMatch[2] : "";
+    const ms = Number.isFinite(amount) ? amount * unitToMs(unitSource) : 0;
+    if (ms > 0) {
+      const start = new Date(now.getTime() - ms);
+      setRange(start, now);
+      return range;
+    }
+  }
+
+  const agoMatch = query.match(/(\d+)\s*(days?|weeks?|months?|years?)\s+ago/i);
+  if (agoMatch && typeof agoMatch[1] === "string") {
+    const amount = Number.parseInt(agoMatch[1], 10);
+    const unitSource = typeof agoMatch[2] === "string" ? agoMatch[2] : "";
+    const ms = Number.isFinite(amount) ? amount * unitToMs(unitSource) : 0;
+    if (ms > 0) {
+      const start = new Date(now.getTime() - ms);
+      setRange(start, now);
+      return range;
+    }
+  }
+
+  if (/\btoday\b/.test(lower)) {
+    setRange(startOfDay(now), endOfDay(now));
+    return range;
+  }
+
+  if (/\byesterday\b/.test(lower)) {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    setRange(startOfDay(y), endOfDay(y));
+    return range;
+  }
+
+  if (/\bthis\s+week\b/.test(lower)) {
+    const current = new Date(now);
+    const day = current.getDay(); // 0 (Sun) - 6 (Sat)
+    const diffToMonday = (day + 6) % 7;
+    const start = new Date(current);
+    start.setDate(current.getDate() - diffToMonday);
+    setRange(startOfDay(start), endOfDay(now));
+    return range;
+  }
+
+  if (/\blast\s+week\b/.test(lower)) {
+    const current = new Date(now);
+    const day = current.getDay();
+    const diffToMonday = (day + 6) % 7;
+    const thisWeekStart = new Date(current);
+    thisWeekStart.setDate(current.getDate() - diffToMonday);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(thisWeekStart.getDate() - 1);
+    const lastWeekStart = new Date(lastWeekEnd);
+    lastWeekStart.setDate(lastWeekEnd.getDate() - 6);
+    setRange(startOfDay(lastWeekStart), endOfDay(lastWeekEnd));
+    return range;
+  }
+
+  if (/\bthis\s+month\b/.test(lower)) {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    setRange(startOfDay(start), endOfDay(now));
+    return range;
+  }
+
+  if (/\blast\s+month\b/.test(lower)) {
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(thisMonthStart);
+    lastMonthEnd.setDate(thisMonthStart.getDate() - 1);
+    setRange(startOfDay(lastMonthStart), endOfDay(lastMonthEnd));
+    return range;
+  }
+
+  if (/\bthis\s+year\b/.test(lower)) {
+    const start = new Date(now.getFullYear(), 0, 1);
+    setRange(startOfDay(start), endOfDay(now));
+    return range;
+  }
+
+  if (/\blast\s+year\b/.test(lower)) {
+    const start = new Date(now.getFullYear() - 1, 0, 1);
+    const end = new Date(now.getFullYear() - 1, 11, 31);
+    setRange(startOfDay(start), endOfDay(end));
+    return range;
+  }
+
+  return range;
+}
+
 export async function indexMemory({
   ownerId,
   kind,
@@ -802,6 +931,9 @@ export async function searchMemories({
   const algoliaRecordMap = new Map<string, SearchIndexRecord>();
   const candidateOrder: string[] = [];
   const ranking = new Map<string, number>();
+  const timeRange = resolveQueryTimeRange(trimmed);
+
+  const escapeLike = (value: string) => value.replace(/[%_]/g, "\\$&");
 
   const addCandidate = (id: unknown, score: number) => {
     if (typeof id !== "string" || !id.trim().length) return;
@@ -835,8 +967,18 @@ export async function searchMemories({
 
   if (searchIndex) {
     try {
-      const kindsFilter = filters?.kinds?.filter(Boolean);
-      const filtersForSearch = kindsFilter && kindsFilter.length ? { kinds: kindsFilter } : undefined;
+      const kindsFilter = (filters?.kinds ?? []).filter(
+        (value): value is string => typeof value === "string" && value.trim().length > 0,
+      );
+      const hasKinds = kindsFilter.length > 0;
+      const filtersForSearch =
+        hasKinds || timeRange.since || timeRange.until
+          ? {
+              ...(hasKinds ? { kinds: kindsFilter } : {}),
+              ...(timeRange.since ? { since: timeRange.since } : {}),
+              ...(timeRange.until ? { until: timeRange.until } : {}),
+            }
+          : undefined;
       const matches = await searchIndex.search({
         ownerId,
         text: trimmed,
@@ -858,6 +1000,129 @@ export async function searchMemories({
       });
     } catch (error) {
       console.warn("algolia memory query failed", error);
+    }
+  }
+
+  // If the vector + algolia lookups missed, fall back to a lightweight lexical match on title/description.
+  if (!candidateOrder.length) {
+    const tokens = trimmed
+      .toLowerCase()
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3);
+    const clauses: string[] = [];
+    tokens.forEach((token) => {
+      const escaped = escapeLike(token);
+      clauses.push(`title.ilike.%${escaped}%`);
+      clauses.push(`description.ilike.%${escaped}%`);
+    });
+
+    if (clauses.length) {
+      try {
+        let builder = db
+          .from("memories")
+          .select<{ id: string }>("id")
+          .eq("owner_user_id", ownerId)
+          .eq("is_latest", true);
+
+        if (timeRange.since) {
+          builder = builder.gte("created_at", timeRange.since);
+        }
+        if (timeRange.until) {
+          builder = builder.lte("created_at", timeRange.until);
+        }
+
+        const result = await builder
+          .or(clauses.join(","))
+          .order("created_at", { ascending: false })
+          .limit(Math.max(limit * 2, limit))
+          .fetch();
+
+        if (!result.error && Array.isArray(result.data)) {
+          (result.data as Array<{ id: string | null | undefined }>).forEach((row, index) => {
+            const id = typeof row?.id === "string" ? row.id : null;
+            if (id) {
+              // Lexical matches get a modest score boost; order preserves recency preference.
+              addCandidate(id, 2 - index * 0.001);
+            }
+          });
+        }
+      } catch (error) {
+        console.warn("memory lexical search fallback failed", error);
+      }
+    }
+  }
+
+  const hasTimeFilter = Boolean(timeRange.since || timeRange.until);
+
+  // If a time filter was applied and we still have no candidates, retry Algolia + lexical search without the time constraint.
+  if (hasTimeFilter && !candidateOrder.length && searchIndex) {
+    try {
+      const kindsFilter = (filters?.kinds ?? []).filter(
+        (value): value is string => typeof value === "string" && value.trim().length > 0,
+      );
+      const hasKinds = kindsFilter.length > 0;
+      const filtersForSearch = hasKinds ? { kinds: kindsFilter } : undefined;
+      const matches = await searchIndex.search({
+        ownerId,
+        text: trimmed,
+        limit: Math.max(limit * 3, limit),
+        ...(filtersForSearch ? { filters: filtersForSearch } : {}),
+      });
+      matches.forEach((match, index) => {
+        const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
+        addCandidate(match.id, score);
+        if (match.highlight) {
+          const safeHighlight = sanitizeHighlight(match.highlight);
+          if (safeHighlight) {
+            highlightMap.set(match.id, safeHighlight);
+          }
+        }
+        if (match.record) {
+          algoliaRecordMap.set(match.id, match.record);
+        }
+      });
+    } catch (error) {
+      console.warn("algolia memory query retry without time range failed", error);
+    }
+
+    if (!candidateOrder.length) {
+      const tokens = trimmed
+        .toLowerCase()
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 3);
+      const clauses: string[] = [];
+      tokens.forEach((token) => {
+        const escaped = escapeLike(token);
+        clauses.push(`title.ilike.%${escaped}%`);
+        clauses.push(`description.ilike.%${escaped}%`);
+      });
+
+      if (clauses.length) {
+        try {
+          const result = await db
+            .from("memories")
+            .select<{ id: string }>("id")
+            .eq("owner_user_id", ownerId)
+            .eq("is_latest", true)
+            .or(clauses.join(","))
+            .order("created_at", { ascending: false })
+            .limit(Math.max(limit * 2, limit))
+            .fetch();
+
+          if (!result.error && Array.isArray(result.data)) {
+            (result.data as Array<{ id: string | null | undefined }>).forEach((row, index) => {
+              const id = typeof row?.id === "string" ? row.id : null;
+              if (id) {
+                addCandidate(id, 2 - index * 0.001);
+              }
+            });
+          }
+        } catch (error) {
+          console.warn("memory lexical search retry without time range failed", error);
+        }
+      }
     }
   }
 

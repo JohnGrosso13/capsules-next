@@ -1,16 +1,53 @@
-/* eslint-disable @next/next/no-img-element */
+"use client";
 import * as React from "react";
 
 import styles from "@/components/create/ladders/LadderBuilder.module.css";
+
+import { ProductMockup } from "./ProductMockup";
 import type { ProductPreviewModel } from "./types";
 import type { ProductTemplate } from "./templates";
 
 type ProductPreviewProps = {
   model: ProductPreviewModel;
   template: ProductTemplate;
+  variant?: "panel" | "overlay";
+  onPlacementChange?: (value: { scale?: number; offsetX?: number; offsetY?: number }) => void;
 };
 
-export function ProductPreview({ model, template }: ProductPreviewProps) {
+const COLOR_MATCHES: { match: string; color: string }[] = [
+  { match: "black", color: "#0f172a" },
+  { match: "white", color: "#f8fafc" },
+  { match: "navy", color: "#0a2540" },
+  { match: "charcoal", color: "#374151" },
+  { match: "grey", color: "#94a3b8" },
+  { match: "gray", color: "#94a3b8" },
+  { match: "khaki", color: "#c2a26a" },
+  { match: "brown", color: "#7b4f2a" },
+  { match: "sand", color: "#e7d7b2" },
+  { match: "camo", color: "#4b5b32" },
+  { match: "silver", color: "#cbd5e1" },
+  { match: "gold", color: "#d9b453" },
+];
+
+function clampScale(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(value, 0.4), 1.4) : 1;
+}
+
+function clampOffset(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(value, -1), 1) : 0;
+}
+
+function resolveColorSwatch(label?: string | null) {
+  const normalized = label?.toLowerCase() ?? "";
+  const match = COLOR_MATCHES.find((entry) => normalized.includes(entry.match));
+  return match ? match.color : null;
+}
+
+function uniqueColors(colors: string[]) {
+  return Array.from(new Set(colors.filter(Boolean)));
+}
+
+export function ProductPreview({ model, template, variant = "panel", onPlacementChange }: ProductPreviewProps) {
   const priceLabel = React.useMemo(() => {
     const formatter = new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -19,40 +56,159 @@ export function ProductPreview({ model, template }: ProductPreviewProps) {
     return formatter.format(model.price || 0);
   }, [model.currency, model.price]);
 
-  const mockup = template.mockup ?? {
-    aspectRatio: 3 / 4,
-    printArea: { x: 0.22, y: 0.2, width: 0.56, height: 0.5 },
-    backgroundKind: "generic" as const,
-  };
+  const previewColors = React.useMemo(() => uniqueColors(model.colors), [model.colors]);
+  const [activeColor, setActiveColor] = React.useState<string | null>(model.primaryColor);
+  const [localPlacementScale, setLocalPlacementScale] = React.useState(() =>
+    clampScale(model.placementScale),
+  );
+  const [localPlacementOffsetX, setLocalPlacementOffsetX] = React.useState(() =>
+    clampOffset(model.placementOffsetX),
+  );
+  const [localPlacementOffsetY, setLocalPlacementOffsetY] = React.useState(() =>
+    clampOffset(model.placementOffsetY),
+  );
+  const zoomInputId = React.useId();
+  const offsetXInputId = React.useId();
+  const offsetYInputId = React.useId();
 
-  const printAreaStyle: React.CSSProperties = {
-    left: `${mockup.printArea.x * 100}%`,
-    top: `${mockup.printArea.y * 100}%`,
-    width: `${mockup.printArea.width * 100}%`,
-    height: `${mockup.printArea.height * 100}%`,
-  };
+  React.useEffect(() => {
+    setLocalPlacementScale(clampScale(model.placementScale));
+  }, [model.placementScale]);
 
-  const clampedScale = Number.isFinite(model.placementScale)
-    ? Math.min(Math.max(model.placementScale, 0.4), 1.4)
-    : 1;
-  const clampedOffsetX = Number.isFinite(model.placementOffsetX)
-    ? Math.min(Math.max(model.placementOffsetX, -1), 1)
-    : 0;
-  const clampedOffsetY = Number.isFinite(model.placementOffsetY)
-    ? Math.min(Math.max(model.placementOffsetY, -1), 1)
-    : 0;
+  React.useEffect(() => {
+    setLocalPlacementOffsetX(clampOffset(model.placementOffsetX));
+  }, [model.placementOffsetX]);
 
-  const translateXPercent = clampedOffsetX * 18;
-  const translateYPercent = clampedOffsetY * 18;
+  React.useEffect(() => {
+    setLocalPlacementOffsetY(clampOffset(model.placementOffsetY));
+  }, [model.placementOffsetY]);
 
-  const imageStyle: React.CSSProperties = {
-    transform: `translate(${translateXPercent}%, ${translateYPercent}%) scale(${clampedScale})`,
-    transformOrigin: "center center",
-  };
+  React.useEffect(() => {
+    const fallback = model.primaryColor ?? previewColors[0] ?? null;
+    if (activeColor && previewColors.includes(activeColor)) return;
+    setActiveColor(fallback);
+  }, [activeColor, model.primaryColor, previewColors]);
+
+  const selectedColor = activeColor ?? model.primaryColor ?? null;
+
+  const handlePlacementChange = React.useCallback(
+    (value: number, axis: "scale" | "x" | "y") => {
+      if (axis === "scale") {
+        const clamped = clampScale(value);
+        setLocalPlacementScale(clamped);
+        onPlacementChange?.({ scale: clamped });
+        return;
+      }
+      const clamped = clampOffset(value);
+      if (axis === "x") {
+        setLocalPlacementOffsetX(clamped);
+        onPlacementChange?.({ offsetX: clamped });
+        return;
+      }
+      setLocalPlacementOffsetY(clamped);
+      onPlacementChange?.({ offsetY: clamped });
+    },
+    [onPlacementChange],
+  );
+
+  const resetPlacement = React.useCallback(() => {
+    const defaultScale = clampScale(1);
+    setLocalPlacementScale(defaultScale);
+    setLocalPlacementOffsetX(0);
+    setLocalPlacementOffsetY(0);
+    onPlacementChange?.({ scale: defaultScale, offsetX: 0, offsetY: 0 });
+  }, [onPlacementChange]);
+
+  const mockupPreview = React.useMemo(
+    () => ({
+      ...model,
+      placementScale: localPlacementScale,
+      placementOffsetX: localPlacementOffsetX,
+      placementOffsetY: localPlacementOffsetY,
+    }),
+    [localPlacementOffsetX, localPlacementOffsetY, localPlacementScale, model],
+  );
+
+  const showZoomControl = true;
+  const swatchRow =
+    previewColors.length > 0 ? (
+      <div className={styles.previewSwatchRow} aria-label="Preview colors">
+        {previewColors.map((color) => {
+          const swatchColor = resolveColorSwatch(color);
+          return (
+            <button
+              key={color}
+              type="button"
+              className={styles.previewSwatch}
+              data-active={color === selectedColor}
+              onClick={() => setActiveColor(color)}
+              aria-pressed={color === selectedColor}
+            >
+              <span
+                className={styles.previewSwatchChip}
+                data-empty={!swatchColor}
+                style={swatchColor ? { background: swatchColor } : undefined}
+                aria-hidden="true"
+              />
+              <span className={styles.previewSwatchLabel}>{color}</span>
+            </button>
+          );
+        })}
+      </div>
+    ) : null;
+
+  const placementControls = (
+    <div className={styles.previewPlacementControls} aria-label="Design placement controls">
+      {showZoomControl ? (
+        <label className={`${styles.sliderGroup} ${styles.previewZoomControl}`} htmlFor={zoomInputId}>
+          <span>Zoom</span>
+          <input
+            id={zoomInputId}
+            type="range"
+            min={0.4}
+            max={1.4}
+            step={0.01}
+            value={localPlacementScale}
+            onChange={(event) => handlePlacementChange(parseFloat(event.target.value), "scale")}
+            aria-label="Adjust design zoom"
+          />
+        </label>
+      ) : null}
+      <label className={styles.sliderGroup} htmlFor={offsetXInputId}>
+        <span>X offset</span>
+        <input
+          id={offsetXInputId}
+          type="range"
+          min={-1}
+          max={1}
+          step={0.01}
+          value={localPlacementOffsetX}
+          onChange={(event) => handlePlacementChange(parseFloat(event.target.value), "x")}
+          aria-label="Move design horizontally"
+        />
+      </label>
+      <label className={styles.sliderGroup} htmlFor={offsetYInputId}>
+        <span>Y offset</span>
+        <input
+          id={offsetYInputId}
+          type="range"
+          min={-1}
+          max={1}
+          step={0.01}
+          value={localPlacementOffsetY}
+          onChange={(event) => handlePlacementChange(parseFloat(event.target.value), "y")}
+          aria-label="Move design vertically"
+        />
+      </label>
+      <button type="button" className={styles.previewPlacementReset} onClick={resetPlacement}>
+        Reset
+      </button>
+    </div>
+  );
 
   return (
-    <div className={styles.previewEmbed}>
-      <div className={styles.previewCard}>
+    <div className={styles.previewEmbed} data-variant={variant}>
+      <div className={styles.previewCard} data-variant={variant}>
         <div className={styles.previewHeader}>
           <div>
             <span className={styles.previewLabel}>Capsule store</span>
@@ -67,35 +223,18 @@ export function ProductPreview({ model, template }: ProductPreviewProps) {
           </div>
         </div>
         <div className={styles.previewSections}>
-          <div className={styles.previewSection}>
-            <h4>Mockup</h4>
-            <div className={styles.productMockupStage}>
-              <div
-                className={styles.productMockupInner}
-                style={{ aspectRatio: mockup.aspectRatio || 0 }}
-              >
-                <div className={styles.productMockupSurface} data-kind={mockup.backgroundKind}>
-                  <div className={styles.productMockupGarment} data-kind={mockup.backgroundKind}>
-                    <div
-                      className={styles.productMockupPrintArea}
-                      style={printAreaStyle}
-                      aria-label="Design placement preview"
-                    >
-                      {model.imageUrl ? (
-                        <img
-                          src={model.imageUrl}
-                          alt={`${model.title} preview`}
-                          className={styles.productMockupImage}
-                          style={imageStyle}
-                        />
-                      ) : (
-                        <span className={styles.previewEmpty}>No design linked yet.</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div className={[styles.previewSection, styles.previewSectionMockup].join(" ")}>
+            <div className={styles.previewSectionHeader}>
+              <h4>Mockup</h4>
             </div>
+            {placementControls}
+            {swatchRow}
+            <ProductMockup
+              imageUrl={model.imageUrl}
+              template={template}
+              preview={mockupPreview}
+              selectedColor={selectedColor}
+            />
           </div>
           <div className={styles.previewSection}>
             <h4>Variants</h4>

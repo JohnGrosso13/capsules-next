@@ -65,22 +65,45 @@
 }
 
 .brandMark {
+  --capsule-logo-size: var(--capsule-logo-size-sm, 36px);
+  --capsule-logo-radius: var(--capsule-logo-radius-sm, 12px);
   position: relative;
-  width: 32px;
-  height: 32px;
-  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--capsule-logo-size);
+  height: var(--capsule-logo-size);
+  min-width: var(--capsule-logo-size);
+  min-height: var(--capsule-logo-size);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--capsule-logo-radius);
   overflow: hidden;
   background:
     radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.9), transparent 55%),
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--color-brand-strong) 88%, var(--color-accent) 12%),
-      color-mix(in srgb, var(--color-accent) 70%, var(--color-brand) 30%)
+      color-mix(in srgb, var(--color-brand-strong) 78%, var(--color-accent) 22%),
+      color-mix(in srgb, var(--color-accent) 68%, var(--color-brand) 32%)
     );
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 72%, rgba(255, 255, 255, 0.1));
   box-shadow:
     0 10px 24px rgba(15, 23, 42, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+  flex-shrink: 0;
+  background-size: cover, auto, auto;
+  background-position: center;
+}
+
+.brandMark[data-has-image="true"] {
+  background-image:
+    var(--capsule-logo-src),
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.9), transparent 55%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand-strong) 78%, var(--color-accent) 22%),
+      color-mix(in srgb, var(--color-accent) 68%, var(--color-brand) 32%)
+    );
 }
 
 .brandMarkImage {
@@ -93,6 +116,21 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 rgba(15, 23, 42, 0.75);
+  z-index: 1;
+}
+
+.brandMarkInitial {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 800;
+  color: #fff;
+  font-size: clamp(0.82rem, calc(var(--capsule-logo-size) * 0.42), 1rem);
+  letter-spacing: -0.01em;
+  z-index: 0;
 }
 
 .brandMeta {
@@ -517,6 +555,7 @@
   font-weight: 600;
   color: var(--text-2);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .cardLink:hover {
@@ -744,6 +783,7 @@
 
 .tableCellMuted,
 .tableCellPrimary,
+.tableCellStatus,
 .tableCellRight {
   padding: 10px 0;
   font-size: 0.85rem;
@@ -756,6 +796,10 @@
 
 .tableCellPrimary {
   font-weight: 500;
+}
+
+.tableCellStatus {
+  white-space: nowrap;
 }
 
 .tableCellRight {
@@ -1167,30 +1211,43 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 999px;
+  padding: 4px 10px;
+  border-radius: 10px;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(255, 255, 255, 0.15));
-  background: color-mix(in srgb, var(--color-brand) 28%, rgba(255, 255, 255, 0.05));
+  letter-spacing: 0.06em;
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(255, 255, 255, 0.08));
+  background: color-mix(in srgb, var(--surface-app) 92%, rgba(255, 255, 255, 0.03));
+  color: var(--text);
+}
+.statusPill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 26%, transparent);
 }
 .statusPill[data-tone="success"] {
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.22), rgba(34, 197, 94, 0.5));
-  border-color: rgba(74, 222, 128, 0.9);
+  color: #4ade80;
+  border-color: color-mix(in srgb, #22c55e 50%, var(--surface-outline));
+  background: color-mix(in srgb, #22c55e 12%, transparent);
 }
 .statusPill[data-tone="warning"] {
-  background: linear-gradient(180deg, rgba(234, 179, 8, 0.26), rgba(234, 179, 8, 0.44));
-  border-color: rgba(250, 204, 21, 0.9);
+  color: #fbbf24;
+  border-color: color-mix(in srgb, #f59e0b 50%, var(--surface-outline));
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
 }
 .statusPill[data-tone="danger"] {
-  background: linear-gradient(180deg, rgba(248, 113, 113, 0.22), rgba(239, 68, 68, 0.48));
-  border-color: rgba(248, 113, 113, 0.9);
+  color: #f87171;
+  border-color: color-mix(in srgb, #ef4444 55%, var(--surface-outline));
+  background: color-mix(in srgb, #ef4444 14%, transparent);
 }
 .statusPill[data-tone="info"] {
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.42));
-  border-color: rgba(96, 165, 250, 0.9);
+  color: #60a5fa;
+  border-color: color-mix(in srgb, #3b82f6 50%, var(--surface-outline));
+  background: color-mix(in srgb, #3b82f6 12%, transparent);
 }
 .emptyCard {
   padding: 12px;
@@ -1628,6 +1685,114 @@
   border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.8));
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
   font-size: 0.82rem;
+}
+
+.wizardVariantHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wizardVariantStatus {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--text-2) 86%, rgba(56, 189, 248, 0.8));
+}
+
+.wizardVariantActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wizardActionLink {
+  padding: 0;
+  border: none;
+  background: none;
+  color: color-mix(in srgb, var(--color-brand) 72%, rgba(255, 255, 255, 0.9));
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.wizardActionLink:hover {
+  text-decoration: underline;
+}
+
+.wizardActionDivider {
+  color: var(--text-2);
+}
+
+.wizardChipButton {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.8));
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  font-size: 0.82rem;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 46px;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.wizardChipGhost {
+  opacity: 0.9;
+}
+
+.wizardChipActive {
+  border-color: color-mix(in srgb, var(--color-brand) 65%, var(--surface-outline));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 36%, rgba(15, 23, 42, 0.8)),
+    rgba(15, 23, 42, 0.98)
+  );
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.wizardChipLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wizardChipCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand) 80%, var(--color-accent));
+  color: rgba(15, 23, 42, 0.95);
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.wizardVariantWarning {
+  color: #fca5a5;
+  font-size: 0.82rem;
+}
+
+.wizardPreviewMeta {
+  display: grid;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.wizardVariantSummary {
+  font-weight: 700;
+}
+
+.wizardVariantHint {
+  font-size: 0.8rem;
+  color: var(--text-2);
 }
 
 @media (max-width: 1024px) {

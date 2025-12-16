@@ -51,6 +51,12 @@ const MEMORY_HINT_KEYWORDS = new Set([
   "posts",
   "story",
   "stories",
+  "birthday",
+  "anniversary",
+  "holiday",
+  "party",
+  "vacation",
+  "trip",
   "yesterday",
   "today",
   "last",
@@ -125,6 +131,14 @@ function logMetric(event: string, detail: Record<string, unknown>) {
   console.info("search-metric", payload);
 }
 
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3);
+}
+
 function scoreMatch(haystack: string | null | undefined, needle: string): number {
   if (!haystack) return 0;
   const lower = haystack.toLowerCase();
@@ -136,6 +150,7 @@ function scoreMatch(haystack: string | null | undefined, needle: string): number
 
 function rerankSections(sections: GlobalSearchSection[], query: string): GlobalSearchSection[] {
   const needle = query.toLowerCase();
+  const tokens = tokenizeQuery(query);
   if (!needle) return sections;
 
   const rerankUsers = (items: UserSearchResult[]) => {
@@ -157,12 +172,63 @@ function rerankSections(sections: GlobalSearchSection[], query: string): GlobalS
   };
 
   const rerankMemories = (items: MemorySearchResult[]) => {
+    const scoreTokenMatches = (haystack: string | null | undefined): number => {
+      if (!haystack || !tokens.length) return 0;
+      const lower = haystack.toLowerCase();
+      let score = 0;
+      tokens.forEach((token) => {
+        if (!token) return;
+        if (lower === token) {
+          score += 8;
+        } else if (lower.startsWith(token)) {
+          score += 5;
+        } else if (lower.includes(token)) {
+          score += 3;
+        }
+      });
+      return score;
+    };
+
+    const scoreMetaHints = (memory: MemorySearchResult): number => {
+      const meta = (memory.meta ?? {}) as Record<string, unknown>;
+      let score = 0;
+
+      const tags = Array.isArray(meta.summary_tags) ? (meta.summary_tags as unknown[]) : [];
+      tags.forEach((tag) => {
+        if (typeof tag === "string") {
+          score += scoreTokenMatches(tag);
+        }
+      });
+
+      const entities =
+        meta.summary_entities && typeof meta.summary_entities === "object"
+          ? (meta.summary_entities as Record<string, unknown>)
+          : null;
+      if (entities) {
+        Object.values(entities).forEach((value) => {
+          if (Array.isArray(value)) {
+            value.forEach((entry) => {
+              if (typeof entry === "string") {
+                score += scoreTokenMatches(entry);
+              }
+            });
+          }
+        });
+      }
+
+      return score;
+    };
+
     return items
       .map((memory) => {
-        const score = Math.max(
+        const baseScore = Math.max(
           scoreMatch(memory.title ?? null, needle),
           scoreMatch(memory.description ?? null, needle),
         );
+        const tokenScore =
+          scoreTokenMatches(memory.title ?? null) + scoreTokenMatches(memory.description ?? null);
+        const metaScore = scoreMetaHints(memory);
+        const score = baseScore + tokenScore + metaScore;
         return { item: memory, score };
       })
       .sort((a, b) => b.score - a.score);

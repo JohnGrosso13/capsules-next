@@ -24,13 +24,21 @@ type VariantDraft = {
   sortOrder?: number;
 };
 
+function clampScale(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(value, 0.4), 1.4) : 1;
+}
+
+function clampOffset(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(value, -1), 1) : 0;
+}
+
 function normalizeSelection(options?: string[] | null): string[] {
   return (options ?? []).filter((value) => Boolean(value && value.trim().length));
 }
 
 export function useProductWizard({ capsuleId, capsuleName, template }: UseProductWizardArgs) {
   const initialColors = React.useMemo(() => normalizeSelection(template.colors), [template.colors]);
-const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [template.sizes]);
+  const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [template.sizes]);
   const [form, setForm] = React.useState<ProductFormState>(() => ({
     templateId: template.id,
     title: `${template.label} design`,
@@ -199,14 +207,20 @@ const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [te
 
   const completionMap = React.useMemo<Record<ProductStepId, boolean>>(
     () => ({
-      design: Boolean(form.designUrl && form.designUrl.trim().length),
-      details: Boolean(form.title.trim().length && form.summary.trim().length),
+      design:
+        Boolean(form.designPrompt && form.designPrompt.trim().length) ||
+        Boolean(form.designUrl && form.designUrl.trim().length),
+      title: Boolean(form.title.trim().length),
+      details: Boolean(form.summary.trim().length),
       pricing: form.price > 0,
       review: Boolean(
-        form.designUrl && form.designUrl.trim().length && form.title.trim().length && form.price > 0,
+        (form.designPrompt?.trim().length || (form.designUrl && form.designUrl.trim().length)) &&
+        form.title.trim().length &&
+        form.summary.trim().length &&
+        form.price > 0,
       ),
     }),
-    [form.designUrl, form.price, form.summary, form.title],
+    [form.designPrompt, form.designUrl, form.price, form.summary, form.title],
   );
 
   const stepIds = React.useMemo(() => PRODUCT_STEPS.map((step) => step.id), []);
@@ -230,7 +244,16 @@ const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [te
   }, [nextStepId]);
 
   const updateFormField = React.useCallback(<K extends keyof ProductFormState>(field: K, value: ProductFormState[K]) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      let nextValue = value;
+      if (field === "mockScale" && typeof value === "number") {
+        nextValue = clampScale(value) as ProductFormState[K];
+      }
+      if ((field === "mockOffsetX" || field === "mockOffsetY") && typeof value === "number") {
+        nextValue = clampOffset(value) as ProductFormState[K];
+      }
+      return { ...prev, [field]: nextValue };
+    });
   }, []);
 
   const toggleSelection = React.useCallback((field: "selectedColors" | "selectedSizes", value: string) => {
@@ -274,13 +297,12 @@ const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [te
     return drafts;
   }, [form.price, form.selectedColors, form.selectedSizes, template.label]);
 
-  const previewModel: ProductPreviewModel = React.useMemo(
-    () => ({
+  const previewModel: ProductPreviewModel = React.useMemo(() => {
+    const primaryColor = form.selectedColors[0] ?? form.availableColors[0] ?? null;
+
+    return {
       title: form.title.trim().length ? form.title.trim() : template.label,
-      summary:
-        form.summary.trim().length || !template.note
-          ? form.summary.trim()
-          : template.note ?? "",
+      summary: form.summary.trim().length || !template.note ? form.summary.trim() : template.note ?? "",
       price: form.price,
       currency: form.currency,
       imageUrl: form.designUrl && form.designUrl.trim().length ? form.designUrl.trim() : null,
@@ -288,34 +310,34 @@ const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [te
       templateId: template.id,
       capsuleName,
       colors: form.selectedColors.length ? form.selectedColors : form.availableColors,
+      primaryColor,
       sizes: form.selectedSizes.length ? form.selectedSizes : form.availableSizes,
       featured: form.featured,
       publish: form.publish,
       placementScale: form.mockScale,
       placementOffsetX: form.mockOffsetX,
       placementOffsetY: form.mockOffsetY,
-    }),
-    [
-      capsuleName,
-      form.availableColors,
-      form.availableSizes,
-      form.currency,
-      form.designUrl,
-      form.featured,
-      form.price,
-      form.publish,
-      form.selectedColors,
-      form.selectedSizes,
-      form.summary,
-      form.title,
-      form.mockOffsetX,
-      form.mockOffsetY,
-      form.mockScale,
-      template.id,
-      template.label,
-      template.note,
-    ],
-  );
+    };
+  }, [
+    capsuleName,
+    form.availableColors,
+    form.availableSizes,
+    form.currency,
+    form.designUrl,
+    form.featured,
+    form.price,
+    form.publish,
+    form.selectedColors,
+    form.selectedSizes,
+    form.summary,
+    form.title,
+    form.mockOffsetX,
+    form.mockOffsetY,
+    form.mockScale,
+    template.id,
+    template.label,
+    template.note,
+  ]);
 
   const resetFormState = React.useCallback(() => {
     setForm({
@@ -491,7 +513,6 @@ const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [te
         throw new Error("Image generation response did not include a URL.");
       }
       setForm((previous) => ({ ...previous, designUrl: url }));
-      setStatusMessage("Capsule AI generated art for this product.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to generate product art.");
     } finally {

@@ -18,6 +18,7 @@ type ProductWizardViewProps = {
   renderFormContent: (stepControls: React.ReactNode) => React.ReactNode;
   formContentRef: React.RefObject<HTMLDivElement | null>;
   previewPanel: React.ReactNode;
+  previewOverlayPanel?: React.ReactNode;
   previewMode?: boolean;
   isSaving: boolean;
   publish: boolean;
@@ -37,6 +38,7 @@ const ProductWizardView = React.memo(function ProductWizardView({
   renderFormContent,
   formContentRef,
   previewPanel,
+  previewOverlayPanel,
   previewMode = false,
   isSaving,
   publish,
@@ -45,6 +47,34 @@ const ProductWizardView = React.memo(function ProductWizardView({
 }: ProductWizardViewProps) {
   const [showOptions, setShowOptions] = React.useState(false);
   const [showPreviewOverlay, setShowPreviewOverlay] = React.useState(false);
+  const optionsRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!showOptions) return;
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (optionsRef.current && optionsRef.current.contains(target)) return;
+      setShowOptions(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowOptions(false);
+      }
+    };
+
+    window.addEventListener("mousedown", handlePointerDown, true);
+    window.addEventListener("touchstart", handlePointerDown, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown, true);
+      window.removeEventListener("touchstart", handlePointerDown, true);
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [showOptions]);
 
   const stepControls = (
     <div className={styles.stepControls} aria-label="Step controls">
@@ -52,7 +82,7 @@ const ProductWizardView = React.memo(function ProductWizardView({
         <Button type="button" variant="ghost" onClick={onBack} disabled={!previousStepId}>
           Back
         </Button>
-        <div className={styles.moreActions}>
+        <div className={styles.moreActions} ref={optionsRef}>
           <Button
             type="button"
             variant="ghost"
@@ -137,7 +167,7 @@ const ProductWizardView = React.memo(function ProductWizardView({
               </button>
             </div>
             <div className={[styles.mobileSheetContent, styles.mobilePreviewContent].filter(Boolean).join(" ")}>
-              {previewPanel}
+              {previewOverlayPanel ?? previewPanel}
             </div>
           </div>
         </div>

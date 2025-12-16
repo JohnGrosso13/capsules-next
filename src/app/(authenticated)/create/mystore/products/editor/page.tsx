@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
@@ -8,6 +9,7 @@ import layoutStyles from "@/components/create/competitive/CompetitiveStudioLayou
 import { ProductBuilder } from "@/components/create/products/ProductBuilder";
 import { PRODUCT_CATEGORIES, findTemplateById } from "@/components/create/products/templates";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
+import { deriveRequestOrigin } from "@/lib/url";
 import { getUserCapsules, type CapsuleSummary } from "@/server/capsules/service";
 
 import { StoreCapsuleGate } from "../../StoreCapsuleGate";
@@ -40,12 +42,17 @@ export default async function ProductEditorPage({ searchParams }: ProductEditorP
     avatar_url: user.imageUrl ?? null,
   });
 
+  const headerList = await headers();
+  const requestOrigin = deriveRequestOrigin({ headers: headerList }) ?? null;
+
   const resolvedParams =
     typeof searchParams === "object" && searchParams !== null && typeof (searchParams as Promise<unknown>).then === "function"
       ? await (searchParams as Promise<ProductEditorSearchParams>)
       : (searchParams as ProductEditorSearchParams | undefined) ?? {};
 
-  const ownedCapsules = (await getUserCapsules(supabaseUserId)).filter((capsule) => capsule.ownership === "owner");
+  const ownedCapsules = (await getUserCapsules(supabaseUserId, { origin: requestOrigin })).filter(
+    (capsule) => capsule.ownership === "owner",
+  );
   const requestedCapsuleId = resolvedParams?.capsuleId ?? null;
   const selectedCapsule: CapsuleSummary | null =
     requestedCapsuleId && requestedCapsuleId.trim().length

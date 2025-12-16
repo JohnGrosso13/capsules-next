@@ -19,6 +19,14 @@ type ProductBuilderProps = {
   template: ProductTemplate;
 };
 
+function clampScale(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(value, 0.4), 1.4) : 1;
+}
+
+function clampOffset(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(value, -1), 1) : 0;
+}
+
 export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
   const wizard = useProductWizard({
     capsuleId: capsule.id,
@@ -32,16 +40,23 @@ export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
       ? (PRODUCT_STEPS[stepIndex + 1]?.id as ProductStepId | undefined)
       : null;
   const nextStep = wizard.nextStep ?? (nextStepId ? PRODUCT_STEPS.find((step) => step.id === nextStepId) ?? null : null);
+  const handlePlacementChange = React.useCallback(
+    (value: { scale?: number; offsetX?: number; offsetY?: number }) => {
+      if (typeof value.scale === "number") {
+        wizard.updateFormField("mockScale", clampScale(value.scale));
+      }
+      if (typeof value.offsetX === "number") {
+        wizard.updateFormField("mockOffsetX", clampOffset(value.offsetX));
+      }
+      if (typeof value.offsetY === "number") {
+        wizard.updateFormField("mockOffsetY", clampOffset(value.offsetY));
+      }
+    },
+    [wizard.updateFormField],
+  );
 
   const renderFormContent = (stepControls: React.ReactNode) => (
     <>
-      <div className={styles.selectedCapsuleBanner}>
-        <div>
-          <div className={styles.capsuleLabel}>Capsule</div>
-          <div className={styles.capsuleName}>{capsule.name ?? "Capsule store"}</div>
-        </div>
-        <div className={styles.fieldHint}>Products sync to this storefront.</div>
-      </div>
       <ProductStepContent
         activeStep={wizard.activeStep}
         form={wizard.form}
@@ -51,7 +66,6 @@ export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
         errorMessage={wizard.errorMessage}
         stepControls={stepControls}
         onFieldChange={wizard.updateFormField}
-        onToggleColor={(value) => wizard.toggleSelection("selectedColors", value)}
         onToggleSize={(value) => wizard.toggleSelection("selectedSizes", value)}
         onAskAiDraft={wizard.requestAiDraft}
         aiDraftBusy={wizard.aiDraftBusy}
@@ -62,7 +76,22 @@ export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
     </>
   );
 
-  const previewPanel = <ProductPreview model={wizard.previewModel} template={template} />;
+  const previewPanel = (
+    <ProductPreview
+      model={wizard.previewModel}
+      template={template}
+      variant="panel"
+      onPlacementChange={handlePlacementChange}
+    />
+  );
+  const previewOverlayPanel = (
+    <ProductPreview
+      model={wizard.previewModel}
+      template={template}
+      variant="overlay"
+      onPlacementChange={handlePlacementChange}
+    />
+  );
 
   return (
     <div className={styles.builderWrap}>
@@ -80,6 +109,7 @@ export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
           renderFormContent={renderFormContent}
           formContentRef={wizard.formContentRef}
           previewPanel={previewPanel}
+          previewOverlayPanel={previewOverlayPanel}
           previewMode={false}
           isSaving={wizard.isSaving}
           publish={wizard.form.publish}

@@ -1,10 +1,11 @@
-import Image from "next/image";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 
 import { AppPage } from "@/components/app-page";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
+import { deriveRequestOrigin } from "@/lib/url";
 import {
   CapsuleMembershipError,
   getUserCapsules,
@@ -15,6 +16,7 @@ import { listOrdersForCapsuleOwner } from "@/server/store/service";
 
 import { StoreCapsuleGate } from "../StoreCapsuleGate";
 import { StoreNavigation } from "../StoreNavigation";
+import { resolveCapsuleAvatar } from "../resolveCapsuleAvatar";
 import styles from "../mystore.page.module.css";
 
 export const metadata: Metadata = {
@@ -241,14 +243,17 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
     avatar_url: user.imageUrl ?? null,
   });
 
-  const ownedCapsules = (await getUserCapsules(supabaseUserId)).filter(
+  const headerList = await headers();
+  const requestOrigin = deriveRequestOrigin({ headers: headerList }) ?? null;
+
+  const ownedCapsules = (await getUserCapsules(supabaseUserId, { origin: requestOrigin })).filter(
     (capsule) => capsule.ownership === "owner",
   );
   const requestedCapsuleId = searchParams?.capsuleId?.trim() ?? null;
   const selectedCapsule: CapsuleSummary | null =
     requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
-  const selectedCapsuleLogo =
-    selectedCapsule?.logoUrl && selectedCapsule.logoUrl.trim().length ? selectedCapsule.logoUrl : null;
+  const { avatarUrl: selectedCapsuleLogo, avatarInitial: selectedCapsuleInitial } =
+    resolveCapsuleAvatar(selectedCapsule, requestOrigin);
   const selectedCapsuleId = selectedCapsule?.id ?? null;
   const showSelector = !selectedCapsule;
   const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
@@ -291,7 +296,9 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
   );
   const displayOrders = sortedOrders.length ? sortedOrders : MOCK_ORDER_ENTRIES;
 
-  const manageHref = selectedCapsuleId ? `/capsule?capsuleId=${selectedCapsuleId}&tab=store` : "#";
+  const brandGradient =
+    "radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.9), transparent 55%), " +
+    "linear-gradient(135deg, color-mix(in srgb, var(--color-brand-strong) 78%, var(--color-accent) 22%), color-mix(in srgb, var(--color-accent) 68%, var(--color-brand) 32%))";
 
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
@@ -299,21 +306,21 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
         <header className={styles.header}>
           <div className={styles.headerTop}>
             <div className={styles.brand}>
-              <div className={styles.brandMark} aria-hidden="true">
-                {selectedCapsuleLogo ? (
-                  <Image
-                    src={selectedCapsuleLogo}
-                    alt={selectedCapsule?.name ? `${selectedCapsule.name} logo` : "Capsule logo"}
-                    className={styles.brandMarkImage}
-                    loading="lazy"
-                    fill
-                    sizes="32px"
-                    priority={false}
-                  />
-                ) : null}
+              <div
+                className={styles.brandMark}
+                aria-hidden="true"
+                style={
+                  selectedCapsuleLogo
+                    ? {
+                        backgroundImage: `url("${selectedCapsuleLogo}"), ${brandGradient}`,
+                      }
+                    : undefined
+                }
+              >
+                <span className={styles.brandMarkInitial}>{selectedCapsuleInitial}</span>
               </div>
               <div className={styles.brandMeta}>
-                <div className={styles.brandTitle}>My Store</div>
+                  <div className={styles.brandTitle}>My Store</div>
                 <div className={styles.brandSubtitle}>
                   {selectedCapsule
                     ? selectedCapsule.name ?? "Capsule store"
@@ -322,14 +329,6 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
               </div>
             </div>
             <div className={styles.headerActions}>
-              <a
-                href={manageHref}
-                className={styles.newProductButton}
-                aria-disabled={!selectedCapsule}
-                data-disabled={!selectedCapsule ? "true" : undefined}
-              >
-                + New product
-              </a>
               <a href={switchHref} className={styles.chipButton} data-variant="ghost">
                 Open Capsule Gate
               </a>
@@ -420,7 +419,7 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
                         <td className={styles.tableCellMuted}>#{ref}</td>
                         <td className={styles.tableCellMuted}>{formattedDate}</td>
                         <td className={styles.tableCellPrimary}>{customer}</td>
-                        <td>
+                        <td className={styles.tableCellStatus}>
                           <span className={styles.statusPill} data-tone={statusTone}>
                             {displayStatus}
                           </span>

@@ -19,7 +19,7 @@ export const useToastNotifications = () => {
   const dismissToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
     const timerId = timers.current[id];
-    if (typeof timerId === "number") {
+    if (timerId !== undefined) {
       window.clearTimeout(timerId);
       delete timers.current[id];
     }
@@ -29,7 +29,7 @@ export const useToastNotifications = () => {
     (toast: Omit<LadderToast, "id">) => {
       const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setToasts((prev) => [...prev, { ...toast, id }]);
-      if (!toast.persist) {
+      if (!toast.persist && typeof window !== "undefined") {
         const duration =
           typeof toast.durationMs === "number"
             ? toast.durationMs
@@ -49,13 +49,34 @@ export const useToastNotifications = () => {
   React.useEffect(() => {
     return () => {
       Object.values(timers.current).forEach((timerId) => {
-        if (typeof timerId === "number") {
-          window.clearTimeout(timerId);
-        }
+        window.clearTimeout(timerId);
       });
       timers.current = {};
     };
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const active = new Set(toasts.map((toast) => toast.id));
+
+    Object.entries(timers.current).forEach(([id, timerId]) => {
+      if (!active.has(id)) {
+        window.clearTimeout(timerId);
+        delete timers.current[id];
+      }
+    });
+
+    toasts.forEach((toast) => {
+      if (toast.persist || timers.current[toast.id]) return;
+      const duration =
+        typeof toast.durationMs === "number"
+          ? toast.durationMs
+          : toast.tone === "danger"
+            ? 6000
+            : 4200;
+      timers.current[toast.id] = window.setTimeout(() => dismissToast(toast.id), duration);
+    });
+  }, [dismissToast, toasts]);
 
   return { toasts, pushToast, dismissToast };
 };

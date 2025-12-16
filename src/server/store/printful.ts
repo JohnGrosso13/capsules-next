@@ -517,3 +517,177 @@ export async function ensurePrintfulWebhookRegistered(options?: {
     console.warn("printful.webhook.ensure_failed", error);
   }
 }
+
+export type PrintfulMockupImage = {
+  url: string;
+  position: string | null;
+  variantIds: number[];
+};
+
+type MockupTaskResult =
+  | { status: "pending" | "failed"; taskKey: string; error?: string | null }
+  | { status: "completed"; taskKey: string; mockups: PrintfulMockupImage[] };
+
+async function createPrintfulMockupTask(params: {
+  productId: number;
+  variantIds: number[];
+  imageUrl: string;
+  placement?: string | null;
+  storeId?: string | null;
+}): Promise<MockupTaskResult> {
+  if (!hasPrintfulCredentials()) {
+    return { status: "failed", taskKey: "", error: "Printful API key is not configured" };
+  }
+  const endpoint = new URL(`${getPrintfulApiBase()}/mockup-generator/create-task/${params.productId}`);
+  const resolvedStoreId = params.storeId ?? serverEnv.PRINTFUL_STORE_ID;
+  if (resolvedStoreId) {
+    endpoint.searchParams.set("store_id", resolvedStoreId);
+  }
+
+  const placement = params.placement ?? "front";
+  const payload = {
+    variant_ids: params.variantIds,
+    format: "png",
+    files: [
+      {
+        placement,
+        position: placement, // some Printful endpoints require `position`; sending both avoids 400 "Position field is missing"
+        url: params.imageUrl,
+      },
+    ],
+  };
+
+  const response = await fetch(endpoint.toString(), {
+    method: "POST",
+    headers: getPrintfulHeaders(),
+    body: JSON.stringify(payload),
+  }).catch((error: unknown) => {
+    throw new Error(error instanceof Error ? error.message : "Failed to call Printful mockup API");
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    return {
+      status: "failed",
+      taskKey: "",
+      error: text || `Printful mockup create failed (${response.status})`,
+    };
+  }
+
+  const json = (await response.json().catch(() => null)) as { result?: { task_key?: string } } | null;
+  const taskKey = json?.result?.task_key;
+  if (!taskKey) {
+    return { status: "failed", taskKey: "", error: "Printful mockup task key missing" };
+  }
+  return { status: "pending", taskKey };
+}
+
+async function fetchPrintfulMockupTask(
+  taskKey: string,
+  storeId?: string | null,
+): Promise<MockupTaskResult> {
+  if (!hasPrintfulCredentials()) {
+    return { status: "failed", taskKey, error: "Printful API key is not configured" };
+  }
+  const endpoint = new URL(`${getPrintfulApiBase()}/mockup-generator/task`);
+  endpoint.searchParams.set("task_key", taskKey);
+  const resolvedStoreId = storeId ?? serverEnv.PRINTFUL_STORE_ID;
+  if (resolvedStoreId) {
+    endpoint.searchParams.set("store_id", resolvedStoreId);
+  }
+
+  const response = await fetch(endpoint.toString(), {
+    headers: getPrintfulHeaders(),
+  }).catch((error: unknown) => {
+    throw new Error(error instanceof Error ? error.message : "Failed to poll Printful mockup task");
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    return {
+      status: "failed",
+      taskKey,
+      error: text || `Printful mockup poll failed (${response.status})`,
+    };
+  }
+
+  type RawMockup = {
+    mockup_url?: string | null;
+    placement?: string | null;
+    variant_ids?: number[];
+    variant_id?: number | null;
+  };
+  const json = (await response.json().catch(() => null)) as {
+    result?: {
+      status?: string;
+      mockups?: RawMockup[];
+      error?: string;
+    };
+  } | null;
+  const status = json?.result?.status ?? "pending";
+  if (status === "failed") {
+    return {
+      status: "failed",
+      taskKey,
+      error: json?.result?.error ?? "Printful mockup failed",
+    };
+  }
+  if (status !== "completed") {
+    return { status: "pending", taskKey };
+  }
+
+  const mockups =
+    (json?.result?.mockups ?? [])
+      .map((mockup) => {
+        const url = typeof mockup.mockup_url === "string" ? mockup.mockup_url : null;
+        if (!url) return null;
+        const variantIds: number[] = [];
+        if (Array.isArray(mockup.variant_ids)) {
+          mockup.variant_ids.forEach((id) => {
+            if (typeof id === "number" && Number.isFinite(id)) variantIds.push(id);
+          });
+        } else if (typeof mockup.variant_id === "number" && Number.isFinite(mockup.variant_id)) {
+          variantIds.push(mockup.variant_id);
+        }
+        return {
+          url,
+          position: mockup.placement ?? null,
+          variantIds,
+        } satisfies PrintfulMockupImage;
+      })
+      .filter(Boolean) as PrintfulMockupImage[];
+
+  if (!mockups.length) {
+    return { status: "failed", taskKey, error: "Printful returned no mockup images" };
+  }
+
+  return { status: "completed", taskKey, mockups };
+}
+
+export async function generatePrintfulMockup(params: {
+  productId: number;
+  variantIds: number[];
+  imageUrl: string;
+  placement?: string | null;
+  storeId?: string | null;
+  timeoutMs?: number;
+  pollIntervalMs?: number;
+}): Promise<MockupTaskResult> {
+  const created = await createPrintfulMockupTask(params);
+  if (created.status === "failed") return created;
+
+  const timeoutMs = Number.isFinite(params.timeoutMs) ? Number(params.timeoutMs) : 25000;
+  const pollIntervalMs = Number.isFinite(params.pollIntervalMs) ? Number(params.pollIntervalMs) : 2000;
+  const deadline = Date.now() + timeoutMs;
+
+  let lastResult: MockupTaskResult = { status: "pending", taskKey: created.taskKey };
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    lastResult = await fetchPrintfulMockupTask(created.taskKey, params.storeId);
+    if (lastResult.status === "completed" || lastResult.status === "failed") {
+      return lastResult;
+    }
+  }
+
+  return { status: "failed", taskKey: created.taskKey, error: "Printful mockup timed out" };
+}

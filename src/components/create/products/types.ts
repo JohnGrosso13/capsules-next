@@ -1,4 +1,4 @@
-export type ProductStepId = "design" | "details" | "pricing" | "review";
+export type ProductStepId = "design" | "title" | "details" | "pricing" | "review";
 
 export type ProductFormState = {
   templateId: string;
@@ -29,6 +29,7 @@ export type ProductPreviewModel = {
   templateId: string;
   capsuleName: string;
   colors: string[];
+  primaryColor: string | null;
   sizes: string[];
   featured: boolean;
   publish: boolean;

@@ -1,7 +1,12 @@
 import * as React from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AssistantPrompter } from "@/components/create/ladders/components/AssistantPrompter";
+import type { AssistantMessage } from "@/components/create/ladders/assistantTypes";
 import styles from "@/components/create/ladders/LadderBuilder.module.css";
+import { useAttachmentUpload } from "@/hooks/useAttachmentUpload";
 
 import type { ProductFormState, ProductStepId } from "./types";
 import type { ProductTemplate } from "./templates";
@@ -15,7 +20,6 @@ type ProductStepContentProps = {
   errorMessage: string | null;
   stepControls: React.ReactNode;
   onFieldChange: <K extends keyof ProductFormState>(field: K, value: ProductFormState[K]) => void;
-  onToggleColor: (value: string) => void;
   onToggleSize: (value: string) => void;
   onAskAiDraft: () => void;
   aiDraftBusy: boolean;
@@ -24,45 +28,206 @@ type ProductStepContentProps = {
   onOpenMemoryPicker: () => void;
 };
 
-function renderChips(options: string[], selected: string[], onToggle: (value: string) => void) {
-  return (
-    <div className={styles.pillGroup}>
-      {options.map((value) => {
-        const isActive = selected.includes(value);
-        return (
-          <button
-            key={value}
-            type="button"
-            className={styles.pillButton}
-            data-state={isActive ? "active" : undefined}
-            onClick={() => onToggle(value)}
-            aria-pressed={isActive}
-          >
-            {value}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 export function ProductStepContent({
   activeStep,
   form,
   template,
-  capsuleName,
+  capsuleName: _capsuleName,
   statusMessage,
   errorMessage,
   stepControls,
   onFieldChange,
-  onToggleColor,
-  onToggleSize,
+  onToggleSize: _onToggleSize,
   onAskAiDraft,
   aiDraftBusy,
   onGenerateImage,
   imageBusy,
   onOpenMemoryPicker,
 }: ProductStepContentProps) {
+  const [assistantDraft, setAssistantDraft] = React.useState("");
+  const [assistantConversation, setAssistantConversation] = React.useState<AssistantMessage[]>(() => [
+    {
+      id: "ai-title-welcome",
+      sender: "ai",
+      text: "Tell me the vibe, game, who it's for, and what's at stake. I can help with a title, one-line summary, rules, or rewards-whatever you need.",
+      timestamp: Date.now(),
+    },
+  ]);
+  const [summaryAssistantDraft, setSummaryAssistantDraft] = React.useState("");
+  const [summaryAssistantConversation, setSummaryAssistantConversation] = React.useState<AssistantMessage[]>(() => [
+    {
+      id: "ai-summary-welcome",
+      sender: "ai",
+      text: "Tell me the vibe, game, who it's for, and what's at stake. I can help with a title, one-line summary, rules, or rewards-whatever you need.",
+      timestamp: Date.now(),
+    },
+  ]);
+  const [pricingAssistantDraft, setPricingAssistantDraft] = React.useState("");
+  const [pricingAssistantConversation, setPricingAssistantConversation] = React.useState<AssistantMessage[]>(() => [
+    {
+      id: "ai-pricing-welcome",
+      sender: "ai",
+      text: "What's your target price and margin? I can help you choose something fair for buyers that still hits your goals.",
+      timestamp: Date.now(),
+    },
+  ]);
+  const [designAssistantDraft, setDesignAssistantDraft] = React.useState("");
+  const [designAssistantConversation, setDesignAssistantConversation] = React.useState<AssistantMessage[]>(() => [
+    {
+      id: "ai-design-welcome",
+      sender: "ai",
+      text: "Describe the product, the vibe, materials, and who it's for. I can help plan the design and callouts.",
+      timestamp: Date.now(),
+    },
+  ]);
+
+  const handleAssistantSend = React.useCallback(() => {
+    const trimmed = assistantDraft.trim();
+    if (!trimmed.length) return;
+    const now = Date.now();
+    const userMessage: AssistantMessage = { id: `user-${now}`, sender: "user", text: trimmed, timestamp: now };
+    const aiFollowUp: AssistantMessage = {
+      id: `ai-${Date.now()}`,
+      sender: "ai",
+      text: "Got it. I'll use that context to refine your title ideas.",
+      timestamp: Date.now(),
+    };
+    setAssistantConversation((prev) => [...prev, userMessage, aiFollowUp]);
+    setAssistantDraft("");
+  }, [assistantDraft]);
+
+  const handleSummaryAssistantSend = React.useCallback(() => {
+    const trimmed = summaryAssistantDraft.trim();
+    if (!trimmed.length) return;
+    const now = Date.now();
+    const userMessage: AssistantMessage = { id: `user-summary-${now}`, sender: "user", text: trimmed, timestamp: now };
+    const aiFollowUp: AssistantMessage = {
+      id: `ai-summary-${Date.now()}`,
+      sender: "ai",
+      text: "Understood. I'll use this to improve your product description and summary.",
+      timestamp: Date.now(),
+    };
+    setSummaryAssistantConversation((prev) => [...prev, userMessage, aiFollowUp]);
+    setSummaryAssistantDraft("");
+  }, [summaryAssistantDraft]);
+
+  const handleDesignAssistantSend = React.useCallback(() => {
+    const trimmed = designAssistantDraft.trim();
+    if (!trimmed.length) return;
+    const now = Date.now();
+    const userMessage: AssistantMessage = { id: `user-design-${now}`, sender: "user", text: trimmed, timestamp: now };
+    const aiFollowUp: AssistantMessage = {
+      id: `ai-design-${Date.now()}`,
+      sender: "ai",
+      text: "Thanks-I'll keep this in mind for the design details.",
+      timestamp: Date.now(),
+    };
+    setDesignAssistantConversation((prev) => [...prev, userMessage, aiFollowUp]);
+    setDesignAssistantDraft("");
+    onFieldChange("designPrompt", trimmed);
+  }, [designAssistantDraft, onFieldChange]);
+
+  const handlePricingAssistantSend = React.useCallback(() => {
+    const trimmed = pricingAssistantDraft.trim();
+    if (!trimmed.length) return;
+    const now = Date.now();
+    const userMessage: AssistantMessage = { id: `user-pricing-${now}`, sender: "user", text: trimmed, timestamp: now };
+    let aiText = "Got it. I'll keep that in mind as you set your price.";
+    const match = trimmed.match(/(\d+(\.\d+)?)/);
+    const amountText = match?.[1];
+    if (amountText) {
+      const parsed = Number.parseFloat(amountText);
+      if (Number.isFinite(parsed)) {
+        aiText = `Setting your price near ${parsed.toFixed(2)}. Adjust as needed.`;
+        onFieldChange("price", parsed);
+      }
+    }
+    const aiFollowUp: AssistantMessage = {
+      id: `ai-pricing-${Date.now()}`,
+      sender: "ai",
+      text: aiText,
+      timestamp: Date.now(),
+    };
+    setPricingAssistantConversation((prev) => [...prev, userMessage, aiFollowUp]);
+    setPricingAssistantDraft("");
+  }, [onFieldChange, pricingAssistantDraft]);
+
+  const handleAssistantKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handleAssistantSend();
+      }
+    },
+    [handleAssistantSend],
+  );
+
+  const handleSummaryAssistantKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handleSummaryAssistantSend();
+      }
+    },
+    [handleSummaryAssistantSend],
+  );
+
+  const handleDesignAssistantKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handleDesignAssistantSend();
+      }
+    },
+    [handleDesignAssistantSend],
+  );
+
+  const handlePricingAssistantKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        handlePricingAssistantSend();
+      }
+    },
+    [handlePricingAssistantSend],
+  );
+
+  const {
+    fileInputRef: designFileInputRef,
+    attachment: designAttachment,
+    readyAttachment: designReadyAttachment,
+    uploading: designAttachmentUploading,
+    handleAttachClick: handleDesignUploadClick,
+    handleAttachmentSelect: handleDesignAttachmentSelect,
+  } = useAttachmentUpload();
+
+  React.useEffect(() => {
+    if (!designReadyAttachment?.url) return;
+    onFieldChange("designUrl", designReadyAttachment.url);
+  }, [designReadyAttachment, onFieldChange]);
+
+  const designUploadStatus = React.useMemo(() => {
+    if (designAttachmentUploading && designAttachment) {
+      const percent =
+        typeof designAttachment.progress === "number" && Number.isFinite(designAttachment.progress)
+          ? Math.min(100, Math.max(0, Math.round(designAttachment.progress * 100)))
+          : null;
+      if (designAttachment.phase === "finalizing") return "Finalizing upload...";
+      return percent && percent > 0 ? `Uploading... ${percent}%` : "Uploading file...";
+    }
+    if (designAttachment?.status === "error") {
+      return designAttachment.error || "Upload failed. Try another file.";
+    }
+    if (designReadyAttachment?.name || designReadyAttachment?.url) {
+      const label = designReadyAttachment?.name?.trim().length ? designReadyAttachment.name : "Upload";
+      return `Linked ${label}`;
+    }
+    if (form.designUrl?.trim()) {
+      return "Design image linked.";
+    }
+    return "Upload an image or reuse something from your memories.";
+  }, [designAttachment, designAttachmentUploading, designReadyAttachment, form.designUrl]);
+
   const renderStatus = () => {
     if (statusMessage) {
       return (
@@ -85,219 +250,180 @@ export function ProductStepContent({
 
   const designStep = (
     <div className={styles.cardContent}>
-      <div className={styles.stepHero}>
-        <span className={styles.stepHeroLabel}>Design surface</span>
-        <h2 className={styles.stepHeroTitle}>{template.label}</h2>
-        <p className={styles.stepHeroSubtitle}>
-          Upload or link your art, pick colors/sizes, and set the rough placement. Capsule will keep this aligned with Printful.
-        </p>
-      </div>
-      <div className={styles.sectionGrid}>
-        <div className={styles.sectionCard}>
-          <div className={styles.sectionLabel}>
-            <span className={styles.label}>Design image URL</span>
-            <span className={styles.fieldHint}>Paste a hosted image URL (Memory asset or CDN). This is what we send to Printful.</span>
-          </div>
-          <input
-            type="url"
-            className={styles.memberNameInput}
-            placeholder="https://..."
-            value={form.designUrl}
-            onChange={(event) => onFieldChange("designUrl", event.target.value)}
-          />
-          <div className={styles.guidedActionBar} style={{ marginTop: 8 }}>
-            <button
+      <Card className={styles.namingPanel} variant="ghost">
+        <CardHeader className={`${styles.namingHeader} ${styles.titleHeaderCenter}`}>
+          <CardTitle className={`${styles.namingTitle} ${styles.namingTitleCenter}`}>Describe your product</CardTitle>
+        </CardHeader>
+        <CardContent className={styles.namingBody}>
+          <div className={styles.assetActions}>
+            <Button
               type="button"
-              className={styles.pillButton}
-              onClick={onOpenMemoryPicker}
+              variant="secondary"
+              size="sm"
+              onClick={handleDesignUploadClick}
+              loading={designAttachmentUploading}
             >
+              Upload file
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenMemoryPicker}>
               Browse memories
-            </button>
-            <span className={styles.guidedHint}>Pick an existing upload or capsule asset.</span>
+            </Button>
+            <input
+              ref={designFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleDesignAttachmentSelect}
+              style={{ display: "none" }}
+            />
+            <span className={styles.assetHint} aria-live="polite">
+              {designUploadStatus}
+            </span>
           </div>
-          <div className={styles.guidedActionBar} style={{ marginTop: 10 }}>
-            <button
-              type="button"
-              className={styles.pillButton}
-              onClick={onGenerateImage}
-              disabled={imageBusy}
-            >
-              {imageBusy ? "Generating art with Capsule AI..." : "Generate art with Capsule AI"}
-            </button>
-            <span className={styles.guidedHint}>Use your prompt below to create a print-ready graphic.</span>
+          <div className={styles.namingOr}>
+            <span>or chat with Capsule AI</span>
           </div>
-          <label className={styles.label} htmlFor="design-notes">
-            Design notes (optional)
-          </label>
+          <AssistantPrompter
+            placeholder="Example: Limited-run hoodie collab with embroidered logo, heavy weight, unisex fit..."
+            conversation={designAssistantConversation}
+            draft={designAssistantDraft}
+            busy={imageBusy}
+            onDraftChange={setDesignAssistantDraft}
+            onKeyDown={handleDesignAssistantKeyDown}
+            onSend={() => {
+              handleDesignAssistantSend();
+              onGenerateImage();
+            }}
+          />
+        </CardContent>
+      </Card>
+      {stepControls}
+    </div>
+  );
+
+  const titleStep = (
+    <div className={styles.cardContent}>
+      <Card className={styles.namingPanel} variant="ghost">
+        <CardHeader className={`${styles.namingHeader} ${styles.titleHeaderCenter}`}>
+          <CardTitle className={`${styles.namingTitle} ${styles.namingTitleCenter}`}>Title</CardTitle>
+        </CardHeader>
+        <CardContent className={styles.namingBody}>
           <textarea
-            id="design-notes"
-            className={styles.textarea}
-            placeholder="Tell Capsule AI what to tweak or how to place the art."
-            value={form.designPrompt}
-            onChange={(event) => onFieldChange("designPrompt", event.target.value)}
+            className={styles.namingTextArea}
+            placeholder="Give your product a title..."
+            value={form.title}
+            onChange={(event) => onFieldChange("title", event.target.value)}
+            rows={2}
           />
-        </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.sectionLabel}>
-            <span className={styles.label}>Colors</span>
-            <span className={styles.fieldHint}>Turn on the colorways you want to sell.</span>
+          <div className={styles.namingOr}>
+            <span>or chat with Capsule AI</span>
           </div>
-          {template.colors?.length ? renderChips(form.availableColors, form.selectedColors, onToggleColor) : <p className={styles.fieldHint}>This product has a single color.</p>}
-          <div className={styles.sectionLabel} style={{ marginTop: 12 }}>
-            <span className={styles.label}>Sizes</span>
-            <span className={styles.fieldHint}>Toggle the sizes you’ll publish.</span>
-          </div>
-          {template.sizes?.length ? renderChips(form.availableSizes, form.selectedSizes, onToggleSize) : <p className={styles.fieldHint}>One-size product.</p>}
-        </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.sectionLabel}>
-            <span className={styles.label}>Placement quick tweaks</span>
-            <span className={styles.fieldHint}>Dial in how large the graphic should sit in the print area.</span>
-          </div>
-          <label className={styles.label} htmlFor="placement-scale">
-            Scale
-          </label>
-          <input
-            id="placement-scale"
-            type="range"
-            min="0.4"
-            max="1.2"
-            step="0.02"
-            value={form.mockScale}
-            onChange={(event) => onFieldChange("mockScale", Number(event.target.value))}
+          <AssistantPrompter
+            placeholder="Ask for title ideas or anything you need help with..."
+            conversation={assistantConversation}
+            draft={assistantDraft}
+            busy={false}
+            onDraftChange={setAssistantDraft}
+            onKeyDown={handleAssistantKeyDown}
+            onSend={handleAssistantSend}
           />
-          <div className={styles.fieldRow}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="placement-x">
-                Offset X
-              </label>
-              <input
-                id="placement-x"
-                type="number"
-                className={styles.memberNumberInput}
-                value={form.mockOffsetX}
-                onChange={(event) => onFieldChange("mockOffsetX", Number(event.target.value))}
-              />
-            </div>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="placement-y">
-                Offset Y
-              </label>
-              <input
-                id="placement-y"
-                type="number"
-                className={styles.memberNumberInput}
-                value={form.mockOffsetY}
-                onChange={(event) => onFieldChange("mockOffsetY", Number(event.target.value))}
-              />
-            </div>
-          </div>
-          <p className={styles.fieldHint}>
-            Capsule will normalize these values to the Printful print area when you publish.
-          </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       {stepControls}
     </div>
   );
 
   const detailsStep = (
     <div className={styles.cardContent}>
-      <div className={styles.stepHero}>
-        <span className={styles.stepHeroLabel}>Storefront copy</span>
-        <h2 className={styles.stepHeroTitle}>Tell shoppers what this is</h2>
-        <p className={styles.stepHeroSubtitle}>
-          Capsule AI can punch this up later, but start with a clear title and a short summary for your {template.label.toLowerCase()}.
-        </p>
-      </div>
-      <div className={styles.sectionGrid}>
-        <div className={styles.sectionCard}>
-          <label className={styles.label} htmlFor="product-title">
-            Title
-          </label>
-          <input
-            id="product-title"
-            className={styles.memberNameInput}
-            placeholder={`${template.label} for ${capsuleName}`}
-            value={form.title}
-            onChange={(event) => onFieldChange("title", event.target.value)}
-          />
-          <label className={styles.label} htmlFor="product-summary" style={{ marginTop: 12 }}>
-            Summary
-          </label>
+      <Card className={styles.namingPanel} variant="ghost">
+        <CardHeader className={`${styles.namingHeader} ${styles.titleHeaderCenter}`}>
+          <CardTitle className={`${styles.namingTitle} ${styles.namingTitleCenter}`}>Description</CardTitle>
+        </CardHeader>
+        <CardContent className={styles.namingBody}>
           <textarea
-            id="product-summary"
-            className={styles.textarea}
-            placeholder="What makes this design special? Fit, fabric, story, or who it supports."
+            className={styles.namingTextArea}
+            placeholder="Write a description that sells the story, fit, and who it’s for..."
             value={form.summary}
             onChange={(event) => onFieldChange("summary", event.target.value)}
+            rows={3}
           />
-          <div className={styles.guidedActionBar} style={{ marginTop: 8 }}>
-            <button
-              type="button"
-              className={styles.pillButton}
-              onClick={onAskAiDraft}
-              disabled={aiDraftBusy}
-            >
-              {aiDraftBusy ? "Capsule AI drafting..." : "Ask Capsule AI to draft copy"}
-            </button>
-            <span className={styles.guidedHint}>Capsule can propose a title and summary from your design notes.</span>
+          <div className={styles.namingOr}>
+            <span>or chat with Capsule AI</span>
           </div>
-        </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.sectionLabel}>
-            <span className={styles.label}>Template</span>
-            <span className={styles.fieldHint}>Base: {template.base ?? "Printful base product"}</span>
-          </div>
-          <p className={styles.fieldHint}>
-            Colors: {form.availableColors.length ? form.availableColors.join(", ") : "Single color"}
-          </p>
-          <p className={styles.fieldHint}>
-            Sizes: {form.availableSizes.length ? form.availableSizes.join(", ") : "One size"}
-          </p>
-          <p className={styles.fieldHint}>
-            Capsule: {capsuleName}
-          </p>
-        </div>
-      </div>
+          <AssistantPrompter
+            placeholder="Who is this for? What’s the vibe? Any shoutouts or causes to mention?"
+            conversation={summaryAssistantConversation}
+            draft={summaryAssistantDraft}
+            busy={aiDraftBusy}
+            onDraftChange={setSummaryAssistantDraft}
+            onKeyDown={handleSummaryAssistantKeyDown}
+            onSend={() => {
+              handleSummaryAssistantSend();
+              onAskAiDraft();
+            }}
+          />
+        </CardContent>
+      </Card>
       {stepControls}
     </div>
   );
 
   const pricingStep = (
     <div className={styles.cardContent}>
+      <Card className={styles.namingPanel} variant="ghost">
+        <CardHeader className={`${styles.namingHeader} ${styles.titleHeaderCenter}`}>
+          <CardTitle className={`${styles.namingTitle} ${styles.namingTitleCenter}`}>Pricing</CardTitle>
+        </CardHeader>
+        <CardContent className={styles.namingBody}>
+          <div className={styles.pricingInputShell}>
+            <span className={styles.pricingCurrency}>USD</span>
+            <input
+              className={styles.pricingInput}
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={Number.isFinite(form.price) ? form.price.toFixed(2) : ""}
+              onChange={(event) => onFieldChange("price", Number.parseFloat(event.target.value))}
+            />
+          </div>
+          <div className={styles.namingOr}>
+            <span>or chat with Capsule AI</span>
+          </div>
+          <AssistantPrompter
+            placeholder="Share your target margin or competitor pricing and I'll suggest a price..."
+            conversation={pricingAssistantConversation}
+            draft={pricingAssistantDraft}
+            busy={false}
+            onDraftChange={setPricingAssistantDraft}
+            onKeyDown={handlePricingAssistantKeyDown}
+            onSend={handlePricingAssistantSend}
+          />
+        </CardContent>
+      </Card>
+      {stepControls}
+    </div>
+  );
+
+  const reviewStep = (
+    <div className={styles.cardContent}>
       <div className={styles.stepHero}>
-        <span className={styles.stepHeroLabel}>Pricing</span>
-        <h2 className={styles.stepHeroTitle}>Set your margin</h2>
+        <span className={styles.stepHeroLabel}>Review</span>
+        <h2 className={styles.stepHeroTitle}>Ready to publish?</h2>
         <p className={styles.stepHeroSubtitle}>
-          One price for all variants. You can refine per-variant pricing later in the store dashboard.
+          Double-check the design URL, colors/sizes, and pricing. Capsule will sync these variants to your Printful-backed store.
         </p>
       </div>
       <div className={styles.sectionGrid}>
         <div className={styles.sectionCard}>
-          <label className={styles.label} htmlFor="product-price">
-            Price
-          </label>
-          <input
-            id="product-price"
-            type="number"
-            min="0"
-            step="0.5"
-            className={styles.memberNumberInput}
-            value={form.price}
-            onChange={(event) => onFieldChange("price", Number(event.target.value))}
-          />
-          <label className={styles.label} htmlFor="product-currency" style={{ marginTop: 12 }}>
-            Currency
-          </label>
-          <select
-            id="product-currency"
-            className={styles.select}
-            value={form.currency}
-            onChange={(event) => onFieldChange("currency", event.target.value)}
-          >
-            <option value="usd">USD</option>
-          </select>
+          <strong>{form.title.trim() || template.label}</strong>
+          <p className={styles.fieldHint}>{form.summary.trim() || "No summary yet."}</p>
+          <p className={styles.fieldHint}>Price: {form.currency.toUpperCase()} {form.price.toFixed(2)}</p>
+          <p className={styles.fieldHint}>Colors: {form.selectedColors.length ? form.selectedColors.join(", ") : "Default"}</p>
+          <p className={styles.fieldHint}>Sizes: {form.selectedSizes.length ? form.selectedSizes.join(", ") : "Default"}</p>
+          <p className={styles.fieldHint}>Publish: {form.publish ? "On" : "Draft"}</p>
+          <p className={styles.fieldHint}>Featured: {form.featured ? "Yes" : "No"}</p>
+          <p className={styles.fieldHint}>Design image: {form.designUrl ? "Linked" : "Missing"}</p>
         </div>
         <div className={styles.sectionCard}>
           <div className={styles.fieldGroup}>
@@ -328,35 +454,12 @@ export function ProductStepContent({
     </div>
   );
 
-  const reviewStep = (
-    <div className={styles.cardContent}>
-      <div className={styles.stepHero}>
-        <span className={styles.stepHeroLabel}>Review</span>
-        <h2 className={styles.stepHeroTitle}>Ready to publish?</h2>
-        <p className={styles.stepHeroSubtitle}>
-          Double-check the design URL, colors/sizes, and pricing. Capsule will sync these variants to your Printful-backed store.
-        </p>
-      </div>
-      <div className={styles.sectionGrid}>
-        <div className={styles.sectionCard}>
-          <strong>{form.title.trim() || template.label}</strong>
-          <p className={styles.fieldHint}>{form.summary.trim() || "No summary yet."}</p>
-          <p className={styles.fieldHint}>Price: {form.currency.toUpperCase()} {form.price.toFixed(2)}</p>
-          <p className={styles.fieldHint}>Colors: {form.selectedColors.length ? form.selectedColors.join(", ") : "Default"}</p>
-          <p className={styles.fieldHint}>Sizes: {form.selectedSizes.length ? form.selectedSizes.join(", ") : "Default"}</p>
-          <p className={styles.fieldHint}>Publish: {form.publish ? "On" : "Draft"}</p>
-          <p className={styles.fieldHint}>Featured: {form.featured ? "Yes" : "No"}</p>
-          <p className={styles.fieldHint}>Design image: {form.designUrl ? "Linked" : "Missing"}</p>
-        </div>
-      </div>
-      {stepControls}
-    </div>
-  );
-
   const body = (() => {
     switch (activeStep) {
       case "design":
         return designStep;
+      case "title":
+        return titleStep;
       case "details":
         return detailsStep;
       case "pricing":

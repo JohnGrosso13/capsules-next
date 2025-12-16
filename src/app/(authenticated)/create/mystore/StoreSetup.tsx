@@ -6,10 +6,9 @@ import styles from "./mystore.page.module.css";
 
 type StoreSetupProps = {
   capsuleId: string | null;
-  ordersHref: string;
 };
 
-export function StoreSetup({ capsuleId, ordersHref }: StoreSetupProps) {
+export function StoreSetup({ capsuleId }: StoreSetupProps) {
   const [connectError, setConnectError] = React.useState<string | null>(null);
 
   const handleConnect = React.useCallback(() => {
@@ -45,16 +44,6 @@ export function StoreSetup({ capsuleId, ordersHref }: StoreSetupProps) {
         <div>
           <h2 className={styles.cardTitle}>Store setup</h2>
           <p className={styles.cardSubtitle}>Connect payouts before you launch.</p>
-        </div>
-        <div className={styles.inlineActions}>
-          <a
-            className={styles.cardLink}
-            href={ordersHref}
-            aria-disabled={!capsuleId}
-            data-disabled={!capsuleId ? "true" : undefined}
-          >
-            View seller orders
-          </a>
         </div>
       </header>
       {connectError ? <p className={styles.connectError}>{connectError}</p> : null}
