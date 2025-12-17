@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProductPreview } from "../ProductPreview";
+import { resolvePlacement } from "../placement";
 import type { ProductPreviewModel } from "../types";
 import type { ProductTemplate } from "../templates";
 
@@ -31,6 +32,17 @@ const template: ProductTemplate = {
   },
 };
 
+const placement = resolvePlacement(template, {
+  surface: "front",
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  fit: "standard",
+  prompt: null,
+  summary: null,
+  source: "user",
+});
+
 const model: ProductPreviewModel = {
   title: "Sample Tee",
   summary: "Sample summary",
@@ -45,9 +57,10 @@ const model: ProductPreviewModel = {
   sizes: ["M"],
   featured: true,
   publish: true,
-  placementScale: 1,
-  placementOffsetX: 0,
-  placementOffsetY: 0,
+  placement,
+  placementScale: placement.plan.scale,
+  placementOffsetX: placement.plan.offsetX,
+  placementOffsetY: placement.plan.offsetY,
 };
 
 describe("ProductPreview", () => {

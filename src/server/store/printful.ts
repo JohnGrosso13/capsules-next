@@ -528,12 +528,22 @@ type MockupTaskResult =
   | { status: "pending" | "failed"; taskKey: string; error?: string | null }
   | { status: "completed"; taskKey: string; mockups: PrintfulMockupImage[] };
 
+export type PrintfulPlacementPosition = {
+  areaWidth: number;
+  areaHeight: number;
+  width: number;
+  height: number;
+  top: number;
+  left: number;
+};
+
 async function createPrintfulMockupTask(params: {
   productId: number;
   variantIds: number[];
   imageUrl: string;
   placement?: string | null;
   storeId?: string | null;
+  position?: PrintfulPlacementPosition | null;
 }): Promise<MockupTaskResult> {
   if (!hasPrintfulCredentials()) {
     return { status: "failed", taskKey: "", error: "Printful API key is not configured" };
@@ -545,13 +555,28 @@ async function createPrintfulMockupTask(params: {
   }
 
   const placement = params.placement ?? "front";
+  const resolvedPosition: PrintfulPlacementPosition = {
+    areaWidth: Math.max(1, Math.round(params.position?.areaWidth ?? 1800)),
+    areaHeight: Math.max(1, Math.round(params.position?.areaHeight ?? 2400)),
+    width: Math.max(1, Math.round(params.position?.width ?? 1800)),
+    height: Math.max(1, Math.round(params.position?.height ?? 2400)),
+    top: Math.max(0, Math.round(params.position?.top ?? 0)),
+    left: Math.max(0, Math.round(params.position?.left ?? 0)),
+  };
   const payload = {
     variant_ids: params.variantIds,
     format: "png",
     files: [
       {
         placement,
-        position: placement, // some Printful endpoints require `position`; sending both avoids 400 "Position field is missing"
+        position: {
+          area_width: resolvedPosition.areaWidth,
+          area_height: resolvedPosition.areaHeight,
+          width: resolvedPosition.width,
+          height: resolvedPosition.height,
+          top: resolvedPosition.top,
+          left: resolvedPosition.left,
+        },
         url: params.imageUrl,
       },
     ],
@@ -670,6 +695,7 @@ export async function generatePrintfulMockup(params: {
   imageUrl: string;
   placement?: string | null;
   storeId?: string | null;
+  position?: PrintfulPlacementPosition | null;
   timeoutMs?: number;
   pollIntervalMs?: number;
 }): Promise<MockupTaskResult> {

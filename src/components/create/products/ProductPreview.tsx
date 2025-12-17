@@ -2,6 +2,8 @@
 import * as React from "react";
 
 import styles from "@/components/create/ladders/LadderBuilder.module.css";
+import { resolvePlacement } from "./placement";
+import { clampPlacementOffset, clampPlacementScale } from "./placement-types";
 
 import { ProductMockup } from "./ProductMockup";
 import type { ProductPreviewModel } from "./types";
@@ -30,11 +32,11 @@ const COLOR_MATCHES: { match: string; color: string }[] = [
 ];
 
 function clampScale(value: number) {
-  return Number.isFinite(value) ? Math.min(Math.max(value, 0.4), 1.4) : 1;
+  return clampPlacementScale(value);
 }
 
 function clampOffset(value: number) {
-  return Number.isFinite(value) ? Math.min(Math.max(value, -1), 1) : 0;
+  return clampPlacementOffset(value);
 }
 
 function resolveColorSwatch(label?: string | null) {
@@ -59,29 +61,29 @@ export function ProductPreview({ model, template, variant = "panel", onPlacement
   const previewColors = React.useMemo(() => uniqueColors(model.colors), [model.colors]);
   const [activeColor, setActiveColor] = React.useState<string | null>(model.primaryColor);
   const [localPlacementScale, setLocalPlacementScale] = React.useState(() =>
-    clampScale(model.placementScale),
+    clampScale(model.placement.plan.scale),
   );
   const [localPlacementOffsetX, setLocalPlacementOffsetX] = React.useState(() =>
-    clampOffset(model.placementOffsetX),
+    clampOffset(model.placement.plan.offsetX),
   );
   const [localPlacementOffsetY, setLocalPlacementOffsetY] = React.useState(() =>
-    clampOffset(model.placementOffsetY),
+    clampOffset(model.placement.plan.offsetY),
   );
   const zoomInputId = React.useId();
   const offsetXInputId = React.useId();
   const offsetYInputId = React.useId();
 
   React.useEffect(() => {
-    setLocalPlacementScale(clampScale(model.placementScale));
-  }, [model.placementScale]);
+    setLocalPlacementScale(clampScale(model.placement.plan.scale));
+  }, [model.placement.plan.scale]);
 
   React.useEffect(() => {
-    setLocalPlacementOffsetX(clampOffset(model.placementOffsetX));
-  }, [model.placementOffsetX]);
+    setLocalPlacementOffsetX(clampOffset(model.placement.plan.offsetX));
+  }, [model.placement.plan.offsetX]);
 
   React.useEffect(() => {
-    setLocalPlacementOffsetY(clampOffset(model.placementOffsetY));
-  }, [model.placementOffsetY]);
+    setLocalPlacementOffsetY(clampOffset(model.placement.plan.offsetY));
+  }, [model.placement.plan.offsetY]);
 
   React.useEffect(() => {
     const fallback = model.primaryColor ?? previewColors[0] ?? null;
@@ -119,14 +121,38 @@ export function ProductPreview({ model, template, variant = "panel", onPlacement
     onPlacementChange?.({ scale: defaultScale, offsetX: 0, offsetY: 0 });
   }, [onPlacementChange]);
 
+  const livePlacement = React.useMemo(
+    () => {
+      const resolved = resolvePlacement(template, {
+        ...model.placement.plan,
+        scale: localPlacementScale,
+        offsetX: localPlacementOffsetX,
+        offsetY: localPlacementOffsetY,
+      });
+      return {
+        ...resolved,
+        summary: { ...resolved.summary, warnings: model.placement.summary.warnings },
+      };
+    },
+    [
+      localPlacementOffsetX,
+      localPlacementOffsetY,
+      localPlacementScale,
+      model.placement.plan,
+      model.placement.summary.warnings,
+      template,
+    ],
+  );
+
   const mockupPreview = React.useMemo(
     () => ({
       ...model,
-      placementScale: localPlacementScale,
-      placementOffsetX: localPlacementOffsetX,
-      placementOffsetY: localPlacementOffsetY,
+      placement: livePlacement,
+      placementScale: livePlacement.plan.scale,
+      placementOffsetX: livePlacement.plan.offsetX,
+      placementOffsetY: livePlacement.plan.offsetY,
     }),
-    [localPlacementOffsetX, localPlacementOffsetY, localPlacementScale, model],
+    [livePlacement, model],
   );
 
   const showZoomControl = true;
@@ -206,6 +232,17 @@ export function ProductPreview({ model, template, variant = "panel", onPlacement
     </div>
   );
 
+  const placementSummary = (
+    <div className={styles.previewMetaBlock}>
+      <span className={styles.previewMetaLabel}>Placement</span>
+      <span className={styles.previewMetaValue}>{livePlacement.summary.text}</span>
+    </div>
+  );
+  const placementWarnings =
+    livePlacement.summary.warnings && livePlacement.summary.warnings.length ? (
+      <p className={styles.previewMetaHint}>Notes: {livePlacement.summary.warnings.join(" ")}</p>
+    ) : null;
+
   return (
     <div className={styles.previewEmbed} data-variant={variant}>
       <div className={styles.previewCard} data-variant={variant}>
@@ -252,6 +289,8 @@ export function ProductPreview({ model, template, variant = "panel", onPlacement
             <p className={styles.previewMetaHint}>
               Publish: {model.publish ? "Immediately" : "Save as draft"}
             </p>
+            {placementSummary}
+            {placementWarnings}
           </div>
         </div>
       </div>

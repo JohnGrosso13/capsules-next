@@ -58,6 +58,149 @@ const EMPTY_INVITES: CapsuleMembershipState["invites"] = [];
 const EMPTY_FOLLOWERS: CapsuleMembershipState["followers"] = [];
 const EMPTY_FRIENDS: FriendItem[] = [];
 
+const ROLE_COLUMN_ORDER: MemberRoleValue[] = ["member", "leader", "admin", "founder"];
+
+type RoleSummary = {
+  id: MemberRoleValue;
+  label: string;
+  bullets: string[];
+};
+
+const ROLE_SUMMARIES: RoleSummary[] = [
+  {
+    id: "founder",
+    label: "Founder",
+    bullets: [
+      "Owns the capsule and can change any setting, including deletion.",
+      "Can promote/demote members, including Admins and Leaders, and remove members.",
+      "Has full control over the store, streams, ladders, and advanced configuration.",
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    bullets: [
+      "Manages members: approve requests, invite people, change roles up to Leader.",
+      "Helps run the capsule store, analytics, and most configuration.",
+      "Moderates content and events alongside Founders and Leaders.",
+    ],
+  },
+  {
+    id: "leader",
+    label: "Leader",
+    bullets: [
+      "Creates and manages ladders, events, and streams for the community.",
+      "Can invite members and help moderate posts, comments, and activity.",
+      "Cannot change global capsule settings or store configuration.",
+    ],
+  },
+  {
+    id: "member",
+    label: "Member",
+    bullets: [
+      "Can post, comment, react, and upload media in the capsule feed.",
+      "Can join ladders, events, and streams that are open to members.",
+      "Cannot manage other members or change capsule settings.",
+    ],
+  },
+];
+
+type RolePermissionRowId =
+  | "post_comment"
+  | "join_events"
+  | "create_events"
+  | "invite_members"
+  | "approve_requests"
+  | "change_roles"
+  | "remove_members"
+  | "moderate_content"
+  | "manage_store"
+  | "view_analytics"
+  | "change_settings"
+  | "delete_capsule";
+
+type RolePermissionRow = {
+  id: RolePermissionRowId;
+  label: string;
+  description: string;
+  roles: MemberRoleValue[];
+};
+
+const ROLE_PERMISSION_ROWS: RolePermissionRow[] = [
+  {
+    id: "post_comment",
+    label: "Post & comment",
+    description: "Create posts, comments, and reactions in the capsule feed.",
+    roles: ["member", "leader", "admin", "founder"],
+  },
+  {
+    id: "join_events",
+    label: "Join ladders & events",
+    description: "Participate in ladders, events, and streams that allow members.",
+    roles: ["member", "leader", "admin", "founder"],
+  },
+  {
+    id: "create_events",
+    label: "Create ladders & events",
+    description: "Set up ladders, events, or live sessions for the capsule.",
+    roles: ["leader", "admin", "founder"],
+  },
+  {
+    id: "invite_members",
+    label: "Invite members",
+    description: "Send invitations for people to join this capsule.",
+    roles: ["leader", "admin", "founder"],
+  },
+  {
+    id: "approve_requests",
+    label: "Approve join requests",
+    description: "Approve or decline member requests when the capsule is request-only.",
+    roles: ["admin", "founder"],
+  },
+  {
+    id: "change_roles",
+    label: "Change member roles",
+    description: "Promote or demote other members between Member, Leader, and Admin.",
+    roles: ["admin", "founder"],
+  },
+  {
+    id: "remove_members",
+    label: "Remove members",
+    description: "Remove members from the capsule when needed.",
+    roles: ["admin", "founder"],
+  },
+  {
+    id: "moderate_content",
+    label: "Moderate posts & comments",
+    description: "Hide or remove problematic posts, comments, and entries.",
+    roles: ["leader", "admin", "founder"],
+  },
+  {
+    id: "manage_store",
+    label: "Manage store",
+    description: "Create and edit products, change pricing, and control visibility.",
+    roles: ["admin", "founder"],
+  },
+  {
+    id: "view_analytics",
+    label: "View analytics",
+    description: "Access capsule insights, post performance, and store stats.",
+    roles: ["admin", "founder"],
+  },
+  {
+    id: "change_settings",
+    label: "Change capsule settings",
+    description: "Edit capsule name, branding, membership policy, and advanced options.",
+    roles: ["admin", "founder"],
+  },
+  {
+    id: "delete_capsule",
+    label: "Delete capsule & billing",
+    description: "Delete the capsule or change billing-linked configuration.",
+    roles: ["founder"],
+  },
+];
+
 function resolveMemberRole(member: { role: string | null; isOwner: boolean }): MemberRoleValue {
   if (member.isOwner) return "founder";
   const normalized = typeof member.role === "string" ? member.role.trim().toLowerCase() : null;
@@ -195,6 +338,9 @@ export function CapsuleMembersPanel({
   const canRemoveMembers = Boolean(viewer?.canRemoveMembers);
   const isOwner = Boolean(viewer?.isOwner);
   const requestStatus = viewer?.requestStatus ?? "none";
+  const viewerRole: MemberRoleValue | null = viewer
+    ? resolveMemberRole({ role: viewer.role, isOwner: viewer.isOwner })
+    : null;
   const canLeaveCapsule = Boolean(onLeave && viewer?.isMember && !viewer.isOwner);
   const leaveBusy = mutatingAction === "leave";
   const handleLeaveCapsule = React.useCallback(() => {
@@ -250,6 +396,21 @@ export function CapsuleMembersPanel({
   const hasFollowers = followers.length > 0;
 
   const [roleHelpOpen, setRoleHelpOpen] = React.useState(false);
+  const roleDialogTitleId = "capsule-role-permissions-heading";
+
+  React.useEffect(() => {
+    if (!roleHelpOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setRoleHelpOpen(false);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+    return undefined;
+  }, [roleHelpOpen]);
 
   const tabItems = React.useMemo(() => {
     const items: Array<{ id: MemberPanelTab; label: string; badge: number }> = [
@@ -279,6 +440,131 @@ export function CapsuleMembersPanel({
 
   return (
     <aside className={styles.panel} aria-live="polite">
+      {roleHelpOpen ? (
+        <div
+          className={styles.roleDrawerOverlay}
+          role="presentation"
+          onClick={() => setRoleHelpOpen(false)}
+        >
+          <div
+            className={styles.roleDrawer}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={roleDialogTitleId}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className={styles.roleDrawerHeader}>
+              <div className={styles.roleDrawerTitleGroup}>
+                <h4 id={roleDialogTitleId} className={styles.roleDrawerTitle}>
+                  Roles and permissions
+                </h4>
+                <p className={styles.roleDrawerSubtitle}>
+                  Compare what each role can do before assigning it to members.
+                </p>
+              </div>
+              <button
+                type="button"
+                className={styles.button}
+                data-variant="icon"
+                onClick={() => setRoleHelpOpen(false)}
+                aria-label="Close role overview"
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </header>
+
+            <section className={styles.roleCardsSection} aria-label="Role summaries">
+              <div className={styles.roleCardsGrid}>
+                {ROLE_SUMMARIES.map((role) => {
+                  const isViewerRole = viewerRole === role.id;
+                  return (
+                    <article key={role.id} className={styles.roleCard}>
+                      <header className={styles.roleCardHeader}>
+                        <span className={styles.roleCardLabel}>{role.label}</span>
+                        {isViewerRole ? (
+                          <span className={styles.roleCardBadge}>Your role</span>
+                        ) : null}
+                      </header>
+                      <ul className={styles.roleCardList}>
+                        {role.bullets.map((bullet) => (
+                          <li key={bullet}>{bullet}</li>
+                        ))}
+                      </ul>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className={styles.roleMatrixSection} aria-label="Detailed role permissions">
+              <header className={styles.roleMatrixHeader}>
+                <h5 className={styles.roleMatrixTitle}>Detailed permissions</h5>
+                <p className={styles.roleMatrixHint}>
+                  A checkmark means that role can perform the action for this capsule.
+                </p>
+              </header>
+              <div className={styles.roleMatrixScroll}>
+                <table className={styles.roleMatrix}>
+                  <thead>
+                    <tr>
+                      <th scope="col" className={styles.roleMatrixFeatureCol}>
+                        Capability
+                      </th>
+                      {ROLE_COLUMN_ORDER.map((roleId) => (
+                        <th
+                          key={roleId}
+                          scope="col"
+                          className={styles.roleMatrixRoleCol}
+                        >
+                          {MEMBER_ROLE_LABELS[roleId]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROLE_PERMISSION_ROWS.map((row) => (
+                      <tr key={row.id}>
+                        <th scope="row" className={styles.roleMatrixFeatureCell}>
+                          <div className={styles.roleMatrixFeatureLabel}>{row.label}</div>
+                          <div className={styles.roleMatrixFeatureDescription}>
+                            {row.description}
+                          </div>
+                        </th>
+                        {ROLE_COLUMN_ORDER.map((roleId) => {
+                          const granted = row.roles.includes(roleId);
+                          return (
+                            <td key={`${row.id}-${roleId}`} className={styles.roleMatrixCell}>
+                              {granted ? (
+                                <span
+                                  className={styles.roleMatrixIcon}
+                                  data-active="true"
+                                  aria-label={`${MEMBER_ROLE_LABELS[roleId]} can ${row.label.toLowerCase()}`}
+                                >
+                                  <Check size={14} weight="bold" />
+                                </span>
+                              ) : (
+                                <span
+                                  className={styles.roleMatrixIcon}
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className={styles.roleMatrixFooter}>
+                Founders inherit all Admin permissions and additionally control capsule deletion
+                and billing-related settings.
+              </p>
+            </section>
+          </div>
+        </div>
+      ) : null}
+
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <h3 className={styles.title}>Members</h3>
@@ -293,6 +579,7 @@ export function CapsuleMembersPanel({
             data-variant="icon"
             onClick={() => setRoleHelpOpen((open) => !open)}
             aria-label={roleHelpOpen ? "Hide role explanations" : "What do roles do?"}
+            aria-pressed={roleHelpOpen ? true : undefined}
           >
             <Info size={16} weight="bold" />
           </button>
@@ -329,32 +616,6 @@ export function CapsuleMembersPanel({
           ) : null}
         </div>
       </div>
-
-      {roleHelpOpen ? (
-        <div className={styles.notice}>
-          <div className={styles.roleHelp}>
-            <strong className={styles.roleHelpTitle}>Roles in this capsule</strong>
-            <ul className={styles.roleList}>
-              <li>
-                <strong>Founder</strong> – full control over members, store, streaming, and
-                settings.
-              </li>
-              <li>
-                <strong>Admin</strong> – manage members, store, analytics, ladders, and most
-                configuration.
-              </li>
-              <li>
-                <strong>Leader</strong> – invite members, manage ladders and events, and help
-                moderate content.
-              </li>
-              <li>
-                <strong>Member</strong> – post, comment, join events, and participate in ladders
-                and streams.
-              </li>
-            </ul>
-          </div>
-        </div>
-      ) : null}
 
       {loading ? <div className={styles.notice}>Loading membership details...</div> : null}
 

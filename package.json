@@ -51,7 +51,7 @@
         "@tanstack/react-virtual": "^3.0.0",
         "@upstash/ratelimit": "^2.0.6",
         "@upstash/redis": "^1.30.2",
-        "ably": "^1.2.50",
+        "ably": "^2.15.0",
         "algoliasearch": "^5.39.0",
         "bcryptjs": "^2.4.3",
         "clsx": "^2.1.1",

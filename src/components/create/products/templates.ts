@@ -1,3 +1,5 @@
+import type { PlacementSurfaceConfig } from "./placement-types";
+
 export type ProductTemplate = {
   id: string;
   label: string;
@@ -20,6 +22,7 @@ export type ProductTemplate = {
     colorImages?: Record<string, string>;
     printMethod?: "flat" | "embroidery" | "allover";
     maskSvgUrl?: string;
+    placements?: PlacementSurfaceConfig[];
     warp?: {
       /** Source quad (normalized, [x,y]) in order: tl, tr, br, bl */
       src: [number, number][];
@@ -69,6 +72,36 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
             Black: "/mockups/tee/black.png",
             White: "/mockups/tee/white.png",
           },
+          placements: [
+            {
+              id: "front",
+              label: "Front",
+              printArea: { x: 0.2, y: 0.18, width: 0.6, height: 0.5 },
+              printfulPlacement: "front",
+              defaultScale: 0.78,
+            },
+            {
+              id: "back",
+              label: "Back",
+              printArea: { x: 0.2, y: 0.18, width: 0.6, height: 0.5 },
+              printfulPlacement: "back",
+              defaultScale: 0.78,
+            },
+            {
+              id: "sleeve_left",
+              label: "Left sleeve",
+              printArea: { x: 0.06, y: 0.28, width: 0.26, height: 0.28 },
+              printfulPlacement: "sleeve_left",
+              defaultScale: 0.58,
+            },
+            {
+              id: "sleeve_right",
+              label: "Right sleeve",
+              printArea: { x: 0.68, y: 0.28, width: 0.26, height: 0.28 },
+              printfulPlacement: "sleeve_right",
+              defaultScale: 0.58,
+            },
+          ],
           printful: {
             productId: 71,
             placement: "front",
@@ -100,6 +133,43 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
           colorImages: {
             Navy: "/mockups/hoodie/navy.png",
           },
+          placements: [
+            {
+              id: "front",
+              label: "Front",
+              printArea: { x: 0.22, y: 0.2, width: 0.56, height: 0.5 },
+              printfulPlacement: "front",
+              defaultScale: 0.78,
+            },
+            {
+              id: "back",
+              label: "Back",
+              printArea: { x: 0.22, y: 0.2, width: 0.56, height: 0.5 },
+              printfulPlacement: "back",
+              defaultScale: 0.78,
+            },
+            {
+              id: "pocket",
+              label: "Front pocket",
+              printArea: { x: 0.34, y: 0.52, width: 0.32, height: 0.16 },
+              printfulPlacement: "front",
+              defaultScale: 0.54,
+            },
+            {
+              id: "sleeve_left",
+              label: "Left sleeve",
+              printArea: { x: 0.06, y: 0.32, width: 0.24, height: 0.32 },
+              printfulPlacement: "sleeve_left",
+              defaultScale: 0.54,
+            },
+            {
+              id: "sleeve_right",
+              label: "Right sleeve",
+              printArea: { x: 0.7, y: 0.32, width: 0.24, height: 0.32 },
+              printfulPlacement: "sleeve_right",
+              defaultScale: 0.54,
+            },
+          ],
           printful: {
             productId: 146,
             placement: "front",
@@ -126,6 +196,36 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
           aspectRatio: 3 / 4,
           printArea: { x: 0.22, y: 0.22, width: 0.56, height: 0.46 },
           backgroundKind: "crewneck",
+          placements: [
+            {
+              id: "front",
+              label: "Front",
+              printArea: { x: 0.22, y: 0.22, width: 0.56, height: 0.46 },
+              printfulPlacement: "front",
+              defaultScale: 0.78,
+            },
+            {
+              id: "back",
+              label: "Back",
+              printArea: { x: 0.22, y: 0.22, width: 0.56, height: 0.46 },
+              printfulPlacement: "back",
+              defaultScale: 0.78,
+            },
+            {
+              id: "sleeve_left",
+              label: "Left sleeve",
+              printArea: { x: 0.06, y: 0.32, width: 0.24, height: 0.32 },
+              printfulPlacement: "sleeve_left",
+              defaultScale: 0.54,
+            },
+            {
+              id: "sleeve_right",
+              label: "Right sleeve",
+              printArea: { x: 0.7, y: 0.32, width: 0.24, height: 0.32 },
+              printfulPlacement: "sleeve_right",
+              defaultScale: 0.54,
+            },
+          ],
           printful: {
             productId: 145,
             placement: "front",
@@ -275,6 +375,29 @@ export const PRODUCT_CATEGORIES: ProductCategory[] = [
           colorImages: {
             White: "/mockups/mug/white.png",
           },
+          placements: [
+            {
+              id: "front",
+              label: "Front",
+              printArea: { x: 0.18, y: 0.32, width: 0.64, height: 0.36 },
+              printfulPlacement: "front",
+              defaultScale: 0.82,
+            },
+            {
+              id: "back",
+              label: "Back",
+              printArea: { x: 0.18, y: 0.32, width: 0.64, height: 0.36 },
+              printfulPlacement: "back",
+              defaultScale: 0.82,
+            },
+            {
+              id: "wrap",
+              label: "Wrap",
+              printArea: { x: 0.08, y: 0.2, width: 0.84, height: 0.52 },
+              printfulPlacement: "wrap",
+              defaultScale: 1.02,
+            },
+          ],
           maskSvgUrl: "/mockups/mug/mask.svg",
           warp: {
             src: [

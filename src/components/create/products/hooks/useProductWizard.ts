@@ -7,6 +7,9 @@ import { computeDisplayUploads } from "@/components/memory/process-uploads";
 import type { DisplayMemoryUpload } from "@/components/memory/uploads-types";
 import type { MemoryPickerTab } from "@/components/composer/components/ComposerMemoryPicker";
 import { PRODUCT_STEPS } from "../constants";
+import { applyPlanAdjustments, resolvePlacement, resolveTemplateSurfaces } from "../placement";
+import { defaultPlacementPlan } from "../placement-types";
+import type { PlacementPlan, PlacementSurfaceId } from "../placement-types";
 import type { ProductFormState, ProductPreviewModel, ProductStepId } from "../types";
 import type { ProductTemplate } from "../templates";
 
@@ -39,6 +42,14 @@ function normalizeSelection(options?: string[] | null): string[] {
 export function useProductWizard({ capsuleId, capsuleName, template }: UseProductWizardArgs) {
   const initialColors = React.useMemo(() => normalizeSelection(template.colors), [template.colors]);
   const initialSizes = React.useMemo(() => normalizeSelection(template.sizes), [template.sizes]);
+  const placementOptions = React.useMemo(() => resolveTemplateSurfaces(template), [template]);
+  const initialPlacementPlan = React.useMemo(
+    () => ({
+      ...defaultPlacementPlan(placementOptions[0]?.id ?? "front"),
+      scale: placementOptions[0]?.defaultScale ?? 0.75,
+    }),
+    [placementOptions],
+  );
   const [form, setForm] = React.useState<ProductFormState>(() => ({
     templateId: template.id,
     title: `${template.label} design`,
@@ -49,9 +60,11 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     publish: true,
     designUrl: "",
     designPrompt: "",
-    mockScale: 0.75,
-    mockOffsetX: 0,
-    mockOffsetY: 0,
+    placementPlan: initialPlacementPlan,
+    placementWarnings: [],
+    mockScale: initialPlacementPlan.scale,
+    mockOffsetX: initialPlacementPlan.offsetX,
+    mockOffsetY: initialPlacementPlan.offsetY,
     availableColors: initialColors,
     availableSizes: initialSizes,
     selectedColors: initialColors,
@@ -64,9 +77,15 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [aiDraftBusy, setAiDraftBusy] = React.useState(false);
   const [imageBusy, setImageBusy] = React.useState(false);
+  const [placementBusy, setPlacementBusy] = React.useState(false);
   const [memoryPickerOpen, setMemoryPickerOpen] = React.useState(false);
   const [memoryPickerTab, setMemoryPickerTab] = React.useState<"uploads" | "assets">("uploads");
   const formContentRef = React.useRef<HTMLDivElement | null>(null);
+  const placementPlanRef = React.useRef(form.placementPlan);
+
+  React.useEffect(() => {
+    placementPlanRef.current = form.placementPlan;
+  }, [form.placementPlan]);
 
   const {
     envelope: memoryEnvelope,
@@ -194,16 +213,29 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
   );
 
   React.useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      templateId: template.id,
-      availableColors: initialColors,
-      availableSizes: initialSizes,
-      selectedColors: initialColors,
-      selectedSizes: initialSizes,
-      title: prev.title && prev.templateId === template.id ? prev.title : `${template.label} design`,
-    }));
-  }, [initialColors, initialSizes, template.id, template.label]);
+    const surface = placementOptions[0];
+    const fallbackPlan = {
+      ...defaultPlacementPlan(surface?.id ?? "front"),
+      scale: surface?.defaultScale ?? 0.75,
+    };
+    setForm((prev) => {
+      const nextPlan = prev.templateId === template.id ? prev.placementPlan : fallbackPlan;
+      return {
+        ...prev,
+        templateId: template.id,
+        availableColors: initialColors,
+        availableSizes: initialSizes,
+        selectedColors: initialColors,
+        selectedSizes: initialSizes,
+        placementPlan: nextPlan,
+        placementWarnings: prev.templateId === template.id ? prev.placementWarnings : [],
+        mockScale: nextPlan.scale,
+        mockOffsetX: nextPlan.offsetX,
+        mockOffsetY: nextPlan.offsetY,
+        title: prev.title && prev.templateId === template.id ? prev.title : `${template.label} design`,
+      };
+    });
+  }, [initialColors, initialSizes, placementOptions, template.id, template.label]);
 
   const completionMap = React.useMemo<Record<ProductStepId, boolean>>(
     () => ({
@@ -243,18 +275,56 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     setActiveStep(nextStepId);
   }, [nextStepId]);
 
-  const updateFormField = React.useCallback(<K extends keyof ProductFormState>(field: K, value: ProductFormState[K]) => {
-    setForm((prev) => {
-      let nextValue = value;
-      if (field === "mockScale" && typeof value === "number") {
-        nextValue = clampScale(value) as ProductFormState[K];
-      }
-      if ((field === "mockOffsetX" || field === "mockOffsetY") && typeof value === "number") {
-        nextValue = clampOffset(value) as ProductFormState[K];
-      }
-      return { ...prev, [field]: nextValue };
-    });
-  }, []);
+  const updateFormField = React.useCallback(
+    <K extends keyof ProductFormState>(field: K, value: ProductFormState[K]) => {
+      setForm((prev) => {
+        if (field === "placementPlan") {
+          const resolvedPlan = resolvePlacement(template, value as unknown as typeof prev.placementPlan).plan;
+          return {
+            ...prev,
+            placementPlan: resolvedPlan,
+            mockScale: resolvedPlan.scale,
+            mockOffsetX: resolvedPlan.offsetX,
+            mockOffsetY: resolvedPlan.offsetY,
+          };
+        }
+
+        if (field === "mockScale" || field === "mockOffsetX" || field === "mockOffsetY") {
+          const change: { scale?: number; offsetX?: number; offsetY?: number } = {};
+          if (field === "mockScale" && typeof value === "number") change.scale = clampScale(value);
+          if (field === "mockOffsetX" && typeof value === "number") change.offsetX = clampOffset(value);
+          if (field === "mockOffsetY" && typeof value === "number") change.offsetY = clampOffset(value);
+
+          const adjusted = applyPlanAdjustments(
+            prev.placementPlan ??
+              {
+                ...defaultPlacementPlan(placementOptions[0]?.id ?? "front"),
+                scale: placementOptions[0]?.defaultScale ?? 0.75,
+              },
+            change,
+          );
+          const resolvedPlan = resolvePlacement(template, adjusted).plan;
+          return {
+            ...prev,
+            placementPlan: resolvedPlan,
+            mockScale: resolvedPlan.scale,
+            mockOffsetX: resolvedPlan.offsetX,
+            mockOffsetY: resolvedPlan.offsetY,
+          };
+        }
+
+        let nextValue = value;
+        if (field === "mockScale" && typeof value === "number") {
+          nextValue = clampScale(value) as ProductFormState[K];
+        }
+        if ((field === "mockOffsetX" || field === "mockOffsetY") && typeof value === "number") {
+          nextValue = clampOffset(value) as ProductFormState[K];
+        }
+        return { ...prev, [field]: nextValue };
+      });
+    },
+    [placementOptions, template],
+  );
 
   const toggleSelection = React.useCallback((field: "selectedColors" | "selectedSizes", value: string) => {
     setForm((prev) => {
@@ -267,6 +337,46 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
       return { ...prev, [field]: Array.from(set) } as ProductFormState;
     });
   }, []);
+
+  const applyPlacementPlan = React.useCallback((plan: PlacementPlan) => {
+    setForm((prev) => {
+      const resolvedPlan = resolvePlacement(template, plan).plan;
+      return {
+        ...prev,
+        placementPlan: resolvedPlan,
+        mockScale: resolvedPlan.scale,
+        mockOffsetX: resolvedPlan.offsetX,
+        mockOffsetY: resolvedPlan.offsetY,
+      };
+    });
+  }, [template]);
+
+  const adjustPlacementPlan = React.useCallback(
+    (change: { scale?: number; offsetX?: number; offsetY?: number; surface?: PlacementSurfaceId }) => {
+      setForm((prev) => {
+        const basePlan = change.surface
+          ? { ...prev.placementPlan, surface: change.surface }
+          : prev.placementPlan;
+        const adjusted = applyPlanAdjustments(
+          basePlan ??
+            {
+              ...defaultPlacementPlan(placementOptions[0]?.id ?? "front"),
+              scale: placementOptions[0]?.defaultScale ?? 0.75,
+            },
+          change,
+        );
+        const resolvedPlan = resolvePlacement(template, adjusted).plan;
+        return {
+          ...prev,
+          placementPlan: resolvedPlan,
+          mockScale: resolvedPlan.scale,
+          mockOffsetX: resolvedPlan.offsetX,
+          mockOffsetY: resolvedPlan.offsetY,
+        };
+      });
+    },
+    [placementOptions, template],
+  );
 
   const buildVariantDrafts = React.useCallback((): VariantDraft[] => {
     const price = Number.isFinite(form.price) ? Math.max(0, form.price) : 0;
@@ -297,6 +407,16 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     return drafts;
   }, [form.price, form.selectedColors, form.selectedSizes, template.label]);
 
+  const placementResolved = React.useMemo(
+    () => resolvePlacement(template, form.placementPlan),
+    [form.placementPlan, template],
+  );
+
+  const placementWithWarnings = React.useMemo(
+    () => ({ ...placementResolved, summary: { ...placementResolved.summary, warnings: form.placementWarnings } }),
+    [form.placementWarnings, placementResolved],
+  );
+
   const previewModel: ProductPreviewModel = React.useMemo(() => {
     const primaryColor = form.selectedColors[0] ?? form.availableColors[0] ?? null;
 
@@ -314,9 +434,10 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
       sizes: form.selectedSizes.length ? form.selectedSizes : form.availableSizes,
       featured: form.featured,
       publish: form.publish,
-      placementScale: form.mockScale,
-      placementOffsetX: form.mockOffsetX,
-      placementOffsetY: form.mockOffsetY,
+      placement: placementWithWarnings,
+      placementScale: placementWithWarnings.plan.scale,
+      placementOffsetX: placementWithWarnings.plan.offsetX,
+      placementOffsetY: placementWithWarnings.plan.offsetY,
     };
   }, [
     capsuleName,
@@ -331,15 +452,16 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     form.selectedSizes,
     form.summary,
     form.title,
-    form.mockOffsetX,
-    form.mockOffsetY,
-    form.mockScale,
-    template.id,
-    template.label,
-    template.note,
+    placementWithWarnings,
+    template,
   ]);
 
   const resetFormState = React.useCallback(() => {
+    const surface = placementOptions[0];
+    const initialPlacement = {
+      ...defaultPlacementPlan(surface?.id ?? "front"),
+      scale: surface?.defaultScale ?? 0.75,
+    };
     setForm({
       templateId: template.id,
       title: `${template.label} design`,
@@ -350,9 +472,11 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
       publish: true,
       designUrl: "",
       designPrompt: "",
-      mockScale: 0.75,
-      mockOffsetX: 0,
-      mockOffsetY: 0,
+      placementPlan: initialPlacement,
+      placementWarnings: [],
+      mockScale: initialPlacement.scale,
+      mockOffsetX: initialPlacement.offsetX,
+      mockOffsetY: initialPlacement.offsetY,
       availableColors: initialColors,
       availableSizes: initialSizes,
       selectedColors: initialColors,
@@ -363,13 +487,14 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     setErrorMessage(null);
     setAiDraftBusy(false);
     setImageBusy(false);
-  }, [initialColors, initialSizes, template.id, template.label]);
+  }, [initialColors, initialSizes, placementOptions, template.id, template.label]);
 
   const createProduct = React.useCallback(async () => {
     setIsSaving(true);
     setStatusMessage(null);
     setErrorMessage(null);
 
+    const placement = resolvePlacement(template, form.placementPlan);
     const variants = buildVariantDrafts().map((variant) => ({
       label: variant.label,
       price: variant.price,
@@ -398,6 +523,13 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
         sortOrder: 0,
         sku: null,
         kind: "physical",
+        metadata: {
+          placement_plan: placement.plan,
+          placement_surface: placement.surface.id,
+          placement_summary: placement.summary.text,
+          placement_printful: placement.printful,
+          placement_warnings: form.placementWarnings ?? [],
+        },
         variants,
       },
     };
@@ -420,7 +552,20 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     } finally {
       setIsSaving(false);
     }
-  }, [buildVariantDrafts, capsuleId, form.currency, form.designUrl, form.featured, form.price, form.publish, form.summary, form.title, template.label]);
+  }, [
+    buildVariantDrafts,
+    capsuleId,
+    form.currency,
+    form.designUrl,
+    form.featured,
+    form.placementPlan,
+    form.placementWarnings,
+    form.price,
+    form.publish,
+    form.summary,
+    form.title,
+    template,
+  ]);
 
   const requestAiDraft = React.useCallback(async () => {
     if (aiDraftBusy) return;
@@ -520,6 +665,64 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     }
   }, [capsuleName, extractApiMessage, form.designPrompt, form.summary, form.title, imageBusy, template.base, template.label]);
 
+  const interpretPlacementPrompt = React.useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed.length) return { message: "Tell me where to place it and how big it should feel.", warnings: [] as string[] };
+      if (placementBusy) return { message: "Still working on the last placement tweak.", warnings: [] as string[] };
+      setPlacementBusy(true);
+      setStatusMessage(null);
+      setErrorMessage(null);
+      try {
+        const res = await fetch("/api/store/product-placement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            capsuleId,
+            templateId: template.id,
+            templateLabel: template.label,
+            templateCategory: template.categoryLabel,
+            templateBase: template.base ?? null,
+            text: trimmed,
+            currentPlan: placementPlanRef.current,
+          }),
+        });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as unknown;
+          const message = extractApiMessage(body) ?? "Capsule AI couldn't apply that placement.";
+          throw new Error(message);
+        }
+
+        const json = (await res.json()) as {
+          plan: PlacementPlan;
+          summary?: string;
+          message?: string;
+          warnings?: string[];
+        };
+
+        if (json.plan) {
+          applyPlacementPlan(json.plan);
+        }
+        const warnings = Array.isArray(json.warnings) ? json.warnings.filter(Boolean) : [];
+        setForm((prev) => ({ ...prev, placementWarnings: warnings }));
+
+        return {
+          message: json.message ?? json.summary ?? "Updated the placement on your preview.",
+          warnings: Array.isArray(json.warnings) ? json.warnings.filter(Boolean) : [],
+          summary: json.summary ?? null,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to interpret placement.";
+        setErrorMessage(message);
+        return { message, warnings: [] as string[] };
+      } finally {
+        setPlacementBusy(false);
+      }
+    },
+    [applyPlacementPlan, capsuleId, extractApiMessage, placementBusy, template.base, template.categoryLabel, template.id, template.label],
+  );
+
   const handleMemorySelect = React.useCallback(
     (upload: DisplayMemoryUpload) => {
       const url =
@@ -562,13 +765,17 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     handlePreviousStep,
     handleNextStep,
     updateFormField,
+    applyPlacementPlan,
+    adjustPlacementPlan,
     toggleSelection,
     resetFormState,
     createProduct,
     requestAiDraft,
     generateDesignImage,
+    interpretPlacementPrompt,
     aiDraftBusy,
     imageBusy,
+    placementBusy,
     memory: {
       open: memoryPickerOpen,
       tab: memoryPickerTab,

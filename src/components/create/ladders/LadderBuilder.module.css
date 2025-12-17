@@ -106,7 +106,35 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  padding: 2px 0;
+  padding: 10px 0 4px;
+  justify-content: center;
+}
+
+.assetActions :global(button) {
+  border-radius: 999px;
+}
+
+.assetActions :global(button[data-primary-action="true"]) {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #38bdf8) 75%, #6d28d9 25%),
+    color-mix(in srgb, var(--color-accent, #a855f7) 80%, #22d3ee 20%)
+  );
+  color: #0b1220;
+  border-color: transparent;
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.55),
+    0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+.assetActions :global(button[data-primary-action="true"]:hover) {
+  filter: brightness(1.05);
+  transform: translateY(-0.5px);
+}
+
+.assetActions :global(button[data-primary-action="true"]:active) {
+  filter: brightness(0.98);
+  transform: translateY(0);
 }
 
 .assetHint {

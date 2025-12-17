@@ -6,6 +6,7 @@ import styles from "@/components/create/ladders/LadderBuilder.module.css";
 
 import type { ProductPreviewModel } from "./types";
 import type { ProductTemplate } from "./templates";
+import { clampPlacementOffset, clampPlacementScale, PLACEMENT_OFFSET_FACTOR } from "./placement-types";
 
 type ProductMockupProps = {
   imageUrl: string | null;
@@ -21,14 +22,6 @@ const DEFAULT_MOCKUP: MockupConfig = {
   printArea: { x: 0.22, y: 0.2, width: 0.56, height: 0.5 },
   backgroundKind: "generic",
 };
-
-function clampScale(value: number) {
-  return Number.isFinite(value) ? Math.min(Math.max(value, 0.4), 1.4) : 1;
-}
-
-function clampOffset(value: number) {
-  return Number.isFinite(value) ? Math.min(Math.max(value, -1), 1) : 0;
-}
 
 function normalizeColorKey(value?: string | null) {
   return value?.trim().toLowerCase() || null;
@@ -233,7 +226,8 @@ export function ProductMockup({ imageUrl, template, preview, selectedColor }: Pr
     Number.isFinite(mockup.aspectRatio) && mockup.aspectRatio > 0
       ? mockup.aspectRatio
       : DEFAULT_MOCKUP.aspectRatio;
-  const printArea = mockup.printArea ?? DEFAULT_MOCKUP.printArea;
+  const placement = preview.placement;
+  const printArea = placement.printArea ?? mockup.printArea ?? DEFAULT_MOCKUP.printArea;
   const backgroundKind = mockup.backgroundKind ?? DEFAULT_MOCKUP.backgroundKind;
   const warpConfig = sanitizeWarpConfig(mockup.warp);
   const baseImageUrl = resolveBaseImage(mockup, selectedColor);
@@ -305,12 +299,27 @@ export function ProductMockup({ imageUrl, template, preview, selectedColor }: Pr
     () =>
       [
         mockup.printful?.productId ?? "",
-        mockup.printful?.placement ?? "",
+        placement.printful.placement ?? mockup.printful?.placement ?? "",
         mockup.printful?.storeId ?? "",
         printfulImageUrl ?? "",
+        placement.printful.position.width,
+        placement.printful.position.height,
+        placement.printful.position.left,
+        placement.printful.position.top,
         resolvedVariantIds.join(","),
       ].join("|"),
-    [mockup.printful?.placement, mockup.printful?.productId, mockup.printful?.storeId, printfulImageUrl, resolvedVariantIds],
+    [
+      mockup.printful?.placement,
+      mockup.printful?.productId,
+      mockup.printful?.storeId,
+      placement.printful.placement,
+      placement.printful.position.height,
+      placement.printful.position.left,
+      placement.printful.position.top,
+      placement.printful.position.width,
+      printfulImageUrl,
+      resolvedVariantIds,
+    ],
   );
 
   const canRequestRemote =
@@ -346,7 +355,8 @@ export function ProductMockup({ imageUrl, template, preview, selectedColor }: Pr
             productId: mockup.printful?.productId,
             variantIds: resolvedVariantIds,
             imageUrl: printfulImageUrl,
-            placement: mockup.printful?.placement ?? "front",
+            placement: placement.printful.placement ?? mockup.printful?.placement ?? "front",
+            position: placement.printful.position,
             storeId: mockup.printful?.storeId ?? undefined,
           }),
           signal: controller.signal,
@@ -370,7 +380,25 @@ export function ProductMockup({ imageUrl, template, preview, selectedColor }: Pr
     };
     void run();
     return () => controller.abort();
-  }, [canRequestRemote, imageUrl, mockup.printful?.placement, mockup.printful?.productId, mockup.printful?.storeId, printfulImageUrl, remoteSignature, resolvedVariantIds]);
+  }, [
+    canRequestRemote,
+    imageUrl,
+    mockup.printful,
+    mockup.printful?.placement,
+    mockup.printful?.productId,
+    mockup.printful?.storeId,
+    placement.printful.placement,
+    placement.printful.position.areaHeight,
+    placement.printful.position.areaWidth,
+    placement.printful.position.height,
+    placement.printful.position.left,
+    placement.printful.position.top,
+    placement.printful.position.width,
+    printfulImageUrl,
+    remoteSignature,
+    resolvedVariantIds,
+    placement.printful.position,
+  ]);
 
   const printAreaStyle: React.CSSProperties = {
     left: `${printArea.x * 100}%`,
@@ -391,12 +419,12 @@ export function ProductMockup({ imageUrl, template, preview, selectedColor }: Pr
       : undefined),
   };
 
-  const clampedScale = clampScale(preview.placementScale);
-  const clampedOffsetX = clampOffset(preview.placementOffsetX);
-  const clampedOffsetY = clampOffset(preview.placementOffsetY);
+  const clampedScale = clampPlacementScale(preview.placementScale);
+  const clampedOffsetX = clampPlacementOffset(preview.placementOffsetX);
+  const clampedOffsetY = clampPlacementOffset(preview.placementOffsetY);
 
-  const translateXPercent = clampedOffsetX * 18;
-  const translateYPercent = clampedOffsetY * 18;
+  const translateXPercent = clampedOffsetX * PLACEMENT_OFFSET_FACTOR;
+  const translateYPercent = clampedOffsetY * PLACEMENT_OFFSET_FACTOR;
 
   const imageStyle: React.CSSProperties = {
     transform: `translate(${translateXPercent}%, ${translateYPercent}%) scale(${clampedScale})`,
@@ -416,7 +444,9 @@ export function ProductMockup({ imageUrl, template, preview, selectedColor }: Pr
       {hasRemote ? (
         <div className={styles.printfulToolbar} aria-live="polite">
           <span className={styles.printfulLabel}>
-            {remoteLoading ? "Loading Printful preview…" : "Printful preview"}
+            {remoteLoading
+              ? "Loading Printful preview…"
+              : `Printful preview (${placement.surface.label.toLowerCase()})`}
           </span>
           <div className={styles.printfulToggleRow}>
             {remoteMockups.map((mockup, index) => (

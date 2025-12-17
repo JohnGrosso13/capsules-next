@@ -2,7 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 
 import { returnError, validatedJson } from "@/server/validation/http";
-import { generatePrintfulMockup, hasPrintfulCredentials, type PrintfulMockupImage } from "@/server/store/printful";
+import {
+  generatePrintfulMockup,
+  hasPrintfulCredentials,
+  type PrintfulMockupImage,
+  type PrintfulPlacementPosition,
+} from "@/server/store/printful";
 
 const requestSchema = z.object({
   productId: z.number().int().positive(),
@@ -10,6 +15,17 @@ const requestSchema = z.object({
   imageUrl: z.string().url(),
   placement: z.string().optional(),
   storeId: z.string().optional(),
+  position: z
+    .object({
+      areaWidth: z.number().positive(),
+      areaHeight: z.number().positive(),
+      width: z.number().positive(),
+      height: z.number().positive(),
+      top: z.number().nonnegative(),
+      left: z.number().nonnegative(),
+    })
+    .partial()
+    .optional(),
 });
 
 const responseSchema = z.object({
@@ -50,6 +66,16 @@ export async function POST(req: Request) {
     imageUrl: parsed.data.imageUrl,
     placement: parsed.data.placement ?? "front",
     storeId: parsed.data.storeId ?? null,
+    position: parsed.data.position
+      ? ({
+          areaWidth: parsed.data.position.areaWidth ?? 1800,
+          areaHeight: parsed.data.position.areaHeight ?? 2400,
+          width: parsed.data.position.width ?? parsed.data.position.areaWidth ?? 1800,
+          height: parsed.data.position.height ?? parsed.data.position.areaHeight ?? 2400,
+          top: parsed.data.position.top ?? 0,
+          left: parsed.data.position.left ?? 0,
+        } satisfies PrintfulPlacementPosition)
+      : null,
   });
 
   if (result.status !== "completed") {

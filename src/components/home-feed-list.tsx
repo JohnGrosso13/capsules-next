@@ -93,6 +93,8 @@ type FeedRenderItem =
 
 const PROMO_INTERVAL_DEFAULT = 10;
 const LOAD_MORE_THRESHOLD = 3;
+const FAST_SCROLL_POSTS_PER_SECOND = 35;
+const PREFETCH_CHAIN_MAX = 2;
 type HomeFeedListProps = {
   /** Hide the summary CTA banner (used inside Composer preview). */
   showSummaryCTA?: boolean;
@@ -337,6 +339,15 @@ export function HomeFeedList({
   const loadMoreTriggerLengthRef = React.useRef<number>(0);
   const deferredLoadRef = React.useRef(false);
   const scrollDepthRef = React.useRef<number>(-1);
+  const scrollVelocityRef = React.useRef<{ index: number; time: number }>({
+    index: -1,
+    time:
+      typeof performance !== "undefined" && typeof performance.now === "function"
+        ? performance.now()
+        : Date.now(),
+  });
+  const prefetchBudgetRef = React.useRef<number>(0);
+  const wasLoadingRef = React.useRef<boolean>(false);
 
   React.useEffect(() => {
     if (!virtualItems.length) return;
@@ -366,6 +377,18 @@ export function HomeFeedList({
     if (!onLoadMore || !hasMore || isLoadingMore || showSkeletons) return;
     const last = virtualItems[virtualItems.length - 1];
     if (!last) return;
+
+    const now =
+      typeof performance !== "undefined" && typeof performance.now === "function"
+        ? performance.now()
+        : Date.now();
+    const previous = scrollVelocityRef.current;
+    const deltaIndex = last.index - previous.index;
+    const deltaTime = Math.max(1, now - previous.time);
+    const postsPerSecond = deltaIndex > 0 ? (deltaIndex / deltaTime) * 1000 : 0;
+    const fastScroll = postsPerSecond >= FAST_SCROLL_POSTS_PER_SECOND || deltaIndex >= 20;
+    scrollVelocityRef.current = { index: last.index, time: now };
+
     const remaining = feedItems.length - 1 - last.index;
     if (remaining <= LOAD_MORE_THRESHOLD && loadMoreTriggerLengthRef.current !== feedItems.length) {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
@@ -377,6 +400,12 @@ export function HomeFeedList({
         return;
       }
       loadMoreTriggerLengthRef.current = feedItems.length;
+      if (fastScroll) {
+        prefetchBudgetRef.current = Math.min(
+          PREFETCH_CHAIN_MAX,
+          prefetchBudgetRef.current + 1,
+        );
+      }
       onLoadMore();
     }
   }, [
@@ -410,8 +439,41 @@ export function HomeFeedList({
   React.useEffect(() => {
     if (!hasMore) {
       loadMoreTriggerLengthRef.current = 0;
+      prefetchBudgetRef.current = 0;
     }
   }, [hasMore]);
+
+  React.useEffect(() => {
+    const wasLoading = wasLoadingRef.current;
+    wasLoadingRef.current = isLoadingMore;
+    if (
+      !onLoadMore ||
+      showSkeletons ||
+      isLoadingMore ||
+      !wasLoading ||
+      prefetchBudgetRef.current <= 0 ||
+      !hasMore
+    ) {
+      return;
+    }
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return;
+    }
+    if (isSlowConnection()) {
+      prefetchBudgetRef.current = 0;
+      return;
+    }
+    prefetchBudgetRef.current -= 1;
+    loadMoreTriggerLengthRef.current = feedItems.length;
+    onLoadMore();
+  }, [
+    feedItems.length,
+    hasMore,
+    isLoadingMore,
+    isSlowConnection,
+    onLoadMore,
+    showSkeletons,
+  ]);
 
   const [pendingFocusPostId, setPendingFocusPostId] = React.useState<string | null>(() => {
 

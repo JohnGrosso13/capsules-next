@@ -1,7 +1,6 @@
 "use client";
 
-import * as Ably from "ably/promises";
-import type { Types as AblyTypes } from "ably";
+import * as Ably from "ably";
 
 import type {
   PresenceAction,
@@ -28,7 +27,7 @@ const PRESENCE_ACTION_MAP: Record<number | string, PresenceAction> = {
 };
 
 function mapPresenceAction(
-  action: AblyTypes.PresenceAction | undefined,
+  action: Ably.PresenceAction | number | string | undefined,
 ): PresenceAction | undefined {
   if (typeof action === "number") {
     return PRESENCE_ACTION_MAP[action];
@@ -66,7 +65,7 @@ function describeAblyError(error: unknown): {
 }
 
 function normalizeAblyAuth(payload: RealtimeAuthPayload): {
-  token: AblyTypes.TokenRequest | AblyTypes.TokenDetails | string;
+  token: Ably.TokenRequest | Ably.TokenDetails | string;
   environment?: string | null;
 } {
   if (!payload || payload.provider !== "ably") {
@@ -78,7 +77,7 @@ function normalizeAblyAuth(payload: RealtimeAuthPayload): {
     (typeof token === "object" && token !== null && ("token" in token || "mac" in token))
   ) {
     return {
-      token: token as AblyTypes.TokenRequest | AblyTypes.TokenDetails | string,
+      token: token as Ably.TokenRequest | Ably.TokenDetails | string,
       environment: payload.environment ?? null,
     };
   }
@@ -86,10 +85,10 @@ function normalizeAblyAuth(payload: RealtimeAuthPayload): {
 }
 
 class AblyPresenceChannel implements RealtimePresenceChannel {
-  constructor(private readonly channel: AblyTypes.RealtimeChannelPromise) {}
+  constructor(private readonly channel: Ably.RealtimeChannel) {}
 
   async subscribe(handler: (member: PresenceMember) => void): Promise<() => void> {
-    const listener = (message: AblyTypes.PresenceMessage) => {
+    const listener = (message: Ably.PresenceMessage) => {
       const base: PresenceMember = {
         clientId: message.clientId ? String(message.clientId) : "",
         data: message.data,
@@ -144,7 +143,7 @@ class AblyPresenceChannel implements RealtimePresenceChannel {
 }
 
 class AblyRealtimeConnection implements RealtimeClient {
-  constructor(private readonly client: AblyTypes.RealtimePromise) {}
+  constructor(private readonly client: Ably.Realtime) {}
 
   async subscribe(
     channelName: string,
@@ -184,7 +183,7 @@ class AblyRealtimeConnection implements RealtimeClient {
         }
       }
     }
-    const listener = (message: AblyTypes.Message) => {
+    const listener = (message: Ably.Message) => {
       handler({
         name: message.name ?? "",
         data: message.data,
@@ -215,7 +214,7 @@ class AblyRealtimeConnection implements RealtimeClient {
   }
 
   onConnectionStateChange(handler: (state: string) => void): () => void {
-    const listener = (stateChange: AblyTypes.ConnectionStateChange) => {
+    const listener = (stateChange: Ably.ConnectionStateChange) => {
       if (stateChange?.current) {
         handler(stateChange.current);
       }
@@ -231,7 +230,7 @@ class AblyRealtimeConnection implements RealtimeClient {
   }
 
   clientId(): string | null {
-    const id = this.client.auth.clientId;
+    const id = this.client.clientId ?? this.client.auth.clientId;
     return id ? String(id) : null;
   }
 
@@ -281,7 +280,7 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
 
   private async createClient(): Promise<AblyRealtimeConnection> {
     const normalizedInitial = await this.performAuthWithRetry();
-    const options: Ably.Types.ClientOptions = {
+    const options: Ably.ClientOptions = {
       authCallback: async (_, callback) => {
         try {
           const normalized = await this.performAuthWithRetry();
@@ -295,10 +294,7 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
     if (normalizedInitial.environment) {
       options.environment = normalizedInitial.environment;
     }
-    const createRealtime = Ably.Realtime as unknown as (
-      options: Ably.Types.ClientOptions,
-    ) => AblyTypes.RealtimePromise;
-    const client = createRealtime(options);
+    const client = new Ably.Realtime(options);
     await client.connection.once("connected");
     const connection = new AblyRealtimeConnection(client);
     this.activeConnection = connection;

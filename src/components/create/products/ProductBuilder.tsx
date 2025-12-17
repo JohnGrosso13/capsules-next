@@ -42,17 +42,13 @@ export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
   const nextStep = wizard.nextStep ?? (nextStepId ? PRODUCT_STEPS.find((step) => step.id === nextStepId) ?? null : null);
   const handlePlacementChange = React.useCallback(
     (value: { scale?: number; offsetX?: number; offsetY?: number }) => {
-      if (typeof value.scale === "number") {
-        wizard.updateFormField("mockScale", clampScale(value.scale));
-      }
-      if (typeof value.offsetX === "number") {
-        wizard.updateFormField("mockOffsetX", clampOffset(value.offsetX));
-      }
-      if (typeof value.offsetY === "number") {
-        wizard.updateFormField("mockOffsetY", clampOffset(value.offsetY));
-      }
+      const change: { scale?: number; offsetX?: number; offsetY?: number } = {};
+      if (typeof value.scale === "number") change.scale = clampScale(value.scale);
+      if (typeof value.offsetX === "number") change.offsetX = clampOffset(value.offsetX);
+      if (typeof value.offsetY === "number") change.offsetY = clampOffset(value.offsetY);
+      wizard.adjustPlacementPlan(change);
     },
-    [wizard.updateFormField],
+    [wizard],
   );
 
   const renderFormContent = (stepControls: React.ReactNode) => (
@@ -72,6 +68,10 @@ export function ProductBuilder({ capsule, template }: ProductBuilderProps) {
         onGenerateImage={wizard.generateDesignImage}
         imageBusy={wizard.imageBusy}
         onOpenMemoryPicker={wizard.memory.openPicker}
+        onPlacementPrompt={wizard.interpretPlacementPrompt}
+        placementBusy={wizard.placementBusy}
+        placementSummary={wizard.previewModel.placement.summary.text}
+        placementWarnings={wizard.previewModel.placement.summary.warnings}
       />
     </>
   );

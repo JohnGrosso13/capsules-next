@@ -4,27 +4,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ProductMockup } from "../ProductMockup";
+import { resolvePlacement } from "../placement";
 import type { ProductPreviewModel } from "../types";
 import type { ProductTemplate } from "../templates";
-
-const basePreview: ProductPreviewModel = {
-  title: "Demo",
-  summary: "Summary",
-  price: 10,
-  currency: "usd",
-  imageUrl: "design.png",
-  templateLabel: "Tee",
-  templateId: "tee",
-  capsuleName: "Capsule",
-  colors: ["Black"],
-  primaryColor: "Black",
-  sizes: ["M"],
-  featured: true,
-  publish: true,
-  placementScale: 1,
-  placementOffsetX: 0,
-  placementOffsetY: 0,
-};
 
 const baseTemplate: ProductTemplate = {
   id: "tee",
@@ -41,6 +23,37 @@ const baseTemplate: ProductTemplate = {
       White: "/mockups/tee/white.png",
     },
   },
+};
+
+const placement = resolvePlacement(baseTemplate, {
+  surface: "front",
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  fit: "standard",
+  prompt: null,
+  summary: null,
+  source: "user",
+});
+
+const basePreview: ProductPreviewModel = {
+  title: "Demo",
+  summary: "Summary",
+  price: 10,
+  currency: "usd",
+  imageUrl: "design.png",
+  templateLabel: "Tee",
+  templateId: "tee",
+  capsuleName: "Capsule",
+  colors: ["Black"],
+  primaryColor: "Black",
+  sizes: ["M"],
+  featured: true,
+  publish: true,
+  placement,
+  placementScale: placement.plan.scale,
+  placementOffsetX: placement.plan.offsetX,
+  placementOffsetY: placement.plan.offsetY,
 };
 
 describe("ProductMockup", () => {

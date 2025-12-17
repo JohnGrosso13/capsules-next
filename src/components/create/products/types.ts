@@ -1,3 +1,5 @@
+import type { PlacementPlan, ResolvedPlacement } from "./placement-types";
+
 export type ProductStepId = "design" | "title" | "details" | "pricing" | "review";
 
 export type ProductFormState = {
@@ -10,6 +12,8 @@ export type ProductFormState = {
   publish: boolean;
   designUrl: string;
   designPrompt: string;
+  placementPlan: PlacementPlan;
+  placementWarnings: string[];
   mockScale: number;
   mockOffsetX: number;
   mockOffsetY: number;
@@ -33,6 +37,7 @@ export type ProductPreviewModel = {
   sizes: string[];
   featured: boolean;
   publish: boolean;
+  placement: ResolvedPlacement;
   placementScale: number;
   placementOffsetX: number;
   placementOffsetY: number;

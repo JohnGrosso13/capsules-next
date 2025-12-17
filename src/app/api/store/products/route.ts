@@ -33,6 +33,7 @@ const productSchema = z.object({
   sortOrder: z.number().optional(),
   sku: z.string().nullable().optional(),
   kind: z.enum(["digital", "physical", "service"]).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   variants: z.array(variantSchema),
 });
 
@@ -137,6 +138,7 @@ export async function POST(req: Request) {
         sortOrder: parsed.data.product.sortOrder ?? 0,
         sku: parsed.data.product.sku ?? null,
         kind: parsed.data.product.kind ?? "physical",
+        metadata: parsed.data.product.metadata ?? {},
       },
       variants: parsed.data.product.variants.map((variant, index) => ({
         id: variant.id ?? null,

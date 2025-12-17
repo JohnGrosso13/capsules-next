@@ -26,6 +26,10 @@ type ProductStepContentProps = {
   onGenerateImage: () => void;
   imageBusy: boolean;
   onOpenMemoryPicker: () => void;
+  onPlacementPrompt: (text: string) => Promise<{ message: string; warnings?: string[] } | null>;
+  placementBusy: boolean;
+  placementSummary: string;
+  placementWarnings?: string[];
 };
 
 export function ProductStepContent({
@@ -43,6 +47,10 @@ export function ProductStepContent({
   onGenerateImage,
   imageBusy,
   onOpenMemoryPicker,
+  onPlacementPrompt,
+  placementBusy,
+  placementSummary,
+  placementWarnings,
 }: ProductStepContentProps) {
   const [assistantDraft, setAssistantDraft] = React.useState("");
   const [assistantConversation, setAssistantConversation] = React.useState<AssistantMessage[]>(() => [
@@ -76,7 +84,7 @@ export function ProductStepContent({
     {
       id: "ai-design-welcome",
       sender: "ai",
-      text: "Describe the product, the vibe, materials, and who it's for. I can help plan the design and callouts.",
+      text: "Tell me where to place the art (front, back, sleeves), how big it should feel, and any bleed/centering tweaks. I'll move the mockup and Printful preview to match.",
       timestamp: Date.now(),
     },
   ]);
@@ -111,21 +119,43 @@ export function ProductStepContent({
     setSummaryAssistantDraft("");
   }, [summaryAssistantDraft]);
 
-  const handleDesignAssistantSend = React.useCallback(() => {
+  const handleDesignAssistantSend = React.useCallback(async () => {
     const trimmed = designAssistantDraft.trim();
-    if (!trimmed.length) return;
+    if (!trimmed.length || placementBusy) return;
     const now = Date.now();
     const userMessage: AssistantMessage = { id: `user-design-${now}`, sender: "user", text: trimmed, timestamp: now };
-    const aiFollowUp: AssistantMessage = {
-      id: `ai-design-${Date.now()}`,
-      sender: "ai",
-      text: "Thanks-I'll keep this in mind for the design details.",
-      timestamp: Date.now(),
-    };
-    setDesignAssistantConversation((prev) => [...prev, userMessage, aiFollowUp]);
+    setDesignAssistantConversation((prev) => [...prev, userMessage]);
     setDesignAssistantDraft("");
     onFieldChange("designPrompt", trimmed);
-  }, [designAssistantDraft, onFieldChange]);
+    try {
+      const result = await onPlacementPrompt(trimmed);
+      const aiText =
+        result?.message ??
+        "Updated your placement. Let me know if you want it moved or resized.";
+      const warningNote =
+        result?.warnings && result.warnings.length
+          ? ` Notes: ${result.warnings.join(" ")}`
+          : "";
+      const aiFollowUp: AssistantMessage = {
+        id: `ai-design-${Date.now()}`,
+        sender: "ai",
+        text: `${aiText}${warningNote}`,
+        timestamp: Date.now(),
+      };
+      setDesignAssistantConversation((prev) => [...prev, aiFollowUp]);
+    } catch (error) {
+      const aiFollowUp: AssistantMessage = {
+        id: `ai-design-${Date.now()}`,
+        sender: "ai",
+        text:
+          error instanceof Error
+            ? error.message
+            : "I couldn't adjust the placement. Try again in a moment.",
+        timestamp: Date.now(),
+      };
+      setDesignAssistantConversation((prev) => [...prev, aiFollowUp]);
+    }
+  }, [designAssistantDraft, onFieldChange, onPlacementPrompt, placementBusy]);
 
   const handlePricingAssistantSend = React.useCallback(() => {
     const trimmed = pricingAssistantDraft.trim();
@@ -176,7 +206,7 @@ export function ProductStepContent({
     (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
-        handleDesignAssistantSend();
+        void handleDesignAssistantSend();
       }
     },
     [handleDesignAssistantSend],
@@ -213,19 +243,15 @@ export function ProductStepContent({
           ? Math.min(100, Math.max(0, Math.round(designAttachment.progress * 100)))
           : null;
       if (designAttachment.phase === "finalizing") return "Finalizing upload...";
-      return percent && percent > 0 ? `Uploading... ${percent}%` : "Uploading file...";
+      return percent && percent > 0 ? `Uploading... ${percent}%` : "Uploading image...";
     }
     if (designAttachment?.status === "error") {
       return designAttachment.error || "Upload failed. Try another file.";
     }
-    if (designReadyAttachment?.name || designReadyAttachment?.url) {
-      const label = designReadyAttachment?.name?.trim().length ? designReadyAttachment.name : "Upload";
-      return `Linked ${label}`;
+    if (designReadyAttachment?.name || designReadyAttachment?.url || form.designUrl?.trim()) {
+      return "Image linked. Tell Capsule where to place it, then preview.";
     }
-    if (form.designUrl?.trim()) {
-      return "Design image linked.";
-    }
-    return "Upload an image or reuse something from your memories.";
+    return "Upload an image or pick a memory. Capsule will use it in your product preview.";
   }, [designAttachment, designAttachmentUploading, designReadyAttachment, form.designUrl]);
 
   const renderStatus = () => {
@@ -262,11 +288,13 @@ export function ProductStepContent({
               size="sm"
               onClick={handleDesignUploadClick}
               loading={designAttachmentUploading}
+              title="Upload a new PNG or JPEG from your device"
+              data-primary-action="true"
             >
-              Upload file
+              Upload image
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={onOpenMemoryPicker}>
-              Browse memories
+              Use a memory
             </Button>
             <input
               ref={designFileInputRef}
@@ -286,14 +314,20 @@ export function ProductStepContent({
             placeholder="Example: Limited-run hoodie collab with embroidered logo, heavy weight, unisex fit..."
             conversation={designAssistantConversation}
             draft={designAssistantDraft}
-            busy={imageBusy}
+            busy={placementBusy || imageBusy}
             onDraftChange={setDesignAssistantDraft}
             onKeyDown={handleDesignAssistantKeyDown}
-            onSend={() => {
-              handleDesignAssistantSend();
-              onGenerateImage();
+            onSend={async () => {
+              await handleDesignAssistantSend();
+              if (!form.designUrl?.trim()) {
+                onGenerateImage();
+              }
             }}
           />
+          <div className={styles.assetHint} aria-live="polite">
+            <strong>Placement plan:</strong> {placementSummary}
+            {placementWarnings?.length ? ` (${placementWarnings.join(" ")})` : ""}
+          </div>
         </CardContent>
       </Card>
       {stepControls}

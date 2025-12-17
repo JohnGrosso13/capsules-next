@@ -200,6 +200,236 @@
     margin-top: 2px;
   }
 
+  .roleDrawerOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(
+        1200px 600px at 20% 0%,
+        rgba(15, 23, 42, 0.88),
+        transparent 70%
+      ),
+      rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(10px);
+  }
+
+  .roleDrawer {
+    width: min(880px, 100% - 32px);
+    max-width: 100%;
+    max-height: min(680px, 100% - 40px);
+    padding: 20px 22px 24px;
+    border-radius: 24px;
+    border: 1px solid var(--card-border);
+    background:
+      radial-gradient(640px 320px at 20% -10%, rgba(129, 140, 248, 0.32), transparent 70%),
+      radial-gradient(680px 340px at 80% -12%, rgba(45, 212, 191, 0.24), transparent 70%),
+      linear-gradient(
+        180deg,
+        var(--card-bg-1, rgba(15, 23, 42, 0.96)),
+        var(--card-bg-2, rgba(15, 23, 42, 0.98))
+      );
+    box-shadow:
+      0 18px 48px rgba(15, 23, 42, 0.8),
+      0 0 0 1px color-mix(in srgb, var(--card-border) 90%, transparent);
+    display: grid;
+    gap: 18px;
+    overflow: auto;
+  }
+
+  .roleDrawerHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .roleDrawerTitleGroup {
+    display: grid;
+    gap: 4px;
+  }
+
+  .roleDrawerTitle {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  .roleDrawerSubtitle {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-2);
+  }
+
+  .roleCardsSection {
+    display: grid;
+    gap: 10px;
+  }
+
+  .roleCardsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .roleCard {
+    border-radius: var(--radius-xl, 18px);
+    border: 1px solid var(--card-border);
+    background: color-mix(in srgb, var(--surface-overlay) 70%, transparent);
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .roleCardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .roleCardLabel {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .roleCardBadge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--color-info, #38bdf8) 65%, transparent);
+    background: color-mix(in srgb, var(--color-info, #38bdf8) 22%, transparent);
+    color: color-mix(in srgb, var(--color-info, #38bdf8) 92%, rgba(15, 23, 42, 0.98));
+    white-space: nowrap;
+  }
+
+  .roleCardList {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.86rem;
+    color: var(--text-2);
+    line-height: 1.5;
+  }
+
+  .roleCardList li + li {
+    margin-top: 4px;
+  }
+
+  .roleMatrixSection {
+    display: grid;
+    gap: 8px;
+  }
+
+  .roleMatrixHeader {
+    display: grid;
+    gap: 4px;
+  }
+
+  .roleMatrixTitle {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+
+  .roleMatrixHint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-3, var(--text-2));
+  }
+
+  .roleMatrixScroll {
+    border-radius: var(--radius-xl, 18px);
+    border: 1px solid var(--card-border);
+    background: color-mix(in srgb, var(--surface-overlay) 70%, transparent);
+    overflow: auto;
+  }
+
+  .roleMatrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .roleMatrix th,
+  .roleMatrix td {
+    padding: 8px 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--card-border) 90%, transparent);
+  }
+
+  .roleMatrix thead th {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-2);
+    background: color-mix(in srgb, var(--surface-overlay) 78%, transparent);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .roleMatrixFeatureCol {
+    text-align: left;
+    min-width: 220px;
+  }
+
+  .roleMatrixRoleCol {
+    min-width: 84px;
+  }
+
+  .roleMatrix tbody tr:last-child th,
+  .roleMatrix tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .roleMatrixFeatureCell {
+    text-align: left;
+  }
+
+  .roleMatrixFeatureLabel {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .roleMatrixFeatureDescription {
+    font-size: 0.78rem;
+    color: var(--text-3, var(--text-2));
+  }
+
+  .roleMatrixCell {
+    text-align: center;
+  }
+
+  .roleMatrixIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--pill-border) 80%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay) 80%, transparent);
+    color: color-mix(in srgb, var(--text) 86%, rgba(15, 23, 42, 0.98));
+  }
+
+  .roleMatrixIcon[data-active="true"] {
+    border-color: color-mix(in srgb, var(--color-brand) 72%, transparent);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand) 80%, transparent),
+      transparent
+    );
+    color: var(--text);
+  }
+
+  .roleMatrixFooter {
+    margin: 2px 0 0;
+    font-size: 0.78rem;
+    color: var(--text-3, var(--text-2));
+  }
+
   .notice[data-tone="error"] {
     border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
     background: color-mix(in srgb, rgba(255, 68, 68, 0.18) 40%, transparent);
@@ -476,6 +706,16 @@
 
     .actionsInline {
       justify-content: flex-start;
+    }
+
+    .roleDrawer {
+      width: 100%;
+      max-height: 100%;
+      border-radius: 0;
+    }
+
+    .roleCardsGrid {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

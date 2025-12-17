@@ -800,6 +800,7 @@ export async function saveProductForCapsule(params: {
     fulfillmentUrl?: string | null;
     imageUrl?: string | null;
     memoryId?: string | null;
+    metadata?: Record<string, unknown>;
     featured?: boolean;
     sortOrder?: number;
     sku?: string | null;
