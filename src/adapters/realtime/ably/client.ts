@@ -13,6 +13,51 @@ import type {
   RealtimePresenceChannel,
 } from "@/ports/realtime";
 
+async function waitForAblyConnection(client: Ably.Realtime, timeoutMs = 8000): Promise<void> {
+  if (client.connection.state === "connected") return;
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const timeoutId = globalThis.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try {
+        client.connection.off(listener);
+      } catch {
+        // ignore cleanup failures
+      }
+      reject(new Error("Ably connection timeout"));
+    }, timeoutMs);
+
+    const listener = (stateChange: Ably.ConnectionStateChange) => {
+      if (settled) return;
+      const state = stateChange.current;
+      if (state === "connected") {
+        settled = true;
+        globalThis.clearTimeout(timeoutId);
+        try {
+          client.connection.off(listener);
+        } catch {
+          // ignore cleanup failures
+        }
+        resolve();
+        return;
+      }
+      if (state === "failed" || state === "suspended" || state === "closed") {
+        settled = true;
+        globalThis.clearTimeout(timeoutId);
+        try {
+          client.connection.off(listener);
+        } catch {
+          // ignore cleanup failures
+        }
+        reject(new Error(`Ably connection ${state}`));
+      }
+    };
+
+    client.connection.on(listener);
+  });
+}
+
 const PRESENCE_ACTION_MAP: Record<number | string, PresenceAction> = {
   0: "absent",
   1: "present",
@@ -295,7 +340,7 @@ class AblyRealtimeClientFactory implements RealtimeClientFactory {
       options.environment = normalizedInitial.environment;
     }
     const client = new Ably.Realtime(options);
-    await client.connection.once("connected");
+    await waitForAblyConnection(client);
     const connection = new AblyRealtimeConnection(client);
     this.activeConnection = connection;
     return connection;

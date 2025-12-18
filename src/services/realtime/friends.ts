@@ -6,6 +6,7 @@ import { getAiImageChannel } from "@/lib/ai/channels";
 import { listFriendUserIds } from "@/server/friends/repository";
 import { getRedis } from "@/server/redis/client";
 import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { debugLog, isDebugEnabled } from "@/lib/debug";
 import type { RealtimeAuthPayload, RealtimeCapabilities } from "@/ports/realtime";
 import type { CacheClient } from "@/ports/cache";
 
@@ -27,6 +28,7 @@ function logRealtimeCapabilitiesOnce(
   capabilities: RealtimeCapabilities,
 ): void {
   if (process.env.NODE_ENV === "production") return;
+  if (!isDebugEnabled("realtime")) return;
 
   const sortedFriendIds = [...friendIds].sort();
   const normalizedCapabilities = Object.keys(capabilities)
@@ -46,7 +48,7 @@ function logRealtimeCapabilitiesOnce(
   });
   if (capabilityLogCache.has(signature)) return;
 
-  console.debug("Realtime chat capabilities", {
+  debugLog("realtime", "Realtime chat capabilities", {
     userId,
     friendIds,
     capabilities,

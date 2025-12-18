@@ -293,8 +293,10 @@ function coerceMemoryResults(items: MemorySearchItem[], limit: number): MemorySe
   return items.slice(0, Math.max(1, limit)).map((item) => ({
     ...item,
     relevanceScore: (() => {
-      const meta = item.meta ?? {};
-      if (typeof (meta as Record<string, unknown>)?.search_highlight === "string") return 3;
+      if (typeof item.relevanceScore === "number") return item.relevanceScore;
+      const meta = (item.meta ?? {}) as Record<string, unknown>;
+      if (typeof meta.search_score === "number") return meta.search_score;
+      if (typeof meta.search_highlight === "string") return 3;
       return 1;
     })(),
     post_id:
@@ -369,8 +371,14 @@ export async function globalSearch({
   }
 
   const [memoryItems, capsules, users, capsuleKnowledge] = await Promise.all([
-    shouldSearchMemories && allowEmbeddings
-      ? searchMemories({ ownerId, query: trimmed, limit: memoryLimit, origin: origin ?? null })
+    shouldSearchMemories
+      ? searchMemories({
+          ownerId,
+          query: trimmed,
+          limit: memoryLimit,
+          origin: origin ?? null,
+          useEmbedding: allowEmbeddings,
+        })
       : Promise.resolve([]),
     includeCapsules
       ? searchCapsulesForUser(ownerId, trimmed, tokens, origin, CAPSULE_SECTION_LIMIT)

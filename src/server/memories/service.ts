@@ -17,11 +17,13 @@ import { ensureAccessibleMediaUrl } from "@/server/posts/media";
 const db = getDatabaseAdminClient();
 const DEFAULT_LIST_LIMIT = 200;
 const MEMORY_FIELDS =
-  "id, owner_user_id, kind, post_id, title, description, media_url, media_type, meta, created_at, uploaded_by, last_viewed_by, last_viewed_at, view_count, version_group_id, version_of, version_index, is_latest";
+  "id, owner_user_id, owner_capsule_id, owner_type, kind, post_id, title, description, media_url, media_type, meta, created_at, uploaded_by, last_viewed_by, last_viewed_at, view_count, version_group_id, version_of, version_index, is_latest";
 
 type MemoryRow = {
   id: string;
   owner_user_id: string | null;
+  owner_capsule_id?: string | null;
+  owner_type?: string | null;
   kind: string | null;
   post_id: string | null;
   title: string | null;
@@ -43,6 +45,54 @@ type MemoryRow = {
 type MemoryIdRow = {
   id: string | number | null;
 };
+
+type MemoryOwnerType = "user" | "capsule";
+
+type NormalizedMemoryOwner = {
+  ownerType: MemoryOwnerType;
+  ownerId: string;
+  ownerUserId: string | null;
+  ownerCapsuleId: string | null;
+  uploadedBy: string | null;
+};
+
+function normalizeMemoryOwner(params: {
+  ownerId: string;
+  ownerType?: MemoryOwnerType | null;
+  uploadedBy?: string | null;
+}): NormalizedMemoryOwner {
+  const ownerId =
+    typeof params.ownerId === "string" && params.ownerId.trim().length
+      ? params.ownerId.trim()
+      : null;
+  if (!ownerId) {
+    throw new Error("ownerId is required when indexing or querying memories");
+  }
+  const resolvedType: MemoryOwnerType =
+    params.ownerType === "capsule" ? "capsule" : "user";
+  const ownerUserId = resolvedType === "user" ? ownerId : null;
+  const ownerCapsuleId = resolvedType === "capsule" ? ownerId : null;
+  const normalizedUploadedBy =
+    typeof params.uploadedBy === "string" && params.uploadedBy.trim().length
+      ? params.uploadedBy.trim()
+      : ownerUserId;
+
+  return {
+    ownerType: resolvedType,
+    ownerId,
+    ownerUserId,
+    ownerCapsuleId,
+    uploadedBy: normalizedUploadedBy ?? null,
+  };
+}
+
+function applyOwnerScope<T>(
+  builder: DatabaseQueryBuilder<T>,
+  owner: NormalizedMemoryOwner,
+): DatabaseQueryBuilder<T> {
+  const column = owner.ownerType === "capsule" ? "owner_capsule_id" : "owner_user_id";
+  return builder.eq(column, owner.ownerId).eq("owner_type", owner.ownerType);
+}
 
 const MEMORY_MEDIA_META_KEYS = [
   "thumbnail_url",
@@ -170,6 +220,125 @@ async function sanitizeMemoryItem(
     mediaType,
     meta: sanitizedMeta ?? null,
   };
+}
+
+const ALGOLIA_EXTRA_LONG_LIMIT = 640;
+const ALGOLIA_EXTRA_OPTION_LIMIT = 16;
+const ALGOLIA_EXTRA_ENTITY_LIMIT = 8;
+const ALGOLIA_TAG_LIMIT = 24;
+const ALGOLIA_TITLE_LIMIT = 200;
+const ALGOLIA_DESCRIPTION_LIMIT = 800;
+
+function sanitizeAlgoliaText(value: unknown, limit: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (!trimmed.length) return null;
+  if (!Number.isFinite(limit) || limit <= 0) return trimmed;
+  return trimmed.length > limit ? trimmed.slice(0, limit) : trimmed;
+}
+
+function sanitizeAlgoliaArray(value: unknown, limit: number, max: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const results: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const trimmed = entry.replace(/\s+/g, " ").trim();
+    if (!trimmed.length) continue;
+    results.push(trimmed.length > limit ? trimmed.slice(0, limit) : trimmed);
+    if (results.length >= max) break;
+  }
+  return results;
+}
+
+function buildAlgoliaExtra(meta: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
+  const extra: Record<string, unknown> = {};
+
+  const source = sanitizeAlgoliaText(meta.source, 120);
+  if (source) extra.source = source;
+
+  const pollQuestion = sanitizeAlgoliaText(meta.poll_question, 200);
+  if (pollQuestion) extra.poll_question = pollQuestion;
+
+  const pollOptions = sanitizeAlgoliaArray(meta.poll_options, 80, ALGOLIA_EXTRA_OPTION_LIMIT);
+  if (pollOptions.length) extra.poll_options = pollOptions;
+
+  if (Array.isArray(meta.poll_counts)) {
+    const counts = meta.poll_counts
+      .filter((value) => typeof value === "number" && Number.isFinite(value))
+      .slice(0, pollOptions.length || ALGOLIA_EXTRA_OPTION_LIMIT)
+      .map((value) => Math.max(0, Math.trunc(value)));
+    if (counts.length) extra.poll_counts = counts;
+  }
+
+  if (typeof meta.poll_total_votes === "number" && Number.isFinite(meta.poll_total_votes)) {
+    extra.poll_total_votes = Math.max(0, Math.trunc(meta.poll_total_votes));
+  }
+
+  const pollCreated = sanitizeAlgoliaText(meta.poll_created_at, 48);
+  if (pollCreated) extra.poll_created_at = pollCreated;
+
+  const pollUpdated = sanitizeAlgoliaText(meta.poll_updated_at, 48);
+  if (pollUpdated) extra.poll_updated_at = pollUpdated;
+
+  const postExcerpt = sanitizeAlgoliaText(meta.post_excerpt, ALGOLIA_EXTRA_LONG_LIMIT);
+  if (postExcerpt) extra.post_excerpt = postExcerpt;
+
+  const postAuthor = sanitizeAlgoliaText(meta.post_author_name, 160);
+  if (postAuthor) extra.post_author_name = postAuthor;
+
+  const prompt = sanitizeAlgoliaText(meta.prompt, ALGOLIA_EXTRA_LONG_LIMIT);
+  if (prompt) extra.prompt = prompt;
+
+  const aiCaption = sanitizeAlgoliaText(meta.ai_caption, ALGOLIA_EXTRA_LONG_LIMIT);
+  if (aiCaption) extra.ai_caption = aiCaption;
+
+  const caption = sanitizeAlgoliaText(meta.caption, ALGOLIA_EXTRA_LONG_LIMIT);
+  if (caption) extra.caption = caption;
+
+  const postClientId = sanitizeAlgoliaText(meta.post_client_id, 80);
+  if (postClientId) extra.post_client_id = postClientId;
+
+  const postRecordId = sanitizeAlgoliaText(meta.post_record_id, 80);
+  if (postRecordId) extra.post_record_id = postRecordId;
+
+  const summaryTags = sanitizeAlgoliaArray(meta.summary_tags, 48, ALGOLIA_TAG_LIMIT);
+  if (summaryTags.length) extra.summary_tags = summaryTags;
+
+  if (meta.summary_entities && typeof meta.summary_entities === "object") {
+    const entities: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(meta.summary_entities as Record<string, unknown>)) {
+      const items = sanitizeAlgoliaArray(value, 64, ALGOLIA_EXTRA_ENTITY_LIMIT);
+      if (items.length) {
+        entities[key] = items;
+      }
+    }
+    if (Object.keys(entities).length) {
+      extra.summary_entities = entities;
+    }
+  }
+
+  if (meta.summary_time && typeof meta.summary_time === "object") {
+    const time = meta.summary_time as Record<string, unknown>;
+    const timePayload: Record<string, unknown> = {};
+    const isoDate = sanitizeAlgoliaText(time.isoDate ?? time.iso_date, 32);
+    if (isoDate) timePayload.isoDate = isoDate;
+    if (typeof time.year === "number" && Number.isFinite(time.year)) {
+      timePayload.year = time.year;
+    }
+    if (typeof time.month === "number" && Number.isFinite(time.month)) {
+      timePayload.month = time.month;
+    }
+    const holiday = sanitizeAlgoliaText(time.holiday, 48);
+    if (holiday) timePayload.holiday = holiday;
+    const relative = sanitizeAlgoliaText(time.relative, 48);
+    if (relative) timePayload.relative = relative;
+    if (Object.keys(timePayload).length) {
+      extra.summary_time = timePayload;
+    }
+  }
+
+  return Object.keys(extra).length ? extra : null;
 }
 
 function isMissingTable(error: DatabaseError | null): boolean {
@@ -319,8 +488,300 @@ function resolveQueryTimeRange(query: string): QueryTimeRange {
   return range;
 }
 
+const EMBEDDING_TEXT_LIMIT = 6000;
+const EMBEDDING_PART_LIMIT = 900;
+const EMBEDDING_LONG_PART_LIMIT = 1600;
+
+function normalizeEmbeddingPart(value: unknown, limit: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (!trimmed.length) return null;
+  if (!Number.isFinite(limit) || limit <= 0) return trimmed;
+  return trimmed.length > limit ? trimmed.slice(0, limit) : trimmed;
+}
+
+function pushEmbeddingPart(
+  parts: string[],
+  seen: Set<string>,
+  value: unknown,
+  limit: number,
+) {
+  const normalized = normalizeEmbeddingPart(value, limit);
+  if (!normalized) return;
+  const key = normalized.toLowerCase();
+  if (seen.has(key)) return;
+  seen.add(key);
+  parts.push(normalized);
+}
+
+function pushEmbeddingArray(
+  parts: string[],
+  seen: Set<string>,
+  value: unknown,
+  limit: number,
+) {
+  if (!Array.isArray(value)) return;
+  value.forEach((entry) => pushEmbeddingPart(parts, seen, entry, limit));
+}
+
+function buildEmbeddingText(options: {
+  kind?: string | null;
+  source?: string | null;
+  title?: string | null;
+  description?: string | null;
+  rawText?: string | null;
+  mediaType?: string | null;
+  meta?: Record<string, unknown> | null;
+}): string | null {
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  const meta = options.meta ?? {};
+
+  if (options.kind) pushEmbeddingPart(parts, seen, `kind: ${options.kind}`, 120);
+  if (options.source) pushEmbeddingPart(parts, seen, `source: ${options.source}`, 160);
+  if (options.mediaType) pushEmbeddingPart(parts, seen, options.mediaType, 120);
+
+  pushEmbeddingPart(parts, seen, options.title, EMBEDDING_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, options.description, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, options.rawText, EMBEDDING_LONG_PART_LIMIT);
+
+  pushEmbeddingPart(parts, seen, meta.poll_question, EMBEDDING_PART_LIMIT);
+  pushEmbeddingArray(parts, seen, meta.poll_options, 80);
+
+  pushEmbeddingPart(parts, seen, meta.post_excerpt, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, meta.post_author_name, 160);
+  pushEmbeddingPart(parts, seen, meta.prompt, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, meta.ai_caption, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, meta.caption, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, meta.raw_text, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, meta.original_text, EMBEDDING_LONG_PART_LIMIT);
+  pushEmbeddingPart(parts, seen, meta.transcript, EMBEDDING_LONG_PART_LIMIT);
+
+  pushEmbeddingArray(parts, seen, meta.summary_tags, 64);
+
+  if (meta.summary_entities && typeof meta.summary_entities === "object") {
+    Object.values(meta.summary_entities as Record<string, unknown>).forEach((value) => {
+      pushEmbeddingArray(parts, seen, value, 80);
+    });
+  }
+
+  const combined = parts.join("\n").trim();
+  if (!combined.length) return null;
+  return combined.length > EMBEDDING_TEXT_LIMIT ? combined.slice(0, EMBEDDING_TEXT_LIMIT) : combined;
+}
+
+const TOKEN_MIN_LENGTH = 3;
+const RRF_K = 60;
+const VECTOR_RRF_WEIGHT = 1;
+const ALGOLIA_RRF_WEIGHT = 0.9;
+const LEXICAL_RRF_WEIGHT = 0.55;
+const VECTOR_SCORE_WEIGHT = 0.02;
+const TOKEN_SCORE_WEIGHT = 0.0035;
+const TOKEN_SCORE_CAP = 0.06;
+const INTENT_BOOST = 0.02;
+const MAX_CANDIDATE_POOL = 120;
+const CANDIDATE_MULTIPLIER = 5;
+
+function normalizeSearchToken(value: string): string | null {
+  const cleaned = value.toLowerCase().replace(/[^a-z0-9#@]/g, "");
+  if (!cleaned.length) return null;
+  if (cleaned.length >= TOKEN_MIN_LENGTH || /\d/.test(cleaned)) return cleaned;
+  return null;
+}
+
+function singularizeToken(token: string): string | null {
+  if (token.endsWith("ies") && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith("es") && token.length > 4) return token.slice(0, -2);
+  if (token.endsWith("s") && token.length > 3 && !token.endsWith("ss")) {
+    return token.slice(0, -1);
+  }
+  return null;
+}
+
+function tokenizeSearchQuery(query: string): string[] {
+  const tokens = new Set<string>();
+  query
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .forEach((token) => {
+      const normalized = normalizeSearchToken(token);
+      if (!normalized) return;
+      tokens.add(normalized);
+      const singular = singularizeToken(normalized);
+      if (singular) tokens.add(singular);
+    });
+  return Array.from(tokens);
+}
+
+function scoreTokenMatches(text: string | null | undefined, tokens: string[]): number {
+  if (!text || !tokens.length) return 0;
+  const lower = text.toLowerCase();
+  let score = 0;
+  tokens.forEach((token) => {
+    if (!token) return;
+    if (lower === token) {
+      score += 6;
+    } else if (lower.startsWith(token)) {
+      score += 4;
+    } else if (lower.includes(token)) {
+      score += 2;
+    }
+  });
+  return score;
+}
+
+type MemoryIntent = {
+  poll: boolean;
+  post: boolean;
+  image: boolean;
+  video: boolean;
+  audio: boolean;
+  file: boolean;
+};
+
+const INTENT_TOKENS = {
+  poll: new Set(["poll", "vote", "votes", "voting", "survey", "ballot"]),
+  post: new Set(["post", "posts", "comment", "comments", "reply", "replies", "thread", "threads"]),
+  image: new Set(["photo", "photos", "image", "images", "pic", "pics", "picture", "pictures"]),
+  video: new Set(["video", "videos", "clip", "clips", "recording", "recordings"]),
+  audio: new Set(["audio", "song", "songs", "voice", "podcast", "podcasts"]),
+  file: new Set(["file", "files", "pdf", "ppt", "pptx", "slides", "doc", "docs", "document", "documents"]),
+};
+
+function detectMemoryIntent(tokens: string[]): MemoryIntent {
+  const tokenSet = new Set(tokens);
+  const has = (set: Set<string>) => Array.from(set).some((entry) => tokenSet.has(entry));
+  return {
+    poll: has(INTENT_TOKENS.poll),
+    post: has(INTENT_TOKENS.post),
+    image: has(INTENT_TOKENS.image),
+    video: has(INTENT_TOKENS.video),
+    audio: has(INTENT_TOKENS.audio),
+    file: has(INTENT_TOKENS.file),
+  };
+}
+
+function scoreIntentBoost(
+  intent: MemoryIntent,
+  item: Record<string, unknown>,
+): number {
+  if (
+    !intent.poll &&
+    !intent.post &&
+    !intent.image &&
+    !intent.video &&
+    !intent.audio &&
+    !intent.file
+  ) {
+    return 0;
+  }
+  const kind =
+    typeof item.kind === "string" && item.kind.trim().length
+      ? item.kind.trim().toLowerCase()
+      : null;
+  const meta = (item.meta ?? {}) as Record<string, unknown>;
+  const source =
+    typeof meta.source === "string" && meta.source.trim().length
+      ? meta.source.trim().toLowerCase()
+      : null;
+  const mediaTypeRaw =
+    typeof item.media_type === "string"
+      ? item.media_type
+      : typeof item.mediaType === "string"
+        ? item.mediaType
+        : null;
+  const mediaType = mediaTypeRaw ? mediaTypeRaw.toLowerCase() : null;
+
+  let boost = 0;
+  if (intent.poll && (kind === "poll" || source === "post_poll")) {
+    boost += INTENT_BOOST;
+  }
+  if (intent.post && (kind === "post" || source === "post_memory")) {
+    boost += INTENT_BOOST * 0.8;
+  }
+  if (intent.image && (mediaType?.startsWith("image/") || source === "post_attachment")) {
+    boost += INTENT_BOOST * 0.7;
+  }
+  if (intent.video && (mediaType?.startsWith("video/") || source === "post_attachment")) {
+    boost += INTENT_BOOST * 0.7;
+  }
+  if (intent.audio && mediaType?.startsWith("audio/")) {
+    boost += INTENT_BOOST * 0.6;
+  }
+  if (intent.file && mediaType && /(pdf|ppt|presentation|msword|spreadsheet|excel)/.test(mediaType)) {
+    boost += INTENT_BOOST * 0.6;
+  }
+  return boost;
+}
+
+function scoreMemoryTokens(item: Record<string, unknown>, tokens: string[]): number {
+  if (!tokens.length) return 0;
+  const title = typeof item.title === "string" ? item.title : null;
+  const description = typeof item.description === "string" ? item.description : null;
+  const meta = (item.meta ?? {}) as Record<string, unknown>;
+
+  let score = 0;
+  score += scoreTokenMatches(title, tokens) * 2;
+  score += scoreTokenMatches(description, tokens);
+
+  if (typeof meta.poll_question === "string") {
+    score += scoreTokenMatches(meta.poll_question, tokens);
+  }
+  if (Array.isArray(meta.poll_options)) {
+    (meta.poll_options as unknown[]).forEach((option) => {
+      if (typeof option === "string") {
+        score += scoreTokenMatches(option, tokens);
+      }
+    });
+  }
+  if (Array.isArray(meta.summary_tags)) {
+    (meta.summary_tags as unknown[]).forEach((tag) => {
+      if (typeof tag === "string") {
+        score += scoreTokenMatches(tag, tokens);
+      }
+    });
+  }
+  if (meta.summary_entities && typeof meta.summary_entities === "object") {
+    Object.values(meta.summary_entities as Record<string, unknown>).forEach((value) => {
+      if (Array.isArray(value)) {
+        value.forEach((entry) => {
+          if (typeof entry === "string") {
+            score += scoreTokenMatches(entry, tokens);
+          }
+        });
+      }
+    });
+  }
+  if (typeof meta.post_excerpt === "string") {
+    score += scoreTokenMatches(meta.post_excerpt, tokens);
+  }
+  if (typeof meta.ai_caption === "string") {
+    score += scoreTokenMatches(meta.ai_caption, tokens);
+  }
+  return score;
+}
+
+function isWithinTimeRange(createdAt: string | null | undefined, range: QueryTimeRange): boolean {
+  if (!range.since && !range.until) return true;
+  if (!createdAt) return true;
+  const createdTs = Date.parse(createdAt);
+  if (!Number.isFinite(createdTs)) return true;
+  if (range.since) {
+    const sinceTs = Date.parse(range.since);
+    if (Number.isFinite(sinceTs) && createdTs < sinceTs) return false;
+  }
+  if (range.until) {
+    const untilTs = Date.parse(range.until);
+    if (Number.isFinite(untilTs) && createdTs > untilTs) return false;
+  }
+  return true;
+}
+
 export async function indexMemory({
   ownerId,
+  ownerType = "user",
+  uploadedBy,
   kind,
   mediaUrl,
   mediaType,
@@ -334,6 +795,8 @@ export async function indexMemory({
   eventAt,
 }: {
   ownerId: string;
+  ownerType?: MemoryOwnerType | null;
+  uploadedBy?: string | null;
   kind: string;
   mediaUrl: string | null;
   mediaType: string | null;
@@ -351,6 +814,12 @@ export async function indexMemory({
   if (Object.prototype.hasOwnProperty.call(meta, "embedding")) {
     delete meta.embedding;
   }
+
+  const owner = normalizeMemoryOwner({
+    ownerId,
+    ownerType,
+    uploadedBy: uploadedBy ?? null,
+  });
 
   const versionKeyCandidates: Array<unknown> = [
     (meta as { version_of?: unknown }).version_of,
@@ -375,32 +844,44 @@ export async function indexMemory({
         .select<{
           id: string;
           owner_user_id: string | null;
+          owner_capsule_id: string | null;
+          owner_type: string | null;
           version_group_id: string | null;
           version_index: number | null;
-        }>("id, owner_user_id, version_group_id, version_index")
+        }>("id, owner_user_id, owner_capsule_id, owner_type, version_group_id, version_index")
         .eq("id", normalizedTarget)
         .maybeSingle();
 
-      if (!base.error && base.data && base.data.owner_user_id === ownerId) {
-        versionOf = base.data.id;
-        versionGroupIdOverride = base.data.version_group_id ?? base.data.id;
-        versionIndexOverride = (base.data.version_index ?? 1) + 1;
+      if (!base.error && base.data) {
+        const baseOwnerType: MemoryOwnerType =
+          base.data.owner_type === "capsule" ? "capsule" : "user";
+        const baseOwnerId =
+          baseOwnerType === "capsule" ? base.data.owner_capsule_id : base.data.owner_user_id;
 
-        if (versionGroupIdOverride) {
-          try {
-            const latest = await db
-              .from("memories")
-              .select<{ version_index: number | null }>("version_index")
-              .eq("version_group_id", versionGroupIdOverride)
-              .order("version_index", { ascending: false })
-              .limit(1)
-              .maybeSingle();
+        const isSameOwner =
+          baseOwnerType === owner.ownerType && baseOwnerId === owner.ownerId;
 
-            if (!latest.error && latest.data && typeof latest.data.version_index === "number") {
-              versionIndexOverride = latest.data.version_index + 1;
+        if (isSameOwner) {
+          versionOf = base.data.id;
+          versionGroupIdOverride = base.data.version_group_id ?? base.data.id;
+          versionIndexOverride = (base.data.version_index ?? 1) + 1;
+
+          if (versionGroupIdOverride) {
+            try {
+              const latest = await db
+                .from("memories")
+                .select<{ version_index: number | null }>("version_index")
+                .eq("version_group_id", versionGroupIdOverride)
+                .order("version_index", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (!latest.error && latest.data && typeof latest.data.version_index === "number") {
+                versionIndexOverride = latest.data.version_index + 1;
+              }
+            } catch (versionLookupError) {
+              console.warn("memory version index resolve failed", versionLookupError);
             }
-          } catch (versionLookupError) {
-            console.warn("memory version index resolve failed", versionLookupError);
           }
         }
       }
@@ -520,7 +1001,9 @@ export async function indexMemory({
   const versionGroupForUpdate = versionOf ? versionGroupIdOverride : null;
 
   const record: Record<string, unknown> = {
-    owner_user_id: ownerId,
+    owner_user_id: owner.ownerUserId,
+    owner_capsule_id: owner.ownerCapsuleId,
+    owner_type: owner.ownerType,
     kind,
     media_url: mediaUrl,
     media_type: mediaType,
@@ -528,7 +1011,7 @@ export async function indexMemory({
     description: finalDescription ?? null,
     post_id: postId,
     meta,
-    uploaded_by: ownerId,
+    uploaded_by: owner.uploadedBy,
     is_latest: true,
   };
 
@@ -542,17 +1025,19 @@ export async function indexMemory({
     record.version_index = versionIndexOverride;
   }
 
-  const embeddingSource = [
-    finalTitle,
-    finalDescription,
-    mediaType,
-    ...(Array.isArray(meta.summary_tags) ? (meta.summary_tags as string[]) : []),
-  ]
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-    .join(" ");
-  const text = embeddingSource.length
-    ? embeddingSource
-    : [title, description, mediaType].filter(Boolean).join(" ");
+  const text =
+    buildEmbeddingText({
+      kind,
+      source: effectiveSource ?? null,
+      title: finalTitle ?? null,
+      description: finalDescription ?? null,
+      rawText: typeof rawText === "string" ? rawText : null,
+      mediaType,
+      meta,
+    }) ??
+    [finalTitle, finalDescription, mediaType]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .join(" ");
   const { dimensions: expectedEmbeddingDim } = getEmbeddingModelConfig();
   let embedding: number[] | null = null;
 
@@ -609,7 +1094,8 @@ export async function indexMemory({
       try {
         await upsertMemoryVector({
           id: memoryId,
-          ownerId,
+          ownerId: owner.ownerId,
+          ownerType: owner.ownerType,
           values: embedding,
           kind,
           postId,
@@ -627,21 +1113,17 @@ export async function indexMemory({
     try {
       const searchIndex = getSearchIndex();
       if (searchIndex) {
+        const tagsForSearch = sanitizeAlgoliaArray(meta.summary_tags, 48, ALGOLIA_TAG_LIMIT);
         const searchRecord: SearchIndexRecord = {
           id: memoryId,
-          ownerId,
-          title: finalTitle ?? null,
-          description: finalDescription ?? null,
+          ownerId: owner.ownerId,
+          ownerType: owner.ownerType,
+          title: sanitizeAlgoliaText(finalTitle ?? null, ALGOLIA_TITLE_LIMIT),
+          description: sanitizeAlgoliaText(finalDescription ?? null, ALGOLIA_DESCRIPTION_LIMIT),
           kind,
           mediaUrl,
           createdAt: typeof inserted?.created_at === "string" ? inserted?.created_at : null,
-          tags: Array.isArray(meta.summary_tags)
-            ? (meta.summary_tags as unknown[])
-                .filter(
-                  (value): value is string => typeof value === "string" && value.trim().length > 0,
-                )
-                .map((value) => value.trim())
-            : null,
+          tags: tagsForSearch.length ? tagsForSearch : null,
           facets: {
             source: effectiveSource ?? undefined,
             holiday:
@@ -650,7 +1132,7 @@ export async function indexMemory({
                 ? ((meta.summary_time as Record<string, unknown>).holiday as string)
                 : undefined,
           },
-          extra: meta,
+          extra: buildAlgoliaExtra(meta),
         };
         await searchIndex.upsert([searchRecord]);
       }
@@ -837,12 +1319,14 @@ async function fetchLegacyMemoryItems(
 
 export async function listMemories({
   ownerId,
+  ownerType = "user",
   kind,
   origin,
   limit = DEFAULT_LIST_LIMIT,
   cursor,
 }: {
   ownerId: string;
+  ownerType?: MemoryOwnerType | null;
   kind?: string | null;
   origin?: string | null;
   limit?: number | null;
@@ -851,15 +1335,18 @@ export async function listMemories({
   const filters = resolveMemoryKindFilters(kind);
   const pageSize =
     typeof limit === "number" && limit > 0 ? Math.min(limit, DEFAULT_LIST_LIMIT) : DEFAULT_LIST_LIMIT;
+  const owner = normalizeMemoryOwner({ ownerId, ownerType });
 
-  let builder = db
-    .from("memories")
-    .select<Record<string, unknown>>(MEMORY_FIELDS)
-    .eq("owner_user_id", ownerId)
-    .eq("is_latest", true)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(pageSize);
+  let builder = applyOwnerScope(
+    db
+      .from("memories")
+      .select<Record<string, unknown>>(MEMORY_FIELDS)
+      .eq("is_latest", true)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(pageSize),
+    owner,
+  );
 
   if (filters.dbKinds && filters.dbKinds.length) {
     if (filters.dbKinds.length === 1) {
@@ -876,8 +1363,8 @@ export async function listMemories({
   const result = await builder.fetch();
 
   if (result.error) {
-    if (isMissingTable(result.error)) {
-      return fetchLegacyMemoryItems(ownerId, filters, pageSize, origin ?? null, cursor ?? null);
+    if (isMissingTable(result.error) && owner.ownerType === "user") {
+      return fetchLegacyMemoryItems(owner.ownerId, filters, pageSize, origin ?? null, cursor ?? null);
     }
     console.warn("memories list query failed", result.error);
     throw result.error;
@@ -901,21 +1388,27 @@ export async function listMemories({
 
 export async function searchMemories({
   ownerId,
+  ownerType = "user",
   query,
   limit,
   page = 0,
   filters,
   origin,
+  useEmbedding = true,
 }: {
   ownerId: string;
+  ownerType?: MemoryOwnerType | null;
   query: string;
   limit: number;
   page?: number;
   filters?: { kinds?: string[] | null | undefined };
   origin?: string | null;
+  useEmbedding?: boolean;
 }) {
   const trimmed = query.trim();
   if (!trimmed) return [];
+
+  const owner = normalizeMemoryOwner({ ownerId, ownerType });
 
   const sanitizeHighlight = (value: unknown): string | null => {
     if (typeof value !== "string") return null;
@@ -929,36 +1422,56 @@ export async function searchMemories({
   const searchIndex = getSearchIndex();
   const highlightMap = new Map<string, string | null>();
   const algoliaRecordMap = new Map<string, SearchIndexRecord>();
-  const candidateOrder: string[] = [];
-  const ranking = new Map<string, number>();
+  const candidateScores = new Map<
+    string,
+    { score: number; vectorScore?: number; sources: Set<string> }
+  >();
   const timeRange = resolveQueryTimeRange(trimmed);
+  const tokens = tokenizeSearchQuery(trimmed);
+  const intent = detectMemoryIntent(tokens);
 
   const escapeLike = (value: string) => value.replace(/[%_]/g, "\\$&");
 
-  const addCandidate = (id: unknown, score: number) => {
+  const recordCandidate = (
+    id: unknown,
+    rank: number,
+    weight: number,
+    source: string,
+    vectorScore?: number,
+  ) => {
     if (typeof id !== "string" || !id.trim().length) return;
-    const existing = ranking.get(id);
-    if (existing == null) {
-      ranking.set(id, score);
-      candidateOrder.push(id);
-    } else if (score > existing) {
-      ranking.set(id, score);
+    const key = id.trim();
+    const existing = candidateScores.get(key) ?? { score: 0, sources: new Set<string>() };
+    existing.score += weight / (RRF_K + rank);
+    existing.sources.add(source);
+    if (typeof vectorScore === "number" && Number.isFinite(vectorScore)) {
+      existing.vectorScore =
+        typeof existing.vectorScore === "number"
+          ? Math.max(existing.vectorScore, vectorScore)
+          : vectorScore;
     }
+    candidateScores.set(key, existing);
   };
 
   let embedding: number[] | null = null;
-  try {
-    embedding = await embedText(trimmed);
-  } catch (error) {
-    console.warn("memory query embed failed", error);
+  if (useEmbedding) {
+    try {
+      embedding = await embedText(trimmed);
+    } catch (error) {
+      console.warn("memory query embed failed", error);
+    }
   }
 
   if (embedding) {
     try {
-      const matches = await queryMemoryVectors(ownerId, embedding, Math.max(limit * 3, limit));
+      const matches = await queryMemoryVectors(
+        owner.ownerId,
+        embedding,
+        Math.max(limit * 3, limit),
+        owner.ownerType === "capsule" ? owner.ownerType : undefined,
+      );
       matches.forEach((match, index) => {
-        const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
-        addCandidate(match.id, score);
+        recordCandidate(match.id, index + 1, VECTOR_RRF_WEIGHT, "vector", match.score ?? undefined);
       });
     } catch (error) {
       console.warn("pinecone memory query failed", error);
@@ -980,14 +1493,14 @@ export async function searchMemories({
             }
           : undefined;
       const matches = await searchIndex.search({
-        ownerId,
+        ownerId: owner.ownerId,
+        ...(owner.ownerType === "capsule" ? { ownerType: owner.ownerType } : {}),
         text: trimmed,
         limit: Math.max(limit * 3, limit),
         ...(filtersForSearch ? { filters: filtersForSearch } : {}),
       });
       matches.forEach((match, index) => {
-        const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
-        addCandidate(match.id, score);
+        recordCandidate(match.id, index + 1, ALGOLIA_RRF_WEIGHT, "algolia");
         if (match.highlight) {
           const safeHighlight = sanitizeHighlight(match.highlight);
           if (safeHighlight) {
@@ -1003,13 +1516,9 @@ export async function searchMemories({
     }
   }
 
-  // If the vector + algolia lookups missed, fall back to a lightweight lexical match on title/description.
-  if (!candidateOrder.length) {
-    const tokens = trimmed
-      .toLowerCase()
-      .split(/\s+/)
-      .map((t) => t.trim())
-      .filter((t) => t.length >= 3);
+  const desiredCandidates = Math.max(limit * 3, 24);
+
+  if (candidateScores.size < desiredCandidates) {
     const clauses: string[] = [];
     tokens.forEach((token) => {
       const escaped = escapeLike(token);
@@ -1017,13 +1526,12 @@ export async function searchMemories({
       clauses.push(`description.ilike.%${escaped}%`);
     });
 
-    if (clauses.length) {
+        if (clauses.length) {
       try {
-        let builder = db
-          .from("memories")
-          .select<{ id: string }>("id")
-          .eq("owner_user_id", ownerId)
-          .eq("is_latest", true);
+        let builder = applyOwnerScope(
+          db.from("memories").select<{ id: string }>("id").eq("is_latest", true),
+          owner,
+        );
 
         if (timeRange.since) {
           builder = builder.gte("created_at", timeRange.since);
@@ -1042,8 +1550,7 @@ export async function searchMemories({
           (result.data as Array<{ id: string | null | undefined }>).forEach((row, index) => {
             const id = typeof row?.id === "string" ? row.id : null;
             if (id) {
-              // Lexical matches get a modest score boost; order preserves recency preference.
-              addCandidate(id, 2 - index * 0.001);
+              recordCandidate(id, index + 1, LEXICAL_RRF_WEIGHT, "lexical");
             }
           });
         }
@@ -1055,8 +1562,7 @@ export async function searchMemories({
 
   const hasTimeFilter = Boolean(timeRange.since || timeRange.until);
 
-  // If a time filter was applied and we still have no candidates, retry Algolia + lexical search without the time constraint.
-  if (hasTimeFilter && !candidateOrder.length && searchIndex) {
+  if (hasTimeFilter && candidateScores.size === 0 && searchIndex) {
     try {
       const kindsFilter = (filters?.kinds ?? []).filter(
         (value): value is string => typeof value === "string" && value.trim().length > 0,
@@ -1064,14 +1570,14 @@ export async function searchMemories({
       const hasKinds = kindsFilter.length > 0;
       const filtersForSearch = hasKinds ? { kinds: kindsFilter } : undefined;
       const matches = await searchIndex.search({
-        ownerId,
+        ownerId: owner.ownerId,
+        ...(owner.ownerType === "capsule" ? { ownerType: owner.ownerType } : {}),
         text: trimmed,
         limit: Math.max(limit * 3, limit),
         ...(filtersForSearch ? { filters: filtersForSearch } : {}),
       });
       matches.forEach((match, index) => {
-        const score = (typeof match.score === "number" ? match.score : 0) - index * 0.001;
-        addCandidate(match.id, score);
+        recordCandidate(match.id, index + 1, ALGOLIA_RRF_WEIGHT, "algolia");
         if (match.highlight) {
           const safeHighlight = sanitizeHighlight(match.highlight);
           if (safeHighlight) {
@@ -1086,12 +1592,7 @@ export async function searchMemories({
       console.warn("algolia memory query retry without time range failed", error);
     }
 
-    if (!candidateOrder.length) {
-      const tokens = trimmed
-        .toLowerCase()
-        .split(/\s+/)
-        .map((t) => t.trim())
-        .filter((t) => t.length >= 3);
+    if (candidateScores.size === 0) {
       const clauses: string[] = [];
       tokens.forEach((token) => {
         const escaped = escapeLike(token);
@@ -1101,11 +1602,10 @@ export async function searchMemories({
 
       if (clauses.length) {
         try {
-          const result = await db
-            .from("memories")
-            .select<{ id: string }>("id")
-            .eq("owner_user_id", ownerId)
-            .eq("is_latest", true)
+          const result = await applyOwnerScope(
+            db.from("memories").select<{ id: string }>("id").eq("is_latest", true),
+            owner,
+          )
             .or(clauses.join(","))
             .order("created_at", { ascending: false })
             .limit(Math.max(limit * 2, limit))
@@ -1115,7 +1615,7 @@ export async function searchMemories({
             (result.data as Array<{ id: string | null | undefined }>).forEach((row, index) => {
               const id = typeof row?.id === "string" ? row.id : null;
               if (id) {
-                addCandidate(id, 2 - index * 0.001);
+                recordCandidate(id, index + 1, LEXICAL_RRF_WEIGHT, "lexical");
               }
             });
           }
@@ -1128,9 +1628,30 @@ export async function searchMemories({
 
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 0;
   const start = safePage * limit;
-  const ids = candidateOrder.slice(start, start + limit);
-  if (!ids.length) {
-    const fallback = await listMemories({ ownerId, origin: origin ?? null });
+
+  if (!candidateScores.size) {
+    const fallback = await listMemories({
+      ownerId: owner.ownerId,
+      ownerType: owner.ownerType,
+      origin: origin ?? null,
+    });
+    return fallback.slice(start, start + limit);
+  }
+
+  const sortedCandidates = Array.from(candidateScores.entries())
+    .map(([id, entry]) => ({ id, entry }))
+    .sort((a, b) => b.entry.score - a.entry.score);
+
+  const poolTarget = Math.max((safePage + 1) * limit, limit * CANDIDATE_MULTIPLIER, 24);
+  const poolSize = Math.min(sortedCandidates.length, Math.min(poolTarget, MAX_CANDIDATE_POOL));
+  const candidateIds = sortedCandidates.slice(0, poolSize).map((entry) => entry.id);
+
+  if (!candidateIds.length) {
+    const fallback = await listMemories({
+      ownerId: owner.ownerId,
+      ownerType: owner.ownerType,
+      origin: origin ?? null,
+    });
     return fallback.slice(start, start + limit);
   }
 
@@ -1138,7 +1659,7 @@ export async function searchMemories({
     const result = await db
       .from("memories")
       .select<Record<string, unknown>>(MEMORY_FIELDS)
-      .in("id", ids)
+      .in("id", candidateIds)
       .eq("is_latest", true)
       .fetch();
 
@@ -1156,51 +1677,91 @@ export async function searchMemories({
       console.warn("memories fetch after search failed", result.error);
     }
 
-    const ordered: Record<string, unknown>[] = [];
-    for (const id of ids) {
+    const scoredRows: Array<{ id: string; score: number; createdAt: string | null; row: Record<string, unknown> }> = [];
+
+    candidateIds.forEach((id, index) => {
+      const baseEntry = candidateScores.get(id);
+      const baseScore =
+        (baseEntry?.score ?? 0) +
+        (typeof baseEntry?.vectorScore === "number" ? baseEntry.vectorScore * VECTOR_SCORE_WEIGHT : 0);
+
       const row = map.get(id);
-      if (row) {
-        if (highlightMap.has(id)) {
-          const highlight = highlightMap.get(id);
-          const meta = (row.meta ?? {}) as Record<string, unknown>;
-          const mergedMeta = { ...meta };
-          if (highlight && !mergedMeta.search_highlight) {
-            mergedMeta.search_highlight = highlight;
-          }
-          row.meta = mergedMeta;
-        }
-        ordered.push(row);
-        continue;
-      }
-
       const record = algoliaRecordMap.get(id);
-      if (record) {
-        const fallbackRow: Record<string, unknown> = {
-          id,
-          kind: record.kind ?? null,
-          media_url: record.mediaUrl ?? null,
-          media_type: null,
-          title: record.title ?? null,
-          description: record.description ?? null,
-          created_at: record.createdAt ?? null,
-          meta: {
-            ...(record.extra ?? {}),
-            search_highlight: highlightMap.get(id) ?? null,
-          },
-        };
-        ordered.push(fallbackRow);
-      }
-    }
+      const resolvedRow =
+        row ??
+        (record
+          ? ({
+              id,
+              kind: record.kind ?? null,
+              media_url: record.mediaUrl ?? null,
+              media_type: null,
+              title: record.title ?? null,
+              description: record.description ?? null,
+              created_at: record.createdAt ?? null,
+              meta: record.extra ?? null,
+            } as Record<string, unknown>)
+          : null);
 
-    if (ordered.length) {
+      if (!resolvedRow) return;
+
+      const createdAt =
+        typeof resolvedRow.created_at === "string"
+          ? resolvedRow.created_at
+          : typeof resolvedRow.createdAt === "string"
+            ? resolvedRow.createdAt
+            : null;
+
+      if (!isWithinTimeRange(createdAt, timeRange)) return;
+
+      const tokenScore = scoreMemoryTokens(resolvedRow, tokens);
+      const tokenBoost = Math.min(tokenScore * TOKEN_SCORE_WEIGHT, TOKEN_SCORE_CAP);
+      const intentBoost = scoreIntentBoost(intent, resolvedRow);
+      const finalScore = baseScore + tokenBoost + intentBoost;
+
+      const meta =
+        resolvedRow.meta && typeof resolvedRow.meta === "object" && !Array.isArray(resolvedRow.meta)
+          ? (resolvedRow.meta as Record<string, unknown>)
+          : {};
+      const mergedMeta = { ...meta };
+      const highlight = highlightMap.get(id);
+      if (highlight && !mergedMeta.search_highlight) {
+        mergedMeta.search_highlight = highlight;
+      }
+      mergedMeta.search_score = finalScore;
+      mergedMeta.search_rank = index + 1;
+      if (baseEntry?.sources) {
+        mergedMeta.search_sources = Array.from(baseEntry.sources);
+      }
+      resolvedRow.meta = mergedMeta;
+      resolvedRow.relevanceScore = finalScore;
+
+      scoredRows.push({
+        id,
+        score: finalScore,
+        createdAt,
+        row: resolvedRow,
+      });
+    });
+
+    if (scoredRows.length) {
+      scoredRows.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const aTs = a.createdAt ? Date.parse(a.createdAt) : NaN;
+        const bTs = b.createdAt ? Date.parse(b.createdAt) : NaN;
+        if (Number.isFinite(aTs) && Number.isFinite(bTs) && bTs !== aTs) {
+          return bTs - aTs;
+        }
+        return a.id.localeCompare(b.id);
+      });
+
+      const pagedRows = scoredRows.slice(start, start + limit).map((entry) => entry.row);
       const sanitized = await Promise.all(
-        ordered.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
+        pagedRows.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
       );
       if (filters?.kinds?.length) {
         const allowed = new Set(filters.kinds.map((kind) => kind.toLowerCase()));
         return sanitized.filter(
-          (item) =>
-            typeof item.kind === "string" && allowed.has(item.kind.toLowerCase()),
+          (item) => typeof item.kind === "string" && allowed.has(item.kind.toLowerCase()),
         );
       }
       return sanitized;
@@ -1209,26 +1770,32 @@ export async function searchMemories({
     console.warn("memory search hydrate failed", error);
   }
 
-  const fallback = await listMemories({ ownerId, origin: origin ?? null });
-  const safePageFallback = Number.isFinite(page) && page > 0 ? Math.floor(page) : 0;
-  const startFallback = safePageFallback * limit;
+  const fallback = await listMemories({
+    ownerId: owner.ownerId,
+    ownerType: owner.ownerType,
+    origin: origin ?? null,
+  });
+  const startFallback = start;
   return fallback.slice(startFallback, startFallback + limit);
 }
 
 export async function deleteMemories({
   ownerId,
+  ownerType = "user",
   body,
 }: {
   ownerId: string;
+  ownerType?: MemoryOwnerType | null;
   body: Record<string, unknown>;
 }) {
+  const owner = normalizeMemoryOwner({ ownerId, ownerType });
   const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
   const urls = Array.isArray(body.urls) ? body.urls.map(String).filter(Boolean) : [];
   const kind = typeof body.kind === "string" && body.kind.trim().length ? body.kind.trim() : null;
   const deleteAll = Boolean(body.all);
 
   const applyMemoryFilters = <T>(builder: DatabaseQueryBuilder<T>): DatabaseQueryBuilder<T> => {
-    let scoped = builder.eq("owner_user_id", ownerId);
+    let scoped = applyOwnerScope(builder, owner);
     if (!deleteAll) {
       if (kind) scoped = scoped.eq("kind", kind);
       if (ids.length) scoped = scoped.in("id", ids);
@@ -1282,66 +1849,71 @@ export async function deleteMemories({
     }
   }
 
-  const deleteLegacyRecords = async (
-    configure: (builder: DatabaseQueryBuilder<MemoryIdRow>) => DatabaseQueryBuilder<MemoryIdRow>,
-    logContext: string,
-  ): Promise<number> => {
-    try {
-      let builder = db
-        .from("memory_items")
-        .delete<MemoryIdRow>({ count: "exact" })
-        .eq("owner_user_id", ownerId);
+  const deleteLegacyRecords =
+    owner.ownerType === "user"
+      ? async (
+          configure: (builder: DatabaseQueryBuilder<MemoryIdRow>) => DatabaseQueryBuilder<MemoryIdRow>,
+          logContext: string,
+        ): Promise<number> => {
+          try {
+            let builder = db
+              .from("memory_items")
+              .delete<MemoryIdRow>({ count: "exact" })
+              .eq("owner_user_id", owner.ownerId);
 
-      builder = configure(builder);
+            builder = configure(builder);
 
-      const result = await builder.select<MemoryIdRow>("id").fetch();
-      if (result.error) {
-        console.warn(logContext, result.error);
-        return 0;
+            const result = await builder.select<MemoryIdRow>("id").fetch();
+            if (result.error) {
+              console.warn(logContext, result.error);
+              return 0;
+            }
+            return (result.data ?? []).length;
+          } catch (error) {
+            console.warn(logContext, error);
+            return 0;
+          }
+        }
+      : null;
+
+  if (deleteLegacyRecords) {
+    if (deleteAll) {
+      deletedLegacy += await deleteLegacyRecords((builder) => builder, "legacy delete all error");
+    } else {
+      if (ids.length) {
+        for (const column of ["id", "uuid", "item_id", "memory_id"]) {
+          deletedLegacy += await deleteLegacyRecords((builder) => {
+            let scoped = builder;
+            if (kind) scoped = scoped.eq("kind", kind);
+            return scoped.in(column, ids);
+          }, "memory_items delete error");
+        }
       }
-      return (result.data ?? []).length;
-    } catch (error) {
-      console.warn(logContext, error);
-      return 0;
-    }
-  };
 
-  if (deleteAll) {
-    deletedLegacy += await deleteLegacyRecords((builder) => builder, "legacy delete all error");
-  } else {
-    if (ids.length) {
-      for (const column of ["id", "uuid", "item_id", "memory_id"]) {
-        deletedLegacy += await deleteLegacyRecords((builder) => {
-          let scoped = builder;
-          if (kind) scoped = scoped.eq("kind", kind);
-          return scoped.in(column, ids);
-        }, "memory_items delete error");
+      if (urls.length) {
+        for (const column of [
+          "media_url",
+          "url",
+          "asset_url",
+          "storage_path",
+          "file_url",
+          "public_url",
+          "path",
+        ]) {
+          deletedLegacy += await deleteLegacyRecords((builder) => {
+            let scoped = builder;
+            if (kind) scoped = scoped.eq("kind", kind);
+            return scoped.in(column, urls);
+          }, "memory_items delete error");
+        }
       }
-    }
 
-    if (urls.length) {
-      for (const column of [
-        "media_url",
-        "url",
-        "asset_url",
-        "storage_path",
-        "file_url",
-        "public_url",
-        "path",
-      ]) {
-        deletedLegacy += await deleteLegacyRecords((builder) => {
-          let scoped = builder;
-          if (kind) scoped = scoped.eq("kind", kind);
-          return scoped.in(column, urls);
-        }, "memory_items delete error");
+      if (!ids.length && !urls.length && kind) {
+        deletedLegacy += await deleteLegacyRecords(
+          (builder) => builder.eq("kind", kind),
+          "legacy delete kind error",
+        );
       }
-    }
-
-    if (!ids.length && !urls.length && kind) {
-      deletedLegacy += await deleteLegacyRecords(
-        (builder) => builder.eq("kind", kind),
-        "legacy delete kind error",
-      );
     }
   }
 

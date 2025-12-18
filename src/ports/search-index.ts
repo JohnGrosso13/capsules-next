@@ -1,6 +1,7 @@
 export type SearchIndexRecord = {
   id: string;
   ownerId: string;
+  ownerType?: "user" | "capsule" | null;
   title?: string | null;
   description?: string | null;
   kind?: string | null;
@@ -13,6 +14,7 @@ export type SearchIndexRecord = {
 
 export type SearchIndexQuery = {
   ownerId: string;
+  ownerType?: "user" | "capsule" | null;
   text: string;
   limit: number;
   filters?: {

@@ -200,6 +200,7 @@ async function embedAndUpsertDoc(ownerId: string, doc: CapsuleKnowledgeDoc): Pro
   await upsertMemoryVector({
     id: doc.id,
     ownerId,
+    ownerType: "capsule",
     values: embedding,
     kind: doc.kind,
     title: doc.title,
@@ -300,7 +301,7 @@ export async function searchCapsuleKnowledgeSnippets(options: {
 
   let matches: MemoryVectorMatch[] = [];
   try {
-    matches = await queryMemoryVectors(capsuleId, embedding, Math.max(limit * 2, limit));
+    matches = await queryMemoryVectors(capsuleId, embedding, Math.max(limit * 2, limit), "capsule");
   } catch (error) {
     console.warn("capsule knowledge vector query failed", { capsuleId, error });
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import useSWRImmutable from "swr/immutable";
 
 import {
   COMPOSER_IMAGE_SETTINGS_EVENT,
@@ -48,6 +49,15 @@ export function useComposerImageSettings(): {
   updateSettings: (patch: Partial<ComposerImageSettings>) => void;
 } {
   const [settings, setSettings] = React.useState<ComposerImageSettings>(DEFAULT_COMPOSER_IMAGE_SETTINGS);
+  const { data: remoteSettings } = useSWRImmutable<ComposerImageSettings | null>(
+    "/api/composer/settings",
+    fetchComposerSettings,
+    {
+      dedupingInterval: 60_000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
 
   const persistLocal = React.useCallback((value: ComposerImageSettings) => {
     if (typeof window === "undefined") return;
@@ -66,13 +76,6 @@ export function useComposerImageSettings(): {
     if (typeof window === "undefined") return;
     const local = parseComposerImageSettings(window.localStorage.getItem(COMPOSER_IMAGE_SETTINGS_STORAGE_KEY));
     setSettings(local);
-
-    let cancelled = false;
-    void fetchComposerSettings().then((remote) => {
-      if (cancelled || !remote) return;
-      setSettings(remote);
-      persistLocal(remote);
-    });
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key && event.key !== COMPOSER_IMAGE_SETTINGS_STORAGE_KEY) {
@@ -93,11 +96,19 @@ export function useComposerImageSettings(): {
     window.addEventListener("storage", handleStorage);
     window.addEventListener(COMPOSER_IMAGE_SETTINGS_EVENT, handleBroadcast as EventListener);
     return () => {
-      cancelled = true;
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(COMPOSER_IMAGE_SETTINGS_EVENT, handleBroadcast as EventListener);
     };
   }, [persistLocal]);
+
+  React.useEffect(() => {
+    if (!remoteSettings) return;
+    setSettings((prev) => {
+      if (prev.quality === remoteSettings.quality) return prev;
+      return remoteSettings;
+    });
+    persistLocal(remoteSettings);
+  }, [persistLocal, remoteSettings]);
 
   const updateSettings = React.useCallback((patch: Partial<ComposerImageSettings>) => {
     setSettings((prev) => {

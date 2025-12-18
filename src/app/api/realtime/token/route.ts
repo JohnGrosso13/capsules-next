@@ -7,6 +7,7 @@ import {
   realtimeTokenResponseSchema,
   ablyTokenRequestSchema,
 } from "@/server/validation/schemas/realtime";
+import { debugLog, isDebugEnabled } from "@/lib/debug";
 
 export const runtime = "edge";
 
@@ -30,12 +31,12 @@ async function handle(req: Request) {
 
     const isProduction =
       typeof process !== "undefined" && process?.env?.NODE_ENV === "production";
-    if (!isProduction) {
+    if (!isProduction && isDebugEnabled("realtime")) {
       const tokenShape =
         authPayload && typeof authPayload === "object" && authPayload.token && typeof authPayload.token === "object"
           ? Object.keys(authPayload.token as Record<string, unknown>)
           : null;
-      console.debug("Realtime auth payload shape", {
+      debugLog("realtime", "Realtime auth payload shape", {
         provider: authPayload.provider,
         tokenKeys: tokenShape,
       });

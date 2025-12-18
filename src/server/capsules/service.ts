@@ -347,7 +347,9 @@ export async function updateCapsuleBannerImage(
   }
 
   await indexMemory({
-    ownerId: capsuleOwnerId,
+    ownerId: capsuleIdValue,
+    ownerType: "capsule",
+    uploadedBy: ownerId,
     kind: "upload",
     mediaUrl: resolvedBannerUrl,
     mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
@@ -457,7 +459,9 @@ export async function updateCapsuleStoreBannerImage(
   }
 
   await indexMemory({
-    ownerId: capsuleOwnerId,
+    ownerId: capsuleIdValue,
+    ownerType: "capsule",
+    uploadedBy: ownerId,
     kind: "upload",
     mediaUrl: resolvedStoreBannerUrl,
     mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
@@ -562,7 +566,9 @@ export async function updateCapsulePromoTileImage(
   }
 
   await indexMemory({
-    ownerId: capsuleOwnerId,
+    ownerId: capsuleIdValue,
+    ownerType: "capsule",
+    uploadedBy: ownerId,
     kind: "upload",
     mediaUrl: resolvedTileUrl,
     mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",
@@ -667,7 +673,9 @@ export async function updateCapsuleLogoImage(
   }
 
   await indexMemory({
-    ownerId: capsuleOwnerId,
+    ownerId: capsuleIdValue,
+    ownerType: "capsule",
+    uploadedBy: ownerId,
     kind: "upload",
     mediaUrl: resolvedLogoUrl,
     mediaType: normalizeOptionalString(params.mimeType ?? null) ?? "image/jpeg",

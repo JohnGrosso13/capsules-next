@@ -11,7 +11,7 @@ import type {
 } from "@/ports/billing";
 import { serverEnv } from "@/lib/env/server";
 
-const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2025-02-24.acacia";
+const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2025-12-15.clover";
 
 let cachedStripe: Stripe | null = null;
 let cachedSecret: string | null = null;
@@ -26,17 +26,47 @@ function getStripeClient(): Stripe | null {
   return cachedStripe;
 }
 
+function getSubscriptionCurrentPeriodEnd(subscription: Stripe.Subscription): number | null {
+  const items = subscription.items?.data ?? [];
+  if (!items.length) return null;
+  let latest: number | null = null;
+  for (const item of items) {
+    if (latest === null || item.current_period_end > latest) {
+      latest = item.current_period_end;
+    }
+  }
+  return latest;
+}
+
 function mapSubscription(subscription: Stripe.Subscription): BillingSubscription {
   const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
   return {
     id: subscription.id,
     status: subscription.status ?? null,
-    currentPeriodEnd: subscription.current_period_end ?? null,
+    currentPeriodEnd: getSubscriptionCurrentPeriodEnd(subscription),
     cancelAtPeriodEnd: subscription.cancel_at_period_end ?? false,
     customerId: typeof subscription.customer === "string" ? subscription.customer : null,
     metadata: subscription.metadata ?? {},
     priceId,
   };
+}
+
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const parentSubscription = invoice.parent?.subscription_details?.subscription;
+  if (typeof parentSubscription === "string") return parentSubscription;
+  if (parentSubscription && typeof parentSubscription === "object") {
+    return parentSubscription.id ?? null;
+  }
+
+  const legacySubscription = (invoice as Stripe.Invoice & {
+    subscription?: string | Stripe.Subscription | null;
+  }).subscription;
+  if (typeof legacySubscription === "string") return legacySubscription;
+  if (legacySubscription && typeof legacySubscription === "object") {
+    return legacySubscription.id ?? null;
+  }
+
+  return null;
 }
 
 function mapCheckoutSession(session: Stripe.Checkout.Session): BillingCheckoutSession {
@@ -124,10 +154,7 @@ class StripeBillingAdapter implements BillingAdapter {
       }
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId =
-          typeof invoice.subscription === "string"
-            ? invoice.subscription
-            : invoice.subscription?.id ?? null;
+        const subscriptionId = getInvoiceSubscriptionId(invoice);
         return {
           type: event.type,
           invoice: {

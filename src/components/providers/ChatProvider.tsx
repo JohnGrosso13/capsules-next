@@ -239,12 +239,50 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    const FALLBACK_INTERVAL_MS = 8000;
+    if (realtimeStatus === "connected") return undefined;
+
+    const MIN_DELAY_MS = 8000;
+    const MAX_DELAY_MS = 120000;
+    const BACKOFF_FACTOR = 1.6;
     let stopped = false;
     let pending = false;
+    let delayMs = MIN_DELAY_MS;
+    let timeoutId: number | null = null;
+
+    const isHidden = () =>
+      typeof document !== "undefined" && document.visibilityState === "hidden";
+    const isOffline = () =>
+      typeof navigator !== "undefined" && navigator.onLine === false;
+
+    const resetBackoff = () => {
+      delayMs = MIN_DELAY_MS;
+    };
+
+    const increaseBackoff = () => {
+      delayMs = Math.min(MAX_DELAY_MS, Math.round(delayMs * BACKOFF_FACTOR));
+    };
+
+    const schedule = (nextDelay?: number) => {
+      if (stopped) return;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      const delay = typeof nextDelay === "number" ? nextDelay : delayMs;
+      timeoutId = window.setTimeout(() => {
+        void tick();
+      }, delay);
+    };
+
     const tick = async () => {
       if (stopped || pending) return;
-      if (engine.isRealtimeConnected()) return;
+      if (engine.isRealtimeConnected()) {
+        resetBackoff();
+        return;
+      }
+      if (isHidden() || isOffline()) {
+        schedule();
+        return;
+      }
       pending = true;
       try {
         await engine.refreshInbox();
@@ -252,18 +290,47 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         if (activeId) {
           await engine.refreshConversationHistory(activeId);
         }
+        increaseBackoff();
+      } catch {
+        increaseBackoff();
       } finally {
         pending = false;
+        schedule();
       }
     };
-    const interval = window.setInterval(() => {
-      void tick();
-    }, FALLBACK_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState === "visible" &&
+        !engine.isRealtimeConnected() &&
+        !isOffline()
+      ) {
+        resetBackoff();
+        schedule(0);
+      }
+    };
+
+    const handleOnline = () => {
+      if (!engine.isRealtimeConnected()) {
+        resetBackoff();
+        schedule(0);
+      }
+    };
+
+    schedule();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
+
     return () => {
       stopped = true;
-      window.clearInterval(interval);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
     };
-  }, [engine]);
+  }, [engine, realtimeStatus]);
 
   const startChat = React.useCallback(
     (target: ChatFriendTarget, options?: { activate?: boolean }): StartChatResult | null => {

@@ -4,6 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
+import useSWRImmutable from "swr/immutable";
 
 import { useHomeLoading } from "@/components/home-loading";
 import { normalizeMediaUrl } from "@/lib/media";
@@ -316,6 +317,45 @@ const FALLBACK_EVENTS: Item[] = [
   { id: "e2", title: "Prompt Jam #27", subtitle: "Tomorrow 3:00 PM", meta: "RSVP 210", avatarInitial: "P" },
 ];
 
+type RecentCapsulesResponse = {
+  capsules?: Array<{
+    id: string;
+    name: string;
+    slug: string | null;
+    bannerUrl: string | null;
+    logoUrl: string | null;
+    createdAt: string | null;
+  }>;
+} | null;
+
+type RecentLaddersResponse = {
+  ladders?: LadderSummaryPayload[];
+} | null;
+
+async function fetchRecentCapsules(): Promise<RecentCapsulesResponse> {
+  const response = await fetch("/api/explore/recent-capsules?limit=12", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (response.status === 401) return { capsules: [] };
+  if (!response.ok) {
+    throw new Error(`recent capsules request failed (${response.status})`);
+  }
+  return (await response.json().catch(() => null)) as RecentCapsulesResponse;
+}
+
+async function fetchRecentLadders(): Promise<RecentLaddersResponse> {
+  const response = await fetch("/api/explore/recent-ladders?limit=12", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (response.status === 401) return { ladders: [] };
+  if (!response.ok) {
+    throw new Error(`recent ladders request failed (${response.status})`);
+  }
+  return (await response.json().catch(() => null)) as RecentLaddersResponse;
+}
+
 function UpcomingEventsCalendarOverlay({
   events,
   loading,
@@ -557,181 +597,111 @@ function UpcomingEventsCalendarOverlayPortal(
 }
 
 export function DiscoveryRail() {
-  const [recommendedCapsules, setRecommendedCapsules] = React.useState<Item[]>([]);
-  const [loadingCapsules, setLoadingCapsules] = React.useState(true);
-  const [upcomingEvents, setUpcomingEvents] = React.useState<Item[]>([]);
-  const [loadingEvents, setLoadingEvents] = React.useState(true);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const homeLoading = useHomeLoading();
 
-  React.useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
+  const {
+    data: capsulesData,
+    isLoading: capsulesLoading,
+    error: capsulesError,
+  } = useSWRImmutable<RecentCapsulesResponse>(
+    "/api/explore/recent-capsules?limit=12",
+    fetchRecentCapsules,
+    {
+      dedupingInterval: 60_000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
 
-    const loadCapsules = async () => {
-      setLoadingCapsules(true);
-      try {
-        const response = await fetch("/api/explore/recent-capsules?limit=12", {
-          credentials: "include",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          if (response.status === 401) {
-            return;
-          }
-          throw new Error(`recent capsules request failed (${response.status})`);
-        }
-        const payload = (await response.json().catch(() => null)) as {
-          capsules?: Array<{
-            id: string;
-            name: string;
-            slug: string | null;
-            bannerUrl: string | null;
-            logoUrl: string | null;
-            createdAt: string | null;
-          }>;
-        } | null;
-        if (!payload?.capsules?.length) {
-          if (!cancelled) {
-            setRecommendedCapsules(FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT));
-          }
-          return;
-        }
-        const mapped: Item[] = payload.capsules.slice(0, RECOMMENDED_CAPSULE_LIMIT).map((capsule) => {
-          const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(capsule);
-          const relative = formatRelativeDate(capsule.createdAt);
-          const subtitle = capsule.slug ? `@${capsule.slug}` : "New capsule";
-          const meta = relative ? `Created ${relative}` : "Just launched";
-          return {
-            id: capsule.id,
-            title: capsule.name,
-            subtitle,
-            meta,
-            href: `/capsule?capsuleId=${encodeURIComponent(capsule.id)}`,
-            avatarUrl,
-            avatarInitial,
-          };
-        });
-        const filled =
-          mapped.length < RECOMMENDED_CAPSULE_LIMIT
-            ? [
-                ...mapped,
-                ...FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT - mapped.length).map(
-                  (fallback, index) => ({
-                    ...fallback,
-                    id: `${fallback.id}-fallback-${index}`,
-                  }),
-                ),
-              ]
-            : mapped;
-        if (!cancelled) {
-          setRecommendedCapsules(filled);
-        }
-      } catch (error) {
-        if (controller.signal.aborted || cancelled) return;
-        if (process.env.NODE_ENV === "development") {
-          console.warn("discovery-rail: failed to load recent capsules", error);
-        }
-        if (!cancelled) {
-          setRecommendedCapsules(FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingCapsules(false);
-        }
-      }
-    };
+  const recommendedCapsules = React.useMemo<Item[]>(() => {
+    const raw = capsulesData?.capsules ?? [];
+    if (capsulesError || !raw.length) {
+      return FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT);
+    }
+    const mapped: Item[] = raw.slice(0, RECOMMENDED_CAPSULE_LIMIT).map((capsule) => {
+      const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(capsule);
+      const relative = formatRelativeDate(capsule.createdAt);
+      const subtitle = capsule.slug ? `@${capsule.slug}` : "New capsule";
+      const meta = relative ? `Created ${relative}` : "Just launched";
+      return {
+        id: capsule.id,
+        title: capsule.name,
+        subtitle,
+        meta,
+        href: `/capsule?capsuleId=${encodeURIComponent(capsule.id)}`,
+        avatarUrl,
+        avatarInitial,
+      };
+    });
+    if (mapped.length < RECOMMENDED_CAPSULE_LIMIT) {
+      return [
+        ...mapped,
+        ...FALLBACK_CAPSULES.slice(0, RECOMMENDED_CAPSULE_LIMIT - mapped.length).map(
+          (fallback, index) => ({
+            ...fallback,
+            id: `${fallback.id}-fallback-${index}`,
+          }),
+        ),
+      ];
+    }
+    return mapped;
+  }, [capsulesData, capsulesError]);
 
-    void loadCapsules();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+  const {
+    data: laddersData,
+    isLoading: laddersLoading,
+    error: laddersError,
+  } = useSWRImmutable<RecentLaddersResponse>(
+    "/api/explore/recent-ladders?limit=12",
+    fetchRecentLadders,
+    {
+      dedupingInterval: 60_000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
 
-  React.useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
+  const upcomingEvents = React.useMemo<Item[]>(() => {
+    const raw = laddersData?.ladders ?? [];
+    if (laddersError || !raw.length) {
+      return FALLBACK_EVENTS;
+    }
+    return raw.slice(0, 3).map((ladder) => {
+      const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(ladder.capsule);
+      const relative = formatRelativeDate(ladder.publishedAt ?? ladder.createdAt);
+      const subtitle =
+        (ladder.game?.title && ladder.game.title.trim().length
+          ? ladder.game.title
+          : null) ??
+        ladder.capsule?.name ??
+        (ladder.capsule?.slug ? `@${ladder.capsule.slug}` : null) ??
+        "New ladder";
+      const visibilityLabel =
+        ladder.visibility === "capsule"
+          ? "Capsule members"
+          : ladder.visibility === "private"
+            ? "Private"
+            : "Public";
+      const metaParts = [
+        relative ? (ladder.publishedAt ? `Launched ${relative}` : `Created ${relative}`) : null,
+        `${visibilityLabel} ladder`,
+      ].filter(Boolean) as string[];
+      return {
+        id: ladder.id,
+        title: ladder.name,
+        subtitle,
+        meta: metaParts.join(" \u2022 "),
+        date: ladder.publishedAt ?? ladder.createdAt,
+        href: `/capsule?capsuleId=${encodeURIComponent(ladder.capsuleId)}&ladderId=${encodeURIComponent(ladder.id)}&section=events`,
+        avatarUrl,
+        avatarInitial,
+      };
+    });
+  }, [laddersData, laddersError]);
 
-    const loadLadders = async () => {
-      setLoadingEvents(true);
-      try {
-        const response = await fetch("/api/explore/recent-ladders?limit=12", {
-          credentials: "include",
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          if (response.status === 401) {
-            return;
-          }
-          throw new Error(`recent ladders request failed (${response.status})`);
-        }
-        const payload = (await response.json().catch(() => null)) as {
-          ladders?: LadderSummaryPayload[];
-        } | null;
-        if (!payload?.ladders?.length) {
-          if (!cancelled) {
-            setUpcomingEvents([]);
-          }
-          return;
-        }
-        const items: Item[] = payload.ladders.slice(0, 3).map((ladder) => {
-          const { avatarUrl, avatarInitial } = resolveCapsuleAvatar(ladder.capsule);
-          const relative = formatRelativeDate(ladder.publishedAt ?? ladder.createdAt);
-          const subtitle =
-            (ladder.game?.title && ladder.game.title.trim().length
-              ? ladder.game.title
-              : null) ??
-            ladder.capsule?.name ??
-            (ladder.capsule?.slug ? `@${ladder.capsule.slug}` : null) ??
-            "New ladder";
-          const visibilityLabel =
-            ladder.visibility === "capsule"
-              ? "Capsule members"
-              : ladder.visibility === "private"
-                ? "Private"
-                : "Public";
-          const metaParts = [
-            relative ? (ladder.publishedAt ? `Launched ${relative}` : `Created ${relative}`) : null,
-            `${visibilityLabel} ladder`,
-          ].filter(Boolean) as string[];
-          return {
-            id: ladder.id,
-            title: ladder.name,
-            subtitle,
-            meta: metaParts.join(" \u2022 "),
-            date: ladder.publishedAt ?? ladder.createdAt,
-            href: `/capsule?capsuleId=${encodeURIComponent(ladder.capsuleId)}&ladderId=${encodeURIComponent(ladder.id)}&section=events`,
-            avatarUrl,
-            avatarInitial,
-          };
-        });
-        if (!cancelled) {
-          setUpcomingEvents(items);
-        }
-      } catch (error) {
-        if (controller.signal.aborted || cancelled) return;
-        if (process.env.NODE_ENV === "development") {
-          console.warn("discovery-rail: failed to load recent ladders", error);
-        }
-        if (!cancelled) {
-          setUpcomingEvents(FALLBACK_EVENTS);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingEvents(false);
-        }
-      }
-    };
-
-    void loadLadders();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, []);
+  const loadingCapsules = capsulesLoading && !capsulesData && !capsulesError;
+  const loadingEvents = laddersLoading && !laddersData && !laddersError;
 
   React.useEffect(() => {
     if (!homeLoading) return;

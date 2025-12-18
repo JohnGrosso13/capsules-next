@@ -70,6 +70,13 @@ const MEMORY_HINT_KEYWORDS = new Set([
   "images",
   "memory",
   "memories",
+  "poll",
+  "polls",
+  "vote",
+  "votes",
+  "voting",
+  "survey",
+  "ballot",
 ]);
 const METRICS_ENABLED = process.env.NODE_ENV === "development";
 const RECORD_KIND_LABEL: Record<CapsuleRecordSearchResult["kind"], string> = {
@@ -116,9 +123,9 @@ function resolveIntent(query: string): SearchIntent {
     .filter(Boolean);
   const hasMemoryKeyword =
     tokens.some((t) => MEMORY_HINT_KEYWORDS.has(t)) || query.includes("?");
-  const memoryLikely = hasMemoryKeyword && tokens.length >= 1;
+  const memoryLikely = hasMemoryKeyword || tokens.length >= 2;
 
-  const allowFull = hasMemoryKeyword && query.length >= MIN_MEMORY_QUERY;
+  const allowFull = query.length >= MIN_MEMORY_QUERY;
   const fullScopes = allowFull ? FULL_SCOPES : FAST_SCOPES;
   const fullDelayMs = memoryLikely ? 120 : 180;
 
@@ -131,12 +138,37 @@ function logMetric(event: string, detail: Record<string, unknown>) {
   console.info("search-metric", payload);
 }
 
+function normalizeToken(value: string): string | null {
+  const cleaned = value.toLowerCase().replace(/[^a-z0-9#@]/g, "");
+  if (!cleaned.length) return null;
+  if (cleaned.length >= 3 || /\d/.test(cleaned)) return cleaned;
+  return null;
+}
+
+function singularizeToken(token: string): string | null {
+  if (token.endsWith("ies") && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith("es") && token.length > 4) return token.slice(0, -2);
+  if (token.endsWith("s") && token.length > 3 && !token.endsWith("ss")) {
+    return token.slice(0, -1);
+  }
+  return null;
+}
+
 function tokenizeQuery(query: string): string[] {
-  return query
+  const tokens = new Set<string>();
+  query
     .toLowerCase()
     .split(/\s+/)
     .map((token) => token.trim())
-    .filter((token) => token.length >= 3);
+    .filter(Boolean)
+    .forEach((token) => {
+      const normalized = normalizeToken(token);
+      if (!normalized) return;
+      tokens.add(normalized);
+      const singular = singularizeToken(normalized);
+      if (singular) tokens.add(singular);
+    });
+  return Array.from(tokens);
 }
 
 function scoreMatch(haystack: string | null | undefined, needle: string): number {
@@ -228,7 +260,8 @@ function rerankSections(sections: GlobalSearchSection[], query: string): GlobalS
         const tokenScore =
           scoreTokenMatches(memory.title ?? null) + scoreTokenMatches(memory.description ?? null);
         const metaScore = scoreMetaHints(memory);
-        const score = baseScore + tokenScore + metaScore;
+        const serverScore = typeof memory.relevanceScore === "number" ? memory.relevanceScore : 0;
+        const score = baseScore + tokenScore + metaScore + serverScore * 10;
         return { item: memory, score };
       })
       .sort((a, b) => b.score - a.score);

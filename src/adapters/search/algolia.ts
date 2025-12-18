@@ -9,6 +9,9 @@ import type {
 
 function buildFilters(query: SearchIndexQuery): string {
   const filters: string[] = [`ownerId:${JSON.stringify(query.ownerId)}`];
+  if (query.ownerType) {
+    filters.push(`ownerType:${JSON.stringify(query.ownerType)}`);
+  }
   const { filters: f } = query;
   if (f?.kinds?.length) {
     const kindFilters = f.kinds.map((kind) => `kind:${JSON.stringify(kind)}`);
@@ -111,6 +114,7 @@ export function createAlgoliaSearchIndex(client: SearchClient, indexName: string
         return {
           objectID: record.id,
           ownerId: record.ownerId,
+          ownerType: record.ownerType ?? null,
           title: record.title ?? null,
           description: record.description ?? null,
           kind: record.kind ?? null,
@@ -172,9 +176,17 @@ export function createAlgoliaSearchIndex(client: SearchClient, indexName: string
           data.extra && typeof data.extra === "object" && !Array.isArray(data.extra)
             ? (data.extra as Record<string, unknown>)
             : null;
+        const ownerId =
+          typeof data.ownerId === "string" ? data.ownerId : String(data.ownerId ?? "");
+        const ownerTypeRaw =
+          typeof data.ownerType === "string" ? data.ownerType.trim().toLowerCase() : "";
+        const ownerType =
+          ownerTypeRaw === "user" || ownerTypeRaw === "capsule" ? ownerTypeRaw : null;
+
         match.record = {
           id: objectID,
-          ownerId: typeof data.ownerId === "string" ? data.ownerId : String(data.ownerId ?? ""),
+          ownerId,
+          ownerType,
           title: typeof data.title === "string" ? data.title : null,
           description: typeof data.description === "string" ? data.description : null,
           kind: typeof data.kind === "string" ? data.kind : null,

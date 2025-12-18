@@ -5,6 +5,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
 import { deriveRequestOrigin } from "@/lib/url";
 import { headers } from "next/headers";
+import { debugLog, isDebugEnabled } from "@/lib/debug";
 
 export type UserSessionContext = {
   supabaseUserId: string;
@@ -47,8 +48,8 @@ export async function ensureUserSession(): Promise<UserSessionContext> {
 
   // Lightweight debug hook to help diagnose Memory issues in dev.
   // This will log which Supabase user id is being used for the current Clerk user.
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[ensureUserSession] resolved user", {
+  if (process.env.NODE_ENV !== "production" && isDebugEnabled("session")) {
+    debugLog("session", "ensureUserSession resolved user", {
       supabaseUserId,
       clerkUserId: user.id,
       email: primaryEmail ?? null,

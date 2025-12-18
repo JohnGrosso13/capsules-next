@@ -6,6 +6,7 @@ import type { VectorMatch } from "@/ports/vector-store";
 
 export type MemoryVectorMetadata = RecordMetadata & {
   ownerId: string;
+  ownerType?: "user" | "capsule";
   kind?: string;
   postId?: string;
   title?: string;
@@ -33,6 +34,7 @@ function normalize(value: string | null | undefined, limit: number) {
 export async function upsertMemoryVector({
   id,
   ownerId,
+  ownerType,
   values,
   kind,
   postId,
@@ -44,6 +46,7 @@ export async function upsertMemoryVector({
 }: {
   id: string;
   ownerId: string;
+  ownerType?: "user" | "capsule";
   values: number[];
   kind?: string | null;
   postId?: string | null;
@@ -58,6 +61,7 @@ export async function upsertMemoryVector({
   if (!id || !ownerId || !Array.isArray(values) || !values.length) return;
 
   const metadata: MemoryVectorMetadata = { ownerId };
+  if (ownerType) metadata.ownerType = ownerType;
   if (kind) metadata.kind = kind;
   if (postId) metadata.postId = postId;
 
@@ -113,9 +117,14 @@ export async function queryMemoryVectors(
   ownerId: string,
   vector: number[],
   topK: number,
+  ownerType?: "user" | "capsule",
 ): Promise<MemoryVectorMatch[]> {
   const store = await getVectorStore<MemoryVectorMetadata>();
   if (!store) return [];
   if (!ownerId || !Array.isArray(vector) || !vector.length) return [];
-  return store.query({ vector, topK, filter: { ownerId } });
+  const filter: Partial<MemoryVectorMetadata> = { ownerId };
+  if (ownerType) {
+    filter.ownerType = ownerType;
+  }
+  return store.query({ vector, topK, filter });
 }
