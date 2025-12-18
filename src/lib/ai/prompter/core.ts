@@ -24,6 +24,13 @@ type ChatCompletionMessage = {
   tool_calls?: ToolCall[];
 };
 
+export type OpenAIUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  model: string | null;
+};
+
 export class AIConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -228,7 +235,7 @@ async function performChatCompletion(params: {
   model?: string | null;
   fallbackModel?: string | null;
   timeoutMs?: number;
-}): Promise<{ message: ChatCompletionMessage; raw: Json }> {
+}): Promise<{ message: ChatCompletionMessage; raw: Json; usage: OpenAIUsage }> {
   requireOpenAIKey();
 
   const baseModel = params.model ?? serverEnv.OPENAI_MODEL;
@@ -298,7 +305,30 @@ async function performChatCompletion(params: {
     throw error;
   }
 
-  const choices = (json as Record<string, unknown>).choices;
+  const body = json as Record<string, unknown>;
+  const choices = body.choices;
+  const rawUsage = (body.usage ?? null) as Record<string, unknown> | null;
+  const usage: OpenAIUsage = {
+    promptTokens:
+      typeof rawUsage?.["prompt_tokens"] === "number"
+        ? Number(rawUsage["prompt_tokens"])
+        : typeof rawUsage?.["prompt_tokens"] === "string"
+          ? Number.parseInt(rawUsage["prompt_tokens"] as string, 10)
+          : 0,
+    completionTokens:
+      typeof rawUsage?.["completion_tokens"] === "number"
+        ? Number(rawUsage["completion_tokens"])
+        : typeof rawUsage?.["completion_tokens"] === "string"
+          ? Number.parseInt(rawUsage["completion_tokens"] as string, 10)
+          : 0,
+    totalTokens:
+      typeof rawUsage?.["total_tokens"] === "number"
+        ? Number(rawUsage["total_tokens"])
+        : typeof rawUsage?.["total_tokens"] === "string"
+          ? Number.parseInt(rawUsage["total_tokens"] as string, 10)
+          : 0,
+    model: typeof body.model === "string" ? body.model : attemptModel ?? null,
+  };
   const message =
     Array.isArray(choices) && choices[0]
       ? ((choices[0] as Record<string, unknown>).message as ChatCompletionMessage | undefined)
@@ -308,7 +338,7 @@ async function performChatCompletion(params: {
     throw new Error("OpenAI chat returned empty message.");
   }
 
-  return { message, raw: json };
+  return { message, raw: json, usage };
 }
 
 export async function callOpenAIChat(
@@ -320,7 +350,7 @@ export async function callOpenAIChat(
     fallbackModel?: string | null;
     timeoutMs?: number;
   } = {},
-): Promise<{ content: string; raw: Json }> {
+): Promise<{ content: string; raw: Json; usage: OpenAIUsage }> {
   const params: Parameters<typeof performChatCompletion>[0] = {
     messages,
     schema,
@@ -337,14 +367,14 @@ export async function callOpenAIChat(
   if (typeof options.temperature === "number") {
     params.temperature = options.temperature;
   }
-  const { message, raw } = await performChatCompletion(params);
+  const { message, raw, usage } = await performChatCompletion(params);
 
   const content = typeof message.content === "string" ? message.content : null;
   if (!content) {
     throw new Error("OpenAI chat returned empty content.");
   }
 
-  return { content, raw };
+  return { content, raw, usage };
 }
 
 export async function callOpenAIToolChat(
@@ -357,7 +387,7 @@ export async function callOpenAIToolChat(
     timeoutMs?: number;
     toolChoice?: Record<string, unknown> | string | null;
   } = {},
-): Promise<{ message: ChatCompletionMessage; raw: Json }> {
+): Promise<{ message: ChatCompletionMessage; raw: Json; usage: OpenAIUsage }> {
   const params: Parameters<typeof performChatCompletion>[0] = {
     messages,
     tools,
@@ -377,6 +407,5 @@ export async function callOpenAIToolChat(
   }
   return performChatCompletion(params);
 }
-
 
 

@@ -1,9 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
-import { TrendUp, TrendDown, ChartLine } from "@phosphor-icons/react/dist/ssr";
+import { ChartLine, Coins, Storefront, TrendDown, TrendUp, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 import { AppPage } from "@/components/app-page";
-import { fetchAnalyticsOverview, fetchDailyActiveUsers, fetchDailyPosts } from "@/lib/analytics";
+import {
+  fetchAnalyticsOverview,
+  fetchDailyActiveUsers,
+  fetchDailyPosts,
+  fetchEconomyOverview,
+  type EconomyOverview,
+} from "@/lib/analytics";
 
 import styles from "./page.module.css";
 
@@ -16,6 +22,13 @@ type OverviewMetric = {
   label: string;
   value: number;
   hint?: string;
+};
+
+type EconomyMetric = {
+  label: string;
+  value: string;
+  hint?: string;
+  icon?: React.ReactNode;
 };
 
 export const metadata = {
@@ -37,6 +50,7 @@ export default async function AdminOverviewPage() {
   const overview = await fetchAnalyticsOverview();
   const dailyActive = await fetchDailyActiveUsers(14);
   const dailyPosts = await fetchDailyPosts(14);
+  const economy: EconomyOverview = await fetchEconomyOverview();
 
   const overviewMetrics: OverviewMetric[] = [
     { label: "Total users", value: overview.totalUsers },
@@ -46,6 +60,8 @@ export default async function AdminOverviewPage() {
     { label: "Posts (24h)", value: overview.postsCreated24h },
     { label: "Friend connections", value: overview.friendsConnections },
   ];
+
+  const economyMetrics: EconomyMetric[] = buildEconomyMetrics(economy);
 
   const series: TimeSeries[] = [
     { label: "Daily active users", points: dailyActive },
@@ -82,6 +98,22 @@ export default async function AdminOverviewPage() {
         </section>
 
         <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Economy</h2>
+          <div className={styles.metricGrid}>
+            {economyMetrics.map((metric) => (
+              <article key={metric.label} className={styles.metricCard}>
+                <div className={styles.metricHeader}>
+                  {metric.icon ? <span className={styles.metricIcon}>{metric.icon}</span> : null}
+                  <span className={styles.metricLabel}>{metric.label}</span>
+                </div>
+                <span className={styles.metricValue}>{metric.value}</span>
+                {metric.hint ? <span className={styles.metricHint}>{metric.hint}</span> : null}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Trends</h2>
           <div className={styles.seriesGrid}>
             {series.map((serie) => (
@@ -114,4 +146,93 @@ export default async function AdminOverviewPage() {
       </div>
     </AppPage>
   );
+}
+
+function formatCurrencyCents(cents: number, currency: string = "usd"): string {
+  const amount = (cents ?? 0) / 100;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatCredits(credits: number): string {
+  const value = Number.isFinite(credits) ? credits : 0;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M credits`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k credits`;
+  return `${Math.round(value)} credits`;
+}
+
+function formatCount(value: number): string {
+  const num = Number.isFinite(value) ? value : 0;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${Math.round(num / 1_000)}k`;
+  return num.toLocaleString();
+}
+
+function buildEconomyMetrics(economy: EconomyOverview): EconomyMetric[] {
+  const platformWalletAvailable =
+    (economy.platformWallet?.computeGranted ?? 0) - (economy.platformWallet?.computeUsed ?? 0);
+
+  const paidUserSubs =
+    (economy.userSubscriptionCounts["user_creator"] ?? 0) +
+    (economy.userSubscriptionCounts["user_pro"] ?? 0) +
+    (economy.userSubscriptionCounts["user_studio"] ?? 0);
+
+  const capsuleUpgradesTotal = Object.values(economy.capsuleSubscriptionCounts).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+
+  return [
+    {
+      label: "Store gross (paid orders)",
+      value: formatCurrencyCents(economy.storeGrossCents),
+      hint: `Platform fees: ${formatCurrencyCents(economy.storePlatformFeeCents)}`,
+      icon: <Storefront size={16} weight="bold" />,
+    },
+    {
+      label: "Store payouts (paid)",
+      value: formatCurrencyCents(economy.storePaidPayoutCents),
+      hint: "Total sent to creators (all time)",
+      icon: <Coins size={16} weight="bold" />,
+    },
+    {
+      label: "Active paid personal subs",
+      value: formatCount(paidUserSubs),
+      hint: `Plus: ${formatCount(economy.userSubscriptionCounts["user_creator"] ?? 0)}, Pro: ${formatCount(
+        economy.userSubscriptionCounts["user_pro"] ?? 0,
+      )}, Studio: ${formatCount(
+        economy.userSubscriptionCounts["user_studio"] ?? 0,
+      )}`,
+      icon: <UsersThree size={16} weight="bold" />,
+    },
+    {
+      label: "Capsule upgrades (subs)",
+      value: formatCount(capsuleUpgradesTotal),
+      hint: "Total active capsule-scope plans",
+      icon: <ChartLine size={16} weight="bold" />,
+    },
+    {
+      label: "Capsule Pass volume",
+      value: formatCredits(economy.capsulePassFundingCredits),
+      hint: `Platform cut: ${formatCredits(economy.capsulePassPlatformCredits)}`,
+      icon: <Coins size={16} weight="bold" />,
+    },
+    {
+      label: "Capsule Power volume",
+      value: formatCredits(economy.capsulePowerFundingCredits),
+      hint: `Platform cut: ${formatCredits(economy.capsulePowerPlatformCredits)}`,
+      icon: <Coins size={16} weight="bold" />,
+    },
+    {
+      label: "Platform wallet (compute)",
+      value: formatCredits(platformWalletAvailable),
+      hint: `Granted: ${formatCredits(economy.platformWallet?.computeGranted ?? 0)}, Used: ${formatCredits(
+        economy.platformWallet?.computeUsed ?? 0,
+      )}`,
+      icon: <Coins size={16} weight="bold" />,
+    },
+  ];
 }

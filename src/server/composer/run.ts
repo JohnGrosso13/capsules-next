@@ -322,6 +322,16 @@ type RuntimeContext = {
   composeOptions: ComposeDraftOptions;
   history: ComposerChatMessage[];
   latestUserText: string;
+  usage: ComposerUsageAccumulator;
+};
+
+type ComposerUsageAccumulator = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  model: string | null;
+  images: Array<{ quality?: string | null }>;
+  videos: Array<{ seconds?: number | null; model?: string | null }>;
 };
 
 type ImageRequestOptions = {
@@ -786,6 +796,7 @@ async function handleRenderImage(
     runContext.stylePreset = stylePreset;
   }
   const result = await generateImageFromPrompt(rawPrompt, mergedOptions, runContext);
+  runtime.usage.images.push({ quality: mergedOptions.quality ?? null });
   let memoryId: string | null = null;
   if (runtime.ownerId) {
     try {
@@ -889,6 +900,7 @@ async function handleEditImage(
   };
 
   const result = await editImageWithInstruction(sourceUrl, prompt, mergedOptions, runContext);
+  runtime.usage.images.push({ quality: mergedOptions.quality ?? null });
   let memoryId: string | null = null;
   if (runtime.ownerId) {
     try {
@@ -969,6 +981,11 @@ async function handleRenderVideo(
         mode: "generate",
         sourceUrl: videoContext.sourceUrl ?? null,
       });
+
+  runtime.usage.videos.push({
+    seconds: typeof result.durationSeconds === "number" ? result.durationSeconds : null,
+    model: (result as { model?: string | null })?.model ?? null,
+  });
 
   return {
     status: "succeeded",
@@ -1879,7 +1896,7 @@ function coerceDraftToChatResponse(
 export async function runComposerToolSession(
   { userText, incomingPost = null, context = {}, maxIterations = DEFAULT_MAX_ITERATIONS }: ComposerRunInput,
   callbacks: ComposerToolCallbacks = {},
-): Promise<{ response: PromptResponse; messages: ChatMessage[]; raw: unknown }> {
+): Promise<{ response: PromptResponse; messages: ChatMessage[]; raw: unknown; usage: ComposerUsageAccumulator }> {
   const history = context.history ?? [];
   const attachments = context.attachments ?? [];
   const capsuleId = context.capsuleId ?? null;
@@ -1932,14 +1949,28 @@ export async function runComposerToolSession(
     composeOptions: context,
     history,
     latestUserText: userText,
+    usage: {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      model: null,
+      images: [],
+      videos: [],
+    },
   };
   const toolRuns: ToolRunResult[] = [];
 
   const emit = callbacks.onEvent ?? (() => {});
   for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-    const { message, raw } = await callOpenAIToolChat(messages, TOOL_DEFINITIONS, {
+    const { message, raw, usage } = await callOpenAIToolChat(messages, TOOL_DEFINITIONS, {
       temperature: 0.6,
     });
+    if (usage) {
+      runtime.usage.promptTokens += usage.promptTokens;
+      runtime.usage.completionTokens += usage.completionTokens;
+      runtime.usage.totalTokens += usage.totalTokens;
+      runtime.usage.model = usage.model ?? runtime.usage.model;
+    }
 
     if (Array.isArray(message.tool_calls) && message.tool_calls.length) {
       messages.push({
@@ -2044,6 +2075,7 @@ export async function runComposerToolSession(
           response: coerceDraftToChatResponse(hydrated, replyMode, pollSafeAttachments),
           messages,
           raw,
+          usage: runtime.usage,
         };
       }
       const draftContent =
@@ -2062,6 +2094,7 @@ export async function runComposerToolSession(
         response: coerceDraftToChatResponse(hydrated, replyMode, pollSafeAttachments),
         messages,
         raw,
+        usage: runtime.usage,
       };
     } catch (error) {
       messages.push({

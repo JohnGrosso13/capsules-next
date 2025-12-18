@@ -68,6 +68,14 @@ describe("generate_pptx tool", () => {
       composeOptions: {},
       history: [],
       latestUserText: "draft slides",
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        model: null,
+        images: [],
+        videos: [],
+      },
     };
 
     const result = (await __test__.handleGeneratePptx(
@@ -130,6 +138,14 @@ describe("generate_pptx tool", () => {
       composeOptions: {},
       history: [],
       latestUserText: "",
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        model: null,
+        images: [],
+        videos: [],
+      },
     };
 
     await expect(

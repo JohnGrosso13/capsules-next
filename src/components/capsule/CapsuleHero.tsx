@@ -28,6 +28,7 @@ export type CapsuleHeroProps = {
     label: string;
     disabled: boolean;
     onClick: (() => void) | null;
+    icon?: React.ReactNode;
   };
   followAction?: {
     label: string;
@@ -184,7 +185,7 @@ export function CapsuleHero({
             onClick={primaryAction.onClick ?? undefined}
             disabled={primaryAction.disabled}
           >
-            <UsersThree size={16} weight="bold" />
+            {primaryAction.icon ?? <UsersThree size={16} weight="bold" />}
             {primaryAction.label}
           </button>
           {followAction ? (

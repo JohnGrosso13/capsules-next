@@ -14,6 +14,7 @@ import {
   resolveWalletContext,
   EntitlementError,
 } from "@/server/billing/entitlements";
+import { imageCreditsForQuality } from "@/lib/billing/usage";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -44,8 +45,6 @@ const IMAGE_GENERATE_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
   limit: 200,
   window: "10 m",
 };
-
-const IMAGE_GENERATE_COMPUTE_COST = 5_000;
 
 export async function POST(req: Request) {
   // Require authentication to prevent abuse and unexpected costs
@@ -91,14 +90,15 @@ export async function POST(req: Request) {
     ensureFeatureAccess({
       balance: walletContext.balance,
       bypass: walletContext.bypass,
-      requiredTier: "default",
+      requiredTier: "starter",
       featureName: "AI image generation",
     });
+    const computeCost = imageCreditsForQuality(safeOptions.quality);
     await chargeUsage({
       wallet: walletContext.wallet,
       balance: walletContext.balance,
       metric: "compute",
-      amount: IMAGE_GENERATE_COMPUTE_COST,
+      amount: computeCost,
       reason: "ai.image.generate",
       bypass: walletContext.bypass,
     });

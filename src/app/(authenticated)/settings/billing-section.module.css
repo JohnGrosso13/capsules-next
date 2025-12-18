@@ -122,9 +122,173 @@
   flex-wrap: wrap;
 }
 
-.tierMeta {
-  font-size: 0.85rem;
-  color: color-mix(in srgb, var(--text-3, rgba(255, 255, 255, 0.56)) 92%, transparent);
+.tierDetailsButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.85)) 70%, transparent);
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.78)) 94%, transparent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--motion-duration-medium, 160ms) var(--motion-ease-standard, ease),
+    transform var(--motion-duration-medium, 160ms) var(--motion-ease-standard, ease);
+}
+
+.tierDetailsButton:hover,
+.tierDetailsButton:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 56%, transparent),
+    transparent
+  );
+  color: var(--text, rgba(255, 255, 255, 0.96));
+}
+
+.tierDetailsButton svg {
+  flex-shrink: 0;
+}
+
+.planDetails {
+  display: grid;
+  gap: 8px;
+}
+
+.planDetailsHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.planDetailsTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.planDetailsHint {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--text-3, rgba(255, 255, 255, 0.6)) 92%, transparent);
+}
+
+.planDetailsMatrixScroll {
+  border-radius: 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.18))) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(11, 16, 36, 0.94)) 80%, transparent);
+  overflow: auto;
+}
+
+.planDetailsMatrix {
+  display: grid;
+  gap: 0;
+  min-width: 360px;
+}
+
+.planDetailsMatrixHeaderRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) repeat(4, minmax(72px, 0.6fr));
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.18))) 84%, transparent);
+}
+
+.planDetailsFeatureCol {
+  padding: 8px 10px;
+}
+
+.planDetailsTierHeader {
+  padding: 8px 10px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.78)) 94%, transparent);
+}
+
+.planDetailsTierHeaderActive {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 22%, transparent),
+    transparent
+  );
+  color: var(--text, rgba(255, 255, 255, 0.96));
+}
+
+.planDetailsTierLabel {
+  display: block;
+}
+
+.planDetailsTierTag {
+  display: inline-flex;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 80%, transparent);
+}
+
+.planDetailsRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) repeat(4, minmax(72px, 0.6fr));
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--card-border, var(--color-border, rgba(255, 255, 255, 0.14))) 84%, transparent);
+}
+
+.planDetailsRow:last-child {
+  border-bottom: none;
+}
+
+.planDetailsFeatureCell {
+  padding: 8px 10px;
+}
+
+.planDetailsFeatureLabel {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text, rgba(255, 255, 255, 0.96));
+  margin-bottom: 2px;
+}
+
+.planDetailsFeatureDescription {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--text-3, rgba(255, 255, 255, 0.62)) 92%, transparent);
+}
+
+.planDetailsIconCell {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.planDetailsIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid
+    color-mix(in srgb, var(--pill-border, var(--color-border, rgba(255, 255, 255, 0.32))) 84%, transparent);
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 80%, transparent);
+  color: color-mix(in srgb, var(--text-2, rgba(255, 255, 255, 0.86)) 92%, transparent);
+}
+
+.planDetailsIcon[data-active="true"] {
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 76%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 84%, transparent),
+    transparent
+  );
+  color: var(--text, rgba(255, 255, 255, 0.98));
 }
 
 .grid {
@@ -301,6 +465,152 @@
   );
   border-radius: 999px;
   transition: width var(--motion-duration-medium, 180ms) ease;
+}
+
+.planDetailsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background:
+    radial-gradient(1200px 600px at 20% 0%, rgba(15, 23, 42, 0.88), transparent 70%),
+    rgba(2, 6, 23, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.planDetailsDrawer {
+  width: min(900px, 100% - 24px);
+  max-height: min(700px, 100% - 32px);
+  border-radius: 24px;
+  padding: 18px 20px 20px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.4)) 94%, transparent);
+  background:
+    radial-gradient(640px 320px at 20% -10%, rgba(129, 140, 248, 0.32), transparent 72%),
+    radial-gradient(680px 320px at 80% -10%, rgba(45, 212, 191, 0.22), transparent 72%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 16, 32, 0.98));
+  box-shadow:
+    0 18px 48px rgba(15, 23, 42, 0.9),
+    0 0 0 1px color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.6)) 90%, transparent);
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+}
+
+.planDetailsDrawerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.planDetailsDrawerTitleGroup {
+  display: grid;
+  gap: 4px;
+}
+
+.planDetailsDrawerTitle {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text, rgba(255, 255, 255, 0.96));
+}
+
+.planDetailsDrawerSubtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: color-mix(in srgb, var(--text-2, rgba(226, 232, 240, 0.86)) 92%, transparent);
+}
+
+.planDetailsClose {
+  border: none;
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 90%, transparent);
+  color: color-mix(in srgb, var(--text-2, rgba(226, 232, 240, 0.86)) 94%, transparent);
+  flex-shrink: 0;
+}
+
+.planDetailsClose:hover,
+.planDetailsClose:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 60%, transparent);
+  color: var(--text, rgba(255, 255, 255, 0.98));
+}
+
+.planDetailsSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.planDetailsSummaryCard {
+  border-radius: 16px;
+  padding: 10px 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--card-border, rgba(148, 163, 184, 0.42)) 90%, transparent);
+  background:
+    radial-gradient(
+      240px 140px at 10% -10%,
+      color-mix(in srgb, var(--color-brand, #6366f1) 16%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, rgba(15, 23, 42, 0.96) 92%, transparent),
+      color-mix(in srgb, rgba(15, 23, 42, 0.96) 96%, transparent)
+    );
+  display: grid;
+  gap: 4px;
+}
+
+.planDetailsSummaryCardActive {
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 80%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-brand, #6366f1) 42%, transparent),
+    0 12px 34px rgba(15, 23, 42, 0.7);
+}
+
+.planDetailsSummaryTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text, rgba(255, 255, 255, 0.96));
+}
+
+.planDetailsSummaryBadge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.9)) 82%, transparent);
+  color: color-mix(in srgb, var(--text-2, rgba(226, 232, 240, 0.9)) 94%, transparent);
+}
+
+.planDetailsSummaryList {
+  margin: 4px 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 2px;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--text-2, rgba(226, 232, 240, 0.86)) 94%, transparent);
+}
+
+.planDetailsSummaryItem + .planDetailsSummaryItem {
+  margin-top: 1px;
 }
 
 .formRow {

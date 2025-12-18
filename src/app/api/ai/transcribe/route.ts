@@ -15,6 +15,7 @@ import {
   resolveWalletContext,
   EntitlementError,
 } from "@/server/billing/entitlements";
+import { transcriptionCreditsFromBase64 } from "@/lib/billing/usage";
 
 export const runtime = "nodejs";
 
@@ -35,8 +36,6 @@ const TRANSCRIBE_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
   limit: 250,
   window: "10 m",
 };
-
-const TRANSCRIBE_COMPUTE_COST = 2_000;
 
 export async function POST(req: Request) {
   try {
@@ -62,36 +61,6 @@ export async function POST(req: Request) {
       );
     }
 
-    try {
-      const walletContext = await resolveWalletContext({
-        ownerType: "user",
-        ownerId,
-        supabaseUserId: ownerId,
-        req,
-        ensureDevCredits: true,
-      });
-      ensureFeatureAccess({
-        balance: walletContext.balance,
-        bypass: walletContext.bypass,
-        requiredTier: "default",
-        featureName: "AI transcription",
-      });
-      await chargeUsage({
-        wallet: walletContext.wallet,
-        balance: walletContext.balance,
-        metric: "compute",
-        amount: TRANSCRIBE_COMPUTE_COST,
-        reason: "ai.transcribe",
-        bypass: walletContext.bypass,
-      });
-    } catch (error) {
-      if (error instanceof EntitlementError) {
-        return returnError(error.status, error.code, error.message, error.details);
-      }
-      console.error("billing.ai_transcribe.failed", error);
-      return returnError(500, "billing_error", "Failed to verify allowance");
-    }
-
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const audioBase64Raw =
       typeof body?.audio_base64 === "string" && body.audio_base64.trim().length
@@ -102,9 +71,59 @@ export async function POST(req: Request) {
     if (!audioBase64Raw) {
       return NextResponse.json({ error: "audio_base64 is required" }, { status: 400 });
     }
+
+    let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+    try {
+      walletContext = await resolveWalletContext({
+        ownerType: "user",
+        ownerId,
+        supabaseUserId: ownerId,
+        req,
+        ensureDevCredits: true,
+      });
+      ensureFeatureAccess({
+        balance: walletContext.balance,
+        bypass: walletContext.bypass,
+        requiredTier: "starter",
+        featureName: "AI transcription",
+      });
+    } catch (error) {
+      if (error instanceof EntitlementError) {
+        return returnError(error.status, error.code, error.message, error.details);
+      }
+      console.error("billing.ai_transcribe.failed", error);
+      return returnError(500, "billing_error", "Failed to verify allowance");
+    }
+
     const mime =
       typeof body?.mime === "string" && body.mime.trim().length ? body.mime.trim() : null;
     const result = await transcribeAudioFromBase64({ audioBase64: audioBase64Raw, mime });
+
+    try {
+      const computeCost = transcriptionCreditsFromBase64(audioBase64Raw);
+      if (walletContext && computeCost > 0 && !walletContext.bypass) {
+        await chargeUsage({
+          wallet: walletContext.wallet,
+          balance: walletContext.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "ai.transcribe",
+          bypass: walletContext.bypass,
+        });
+      }
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
+      }
+      console.error("billing.ai_transcribe.debit_failed", billingError);
+      return returnError(500, "billing_error", "Failed to record transcription usage");
+    }
+
     return NextResponse.json({
       text: result.text || "",
       model: result.model || null,

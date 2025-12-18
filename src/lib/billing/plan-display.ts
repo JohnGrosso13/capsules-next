@@ -27,20 +27,20 @@ const PLAN_COPY: Record<
   { tagline: string; badge?: string | null; recommended?: boolean | null }
 > = {
   user_free: {
-    tagline: "Experiment with Capsules and light monthly usage.",
+    tagline: "Start free, join Capsules, and try the AI.",
     badge: "Included",
   },
   user_creator: {
-    tagline: "For weekly play, publishing, and growing channels.",
+    tagline: "Creator tier for everyday posts, branding, and going live occasionally.",
     badge: "Recommended",
     recommended: true,
   },
   user_pro: {
-    tagline: "Serious leagues and automated content workflows.",
+    tagline: "Captain tier for weekly streams, clips, and posts.",
   },
   user_studio: {
-    tagline: "Studios and teams using Capsules every day.",
-    badge: "Teams",
+    tagline: "Legend tier: a production pipeline that ships for you.",
+    badge: "Legend",
   },
   personal_default: {
     tagline: "Personal subscription placeholder tier.",
@@ -48,6 +48,36 @@ const PLAN_COPY: Record<
   capsule_default: {
     tagline: "Upgrade a capsule with dedicated compute and storage.",
   },
+};
+
+const CAPSULE_POWER_NOTE =
+  "Capsule upgrades are community-funded with Capsule Power (you can power up your Capsule with your personal subscription!).";
+
+const PLAN_ALLOWANCES: Record<string, string[]> = {
+  user_free: [
+    "Join unlimited Capsules (public + private) with friends, DMs, and Party Chat",
+    "Use AI Composer + Personal Coach for quick ideas, captions, and feedback",
+    "Draft better posts with hooks, hashtags, translations, and variants",
+    "Create 1 Capsule with basic roles, posts, ladders/tourneys, and store setup",
+  ],
+  user_creator: [
+    "Expanded credits for regular image and video generations",
+    "Low + medium image quality models and PDF/PPT exports with templates",
+    "Go Live (basic) with chat inside your Capsule",
+    "Create up to 2 Capsules, run ladders/tournaments, and keep a small store running",
+  ],
+  user_pro: [
+    "Advanced credits for weekly streams, clips, and posts",
+    "Stream/Creator Studio: auto recaps, clip suggestions, titles, and thumbnails",
+    "Own up to 3 Capsules with stronger moderation, bundles, and promo tools",
+    "Sharper AI models for images and analysis so posts feel on-brand",
+  ],
+  user_studio: [
+    "Built for teams who ship content every week, not once in a while",
+    "Priority Creation Studio with high-volume image gen and bulk PDF/PPT packs",
+    "Full Stream Studio automations, clip pipelines, and wiki updates",
+    "Own up to 4 Capsules plus a monthly Capsule Power drop for big events",
+  ],
 };
 
 function titleCase(value: string): string {
@@ -117,9 +147,16 @@ function resolvePlanCopy(plan: BillingPlanSummary): {
   };
 }
 
-export function buildPlanDisplay(plan: BillingPlanSummary): PlanDisplay {
-  const featureTier = resolveFeatureTier(plan);
-  const copy = resolvePlanCopy(plan);
+function resolveAllowances(plan: BillingPlanSummary, featureTier: string | null): string[] {
+  const curated = PLAN_ALLOWANCES[plan.code];
+  if (curated) {
+    const items = [...curated];
+    if (plan.code.startsWith("user_")) {
+      items.push(CAPSULE_POWER_NOTE);
+    }
+    return items;
+  }
+
   const allowances = [
     `${formatComputeUnits(plan.includedCompute)} per month`,
     `${formatStorageBytes(plan.includedStorageBytes)} storage included`,
@@ -127,6 +164,16 @@ export function buildPlanDisplay(plan: BillingPlanSummary): PlanDisplay {
   if (featureTier) {
     allowances.push(`${titleCase(featureTier)} feature tier unlocked`);
   }
+  if (plan.code.startsWith("user_")) {
+    allowances.push(CAPSULE_POWER_NOTE);
+  }
+  return allowances;
+}
+
+export function buildPlanDisplay(plan: BillingPlanSummary): PlanDisplay {
+  const featureTier = resolveFeatureTier(plan);
+  const copy = resolvePlanCopy(plan);
+  const allowances = resolveAllowances(plan, featureTier);
   return {
     plan,
     priceLabel: planPriceLabel(plan),

@@ -11,6 +11,7 @@ import {
   EntitlementError,
 } from "@/server/billing/entitlements";
 import { returnError } from "@/server/validation/http";
+import { memoryUpsertCredits } from "@/lib/billing/usage";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -26,8 +27,18 @@ export async function POST(req: Request) {
   }
 
   try {
+    const primaryText =
+      typeof item.raw_text === "string"
+        ? item.raw_text
+        : typeof item.description === "string"
+          ? item.description
+          : typeof item.title === "string"
+            ? item.title
+            : null;
+
+    let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
     try {
-      const walletContext = await resolveWalletContext({
+      walletContext = await resolveWalletContext({
         ownerType: "user",
         ownerId,
         supabaseUserId: ownerId,
@@ -37,16 +48,8 @@ export async function POST(req: Request) {
       ensureFeatureAccess({
         balance: walletContext.balance,
         bypass: walletContext.bypass,
-        requiredTier: "default",
+        requiredTier: "starter",
         featureName: "Memory uploads",
-      });
-      await chargeUsage({
-        wallet: walletContext.wallet,
-        balance: walletContext.balance,
-        metric: "compute",
-        amount: 500,
-        reason: "memory.upsert",
-        bypass: walletContext.bypass,
       });
     } catch (billingError) {
       if (billingError instanceof EntitlementError) {
@@ -82,6 +85,32 @@ export async function POST(req: Request) {
         : null,
       eventAt: typeof item.created_at === "string" ? item.created_at : null,
     });
+
+    try {
+      const computeCost = memoryUpsertCredits(primaryText);
+      if (walletContext && computeCost > 0 && !walletContext.bypass) {
+        await chargeUsage({
+          wallet: walletContext.wallet,
+          balance: walletContext.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "memory.upsert",
+          bypass: walletContext.bypass,
+        });
+      }
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
+      }
+      console.error("billing.memory_upsert.charge_failed", billingError);
+      return returnError(500, "billing_error", "Failed to record memory usage");
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("memory upsert error", error);

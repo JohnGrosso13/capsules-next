@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
+import { Check, Info, X } from "@phosphor-icons/react/dist/ssr";
 
 import { Button } from "@/components/ui/button";
 import cards from "@/components/cards.module.css";
@@ -68,6 +70,129 @@ type UsageStat = {
   percentUsed: number;
   nearlyOut: boolean;
 };
+
+type PlanTierId = "starter" | "plus" | "pro" | "studio";
+
+type PlanTierMeta = {
+  id: PlanTierId;
+  label: string;
+  code: string;
+};
+
+type PlanDetailsRow = {
+  id: string;
+  label: string;
+  description: string;
+  tiers: PlanTierId[];
+};
+
+type PlanSummary = {
+  id: PlanTierId;
+  title: string;
+  bullets: string[];
+};
+
+const PLAN_TIERS: PlanTierMeta[] = [
+  { id: "starter", label: "Starter", code: "user_free" },
+  { id: "plus", label: "Plus", code: "user_creator" },
+  { id: "pro", label: "Pro", code: "user_pro" },
+  { id: "studio", label: "Studio", code: "user_studio" },
+];
+
+const PLAN_SUMMARIES: PlanSummary[] = [
+  {
+    id: "starter",
+    title: "Starter · Free",
+    bullets: [
+      "Join Capsules, explore feeds, and try Capsule AI.",
+      "Run your first ladders, tournaments, and posts with AI help.",
+      "Perfect for vibing, not yet for going live every week.",
+    ],
+  },
+  {
+    id: "plus",
+    title: "Plus · Everyday creator",
+    bullets: [
+      "Show up consistently with better posts, images, and PDFs.",
+      "Go Live with chat and keep 1–2 Capsules feeling on-brand.",
+      "A good fit for solo creators and small crews.",
+    ],
+  },
+  {
+    id: "pro",
+    title: "Pro · Captain",
+    bullets: [
+      "Stream weekly, auto-clip sessions, and publish recap posts.",
+      "Run ladders, tournaments, and drops across up to 3 Capsules.",
+      "Great for teams and communities that expect regular output.",
+    ],
+  },
+  {
+    id: "studio",
+    title: "Studio · Legend",
+    bullets: [
+      "Treat Capsules like your production studio, not a side project.",
+      "High-volume image gen, bulk decks, and deep automations.",
+      "Best for orgs running multiple Capsules, events, and drops.",
+    ],
+  },
+];
+
+const PLAN_DETAILS_ROWS: PlanDetailsRow[] = [
+  {
+    id: "ai_compose",
+    label: "AI Composer & Personal Coach",
+    description: "Chat with AI to brainstorm ideas, captions, and content plans.",
+    tiers: ["starter", "plus", "pro", "studio"],
+  },
+  {
+    id: "image_gen",
+    label: "Image generation",
+    description: "Create visuals for posts, banners, and announcements.",
+    tiers: ["starter", "plus", "pro", "studio"],
+  },
+  {
+    id: "image_quality",
+    label: "Higher image quality models",
+    description: "Medium + high quality options for sharper outputs.",
+    tiers: ["plus", "pro", "studio"],
+  },
+  {
+    id: "pdf_ppt",
+    label: "PDF & PPT exports",
+    description: "Turn drafts into shareable decks, kits, and one-pagers.",
+    tiers: ["plus", "pro", "studio"],
+  },
+  {
+    id: "go_live",
+    label: "Go Live with chat",
+    description: "Host streams inside your Capsule with live chat.",
+    tiers: ["plus", "pro", "studio"],
+  },
+  {
+    id: "stream_automation",
+    label: "Stream Studio automations",
+    description: "Auto recaps, clip suggestions, titles, and thumbnails from streams.",
+    tiers: ["pro", "studio"],
+  },
+  {
+    id: "capsule_ownership",
+    label: "Own Capsules",
+    description: "Create and run your own Capsules home base.",
+    tiers: ["starter", "plus", "pro", "studio"],
+  },
+  {
+    id: "power_drop",
+    label: "Monthly Capsule Power drop",
+    description: "Extra Capsule Power to fund automations and community upgrades.",
+    tiers: ["studio"],
+  },
+];
+
+function resolveTierIdFromCode(code: string): PlanTierId | null {
+  const match = PLAN_TIERS.find((entry) => entry.code === code);
+  return match?.id ?? null;
+}
 
 function buildUsageStat(total: number, used: number): UsageStat {
   const safeTotal = Math.max(0, total);
@@ -148,6 +273,166 @@ function resolveRenewalLabel(wallet: WalletResponse | null, currentPlan: PlanDis
   return "Billing active";
 }
 
+function PlanDetailsOverlay({
+  activePlanCode,
+  onClose,
+}: {
+  activePlanCode: string;
+  onClose: () => void;
+}): React.ReactPortal | null {
+  const [mounted, setMounted] = React.useState(false);
+  const activeTierId = resolveTierIdFromCode(activePlanCode);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mounted) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    const { body } = document;
+    const originalOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      body.style.overflow = originalOverflow;
+    };
+  }, [mounted, onClose]);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className={styles.planDetailsOverlay} role="dialog" aria-modal="true">
+      <div className={styles.planDetailsDrawer}>
+        <header className={styles.planDetailsDrawerHeader}>
+          <div className={styles.planDetailsDrawerTitleGroup}>
+            <h4 className={styles.planDetailsDrawerTitle}>Plan details &amp; comparison</h4>
+            <p className={styles.planDetailsDrawerSubtitle}>
+              See what Starter, Plus, Pro, and Studio include before you commit. You can always change
+              plans later.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.planDetailsClose}
+            onClick={onClose}
+            aria-label="Close plan details"
+          >
+            <X size={16} weight="bold" />
+          </button>
+        </header>
+
+        <div className={styles.planDetailsSummaryGrid}>
+          {PLAN_SUMMARIES.map((summary) => {
+            const isActive = summary.id === activeTierId;
+            return (
+              <section
+                key={summary.id}
+                className={`${styles.planDetailsSummaryCard}${
+                  isActive ? ` ${styles.planDetailsSummaryCardActive}` : ""
+                }`}
+                aria-label={`${summary.title} summary`}
+              >
+                <h5 className={styles.planDetailsSummaryTitle}>
+                  {summary.title}
+                  {isActive ? <span className={styles.planDetailsSummaryBadge}>Your selection</span> : null}
+                </h5>
+                <ul className={styles.planDetailsSummaryList}>
+                  {summary.bullets.map((bullet) => (
+                    <li key={bullet} className={styles.planDetailsSummaryItem}>
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+
+        <div className={styles.planDetails}>
+          <div className={styles.planDetailsHeader}>
+            <div>
+              <p className={styles.planDetailsTitle}>Detailed capabilities</p>
+              <p className={styles.planDetailsHint}>
+                A checkmark means that tier includes the capability for this billing period.
+              </p>
+            </div>
+          </div>
+          <div className={styles.planDetailsMatrixScroll}>
+            <div className={styles.planDetailsMatrix} role="grid" aria-label="Plan feature comparison">
+              <div className={styles.planDetailsMatrixHeaderRow}>
+                <div className={styles.planDetailsFeatureCol} />
+                {PLAN_TIERS.map((tier) => {
+                  const isActive = tier.id === activeTierId;
+                  return (
+                    <div
+                      key={tier.id}
+                      className={`${styles.planDetailsTierHeader}${
+                        isActive ? ` ${styles.planDetailsTierHeaderActive}` : ""
+                      }`}
+                      role="columnheader"
+                      aria-label={tier.label}
+                    >
+                      <span className={styles.planDetailsTierLabel}>{tier.label}</span>
+                      {isActive ? <span className={styles.planDetailsTierTag}>Selected</span> : null}
+                    </div>
+                  );
+                })}
+              </div>
+              {PLAN_DETAILS_ROWS.map((row) => (
+                <div key={row.id} className={styles.planDetailsRow} role="row">
+                  <div className={styles.planDetailsFeatureCell}>
+                    <div className={styles.planDetailsFeatureLabel}>{row.label}</div>
+                    <div className={styles.planDetailsFeatureDescription}>{row.description}</div>
+                  </div>
+                  {PLAN_TIERS.map((tier) => {
+                    const granted = row.tiers.includes(tier.id);
+                    const isActiveTier = tier.id === activeTierId;
+                    return (
+                      <div
+                        key={`${row.id}-${tier.id}`}
+                        className={styles.planDetailsIconCell}
+                        role="gridcell"
+                        aria-label={
+                          granted
+                            ? `${tier.label} includes ${row.label}`
+                            : `${tier.label} does not include ${row.label}`
+                        }
+                        aria-hidden={!granted}
+                      >
+                        {granted ? (
+                          <span
+                            className={styles.planDetailsIcon}
+                            data-active={isActiveTier ? "true" : undefined}
+                          >
+                            <Check size={12} weight="bold" />
+                          </span>
+                        ) : (
+                          <span className={styles.planDetailsIcon} aria-hidden="true" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function UsageMeter({
   label,
   usage,
@@ -163,7 +448,7 @@ function UsageMeter({
         <p className={styles.label}>{label}</p>
         <p className={styles.balanceRow}>
           <span>{formatter(usage.used)} used</span>
-          <span aria-hidden>·</span>
+          <span aria-hidden>|</span>
           <span>{formatter(usage.total)} included</span>
         </p>
       </div>
@@ -220,6 +505,7 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
   const [donationAmount, setDonationAmount] = React.useState<string>("1000");
   const [donationStatus, setDonationStatus] = React.useState<string | null>(null);
   const [isDonating, setIsDonating] = React.useState<boolean>(false);
+  const [detailsPlanCode, setDetailsPlanCode] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -314,12 +600,16 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
     }
   }, [donationAmount, donationCapsuleId, donationMetric, loadData]);
 
-  const personalPlans = React.useMemo(() => plans?.personal ?? [], [plans]);
+  const personalPlansRaw = React.useMemo(() => plans?.personal ?? [], [plans]);
+  const personalPlans = React.useMemo(
+    () => personalPlansRaw.filter((plan) => plan.code !== "personal_default"),
+    [personalPlansRaw],
+  );
   const capsulePlan = plans?.capsule?.[0] ?? null;
   const planDisplays = React.useMemo(() => sortPlansForDisplay(personalPlans), [personalPlans]);
   const currentPlanRaw = React.useMemo(
-    () => resolvePlanForWallet(personalPlans, wallet),
-    [personalPlans, wallet],
+    () => resolvePlanForWallet(personalPlansRaw, wallet),
+    [personalPlansRaw, wallet],
   );
   const currentPlanDisplay = React.useMemo(
     () =>
@@ -373,7 +663,7 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                     ) : null}
                   </div>
                   <p className={styles.subtle}>
-                    {currentPlanDisplay?.priceLabel ?? "Free"} ·{" "}
+                    {currentPlanDisplay?.priceLabel ?? "Free"} |{" "}
                     {currentPlanDisplay
                       ? currentPlanDisplay.plan.billingInterval === "yearly"
                         ? "Yearly"
@@ -431,10 +721,10 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
 
             <div className={styles.tierIntro}>
               <p className={styles.tierEyebrow}>Personal plans</p>
-              <p className={styles.tierTitle}>Choose the allowance that fits your play style.</p>
+              <p className={styles.tierTitle}>Pick how hard Capsules should work for you.</p>
               <p className={styles.tierSubtitle}>
-                Every tier includes ladders, tournaments, and Capsule AI. Higher plans add more compute,
-                storage, and feature tier unlocks.
+                Starter lets you vibe for free; Plus, Pro, and Studio layer in higher-quality AI models,
+                streaming, and automation without exposing raw credit counts.
               </p>
             </div>
 
@@ -481,13 +771,19 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                         >
                           {isCurrent ? "Current plan" : `Choose ${display.plan.name}`}
                         </Button>
-                        <span className={styles.tierMeta}>
-                          {display.featureTier
-                            ? `${display.featureTier.toUpperCase()} tier · ${display.plan.billingInterval}`
-                            : display.plan.billingInterval === "yearly"
-                              ? "Yearly billing"
-                              : "Monthly billing"}
-                        </span>
+                        <button
+                          type="button"
+                          className={styles.tierDetailsButton}
+                          onClick={() =>
+                            setDetailsPlanCode((prev) =>
+                              prev === display.plan.code ? null : display.plan.code,
+                            )
+                          }
+                          aria-expanded={detailsPlanCode === display.plan.code ? "true" : "false"}
+                        >
+                          <Info size={14} weight="bold" />
+                          <span>Details</span>
+                        </button>
                       </div>
                     </section>
                   );
@@ -629,6 +925,13 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                 </div>
               </div>
             </div>
+
+            {detailsPlanCode ? (
+              <PlanDetailsOverlay
+                activePlanCode={detailsPlanCode}
+                onClose={() => setDetailsPlanCode(null)}
+              />
+            ) : null}
           </>
         )}
       </div>

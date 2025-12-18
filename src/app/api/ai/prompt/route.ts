@@ -11,6 +11,7 @@ import {
 } from "@/lib/composer/chat-types";
 import { promptResponseSchema, type PromptResponse, type ComposerAttachment } from "@/shared/schemas/ai";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
+import { computeComposerCredits } from "@/lib/billing/usage";
 import {
   parseJsonBody,
   returnError,
@@ -246,8 +247,6 @@ const PROMPT_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
   window: "5 m",
 };
 
-const PROMPT_COMPUTE_COST = 4_000;
-
 const CONTEXT_SNIPPET_LIMIT = 6;
 const CONTEXT_CHAR_BUDGET = 4000;
 
@@ -382,8 +381,9 @@ export async function POST(req: Request) {
     );
   }
 
+  let walletContext = null;
   try {
-    const walletContext = await resolveWalletContext({
+    walletContext = await resolveWalletContext({
       ownerType: "user",
       ownerId,
       supabaseUserId: ownerId,
@@ -393,16 +393,8 @@ export async function POST(req: Request) {
     ensureFeatureAccess({
       balance: walletContext.balance,
       bypass: walletContext.bypass,
-      requiredTier: "default",
+      requiredTier: "starter",
       featureName: "AI prompt drafting",
-    });
-    await chargeUsage({
-      wallet: walletContext.wallet,
-      balance: walletContext.balance,
-      metric: "compute",
-      amount: PROMPT_COMPUTE_COST,
-      reason: "ai.prompt",
-      bypass: walletContext.bypass,
     });
   } catch (error) {
     if (error instanceof EntitlementError) {
@@ -780,6 +772,37 @@ export async function POST(req: Request) {
             context: responseContext,
           });
 
+          try {
+            const computeCost = computeComposerCredits(toolRun.usage);
+            if (walletContext && computeCost > 0 && !walletContext.bypass) {
+              await chargeUsage({
+                wallet: walletContext.wallet,
+                balance: walletContext.balance,
+                metric: "compute",
+                amount: computeCost,
+                reason: "ai.prompt",
+                bypass: walletContext.bypass,
+              });
+            }
+          } catch (billingError) {
+            if (billingError instanceof EntitlementError) {
+              send({
+                event: "error",
+                error: billingError.message,
+                details: billingError.details,
+              });
+              controller.close();
+              return;
+            }
+            console.error("composer_prompt.billing_failed", billingError);
+            send({
+              event: "error",
+              error: "Billing failed for this request.",
+            });
+            controller.close();
+            return;
+          }
+
           console.info("composer_prompt_latency", {
             ownerId,
             contextMs: contextStart ? Date.now() - contextStart : null,
@@ -895,6 +918,26 @@ export async function POST(req: Request) {
       history: historyOut,
       context: responseContext,
     });
+
+    try {
+      const computeCost = computeComposerCredits(toolRun.usage);
+      if (walletContext && computeCost > 0 && !walletContext.bypass) {
+        await chargeUsage({
+          wallet: walletContext.wallet,
+          balance: walletContext.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "ai.prompt",
+          bypass: walletContext.bypass,
+        });
+      }
+    } catch (error) {
+      if (error instanceof EntitlementError) {
+        return returnError(error.status, error.code, error.message, error.details);
+      }
+      console.error("composer_prompt.billing_failed", error);
+      return returnError(500, "billing_error", "Failed to record AI usage");
+    }
 
     console.info("composer_prompt_latency", {
       ownerId,

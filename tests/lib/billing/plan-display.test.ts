@@ -11,24 +11,30 @@ import {
 const basePlan: BillingPlanSummary = {
   id: "plan_creator",
   code: "user_creator",
-  name: "Creator",
-  description: "Creator tier",
-  priceCents: 1500,
+  name: "Plus",
+  description: "Plus tier",
+  priceCents: 1200,
   currency: "usd",
   billingInterval: "monthly",
-  includedCompute: 300_000,
-  includedStorageBytes: 50 * 1024 * 1024 * 1024,
+  includedCompute: 250_000,
+  includedStorageBytes: 150 * 1024 * 1024 * 1024,
   stripePriceId: "price_creator",
-  features: { feature_tier: "creator" },
+  features: { feature_tier: "plus" },
 };
 
 describe("plan display helpers", () => {
-  it("derives allowances and feature tier from plan numbers", () => {
+  it("uses curated allowances and feature tier for marketing plans", () => {
     const display = buildPlanDisplay(basePlan);
-    expect(display.priceLabel.toLowerCase()).toContain("15");
-    expect(display.allowances.some((line) => line.includes("300,000"))).toBe(true);
-    expect(display.allowances.some((line) => line.toLowerCase().includes("storage"))).toBe(true);
-    expect(display.featureTier).toBe("creator");
+    expect(display.priceLabel.toLowerCase()).toContain("12");
+    expect(display.allowances.some((line) => line.toLowerCase().includes("expanded credits"))).toBe(
+      true,
+    );
+    expect(
+      display.allowances.some((line) =>
+        line.includes("Capsule upgrades are community-funded with Capsule Power"),
+      ),
+    ).toBe(true);
+    expect(display.featureTier).toBe("plus");
   });
 
   it("formats compute and storage helpers", () => {
@@ -40,7 +46,7 @@ describe("plan display helpers", () => {
     const plans: BillingPlanSummary[] = [
       { ...basePlan, id: "plan_free", code: "user_free", name: "Free", priceCents: 0 },
       basePlan,
-      { ...basePlan, id: "plan_pro", code: "user_pro", name: "Pro", priceCents: 3900 },
+      { ...basePlan, id: "plan_pro", code: "user_pro", name: "Pro", priceCents: 2400 },
     ];
     const sorted = sortPlansForDisplay(plans);
     expect(sorted[0]?.plan.code).toBe("user_free");

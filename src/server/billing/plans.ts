@@ -6,11 +6,18 @@ import type { BillingPlan, WalletOwnerType } from "./service";
 
 const BYTES_IN_GB = 1024 * 1024 * 1024;
 
+// Compute grants are scaled from the marketing credit counts to match our internal usage pricing
+// while keeping raw numbers hidden from end users.
 const USER_PLAN_PRESETS = {
-  free: { compute: 50_000, storage: 5 * BYTES_IN_GB, featureTier: "free" },
-  creator: { compute: 300_000, storage: 50 * BYTES_IN_GB, featureTier: "creator" },
-  pro: { compute: 1_500_000, storage: 200 * BYTES_IN_GB, featureTier: "pro" },
-  studio: { compute: 5_000_000, storage: 1_000 * BYTES_IN_GB, featureTier: "studio" },
+  starter: { compute: 30_000, storage: 10 * BYTES_IN_GB, featureTier: "starter" },
+  plus: { compute: 250_000, storage: 150 * BYTES_IN_GB, featureTier: "plus" },
+  pro: { compute: 750_000, storage: 600 * BYTES_IN_GB, featureTier: "pro" },
+  studio: {
+    compute: 1_800_000,
+    storage: 2_000 * BYTES_IN_GB,
+    featureTier: "legend",
+    powerDrop: 300_000,
+  },
 } as const;
 
 const DEFAULT_CAPSULE_COMPUTE = 1_000_000;
@@ -26,6 +33,9 @@ type PlanTemplate = {
   includedCompute: number;
   includedStorageBytes: number;
   stripePriceId: string | null;
+  featureTier?: string | null;
+  modelTier?: string | null;
+  features?: Record<string, unknown>;
 };
 
 function buildPlanTemplates(): PlanTemplate[] {
@@ -34,46 +44,88 @@ function buildPlanTemplates(): PlanTemplate[] {
     {
       code: "user_free",
       scope: "user",
-      name: "Free",
-      description: "Try Capsules with light monthly usage.",
+      name: "Starter",
+      description: "Join Capsules, vibe, and try the AI before subscribing.",
       priceCents: 0,
       billingInterval: "monthly",
-      includedCompute: USER_PLAN_PRESETS.free.compute,
-      includedStorageBytes: USER_PLAN_PRESETS.free.storage,
+      includedCompute: USER_PLAN_PRESETS.starter.compute,
+      includedStorageBytes: USER_PLAN_PRESETS.starter.storage,
       stripePriceId: null,
+      featureTier: USER_PLAN_PRESETS.starter.featureTier,
+      modelTier: "standard",
+      features: {
+        capsuleOwnershipLimit: 1,
+        imageQuality: ["low"],
+        goLive: false,
+        includesVideoGen: false,
+      },
     },
     {
       code: "user_creator",
       scope: "user",
-      name: "Creator",
-      description: "For regular players and creators.",
-      priceCents: 1500,
+      name: "Plus",
+      description: "Everything you need to run a real Capsule.",
+      priceCents: 1200,
       billingInterval: "monthly",
-      includedCompute: USER_PLAN_PRESETS.creator.compute,
-      includedStorageBytes: USER_PLAN_PRESETS.creator.storage,
+      includedCompute: USER_PLAN_PRESETS.plus.compute,
+      includedStorageBytes: USER_PLAN_PRESETS.plus.storage,
       stripePriceId: stripe.priceCreator,
+      featureTier: USER_PLAN_PRESETS.plus.featureTier,
+      modelTier: "standard",
+      features: {
+        capsuleOwnershipLimit: 2,
+        imageQuality: ["low", "medium"],
+        goLive: true,
+        exports: ["pdf", "ppt"],
+        includesVideoGen: true,
+      },
     },
     {
       code: "user_pro",
       scope: "user",
       name: "Pro",
-      description: "Run serious leagues and content workflows.",
-      priceCents: 3900,
+      description: "For captains and teams that want weekly output.",
+      priceCents: 2400,
       billingInterval: "monthly",
       includedCompute: USER_PLAN_PRESETS.pro.compute,
       includedStorageBytes: USER_PLAN_PRESETS.pro.storage,
       stripePriceId: stripe.pricePro,
+      featureTier: USER_PLAN_PRESETS.pro.featureTier,
+      modelTier: "advanced",
+      features: {
+        capsuleOwnershipLimit: 3,
+        imageQuality: ["low", "medium", "high"],
+        goLive: true,
+        streamStudio: true,
+        moderationAssist: true,
+        includesVideoGen: true,
+        autoRecaps: true,
+        clipSuggestions: true,
+      },
     },
     {
       code: "user_studio",
       scope: "user",
-      name: "Studio",
-      description: "For studios, teams, and heavy daily use.",
-      priceCents: 9900,
+      name: "Studio (Legend)",
+      description: "A production pipeline that ships content for you.",
+      priceCents: 4900,
       billingInterval: "monthly",
       includedCompute: USER_PLAN_PRESETS.studio.compute,
       includedStorageBytes: USER_PLAN_PRESETS.studio.storage,
       stripePriceId: stripe.priceStudio,
+      featureTier: USER_PLAN_PRESETS.studio.featureTier,
+      modelTier: "premium",
+      features: {
+        capsuleOwnershipLimit: 4,
+        imageQuality: ["low", "medium", "high"],
+        goLive: true,
+        streamStudio: true,
+        powerDrop: USER_PLAN_PRESETS.studio.powerDrop,
+        bulkExports: true,
+        wikiAdvanced: true,
+        includesVideoGen: true,
+        creationPriority: true,
+      },
     },
     {
       code: "personal_default",
@@ -82,9 +134,11 @@ function buildPlanTemplates(): PlanTemplate[] {
       description: "Personal subscription placeholder tier",
       priceCents: null,
       billingInterval: "monthly",
-      includedCompute: USER_PLAN_PRESETS.creator.compute,
-      includedStorageBytes: USER_PLAN_PRESETS.creator.storage,
+      includedCompute: USER_PLAN_PRESETS.plus.compute,
+      includedStorageBytes: USER_PLAN_PRESETS.plus.storage,
       stripePriceId: stripe.pricePersonal,
+      featureTier: USER_PLAN_PRESETS.plus.featureTier,
+      modelTier: "standard",
     },
     {
       code: "capsule_default",
@@ -104,11 +158,12 @@ export async function ensureDefaultPlans(): Promise<void> {
   const templates = buildPlanTemplates();
   for (const template of templates) {
     const featureTier =
-      template.scope === "user"
+      template.featureTier ??
+      (template.scope === "user"
         ? template.code.startsWith("user_")
           ? template.code.replace("user_", "")
           : "default"
-        : "default";
+        : "default");
 
     await upsertPlan({
       code: template.code,
@@ -121,7 +176,12 @@ export async function ensureDefaultPlans(): Promise<void> {
       includedStorageBytes: template.includedStorageBytes,
       stripePriceId: template.stripePriceId,
       active: true,
-      features: { tier: template.code, feature_tier: featureTier, model_tier: "standard" },
+      features: {
+        tier: template.code,
+        feature_tier: featureTier,
+        model_tier: template.modelTier ?? "standard",
+        ...(template.features ?? {}),
+      },
     });
   }
 }

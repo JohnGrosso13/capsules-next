@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     ensureFeatureAccess({
       balance: walletContext.balance,
       bypass: walletContext.bypass,
-      requiredTier: "default",
+      requiredTier: "starter",
       featureName: "PDF export",
     });
     await chargeUsage({

@@ -63,6 +63,24 @@
   gap: 6px;
 }
 
+.metricHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.metricIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand, #6366f1) 24%, transparent);
+  color: var(--text, #fff);
+}
+
 .metricLabel {
   font-size: 0.85rem;
   color: var(--text-2, var(--color-fg-muted));

@@ -40,13 +40,23 @@ export type WalletContext = {
   bypass: boolean;
 };
 
-const FEATURE_TIER_ORDER = ["free", "creator", "default", "pro", "studio", "ultra"] as const;
+const FEATURE_TIER_RANK: Record<string, number> = {
+  starter: 1,
+  free: 1,
+  plus: 2,
+  creator: 2,
+  default: 2,
+  pro: 3,
+  captain: 3,
+  studio: 4,
+  legend: 4,
+  ultra: 5,
+};
 
 function tierRank(value: string | null | undefined): number {
   if (!value) return 0;
   const normalized = value.trim().toLowerCase();
-  const index = FEATURE_TIER_ORDER.indexOf(normalized as (typeof FEATURE_TIER_ORDER)[number]);
-  return index >= 0 ? index : 0;
+  return FEATURE_TIER_RANK[normalized] ?? 0;
 }
 
 export async function shouldBypassBilling(
@@ -212,7 +222,7 @@ export function ensureFeatureAccess(options: {
   featureName?: string;
 }): void {
   if (options.bypass) return;
-  const required = options.requiredTier ?? "default";
+  const required = options.requiredTier ?? "starter";
   const currentTierRank = tierRank(options.balance.featureTier);
   const requiredRank = tierRank(required);
 

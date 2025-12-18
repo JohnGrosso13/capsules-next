@@ -12,6 +12,7 @@ import {
   resolveWalletContext,
   EntitlementError,
 } from "@/server/billing/entitlements";
+import { imageCreditsForQuality } from "@/lib/billing/usage";
 import {
   checkRateLimits,
   retryAfterSeconds as computeRetryAfterSeconds,
@@ -73,8 +74,6 @@ const BANNER_GLOBAL_RATE_LIMIT: RateLimitDefinition = {
   window: "30 m",
 };
 
-const BANNER_COMPUTE_COST = 5_000;
-
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
@@ -131,14 +130,15 @@ export async function POST(req: Request) {
     ensureFeatureAccess({
       balance: walletContext.balance,
       bypass: walletContext.bypass,
-      requiredTier: "default",
+      requiredTier: "starter",
       featureName: "AI banner generation",
     });
+    const computeCost = imageCreditsForQuality("medium");
     await chargeUsage({
       wallet: walletContext.wallet,
       balance: walletContext.balance,
       metric: "compute",
-      amount: BANNER_COMPUTE_COST,
+      amount: computeCost,
       reason: "ai.banner",
       bypass: walletContext.bypass,
     });

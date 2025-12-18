@@ -40,15 +40,15 @@ describe("billing api routes", () => {
       id: "plan_personal",
       code: "user_creator",
       scope: "user",
-      name: "Creator",
-      description: "Creator plan",
-      priceCents: 1500,
+      name: "Plus",
+      description: "Plus plan",
+      priceCents: 1200,
       currency: "usd",
       billingInterval: "monthly",
-      includedCompute: 300_000,
-      includedStorageBytes: 1024 * 1024 * 1024 * 50,
+      includedCompute: 250_000,
+      includedStorageBytes: 1024 * 1024 * 1024 * 150,
       priorityTier: null,
-      features: { feature_tier: "creator" },
+      features: { feature_tier: "plus" },
       active: true,
       stripePriceId: "price_creator",
     };
@@ -78,7 +78,7 @@ describe("billing api routes", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { personal: Array<Record<string, unknown>>; capsule: Array<Record<string, unknown>> };
     expect(body.personal[0]?.id).toBe("plan_personal");
-    expect(body.personal[0]?.features).toEqual({ feature_tier: "creator" });
+    expect(body.personal[0]?.features).toEqual({ feature_tier: "plus" });
     expect(body.capsule[0]?.includedCompute).toBe(1_000_000);
   });
 

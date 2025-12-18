@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Broadcast, Newspaper, Storefront } from "@phosphor-icons/react/dist/ssr";
+import { Broadcast, Lightning, Newspaper, Storefront } from "@phosphor-icons/react/dist/ssr";
 import { AiPrompterStage, type PrompterChip } from "@/components/ai-prompter-stage";
 import { CapsuleMembersPanel } from "@/components/capsule/CapsuleMembersPanel";
 import { CapsuleEventsSection } from "@/components/capsule/CapsuleEventsSection";
@@ -27,6 +27,7 @@ import { CapsuleHistorySection } from "./CapsuleHistorySection";
 import { LiveStreamCanvas } from "./LiveStreamCanvas";
 import { CapsuleFeed } from "./CapsuleFeed";
 import ShareSheet from "@/components/home-feed/ShareSheet";
+import { CapsuleUpgradePanel } from "./CapsuleUpgradePanel";
 
 type CapsuleTab = "live" | "feed" | "store";
 type FeedTargetDetail = { scope?: string | null; capsuleId?: string | null };
@@ -56,6 +57,10 @@ export function CapsuleContent({
   const [storeCustomizerOpen, setStoreCustomizerOpen] = React.useState(false);
   const [bannerUrlOverride, setBannerUrlOverride] = React.useState<string | null>(null);
   const [storeBannerUrlOverride, setStoreBannerUrlOverride] = React.useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = React.useState(false);
+  const [upgradeSubmitting, setUpgradeSubmitting] = React.useState(false);
+  const [upgradeStatusText, setUpgradeStatusText] = React.useState<string | null>(null);
+  const [upgradeServerError, setUpgradeServerError] = React.useState<string | null>(null);
   const router = useRouter();
   const { user } = useCurrentUser();
   const [membersOpen, setMembersOpen] = React.useState(false);
@@ -169,6 +174,10 @@ export function CapsuleContent({
   React.useEffect(() => {
     setMembersOpen(false);
     setMembershipError(null);
+    setUpgradeOpen(false);
+    setUpgradeSubmitting(false);
+    setUpgradeStatusText(null);
+    setUpgradeServerError(null);
   }, [capsuleId, setMembershipError]);
 
   React.useEffect(() => {
@@ -261,6 +270,101 @@ export function CapsuleContent({
     [unfollowCapsule],
   );
   const handleLeaveCapsule = React.useCallback(() => leave().catch(() => {}), [leave]);
+  const handleOpenUpgrade = React.useCallback(() => {
+    setUpgradeOpen(true);
+    setUpgradeServerError(null);
+    setUpgradeStatusText(null);
+  }, []);
+  const handleCloseUpgrade = React.useCallback(() => {
+    setUpgradeOpen(false);
+    setUpgradeSubmitting(false);
+    setUpgradeServerError(null);
+    setUpgradeStatusText(null);
+  }, []);
+  const handleAddCapsulePower = React.useCallback(
+    async (amountUsd: number) => {
+      if (!capsuleId) {
+        setUpgradeServerError("Missing capsule id.");
+        return;
+      }
+      setUpgradeSubmitting(true);
+      setUpgradeServerError(null);
+      setUpgradeStatusText("Adding Capsule Power...");
+      try {
+        const response = await fetch("/api/capsules/power", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ capsuleId, amountUsd }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            (payload && typeof payload.message === "string" && payload.message) ||
+            "Failed to add Capsule Power.";
+          setUpgradeServerError(message);
+          setUpgradeStatusText(null);
+          return;
+        }
+        const credited = payload?.capsuleCredits ?? null;
+        const platformCut = payload?.platformCutCredits ?? null;
+        const usdMicros = payload?.usdMicros ?? null;
+        const usdLabel =
+          typeof usdMicros === "number" ? (usdMicros / 1_000_000).toFixed(2) : amountUsd.toFixed(2);
+        setUpgradeStatusText(
+          `Added $${usdLabel} to Capsule Power. Capsule credited ${credited ?? "?"} credits (${platformCut ?? 0} credits platform cut).`,
+        );
+      } catch (error) {
+        console.error("capsule.upgrade.power_request_failed", error);
+        setUpgradeServerError("Unable to add Capsule Power right now.");
+        setUpgradeStatusText(null);
+      } finally {
+        setUpgradeSubmitting(false);
+      }
+    },
+    [capsuleId],
+  );
+  const handleSendCapsulePass = React.useCallback(
+    async (amount: number) => {
+      if (!capsuleId) {
+        setUpgradeServerError("Missing capsule id.");
+        return;
+      }
+      setUpgradeSubmitting(true);
+      setUpgradeServerError(null);
+      setUpgradeStatusText("Processing pass...");
+      try {
+        const response = await fetch("/api/capsules/pass", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ capsuleId, amountUsd: amount }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            (payload && typeof payload.message === "string" && payload.message) ||
+            "Failed to send Capsule Pass.";
+          setUpgradeServerError(message);
+          setUpgradeStatusText(null);
+          return;
+        }
+        const credited = payload?.founderCredits ?? null;
+        const platformCut = payload?.platformCutCredits ?? null;
+        const usdMicros = payload?.usdMicros ?? null;
+        const usdLabel =
+          typeof usdMicros === "number" ? (usdMicros / 1_000_000).toFixed(2) : amount.toFixed(2);
+        setUpgradeStatusText(
+          `Sent $${usdLabel} pass. Founder credited ${credited ?? "?"} credits (${platformCut ?? 0} credits platform cut).`,
+        );
+      } catch (error) {
+        console.error("capsule.upgrade.pass_request_failed", error);
+        setUpgradeServerError("Unable to send Capsule Pass right now.");
+        setUpgradeStatusText(null);
+      } finally {
+        setUpgradeSubmitting(false);
+      }
+    },
+    [capsuleId],
+  );
   const heroPrimary = React.useMemo<{
     label: string;
     disabled: boolean;
@@ -281,18 +385,12 @@ export function CapsuleContent({
       }
       return { label: "Request to Join", disabled: false, onClick: sendMembershipRequest };
     }
-    if (viewer.canManageMembers) {
+    if (viewer.canManageMembers || viewer.isMember) {
       return {
-        label: "Manage Members",
-        disabled: membershipLoading,
-        onClick: showMembers,
-      };
-    }
-    if (viewer.isMember) {
-      return {
-        label: "View Members",
+        label: "Upgrade Capsule",
         disabled: false,
-        onClick: showMembers,
+        onClick: handleOpenUpgrade,
+        icon: <Lightning size={16} weight="bold" />,
       };
     }
     if (!viewer.userId) {
@@ -316,8 +414,8 @@ export function CapsuleContent({
     membershipMutatingAction,
     isAuthenticated,
     handleSignIn,
-    showMembers,
     sendMembershipRequest,
+    handleOpenUpgrade,
   ]);
 
   const heroFollow = React.useMemo<{
@@ -755,6 +853,18 @@ export function CapsuleContent({
             }
             void refreshMembership();
           }}
+        />
+      ) : null}
+      {upgradeOpen ? (
+        <CapsuleUpgradePanel
+          open
+          capsuleName={normalizedCapsuleName}
+          onClose={handleCloseUpgrade}
+          onAddPower={handleAddCapsulePower}
+          onSendPass={handleSendCapsulePass}
+          submitting={upgradeSubmitting}
+          statusText={upgradeStatusText}
+          serverError={upgradeServerError}
         />
       ) : null}
       <ShareSheet
