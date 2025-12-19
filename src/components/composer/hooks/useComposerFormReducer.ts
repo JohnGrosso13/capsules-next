@@ -2,8 +2,6 @@
 
 import * as React from "react";
 
-export type ComposerPrivacy = "public" | "private";
-
 export type ComposerDragState =
   | { kind: "left"; startX: number; start: number }
   | { kind: "right"; startX: number; start: number }
@@ -26,7 +24,6 @@ export type ComposerLayoutState = {
 };
 
 export type ComposerFormState = {
-  privacy: ComposerPrivacy;
   projectsOpen: boolean;
   mobileRailOpen: boolean;
   previewOpen: boolean;
@@ -36,7 +33,6 @@ export type ComposerFormState = {
 };
 
 type ComposerFormAction =
-  | { type: "setPrivacy"; value: ComposerPrivacy }
   | { type: "setProjectsOpen"; value: boolean }
   | { type: "toggleProjects" }
   | { type: "setMobileRailOpen"; value: boolean }
@@ -51,7 +47,6 @@ type ComposerFormAction =
   | { type: "voice/merge"; value: Partial<ComposerVoiceState> };
 
 const initialState: ComposerFormState = {
-  privacy: "public",
   projectsOpen: true,
   mobileRailOpen: false,
   previewOpen: true,
@@ -74,8 +69,6 @@ const initialState: ComposerFormState = {
 
 function reducer(state: ComposerFormState, action: ComposerFormAction): ComposerFormState {
   switch (action.type) {
-    case "setPrivacy":
-      return { ...state, privacy: action.value };
     case "setProjectsOpen":
       return { ...state, projectsOpen: action.value };
     case "toggleProjects":
@@ -106,7 +99,6 @@ function reducer(state: ComposerFormState, action: ComposerFormAction): Composer
 }
 
 export type ComposerFormActions = {
-  setPrivacy: (value: ComposerPrivacy) => void;
   setProjectsOpen: (value: boolean) => void;
   toggleProjects: () => void;
   setMobileRailOpen: (value: boolean) => void;
@@ -144,7 +136,6 @@ export function useComposerFormReducer(overrides?: Partial<ComposerFormState>): 
       dispatch({ type: "voice/merge", value });
 
     return {
-      setPrivacy: (value) => dispatch({ type: "setPrivacy", value }),
       setProjectsOpen: (value) => dispatch({ type: "setProjectsOpen", value }),
       toggleProjects: () => dispatch({ type: "toggleProjects" }),
       setMobileRailOpen: (value) => dispatch({ type: "setMobileRailOpen", value }),

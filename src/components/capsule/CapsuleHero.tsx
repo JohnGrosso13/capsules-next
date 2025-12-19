@@ -7,7 +7,6 @@ import {
   ImageSquare,
   MagicWand,
   PencilSimple,
-  ShareFat,
   UserPlus,
   UsersThree,
   WarningCircle,
@@ -30,6 +29,11 @@ export type CapsuleHeroProps = {
     onClick: (() => void) | null;
     icon?: React.ReactNode;
   };
+  joinAction?: {
+    label: string;
+    disabled: boolean;
+    onClick: (() => void) | null;
+  } | null;
   followAction?: {
     label: string;
     disabled: boolean;
@@ -49,8 +53,6 @@ export type CapsuleHeroProps = {
   onSelectMedia: () => void;
   onSelectFiles: () => void;
   errorMessage?: string | null;
-  onShare?: (() => void) | null;
-  shareDisabled?: boolean;
 };
 
 const HERO_LINKS = ["Featured", "Members", "History", "Events", "Media", "Files"] as const;
@@ -63,6 +65,7 @@ export function CapsuleHero({
   onCustomizeTile,
   onCustomizeLogo,
   primaryAction,
+  joinAction = null,
   followAction = null,
   leaveAction = null,
   membersOpen,
@@ -74,8 +77,6 @@ export function CapsuleHero({
   onSelectMedia,
   onSelectFiles,
   errorMessage,
-  onShare,
-  shareDisabled = false,
 }: CapsuleHeroProps) {
   const _displayName = capsuleName ?? "Customize this capsule";
   const heroBannerStyle = bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined;
@@ -188,6 +189,17 @@ export function CapsuleHero({
             {primaryAction.icon ?? <UsersThree size={16} weight="bold" />}
             {primaryAction.label}
           </button>
+          {joinAction ? (
+            <button
+              type="button"
+              className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
+              onClick={joinAction.onClick ?? undefined}
+              disabled={joinAction.disabled}
+            >
+              <UsersThree size={16} weight="bold" />
+              {joinAction.label}
+            </button>
+          ) : null}
           {followAction ? (
             <button
               type="button"
@@ -210,16 +222,6 @@ export function CapsuleHero({
               {leaveAction.label}
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`${capTheme.heroAction} ${capTheme.heroActionSecondary}`}
-            onClick={onShare ?? undefined}
-            disabled={shareDisabled || !onShare}
-            aria-label="Share capsule"
-          >
-            <ShareFat size={16} weight="bold" />
-            Share
-          </button>
         </div>
       </div>
       {errorMessage ? (

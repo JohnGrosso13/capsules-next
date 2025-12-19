@@ -1,21 +1,19 @@
 "use client";
-
 import * as React from "react";
 import { ArrowRight, CaretLeft, CaretRight, ChartBar } from "@phosphor-icons/react/dist/ssr";
-
 import { Button, ButtonLink } from "@/components/ui/button";
-
+import { shouldBypassCloudflareImages } from "@/lib/cloudflare/runtime";
+import { computeDisplayUploads } from "./process-uploads";
+import { MemoryUploadDetailDialog } from "./upload-detail-dialog";
 import { useMemoryUploads } from "./use-memory-uploads";
-import type { MemoryUploadItem } from "./uploads-types";
+import type { DisplayMemoryUpload, MemoryUploadItem } from "./uploads-types";
 import layoutStyles from "./memory-carousel-shell.module.css";
 import cardStyles from "./uploads-carousel.module.css";
 import styles from "./party-recaps-carousel.module.css";
-
 type PollOption = {
   label: string;
   votes: number;
 };
-
 export type PollCard = {
   id: string;
   question: string;
@@ -24,8 +22,8 @@ export type PollCard = {
   totalVotes: number;
   options: PollOption[];
   memoryId: string;
+  upload: DisplayMemoryUpload | null;
 };
-
 function toMetaObject(meta: unknown): Record<string, unknown> | null {
   if (!meta) return null;
   if (typeof meta === "object" && !Array.isArray(meta)) {
@@ -43,7 +41,6 @@ function toMetaObject(meta: unknown): Record<string, unknown> | null {
   }
   return null;
 }
-
 function formatTimestamp(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const date = new Date(iso);
@@ -57,34 +54,56 @@ function formatTimestamp(iso: string | null | undefined): string | null {
     return date.toLocaleString();
   }
 }
-
 function truncate(value: string, limit = 160): string {
   if (value.length <= limit) return value;
   return `${value.slice(0, limit - 1).trimEnd()}...`;
 }
-
 function firstSentence(value: string, limit = 140): string {
   const trimmed = value.trim();
   if (!trimmed.length) return "";
-
   const periodIndex = trimmed.indexOf(".");
   const questionIndex = trimmed.indexOf("?");
   const exclamationIndex = trimmed.indexOf("!");
-
-  const candidates = [periodIndex, questionIndex, exclamationIndex].filter(
-    (index) => index >= 0,
-  );
+  const candidates = [periodIndex, questionIndex, exclamationIndex].filter((index) => index >= 0);
   const sentenceEnd = candidates.length ? Math.min(...candidates) : -1;
-
   const base =
-    sentenceEnd >= 0 && sentenceEnd + 1 <= limit
-      ? trimmed.slice(0, sentenceEnd + 1)
-      : trimmed;
-
+    sentenceEnd >= 0 && sentenceEnd + 1 <= limit ? trimmed.slice(0, sentenceEnd + 1) : trimmed;
   return truncate(base, limit);
 }
 
-export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
+function buildPollPlaceholderImage(): string {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="640" height="960" viewBox="0 0 640 960">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#141c3a"/>
+          <stop offset="50%" stop-color="#0f162e"/>
+          <stop offset="100%" stop-color="#0a1024"/>
+        </linearGradient>
+      </defs>
+      <rect width="640" height="960" rx="48" fill="url(#g)" />
+    </svg>
+  `;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function buildPollPlaceholderUpload(poll: PollCard): DisplayMemoryUpload {
+  const title = poll.question || "Poll";
+  const description = poll.summary || null;
+  const image = buildPollPlaceholderImage();
+  return {
+    id: `poll-${poll.id}-placeholder`,
+    media_type: "image/svg+xml",
+    title,
+    description,
+    displayUrl: image,
+    fullUrl: image,
+  };
+}
+export function buildPolls(
+  items: MemoryUploadItem[],
+  uploadsById?: Map<string, DisplayMemoryUpload>,
+): PollCard[] {
   return items
     .map((item) => {
       const meta = toMetaObject(item.meta);
@@ -96,7 +115,6 @@ export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
         (typeof item.description === "string" && item.description.trim()) ||
         (typeof meta?.post_excerpt === "string" && meta.post_excerpt.trim()) ||
         null;
-
       const optionsRaw = Array.isArray(meta?.poll_options) ? meta?.poll_options : [];
       const countsRaw = Array.isArray(meta?.poll_counts) ? meta?.poll_counts : [];
       const options: PollOption[] = optionsRaw
@@ -107,24 +125,21 @@ export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
           return label.length ? { label, votes } : null;
         })
         .filter((opt): opt is PollOption => opt !== null);
-
       const totalVotes =
         typeof meta?.poll_total_votes === "number"
           ? meta.poll_total_votes
           : options.reduce((sum, opt) => sum + opt.votes, 0);
-
       const updatedAt =
         formatTimestamp(
           typeof meta?.poll_updated_at === "string" ? (meta.poll_updated_at as string) : null,
         ) ?? formatTimestamp(item.created_at ?? null);
-
       const memoryId =
         typeof item.id === "string"
           ? item.id
           : typeof item.id === "number"
             ? `${item.id}`
             : "unknown";
-
+      const upload = uploadsById?.get(memoryId) ?? null;
       return {
         id: memoryId,
         question,
@@ -133,11 +148,11 @@ export function buildPolls(items: MemoryUploadItem[]): PollCard[] {
         totalVotes,
         options,
         memoryId,
+        upload,
       };
     })
     .filter((poll): poll is PollCard => Boolean(poll.question));
 }
-
 function getSlidesPerView(): number {
   if (typeof window === "undefined") return 2;
   const width = window.innerWidth;
@@ -145,23 +160,46 @@ function getSlidesPerView(): number {
   if (width >= 640) return 3;
   return 2;
 }
-
 type PollsProps = { initialItems?: MemoryUploadItem[]; pageSize?: number };
-
 export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
   const effectivePageSize = pageSize && pageSize > 0 ? pageSize : 24;
   const { user, items, loading, error } = useMemoryUploads("poll", {
     initialPage: initialItems ? { items: initialItems, hasMore: false } : undefined,
     pageSize: effectivePageSize,
   });
-  const polls = React.useMemo(() => buildPolls(items), [items]);
-
+  const cloudflareEnabled = React.useMemo(() => !shouldBypassCloudflareImages(), []);
+  const currentOrigin = React.useMemo(
+    () => (typeof window !== "undefined" ? window.location.origin : null),
+    [],
+  );
+  const displayUploads = React.useMemo(
+    () => computeDisplayUploads(items, { origin: currentOrigin, cloudflareEnabled }),
+    [cloudflareEnabled, currentOrigin, items],
+  );
+  const uploadsById = React.useMemo(() => {
+    const map = new Map<string, DisplayMemoryUpload>();
+    displayUploads.forEach((upload) => {
+      if (!upload.id) return;
+      const key = typeof upload.id === "string" ? upload.id : `${upload.id}`;
+      map.set(key, upload);
+    });
+    return map;
+  }, [displayUploads]);
+  const polls = React.useMemo(() => buildPolls(items, uploadsById), [items, uploadsById]);
+  const pollsWithMedia = React.useMemo(
+    () =>
+      polls.map((poll) => ({
+        ...poll,
+        upload: poll.upload ?? buildPollPlaceholderUpload(poll),
+      })),
+    [polls],
+  );
   const [slidesPerView, setSlidesPerView] = React.useState<number>(() => getSlidesPerView());
   const [offset, setOffset] = React.useState(0);
-
-  const totalItems = polls.length;
+  const [activeUpload, setActiveUpload] = React.useState<DisplayMemoryUpload | null>(null);
+  const [activePoll, setActivePoll] = React.useState<PollCard | null>(null);
+  const totalItems = pollsWithMedia.length;
   const visibleCount = totalItems === 0 ? 0 : Math.max(1, Math.min(slidesPerView, totalItems));
-
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     const handleResize = () => setSlidesPerView(getSlidesPerView());
@@ -170,7 +208,6 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
-
   React.useEffect(() => {
     if (totalItems === 0) {
       setOffset(0);
@@ -178,20 +215,17 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
     }
     setOffset((current) => current % totalItems);
   }, [totalItems]);
-
   const visiblePolls = React.useMemo(() => {
     if (visibleCount === 0) return [];
     const result: PollCard[] = [];
     for (let index = 0; index < visibleCount; index += 1) {
-      const item = polls[(offset + index) % totalItems];
+      const item = pollsWithMedia[(offset + index) % totalItems];
       if (item) result.push(item);
     }
     return result;
-  }, [offset, polls, totalItems, visibleCount]);
-
+  }, [offset, pollsWithMedia, totalItems, visibleCount]);
   const hasRotation = visibleCount > 0 && totalItems > visibleCount;
   const navDisabled = loading || !hasRotation || visiblePolls.length === 0;
-
   const handlePrev = React.useCallback(() => {
     if (!hasRotation) return;
     setOffset((current) => {
@@ -199,17 +233,14 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
       return next < 0 ? next + totalItems : next;
     });
   }, [hasRotation, totalItems, visibleCount]);
-
   const handleNext = React.useCallback(() => {
     if (!hasRotation) return;
     setOffset((current) => (current + visibleCount) % totalItems);
   }, [hasRotation, totalItems, visibleCount]);
-
   const containerStyle = React.useMemo<React.CSSProperties>(
     () => ({ "--memory-visible-count": Math.max(1, visibleCount) }) as React.CSSProperties,
     [visibleCount],
   );
-
   return (
     <div className={styles.root}>
       <div className={styles.header}>
@@ -233,7 +264,6 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
           </ButtonLink>
         </div>
       </div>
-
       <div className={layoutStyles.carouselShell}>
         <Button
           variant="secondary"
@@ -246,10 +276,8 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
           aria-label="Previous poll"
           disabled={navDisabled}
         />
-
         {!user ? <div className={styles.empty}>Sign in to view poll snapshots.</div> : null}
         {user && error ? <div className={styles.empty}>{error}</div> : null}
-
         {user ? (
           loading && !polls.length ? (
             <div className={styles.empty}>Loading poll snapshots...</div>
@@ -259,50 +287,70 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
             <div className={layoutStyles.viewport}>
               <div className={layoutStyles.container} style={containerStyle}>
                 {visiblePolls.map((poll) => {
-                  const summarySource = poll.question || poll.summary || "";
-                  const summaryText =
-                    summarySource.length > 0
-                      ? firstSentence(summarySource, 120)
-                      : "Poll snapshot";
+                  const headerText = firstSentence(poll.question, 90);
                   const topOptions = [...poll.options]
                     .sort((a, b) => b.votes - a.votes)
                     .slice(0, 2);
-
+                  const mediaUrl = poll.upload?.displayUrl || poll.upload?.fullUrl || null;
+                  const hasMedia = Boolean(mediaUrl);
                   return (
                     <div key={poll.id} className={layoutStyles.slide}>
                       <button
                         type="button"
                         className={cardStyles.cardButton}
                         aria-label={`View poll "${poll.question}"`}
+                        onClick={() => {
+                          if (poll.upload) {
+                            setActiveUpload(poll.upload);
+                            setActivePoll(poll);
+                          }
+                        }}
                       >
                         <article className={cardStyles.card}>
                           <div className={cardStyles.media}>
-                            <div className={styles.pollSummary}>
-                              {summaryText}
-                            </div>
+                            {hasMedia ? (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={mediaUrl ?? undefined}
+                                  alt={poll.question}
+                                  className={styles.pollMediaImage}
+                                  loading="lazy"
+                                />
+                                <div className={styles.pollSummaryOverlay}>
+                                  <p className={styles.pollSummary}>{headerText}</p>
+                                </div>
+                              </>
+                            ) : (
+                              <div
+                                className={`${styles.pollSummary} ${styles.pollSummaryStandalone}`}
+                              >
+                                {headerText}
+                              </div>
+                            )}
                           </div>
                           <div className={cardStyles.meta}>
                             <div className={cardStyles.metaHeader}>
-                              <span className={cardStyles.metaBadge}>Poll</span>
                               {poll.updatedAt ? (
-                                <span className={cardStyles.metaTimestamp}>
-                                  {poll.updatedAt}
-                                </span>
+                                <span className={cardStyles.metaTimestamp}>{poll.updatedAt}</span>
                               ) : null}
                             </div>
                             <h4 className={cardStyles.metaTitle}>{poll.question}</h4>
                             {topOptions.length ? (
-                              <p className={cardStyles.metaDesc}>
-                                {topOptions
-                                  .map((option) => {
-                                    const pct =
-                                      poll.totalVotes > 0
-                                        ? Math.round((option.votes / poll.totalVotes) * 100)
-                                        : 0;
-                                    return `${option.label} · ${pct}%`;
-                                  })
-                                  .join(" • ")}
-                              </p>
+                              <div className={styles.pollMeta}>
+                                {topOptions.map((option) => {
+                                  const pct =
+                                    poll.totalVotes > 0
+                                      ? Math.round((option.votes / poll.totalVotes) * 100)
+                                      : 0;
+                                  return (
+                                    <div key={option.label} className={styles.pollMetaRow}>
+                                      <span className={styles.pollMetaLabel}>{option.label}</span>
+                                      <span className={styles.pollMetaPct}>{pct}%</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             ) : null}
                           </div>
                         </article>
@@ -314,7 +362,6 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
             </div>
           )
         ) : null}
-
         <Button
           variant="secondary"
           size="icon"
@@ -327,6 +374,22 @@ export function PollsCarousel({ initialItems, pageSize }: PollsProps = {}) {
           disabled={navDisabled}
         />
       </div>
+      <MemoryUploadDetailDialog
+        item={activeUpload}
+        onClose={() => {
+          setActiveUpload(null);
+          setActivePoll(null);
+        }}
+        poll={
+          activePoll
+            ? {
+                question: activePoll.question,
+                options: activePoll.options,
+                totalVotes: activePoll.totalVotes,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

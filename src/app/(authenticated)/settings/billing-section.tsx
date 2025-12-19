@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { Check, Info, X } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, CaretUp, Check, Info, X } from "@phosphor-icons/react/dist/ssr";
 
 import { Button } from "@/components/ui/button";
 import cards from "@/components/cards.module.css";
@@ -433,23 +433,16 @@ function PlanDetailsOverlay({
   );
 }
 
-function UsageMeter({
-  label,
-  usage,
-  formatter,
-}: {
-  label: string;
-  usage: UsageStat;
-  formatter: (value: number) => string;
-}): React.JSX.Element {
+function CreditUsageMeter({ percentRemaining }: { percentRemaining: number }): React.JSX.Element {
+  const clamped = Math.max(0, Math.min(100, Math.round(percentRemaining)));
+  const isWarning = clamped <= 15;
+
   return (
-    <div className={styles.usageRow} data-warning={usage.nearlyOut ? "true" : undefined}>
+    <div className={styles.usageRow} data-warning={isWarning ? "true" : undefined}>
       <div className={styles.usageMeta}>
-        <p className={styles.label}>{label}</p>
+        <p className={styles.label}>Credits remaining</p>
         <p className={styles.balanceRow}>
-          <span>{formatter(usage.used)} used</span>
-          <span aria-hidden>|</span>
-          <span>{formatter(usage.total)} included</span>
+          <span>{clamped}% left this period</span>
         </p>
       </div>
       <div
@@ -457,11 +450,11 @@ function UsageMeter({
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={usage.percentUsed}
+        aria-valuenow={clamped}
       >
-        <div className={styles.usageBarFill} style={{ width: `${usage.percentUsed}%` }} />
+        <div className={styles.usageBarFill} style={{ width: `${clamped}%` }} />
       </div>
-      <p className={styles.subtle}>{formatter(usage.remaining)} remaining this period</p>
+      <p className={styles.subtle}>Approximate share of your available credits for this billing period.</p>
     </div>
   );
 }
@@ -497,6 +490,7 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
   const [plans, setPlans] = React.useState<PlansResponse | null>(null);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [showCreditUsage, setShowCreditUsage] = React.useState<boolean>(false);
 
   const [donationCapsuleId, setDonationCapsuleId] = React.useState<string | null>(
     capsules[0]?.id ?? null,
@@ -632,6 +626,14 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
     wallet?.balance.storageGranted ?? 0,
     wallet?.balance.storageUsed ?? 0,
   );
+  const rawComputeRemainingPercent =
+    computeUsage.total > 0 ? Math.round((computeUsage.remaining / computeUsage.total) * 100) : 0;
+  const rawStorageRemainingPercent =
+    storageUsage.total > 0 ? Math.round((storageUsage.remaining / storageUsage.total) * 100) : 0;
+  const creditsRemainingPercent = Math.max(
+    0,
+    Math.min(100, Math.min(rawComputeRemainingPercent, rawStorageRemainingPercent)),
+  );
   const renewalLabel = resolveRenewalLabel(wallet, currentPlanDisplay);
 
   const bypass = wallet?.bypass ?? false;
@@ -713,9 +715,24 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                   </Button>
                 </div>
               </div>
-              <div className={styles.usageGrid}>
-                <UsageMeter label="Compute" usage={computeUsage} formatter={formatComputeUnits} />
-                <UsageMeter label="Storage" usage={storageUsage} formatter={formatStorageBytes} />
+              <div className={styles.creditUsageSection}>
+                <button
+                  type="button"
+                  className={styles.creditToggleButton}
+                  onClick={() => setShowCreditUsage((prev) => !prev)}
+                  aria-expanded={showCreditUsage ? "true" : "false"}
+                  aria-controls="billing-credit-usage"
+                >
+                  <span>Show credit usage</span>
+                  <span className={styles.creditToggleIcon} aria-hidden="true">
+                    {showCreditUsage ? <CaretUp size={14} weight="bold" /> : <CaretDown size={14} weight="bold" />}
+                  </span>
+                </button>
+                {showCreditUsage ? (
+                  <div id="billing-credit-usage" className={styles.usageGrid}>
+                    <CreditUsageMeter percentRemaining={bypass ? 100 : creditsRemainingPercent} />
+                  </div>
+                ) : null}
               </div>
             </div>
 

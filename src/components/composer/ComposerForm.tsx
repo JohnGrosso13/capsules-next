@@ -13,7 +13,7 @@ import { ComposerMobileSettings } from "./components/ComposerMobileSettings";
 import { ComposerMobilePreview } from "./components/ComposerMobilePreview";
 import { ComposerSaveDialog } from "./components/ComposerSaveDialog";
 import { ThemePreviewBanner } from "./components/ThemePreviewBanner";
-import { useComposerFormReducer, type ComposerFormState } from "./hooks/useComposerFormReducer";
+import { useComposerFormReducer } from "./hooks/useComposerFormReducer";
 import { useComposerLayout } from "./hooks/useComposerLayout";
 import { useAttachmentViewer, useResponsiveRail } from "./hooks/useComposerPanels";
 import { useComposer } from "./ComposerProvider";
@@ -301,7 +301,7 @@ export function ComposerForm({
 
   const { activeCapsuleId, imageSettings, updateImageSettings } = useComposer();
   const { state, actions } = useComposerFormReducer();
-  const { privacy, mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
+  const { mobileRailOpen, previewOpen, layout, viewerOpen, voice: voiceState } = state;
 
   const {
     pollStructure,
@@ -799,13 +799,6 @@ export function ComposerForm({
     actions.setPreviewOpen(!previewOpen);
   }, [actions, previewOpen]);
 
-  const handlePrivacyChange = React.useCallback(
-    (value: ComposerFormState["privacy"]) => {
-      actions.setPrivacy(value);
-    },
-    [actions],
-  );
-
   const showVibePrompt = React.useMemo(() => {
     const kind = normalizeComposerKind(workingDraft.kind);
     const hasPollDraft = pollHasStructure && kind === "poll";
@@ -1117,11 +1110,8 @@ export function ComposerForm({
 
   const mobileSettingsSection = (
     <ComposerMobileSettings
-      privacy={privacy}
-      loading={loading}
       canSave={canSave}
       saving={savingCreation}
-      onPrivacyChange={(nextValue) => actions.setPrivacy(nextValue)}
       onSave={() => {
         handleSaveClick();
         closeMobileRail();
@@ -1268,12 +1258,8 @@ export function ComposerForm({
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
         <ComposerToolbar
           disabled={loading}
-          smartContextEnabled={smartContextEnabled}
-          onToggleContext={() => onSmartContextChange(!smartContextEnabled)}
-          contextActive={smartContextEnabled && hasContextSnippets}
-          imageQuality={imageSettings.quality}
-          onQualityChange={(quality) => updateImageSettings({ quality })}
           onSearchSelect={handleSearchSelection}
+          onClose={onClose}
         />
 
         <div className={styles.panelBody}>
@@ -1311,11 +1297,8 @@ export function ComposerForm({
 
         <ComposerFooter
           footerHint={footerHint}
-          privacy={privacy}
-          onPrivacyChange={handlePrivacyChange}
           loading={loading}
           attachmentUploading={attachmentUploading}
-          onClose={onClose}
           onSave={handleSaveClick}
           onPreviewToggle={handlePreviewToggle}
           previewOpen={previewOpen}
@@ -1323,6 +1306,11 @@ export function ComposerForm({
           canSave={canSave}
           canPost={canPost}
           saving={savingCreation}
+          smartContextEnabled={smartContextEnabled}
+          contextActive={smartContextEnabled && hasContextSnippets}
+          onToggleContext={() => onSmartContextChange(!smartContextEnabled)}
+          imageQuality={imageSettings.quality}
+          onQualityChange={(quality) => updateImageSettings({ quality })}
         />
 
         <ComposerSaveDialog

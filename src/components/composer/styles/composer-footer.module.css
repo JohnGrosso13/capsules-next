@@ -35,53 +35,6 @@
   gap: 0.55rem;
 }
 
-.intentIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  background: var(--composer-rail-tab-active-bg, var(--composer-rail-shell));
-  color: var(--composer-rail-tab-active-color, var(--text-on-brand));
-  box-shadow: var(--composer-rail-tab-active-shadow, var(--composer-shadow));
-}
-
-.privacyGroup {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--composer-rail-tab-border);
-  background: var(--composer-rail-shell, var(--composer-panel-background));
-}
-
-.privacyLabel {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--composer-rail-tab-color, var(--text-2));
-}
-
-.privacySelect {
-  border: none;
-  background: transparent;
-  color: var(--composer-text, var(--text));
-  font-weight: 600;
-  font-size: 0.88rem;
-  appearance: none;
-  padding: 0 14px 0 4px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.intentActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .cancelAction {
   border: 1px solid var(--composer-rail-tab-border);
   background: var(--composer-rail-shell, var(--composer-panel-background));
@@ -170,7 +123,7 @@
 }
 
 .primaryAction {
-  border: none;
+  border: 1px solid var(--composer-rail-tab-border);
   background: var(--composer-rail-tab-active-bg, var(--composer-rail-shell));
   color: var(--composer-rail-tab-active-color, var(--text-on-brand));
   padding: 10px 18px;
@@ -194,6 +147,115 @@
 .primaryAction:focus-visible:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: var(--composer-send-btn-hover-shadow, var(--composer-rail-tab-active-shadow));
+}
+
+.settingsGroup {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.settingsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--composer-rail-tab-border);
+  background: var(--composer-rail-shell, var(--composer-panel-background));
+  color: var(--composer-text, var(--text));
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+}
+
+.settingsToggle:hover,
+.settingsToggle:focus-visible {
+  border-color: var(--composer-rail-button-active-border, var(--composer-rail-tab-border));
+  color: var(--composer-rail-tab-hover-color, var(--composer-text));
+  transform: translateY(-1px);
+  box-shadow: var(--composer-rail-tab-active-shadow, var(--composer-shadow));
+}
+
+.settingsToggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.settingsIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settingsIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settingsLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settingsCaret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settingsCaret svg {
+  width: 14px;
+  height: 14px;
+}
+
+.settingsMenu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  min-width: 260px;
+  z-index: 40;
+}
+
+.creditsBlock {
+  display: grid;
+  gap: 4px;
+  padding: 6px 2px 2px;
+}
+
+.creditsBar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 86%, transparent);
+  overflow: hidden;
+}
+
+.creditsBarFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 80%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 80%, transparent)
+  );
+  transition: width 180ms ease;
+}
+
+.creditsLabel {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--composer-rail-tab-color, var(--text-3, rgba(226, 232, 240, 0.84)));
 }
 
 @media (max-width: 900px) {

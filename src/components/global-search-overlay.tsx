@@ -585,10 +585,18 @@ export function GlobalSearchOverlay() {
 
   const resolveMemoryNavigateUrl = (item: MemorySearchResult): string | null => {
     const postId = resolveMemoryPostId(item);
-    if (postId) {
-      return `/home?postId=${encodeURIComponent(postId)}`;
+    if (!postId) return null;
+
+    const meta = (item.meta ?? {}) as Record<string, unknown>;
+    const capsuleIdCandidates = [meta.owner_capsule_id, meta.capsule_id, meta.capsuleId];
+    const capsuleId = capsuleIdCandidates.find(
+      (candidate) => typeof candidate === "string" && candidate.trim().length,
+    ) as string | undefined;
+
+    if (capsuleId) {
+      return `/capsule?capsuleId=${encodeURIComponent(capsuleId)}&postId=${encodeURIComponent(postId)}`;
     }
-    return null;
+    return `/home?postId=${encodeURIComponent(postId)}`;
   };
 
   const resolveMemoryThumbnail = (item: MemorySearchResult): string | null => {
@@ -709,6 +717,9 @@ export function GlobalSearchOverlay() {
 
     const navigateUrl = resolveMemoryNavigateUrl(item);
     const postIdForLightbox = resolveMemoryPostId(item);
+    const fallbackUrl =
+      navigateUrl ??
+      (postIdForLightbox ? `/home?postId=${encodeURIComponent(postIdForLightbox)}` : null);
     const thumbnailUrl = resolveMemoryThumbnail(item);
 
     return (
@@ -721,8 +732,15 @@ export function GlobalSearchOverlay() {
           if (postIdForLightbox) {
             dispatchLightboxOpen(postIdForLightbox);
             close();
+            const pathname =
+              typeof window === "undefined" ? null : window.location?.pathname ?? null;
+            const lightboxReadyContext =
+              pathname?.startsWith("/home") || pathname?.startsWith("/capsule");
+            if (!lightboxReadyContext && fallbackUrl) {
+              handleNavigate(fallbackUrl);
+            }
           } else {
-            handleNavigate(navigateUrl);
+            handleNavigate(fallbackUrl);
           }
         }}
       >

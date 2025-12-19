@@ -146,23 +146,75 @@
 .pollSummary {
   margin: 0;
   color: var(--text-1, #ffffff);
-  font-size: 0.95rem;
-  line-height: 1.35;
+  font-size: 0.9rem;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+}
+
+.pollSummaryOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px 10px;
+  background: linear-gradient(180deg, rgba(4, 6, 16, 0.08), rgba(4, 6, 16, 0.78));
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.pollSummaryStandalone {
+  display: flex;
+  align-items: flex-end;
+  padding: 12px 10px;
+  background: linear-gradient(180deg, rgba(17, 25, 48, 0.32), rgba(10, 14, 32, 0.78));
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.pollMediaImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(1.05);
+}
+
+.pollMeta {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.pollMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--text-3, rgba(255, 255, 255, 0.72));
+}
+
+.pollMetaLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pollMetaPct {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2, rgba(255, 255, 255, 0.85));
+  font-weight: 600;
 }
 
 .pollDivider {
   height: 1px;
   width: 100%;
   border-radius: 999px;
-  background: color-mix(
-    in srgb,
-    var(--card-border, rgba(255, 255, 255, 0.12)) 70%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.12)) 70%, transparent);
   opacity: 0.9;
 }
 

@@ -209,7 +209,6 @@ export function PostMemoriesCarousel({ initialItems, pageSize }: PostMemoriesPro
                 {visiblePosts.map((post) => (
                   <article key={post.id} className={`${layoutStyles.card} ${styles.card}`}>
                     <div className={styles.cardHeader}>
-                      <span className={styles.badge}>Saved</span>
                       {post.createdAt ? <span className={styles.timestamp}>{post.createdAt}</span> : null}
                     </div>
                     <h4 className={styles.cardTitle}>{post.title}</h4>

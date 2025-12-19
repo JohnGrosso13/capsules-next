@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { DownloadSimple, FileText, X } from "@phosphor-icons/react/dist/ssr";
+import { DownloadSimple, FileText } from "@phosphor-icons/react/dist/ssr";
 
 import styles from "./uploads-carousel.module.css";
 import type { DisplayMemoryUpload } from "./uploads-types";
@@ -24,9 +24,14 @@ function formatCreatedAt(createdAt: string | null | undefined) {
 type MemoryUploadDetailDialogProps = {
   item: DisplayMemoryUpload | null;
   onClose: () => void;
+  poll?: {
+    question: string;
+    options: { label: string; votes: number }[];
+    totalVotes: number;
+  } | null;
 };
 
-export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDialogProps) {
+export function MemoryUploadDetailDialog({ item, onClose, poll }: MemoryUploadDetailDialogProps) {
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   const headingId = React.useId();
   const descriptionId = React.useId();
@@ -68,7 +73,16 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
   const imageLike = isImage(mime);
   const fileUrl = item.fullUrl || item.displayUrl || item.media_url || null;
   const createdAt = formatCreatedAt(item.created_at);
-  const metaType = mime ?? extension ?? null;
+  const hasPoll = Boolean(poll?.options?.length);
+
+  const pollOptionsWithPct =
+    poll?.options?.map((option) => {
+      const pct =
+        poll.totalVotes && poll.totalVotes > 0
+          ? Math.round((option.votes / poll.totalVotes) * 100)
+          : 0;
+      return { ...option, pct };
+    }) ?? [];
 
   return (
     <div className={styles.detailOverlay} role="presentation" onClick={onClose}>
@@ -80,15 +94,16 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
         aria-describedby={descriptionId}
         onClick={(event) => event.stopPropagation()}
       >
-        <button
-          ref={closeButtonRef}
-          type="button"
-          className={styles.detailClose}
-          onClick={onClose}
-          aria-label="Close upload details"
-        >
-          <X size={18} weight="bold" />
-        </button>
+        <div className={styles.detailHeader}>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className={styles.detailClose}
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
 
         <div className={styles.detailMedia}>
           {videoLike && fileUrl ? (
@@ -101,7 +116,7 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
               <div className={styles.detailFileIcon}>
                 <FileText size={52} weight="duotone" />
               </div>
-              <div className={styles.detailFileExt}>{extension ?? (mime ?? "File")}</div>
+              <div className={styles.detailFileExt}>{extension ?? mime ?? "File"}</div>
               {fileUrl ? (
                 <a
                   className={styles.detailDownload}
@@ -121,16 +136,30 @@ export function MemoryUploadDetailDialog({ item, onClose }: MemoryUploadDetailDi
           <h3 id={headingId} className={styles.detailTitle}>
             {title}
           </h3>
-          {desc ? (
-            <p id={descriptionId} className={styles.detailDescription}>
-              {desc}
-            </p>
-          ) : (
-            <span id={descriptionId} className={styles.detailDescriptionMuted}>
-              No description provided.
-            </span>
-          )}
-          {metaType ? <div className={styles.detailType}>Type: {metaType}</div> : null}
+          {!poll ? (
+            desc ? (
+              <p id={descriptionId} className={styles.detailDescription}>
+                {desc}
+              </p>
+            ) : (
+              <span id={descriptionId} className={styles.detailDescriptionMuted}>
+                No description provided.
+              </span>
+            )
+          ) : null}
+          {hasPoll ? (
+            <div className={styles.pollDetail}>
+              <div className={styles.pollDetailHeading}>Poll results</div>
+              <ul className={styles.pollDetailList}>
+                {pollOptionsWithPct.map((option) => (
+                  <li key={option.label} className={styles.pollDetailItem}>
+                    <span className={styles.pollDetailLabel}>{option.label}</span>
+                    <span className={styles.pollDetailPct}>{option.pct}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {createdAt ? <div className={styles.detailTimestamp}>Saved {createdAt}</div> : null}
         </div>
       </div>

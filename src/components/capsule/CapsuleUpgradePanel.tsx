@@ -5,7 +5,6 @@ import {
   Coins,
   Gift,
   Lightning,
-  Plus,
   TrendUp,
   X,
 } from "@phosphor-icons/react/dist/ssr";
@@ -35,9 +34,10 @@ export function CapsuleUpgradePanel({
   statusText,
   serverError,
 }: CapsuleUpgradePanelProps) {
-  const [customAmount, setCustomAmount] = React.useState("5");
+  const [customAmount, setCustomAmount] = React.useState("10");
   const [powerAmount, setPowerAmount] = React.useState("10");
   const [error, setError] = React.useState<string | null>(null);
+  const [lastAction, setLastAction] = React.useState<"power" | "pass" | null>(null);
 
   const handleAddPower = React.useCallback(() => {
     if (submitting) return;
@@ -47,12 +47,14 @@ export function CapsuleUpgradePanel({
       return;
     }
     setError(null);
+    setLastAction("power");
     onAddPower?.(parsed);
   }, [onAddPower, powerAmount, submitting]);
 
   const handleSendPass = React.useCallback(
     (amount: number) => {
       if (submitting) return;
+      setLastAction("pass");
       onSendPass?.(amount);
     },
     [onSendPass, submitting],
@@ -63,9 +65,10 @@ export function CapsuleUpgradePanel({
       if (submitting) return;
       setCustomAmount(String(amount));
       setError(null);
-      handleSendPass(amount);
+      // Quick amounts now just preset the value;
+      // sending the pass is done via the main button for symmetry.
     },
-    [handleSendPass, submitting],
+    [submitting],
   );
 
   const handleCustomSubmit = React.useCallback(
@@ -92,11 +95,10 @@ export function CapsuleUpgradePanel({
       <div className={styles.sheet}>
         <div className={styles.header}>
           <div className={styles.titleGroup}>
-            <p className={styles.eyebrow}>Capsule economy</p>
             <h3 className={styles.title}>Upgrade {nameLabel}</h3>
             <p className={styles.subtitle}>
-              Capsule Power funds infra for everyone. Capsule Pass is a supporter pass that sends 80%
-              to the founder and 20% to Capsules.
+              Support this capsule&apos;s shared infrastructure with Capsule Power, or get a
+              Capsule Pass that rewards the founder and unlocks exclusive perks for passholders.
             </p>
           </div>
           <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close upgrade panel">
@@ -104,34 +106,26 @@ export function CapsuleUpgradePanel({
           </button>
         </div>
 
-            <div className={styles.grid}>
-              <section className={styles.card} aria-label="Capsule Power">
+        <div className={styles.grid}>
+          <section className={styles.card} aria-label="Capsule Power">
             <div className={styles.cardHeader}>
               <h4 className={styles.cardTitle}>
                 <Lightning size={18} weight="bold" />
                 Capsule Power
               </h4>
-              <span className={styles.pill}>
-                <Coins size={14} weight="bold" />
-                Wallet
-              </span>
             </div>
-            <p className={styles.description}>
-              Add credits to the capsule wallet for Mux live/VOD, higher AI quality, Capsule memory, and
-              automations that benefit everyone.
-            </p>
             <ul className={styles.list}>
               <li className={styles.listItem}>
                 <TrendUp size={16} weight="bold" />
-                Upgrade streaming, storage, and delivery.
+                Scale live and VOD streaming, storage, and delivery.
               </li>
               <li className={styles.listItem}>
                 <Lightning size={16} weight="bold" />
-                Boost shared AI quality and long-retention memory.
+                Boost shared AI quality, context, and automations.
               </li>
               <li className={styles.listItem}>
                 <Coins size={16} weight="bold" />
-                Funds stay in the capsule wallet for shared costs.
+                Funds stay in the capsule wallet for future shared costs.
               </li>
             </ul>
             <div className={styles.quickGrid} aria-label="Capsule Power amounts">
@@ -152,7 +146,7 @@ export function CapsuleUpgradePanel({
             <div className={styles.customRow}>
               <div className={styles.inputGroup}>
                 <label className={styles.inputLabel} htmlFor="capsule-power-custom">
-                  Custom power amount
+                  Custom amount
                 </label>
                 <div className={styles.currencyInput}>
                   <span>$</span>
@@ -166,6 +160,16 @@ export function CapsuleUpgradePanel({
                     disabled={submitting}
                   />
                 </div>
+                {lastAction === "power" && statusText ? (
+                  <p className={styles.helper} aria-live="polite">
+                    {statusText}
+                  </p>
+                ) : null}
+                {lastAction === "power" && serverError ? (
+                  <p className={styles.error} aria-live="polite">
+                    {serverError}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -176,11 +180,6 @@ export function CapsuleUpgradePanel({
                 Add to Capsule Power
               </button>
             </div>
-            <div className={styles.actions}>
-              {statusText ? <p className={styles.helper}>{statusText}</p> : null}
-              {serverError ? <p className={styles.error}>{serverError}</p> : null}
-            </div>
-            <p className={styles.helper}>Suggested for infra upgrades and automation budgets.</p>
           </section>
 
           <section className={styles.card} aria-label="Capsule Pass">
@@ -189,15 +188,21 @@ export function CapsuleUpgradePanel({
                 <Gift size={18} weight="bold" />
                 Capsule Pass
               </h4>
-              <span className={`${styles.pill} ${styles.pillAlt}`}>
-                <Coins size={14} weight="bold" />
-                80% founder / 20% platform
-              </span>
             </div>
-            <p className={styles.description}>
-              Send a supporter pass to the founder. Default is $5, or pick a custom amount. The founder keeps
-              80% after the 20% platform cut.
-            </p>
+            <ul className={styles.list}>
+              <li className={styles.listItem}>
+                <Gift size={16} weight="bold" />
+                Send a supporter pass directly to the founder.
+              </li>
+              <li className={styles.listItem}>
+                <TrendUp size={16} weight="bold" />
+                Choose a quick amount or set a custom one.
+              </li>
+              <li className={styles.listItem}>
+                <Coins size={16} weight="bold" />
+                Passes are separate from the shared Capsule Power wallet.
+              </li>
+            </ul>
             <div className={styles.quickGrid} aria-label="Quick pass amounts">
               {QUICK_PASS_AMOUNTS.map((amount) => (
                 <button
@@ -212,16 +217,6 @@ export function CapsuleUpgradePanel({
                   ${amount}
                 </button>
               ))}
-              <button
-                type="button"
-                className={styles.quickButton}
-                onClick={() => handleQuickPass(5)}
-                disabled={submitting}
-                aria-label="Send the default $5 pass"
-              >
-                <Plus size={14} weight="bold" />
-                $5 default
-              </button>
             </div>
             <form className={styles.customRow} onSubmit={handleCustomSubmit}>
               <div className={styles.inputGroup}>
@@ -241,14 +236,21 @@ export function CapsuleUpgradePanel({
                   />
                 </div>
                 {error ? <p className={styles.error}>{error}</p> : null}
-                {serverError ? <p className={styles.error}>{serverError}</p> : null}
-                {statusText ? <p className={styles.helper}>{statusText}</p> : null}
+                {lastAction === "pass" && !error && serverError ? (
+                  <p className={styles.error} aria-live="polite">
+                    {serverError}
+                  </p>
+                ) : null}
+                {lastAction === "pass" && statusText ? (
+                  <p className={styles.helper} aria-live="polite">
+                    {statusText}
+                  </p>
+                ) : null}
               </div>
               <button type="submit" className={styles.secondaryButton} disabled={submitting}>
                 Send Capsule Pass
               </button>
             </form>
-            <p className={styles.helper}>Founders keep 80%. Passes are separate from the shared Capsule Power wallet.</p>
           </section>
         </div>
       </div>

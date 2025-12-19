@@ -41,6 +41,7 @@
 .titleGroup {
   display: grid;
   gap: 6px;
+  max-width: 640px;
 }
 
 .eyebrow {
@@ -54,7 +55,9 @@
 
 .title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: clamp(1.35rem, 2.1vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--text, rgba(232, 236, 255, 0.96));
 }
 
@@ -62,6 +65,7 @@
   margin: 0;
   color: var(--text-2, rgba(203, 213, 225, 0.82));
   font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .closeBtn {
@@ -76,11 +80,17 @@
   border-radius: 12px;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 140ms ease;
+  outline: none;
 }
 
 .closeBtn:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 26px rgba(6, 10, 28, 0.35);
+}
+
+.closeBtn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, var(--capsule-accent)) 70%, transparent);
+  outline-offset: 2px;
 }
 
 .grid {
@@ -105,6 +115,7 @@
   padding: clamp(14px, 2vw, 18px);
   display: grid;
   gap: 12px;
+  align-content: flex-start;
 }
 
 .cardHeader {
@@ -167,40 +178,42 @@
   gap: 10px;
 }
 
-.primaryButton {
-  border: none;
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 10px 18px;
   font-weight: 700;
   color: var(--text, rgba(232, 236, 255, 0.96));
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 48%, transparent),
-    color-mix(in srgb, var(--color-accent, var(--capsule-accent)) 32%, transparent)
-  );
   box-shadow:
     0 12px 32px rgba(5, 10, 30, 0.4),
     inset 0 1px 0 color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 8%, transparent);
+  border: none;
   transition: transform 120ms ease, box-shadow 140ms ease;
+  outline: none;
+  min-height: 44px;
 }
 
-.primaryButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 16px 36px rgba(5, 10, 30, 0.46);
+.primaryButton {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 52%, transparent),
+    color-mix(in srgb, var(--color-accent, var(--capsule-accent)) 28%, transparent)
+  );
 }
 
 .secondaryButton {
-  border: 1px solid color-mix(in srgb, var(--card-border, rgba(146, 156, 255, 0.24)) 78%, transparent);
-  background: color-mix(in srgb, var(--glass-bg-2, rgba(255, 255, 255, 0.04)) 70%, transparent);
-  color: var(--text, rgba(232, 236, 255, 0.9));
-  border-radius: 12px;
-  padding: 11px 14px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: transform 120ms ease, box-shadow 140ms ease;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-accent, var(--capsule-accent)) 54%, transparent),
+    color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 24%, transparent)
+  );
 }
 
+.primaryButton:hover,
 .secondaryButton:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 26px rgba(5, 10, 30, 0.35);
@@ -221,6 +234,7 @@
   cursor: pointer;
   font-weight: 700;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+  outline: none;
 }
 
 .quickButton:hover {
@@ -237,7 +251,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
-  align-items: center;
+  align-items: end;
 }
 
 .inputGroup {
@@ -260,6 +274,7 @@
   border-radius: 12px;
   padding: 10px 12px;
   color: var(--text, rgba(232, 236, 255, 0.92));
+  min-height: 44px;
 }
 
 .currencyInput input {
@@ -269,6 +284,13 @@
   color: inherit;
   font-size: 1rem;
   outline: none;
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.quickButton:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, var(--capsule-brand)) 62%, transparent);
+  outline-offset: 2px;
 }
 
 .helper {

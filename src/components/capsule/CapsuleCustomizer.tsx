@@ -12,6 +12,7 @@ import {
   ChatsTeardrop,
   FileText,
   FolderSimple,
+  Check,
 } from "@phosphor-icons/react/dist/ssr";
 import {
   PanelGroup,
@@ -51,6 +52,8 @@ import {
   COMPOSER_IMAGE_QUALITY_OPTIONS,
   titleCaseComposerQuality,
 } from "@/lib/composer/image-settings";
+import { useCreditUsage } from "@/lib/billing/useCreditUsage";
+import menuStyles from "@/components/ui/context-menu.module.css";
 
 type CapsuleCustomizerProps = {
   open?: boolean;
@@ -206,6 +209,9 @@ function CapsuleCustomizerContent({
   const mobilePreviewCloseRef = React.useRef<HTMLButtonElement | null>(null);
   const smartContextEnabled = chat.smartContextEnabled;
   const toggleSmartContext = chat.onToggleSmartContext;
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const settingsRef = React.useRef<HTMLDivElement | null>(null);
+  const { percentRemaining, loading: creditsLoading, error: creditsError, bypass } = useCreditUsage();
 
   const handleSearchClick = React.useCallback(() => {
     if (typeof window === "undefined") return;
@@ -260,6 +266,36 @@ function CapsuleCustomizerContent({
     };
   }, [mobileNavOpen, mobilePreviewOpen]);
 
+  const handleToggleSettings = React.useCallback(() => {
+    setSettingsOpen((open) => !open);
+  }, []);
+
+  const handleSelectQuality = React.useCallback(
+    (quality: (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number]) => {
+      if (quality === imageQuality) return;
+      onImageQualityChange(quality);
+      setSettingsOpen(false);
+    },
+    [imageQuality, onImageQualityChange],
+  );
+
+  const creditLabel = React.useMemo(() => {
+    if (creditsLoading) return "Loading credits.";
+    if (creditsError) return "Usage unavailable";
+    if (typeof percentRemaining !== "number" || Number.isNaN(percentRemaining)) {
+      return "Usage unavailable";
+    }
+    const clamped = Math.max(0, Math.min(100, Math.round(percentRemaining)));
+    if (bypass) return "Dev credits enabled";
+    return `${clamped}% left this period`;
+  }, [bypass, creditsError, creditsLoading, percentRemaining]);
+
+  const creditPercent = React.useMemo(() => {
+    if (bypass) return 100;
+    if (typeof percentRemaining !== "number" || Number.isNaN(percentRemaining)) return 0;
+    return Math.max(0, Math.min(100, Math.round(percentRemaining)));
+  }, [bypass, percentRemaining]);
+
   React.useEffect(() => {
     if (!mobileNavOpen) return;
     const timer = window.setTimeout(() => {
@@ -280,6 +316,27 @@ function CapsuleCustomizerContent({
     setMobileNavOpen(false);
     setMobilePreviewOpen(false);
   }, []);
+
+  React.useEffect(() => {
+    if (!settingsOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (settingsRef.current && target && !settingsRef.current.contains(target)) {
+        setSettingsOpen(false);
+      }
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [settingsOpen]);
 
   const handleToggleMobileNav = React.useCallback(() => {
     setMobileNavOpen((open) => {
@@ -951,7 +1008,7 @@ function CapsuleCustomizerContent({
             chips={meta.prompterChips}
             statusMessage={null}
             onAction={chat.onPrompterAction}
-            variant="default"
+            variant="bannerCustomizer"
             showIntentMenu
             submitVariant="icon"
           />
@@ -985,26 +1042,6 @@ function CapsuleCustomizerContent({
                   <span className={styles.aiMemoryLogo} aria-label="Memory">
                     <Brain size={18} weight="duotone" />
                   </span>
-                  <div className={styles.aiImageControls}>
-                    <label className={styles.aiImageControl}>
-                      <span className={styles.aiImageLabel}>Image Quality</span>
-                      <select
-                        className={styles.aiImageSelect}
-                        value={imageQuality}
-                        onChange={(event) =>
-                          onImageQualityChange(
-                            event.target.value as (typeof COMPOSER_IMAGE_QUALITY_OPTIONS)[number],
-                          )
-                        }
-                      >
-                        {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
-                          <option key={quality} value={quality}>
-                            {titleCaseComposerQuality(quality)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
                 </div>
               </div>
 
@@ -1018,18 +1055,6 @@ function CapsuleCustomizerContent({
                 >
                   <MagnifyingGlass size={18} weight="duotone" />
                   <span className={styles.aiSearchLabel}>Search</span>
-                </button>
-              </div>
-
-              <div className={styles.aiHeaderActions}>
-                <button
-                  type="button"
-                  className={styles.aiContextToggle}
-                  onClick={toggleSmartContext}
-                  aria-pressed={smartContextEnabled}
-                  data-active={smartContextEnabled ? "true" : undefined}
-                >
-                  <span>Auto context</span>
                 </button>
               </div>
 
@@ -1071,16 +1096,6 @@ function CapsuleCustomizerContent({
                   <span>Preview</span>
                 </button>
               </>
-            ) : null}
-            {isMobile ? (
-              <button
-                type="button"
-                className={styles.closeButton}
-                onClick={actions.handleClose}
-                aria-label={`Close ${meta.assetLabel} customizer`}
-              >
-                <X size={18} weight="bold" />
-              </button>
             ) : null}
           </div>
           </div>
@@ -1226,23 +1241,95 @@ function CapsuleCustomizerContent({
 
         <footer className={styles.footer}>
           <div className={styles.footerStatus} role="status">
-            {save.error ? (
-              <span className={styles.footerError}>{save.error}</span>
-            ) : preview.selected ? (
-              actions.describeSelection(preview.selected)
-            ) : (
-              meta.footerDefaultHint
-            )}
+            <div className={styles.footerSettings} ref={settingsRef}>
+              <button
+                type="button"
+                className={styles.footerSettingsToggle}
+                onClick={handleToggleSettings}
+                aria-haspopup="menu"
+                aria-expanded={settingsOpen}
+              >
+                <span className={styles.footerSettingsIcon} aria-hidden="true">
+                  <Brain weight={smartContextEnabled ? "fill" : "duotone"} />
+                </span>
+                <span className={styles.footerSettingsLabel}>
+                  AI settings
+                  {smartContextEnabled ? " · Context on" : ""}
+                </span>
+              </button>
+              {settingsOpen ? (
+                <div
+                  className={`${menuStyles.menu} ${styles.footerSettingsMenu}`.trim()}
+                  role="menu"
+                >
+                  <div className={menuStyles.sectionLabel}>Context</div>
+                  <button
+                    type="button"
+                    className={menuStyles.item}
+                    role="menuitemcheckbox"
+                    aria-checked={smartContextEnabled}
+                    aria-label={smartContextEnabled ? "Turn off context" : "Turn on context"}
+                    onClick={toggleSmartContext}
+                    data-active={smartContextEnabled ? "true" : undefined}
+                  >
+                    <Brain weight={smartContextEnabled ? "fill" : "duotone"} />
+                    <span>{smartContextEnabled ? "Context on" : "Context off"}</span>
+                  </button>
+
+                  <div className={menuStyles.separator} aria-hidden="true" />
+
+                  <div className={menuStyles.sectionLabel}>Image quality</div>
+                  {COMPOSER_IMAGE_QUALITY_OPTIONS.map((quality) => (
+                    <button
+                      key={quality}
+                      type="button"
+                      className={`${menuStyles.item} ${menuStyles.choiceItem}`.trim()}
+                      role="menuitemradio"
+                      aria-checked={imageQuality === quality}
+                      data-active={imageQuality === quality ? "true" : undefined}
+                      onClick={() => handleSelectQuality(quality)}
+                    >
+                      <span className={menuStyles.itemLabel}>{titleCaseComposerQuality(quality)}</span>
+                      {imageQuality === quality ? (
+                        <span className={menuStyles.itemCheck} aria-hidden="true">
+                          <Check weight="bold" />
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+
+                  <div className={menuStyles.separator} aria-hidden="true" />
+
+                  <div className={menuStyles.sectionLabel}>AI credits</div>
+                  <div className={styles.footerCredits}>
+                    <div
+                      className={styles.footerCreditsBar}
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={creditPercent}
+                    >
+                      <div
+                        className={styles.footerCreditsBarFill}
+                        style={{ width: `${creditPercent}%` }}
+                      />
+                    </div>
+                    <p className={styles.footerCreditsLabel}>{creditLabel}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div>
+              {save.error ? (
+                <span className={styles.footerError}>{save.error}</span>
+              ) : preview.selected ? (
+                actions.describeSelection(preview.selected)
+              ) : (
+                meta.footerDefaultHint
+              )}
+            </div>
           </div>
           <div className={styles.footerActions}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={styles.footerCancel}
-              onClick={actions.handleClose}
-            >
-              Cancel
-            </Button>
             <Button
               variant="primary"
               size="sm"

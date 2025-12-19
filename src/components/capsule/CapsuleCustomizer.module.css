@@ -138,7 +138,7 @@
 
 .aiToolbar {
   display: grid;
-  grid-template-columns: auto minmax(420px, 1fr) auto auto;
+  grid-template-columns: auto minmax(420px, 1fr) auto;
   align-items: center;
   gap: clamp(0.7rem, 1.5vw, 1.35rem);
   width: 100%;
@@ -439,7 +439,7 @@
 
 @media (max-width: 1280px) {
   .aiToolbar {
-    grid-template-columns: auto minmax(360px, 1fr) auto auto;
+    grid-template-columns: auto minmax(360px, 1fr) auto;
     gap: clamp(0.6rem, 1.2vw, 1.1rem);
   }
   .aiHeaderSearch {
@@ -449,7 +449,7 @@
 
 @media (max-width: 1100px) {
   .aiToolbar {
-    grid-template-columns: auto minmax(320px, 1fr) auto auto;
+    grid-template-columns: auto minmax(320px, 1fr) auto;
   }
   .aiHeaderSearch {
     min-width: 220px;
@@ -1713,6 +1713,10 @@
 .footerStatus {
   font-size: 0.9rem;
   color: rgba(230, 236, 255, 0.78);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
 }
 
 .footerError {
@@ -1724,30 +1728,6 @@
   display: flex;
   align-items: flex-end;
   gap: 0.75rem;
-}
-
-.footerCancel {
-  border: 1px solid rgba(148, 163, 255, 0.3);
-  background: linear-gradient(180deg, rgba(30, 38, 86, 0.6), rgba(16, 22, 54, 0.7));
-  color: rgba(217, 225, 255, 0.88);
-  padding: 10px 20px;
-  border-radius: 999px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  transition:
-    border-color 120ms ease,
-    transform 120ms ease;
-}
-
-.footerCancel:hover,
-.footerCancel:focus-visible {
-  border-color: rgba(186, 196, 255, 0.6);
-  transform: translateY(-1px);
-}
-
-.footerCancel:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .footerPrimary {
@@ -1774,6 +1754,98 @@
 .footerPrimary:focus-visible:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 24px 46px rgba(45, 93, 255, 0.58);
+}
+
+.footerSettings {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.footerSettingsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 255, 0.35);
+  background: linear-gradient(180deg, rgba(26, 32, 70, 0.9), rgba(12, 18, 42, 0.92));
+  color: rgba(222, 229, 255, 0.94);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+}
+
+.footerSettingsToggle:hover,
+.footerSettingsToggle:focus-visible {
+  border-color: rgba(186, 196, 255, 0.6);
+  color: rgba(244, 247, 255, 0.98);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(18, 26, 62, 0.45);
+}
+
+.footerSettingsIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footerSettingsIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.footerSettingsLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.footerSettingsMenu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  min-width: 260px;
+  z-index: 40;
+}
+
+.footerCredits {
+  display: grid;
+  gap: 4px;
+  padding: 6px 2px 2px;
+}
+
+.footerCreditsBar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 86%, transparent);
+  overflow: hidden;
+}
+
+.footerCreditsBarFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-brand, #6366f1) 80%, transparent),
+    color-mix(in srgb, var(--color-accent, #22d3ee) 80%, transparent)
+  );
+  transition: width 180ms ease;
+}
+
+.footerCreditsLabel {
+  margin: 0;
+  font-size: 0.8rem;
+  color: rgba(203, 213, 255, 0.86);
 }
 
 @media (max-width: 960px) {

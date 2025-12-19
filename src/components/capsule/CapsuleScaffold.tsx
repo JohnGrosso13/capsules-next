@@ -26,7 +26,6 @@ import { CapsuleMediaSection, CapsuleFilesSection } from "./CapsuleLibrarySectio
 import { CapsuleHistorySection } from "./CapsuleHistorySection";
 import { LiveStreamCanvas } from "./LiveStreamCanvas";
 import { CapsuleFeed } from "./CapsuleFeed";
-import ShareSheet from "@/components/home-feed/ShareSheet";
 import { CapsuleUpgradePanel } from "./CapsuleUpgradePanel";
 
 type CapsuleTab = "live" | "feed" | "store";
@@ -47,9 +46,6 @@ export function CapsuleContent({
   const [capsuleId, setCapsuleId] = React.useState<string | null>(() => capsuleIdProp ?? null);
   const [capsuleName, setCapsuleName] = React.useState<string | null>(
     () => capsuleNameProp ?? null,
-  );
-  const [sharePayload, setSharePayload] = React.useState<{ url: string; title: string; text: string } | null>(
-    null,
   );
   const [bannerCustomizerOpen, setBannerCustomizerOpen] = React.useState(false);
   const [tileCustomizerOpen, setTileCustomizerOpen] = React.useState(false);
@@ -102,45 +98,6 @@ export function CapsuleContent({
     const initialEvent = new CustomEvent("capsule:tab", { detail: { tab: "feed" as CapsuleTab } });
     window.dispatchEvent(initialEvent);
   }, []);
-
-  const capsuleShareUrl = React.useMemo(() => {
-    if (!capsuleId) return null;
-    const origin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL ?? null;
-    if (!origin) return null;
-    return `${origin}/capsule?capsuleId=${encodeURIComponent(capsuleId)}`;
-  }, [capsuleId]);
-
-  const handleShareCapsule = React.useCallback(() => {
-    if (!capsuleShareUrl) return;
-    const title = capsuleName ? `${capsuleName} on Capsules` : "Check out this Capsule";
-    const text = capsuleName ? `Join ${capsuleName} on Capsules.` : "Join this Capsule on Capsules.";
-    setSharePayload({ url: capsuleShareUrl, title, text });
-  }, [capsuleName, capsuleShareUrl]);
-
-  const closeShareSheet = React.useCallback(() => setSharePayload(null), []);
-
-  const canNativeShare = React.useMemo(() => {
-    if (!sharePayload?.url) return false;
-    return typeof navigator !== "undefined" && typeof navigator.share === "function";
-  }, [sharePayload?.url]);
-
-  const handleNativeShare = React.useCallback(() => {
-    if (!sharePayload?.url || typeof navigator === "undefined" || typeof navigator.share !== "function") return;
-    void navigator
-      .share({
-        url: sharePayload.url,
-        title: sharePayload.title,
-        text: sharePayload.text,
-      })
-      .catch((error) => {
-        if (error && (error as { name?: string }).name !== "AbortError") {
-          console.warn("capsule.share.native_failed", error);
-        }
-      });
-  }, [sharePayload]);
 
   React.useEffect(() => {
     if (typeof capsuleIdProp !== "undefined") {
@@ -365,34 +322,72 @@ export function CapsuleContent({
     },
     [capsuleId],
   );
-  const heroPrimary = React.useMemo<{
+  const heroUpgrade = React.useMemo<{
     label: string;
     disabled: boolean;
     onClick: (() => void) | null;
+    icon?: React.ReactNode;
   }>(() => {
+    if (!capsuleId) {
+      return {
+        label: "Upgrade Capsule",
+        disabled: true,
+        onClick: null,
+        icon: <Lightning size={16} weight="bold" />,
+      };
+    }
+    if (!isAuthenticated) {
+      return {
+        label: "Sign in to Upgrade",
+        disabled: false,
+        onClick: handleSignIn,
+        icon: <Lightning size={16} weight="bold" />,
+      };
+    }
+    if (upgradeSubmitting) {
+      return {
+        label: "Opening...",
+        disabled: true,
+        onClick: null,
+        icon: <Lightning size={16} weight="bold" />,
+      };
+    }
+    return {
+      label: "Upgrade Capsule",
+      disabled: false,
+      onClick: handleOpenUpgrade,
+      icon: <Lightning size={16} weight="bold" />,
+    };
+  }, [capsuleId, isAuthenticated, handleSignIn, handleOpenUpgrade, upgradeSubmitting]);
+
+  const heroJoin = React.useMemo<{
+    label: string;
+    disabled: boolean;
+    onClick: (() => void) | null;
+  } | null>(() => {
     if (!capsuleId) {
       return { label: "Request to Join", disabled: true, onClick: null };
     }
+
+    if (viewer?.isOwner || viewer?.isMember) {
+      const busy = membershipMutatingAction === "leave";
+      const label = viewer.isOwner ? "Owner" : busy ? "Leaving..." : "Member";
+      return { label, disabled: true, onClick: null };
+    }
+
     if (!viewer) {
       if (membershipLoading) {
-        return { label: "Loading…", disabled: true, onClick: null };
+        return { label: "Loading...", disabled: true, onClick: null };
       }
       if (!isAuthenticated) {
         return { label: "Sign in to Join", disabled: false, onClick: handleSignIn };
       }
       if (membershipMutatingAction === "request_join") {
-        return { label: "Sending Request…", disabled: true, onClick: null };
+        return { label: "Sending Request...", disabled: true, onClick: null };
       }
       return { label: "Request to Join", disabled: false, onClick: sendMembershipRequest };
     }
-    if (viewer.canManageMembers || viewer.isMember) {
-      return {
-        label: "Upgrade Capsule",
-        disabled: false,
-        onClick: handleOpenUpgrade,
-        icon: <Lightning size={16} weight="bold" />,
-      };
-    }
+
     if (!viewer.userId) {
       return { label: "Sign in to Join", disabled: false, onClick: handleSignIn };
     }
@@ -400,7 +395,7 @@ export function CapsuleContent({
       return { label: "Request Pending", disabled: true, onClick: null };
     }
     if (membershipMutatingAction === "request_join") {
-      return { label: "Sending Request…", disabled: true, onClick: null };
+      return { label: "Sending Request...", disabled: true, onClick: null };
     }
     const label = viewer.requestStatus === "declined" ? "Request Again" : "Request to Join";
     if (!viewer.canRequest) {
@@ -415,7 +410,6 @@ export function CapsuleContent({
     isAuthenticated,
     handleSignIn,
     sendMembershipRequest,
-    handleOpenUpgrade,
   ]);
 
   const heroFollow = React.useMemo<{
@@ -695,7 +689,8 @@ export function CapsuleContent({
                   onCustomizeLogo: () => setLogoCustomizerOpen(true),
                 }
               : {})}
-            primaryAction={heroPrimary}
+            primaryAction={heroUpgrade}
+            joinAction={heroJoin}
             followAction={heroFollow}
             leaveAction={heroLeave}
             membersOpen={membersOpen}
@@ -707,8 +702,6 @@ export function CapsuleContent({
             onSelectMedia={showMedia}
             onSelectFiles={showFiles}
             errorMessage={membershipErrorVisible}
-            onShare={capsuleShareUrl ? handleShareCapsule : null}
-            shareDisabled={!capsuleShareUrl}
           />
           {membersOpen ? (
             <CapsuleMembersPanel
@@ -867,16 +860,6 @@ export function CapsuleContent({
           serverError={upgradeServerError}
         />
       ) : null}
-      <ShareSheet
-        open={Boolean(sharePayload)}
-        url={sharePayload?.url ?? null}
-        title={sharePayload?.title ?? ""}
-        text={sharePayload?.text ?? ""}
-        onClose={closeShareSheet}
-        canNativeShare={canNativeShare}
-        onNativeShare={handleNativeShare}
-      />
     </>
   );
 }
-
