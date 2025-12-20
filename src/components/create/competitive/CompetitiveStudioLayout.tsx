@@ -16,7 +16,7 @@ const TAB_ITEMS: Array<{ id: TabId; label: string; description: string }> = [
   {
     id: "ladders",
     label: "Ladders",
-    description: "Season-style competitive ladders with Capsule AI running standings and content.",
+    description: "Season-style competitive ladders with your assistant running standings and content.",
   },
   {
     id: "tournaments",

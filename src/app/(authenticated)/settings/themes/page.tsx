@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function SettingsThemesPage() {
   return (
-    <AppPage showPrompter={true} activeNav="settings">
+    <AppPage showPrompter={true} activeNav="settings" showDiscoveryRightRail>
       <div className={styles.root}>
         <ThemeStylesGallery />
       </div>

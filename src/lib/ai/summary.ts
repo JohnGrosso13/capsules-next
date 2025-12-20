@@ -268,7 +268,7 @@ export async function summarizeText(input: SummarizeTextInput): Promise<Sanitize
       {
         role: "system",
         content:
-          "You are Capsule AI, an assistant that writes warm, succinct summaries with actionable highlights. Always respond with JSON that matches the provided schema.",
+          "You are an assistant that writes warm, succinct summaries with actionable highlights. Always respond with JSON that matches the provided schema.",
       },
       {
         role: "user",
@@ -415,5 +415,4 @@ export async function summarizeText(input: SummarizeTextInput): Promise<Sanitize
 
   return sanitized;
 }
-
 

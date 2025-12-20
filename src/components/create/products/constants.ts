@@ -5,7 +5,7 @@ import type { ProductStepId } from "./types";
 export const PRODUCT_STEPS: WizardLayoutStep<ProductStepId>[] = [
   { id: "design", title: "Design", subtitle: "Upload art, pick colors/sizes, and placement" },
   { id: "title", title: "Title", subtitle: "Name the drop and get AI help" },
-  { id: "details", title: "Description", subtitle: "Write the story or ask Capsule AI" },
+  { id: "details", title: "Description", subtitle: "Write the story or ask your assistant" },
   { id: "pricing", title: "Pricing", subtitle: "Set price, publish state, and feature flag" },
   { id: "review", title: "Review", subtitle: "Confirm variants and publish to store" },
 ];

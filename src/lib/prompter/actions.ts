@@ -1,8 +1,8 @@
 import { detectComposerMode } from "@/lib/ai/nav";
 import type { ComposerMode } from "@/lib/ai/nav";
 
-export const DEFAULT_PROMPTER_PLACEHOLDER = "Ask your Capsule AI to create anything...";
-export const COMPACT_PROMPTER_PLACEHOLDER = "Ask Capsule AI for ideas...";
+export const DEFAULT_PROMPTER_PLACEHOLDER = "Ask your assistant to create anything...";
+export const COMPACT_PROMPTER_PLACEHOLDER = "Ask your assistant for ideas...";
 export const COMPACT_VIEWPORT_QUERY = "(max-width: 480px)";
 
 export const SUMMARIZE_FEED_LABEL = "Summarize my feed";

@@ -44,7 +44,7 @@ export function Default() {
       <PrompterToolbar
         inputRef={inputRef}
         text={text}
-        placeholder="Ask Capsule AI for ideas..."
+        placeholder="Ask your assistant for ideas..."
         onTextChange={setText}
         buttonLabel="Draft"
         buttonClassName="genBtn genBtnPost"

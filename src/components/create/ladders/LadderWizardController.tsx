@@ -762,7 +762,7 @@ export function LadderWizardController({
         pushToast({
           tone: "warning",
           title: "Blueprint incomplete",
-          description: "Capsule AI could not fill enough fields from that prompt. Try adding more detail.",
+          description: "Your assistant could not fill enough fields from that prompt. Try adding more detail.",
         });
         return;
       }
@@ -1090,7 +1090,7 @@ export function LadderWizardController({
       if (!isOnline) {
         pushToast({
           tone: "warning",
-          title: "Reconnect to use Capsule AI",
+          title: "Reconnect to use your assistant",
           description: "Get back online to generate a full ladder blueprint.",
         });
         return;
@@ -1120,7 +1120,7 @@ export function LadderWizardController({
         pushToast({
           tone: "success",
           title: "Blueprint applied",
-          description: "We filled in each step with Capsule AI. Review and tweak anything you like.",
+          description: "We filled in each step with your assistant. Review and tweak anything you like.",
         });
         trackLadderEvent({
           event: "ladders.draft.generate",
@@ -1186,7 +1186,7 @@ export function LadderWizardController({
                     ? "Draft rewards. Provide a concise headline and 3-5 bullet incentives (prizes, spotlight perks, sponsor-friendly rewards)."
                     : "Help with ladder setup. Keep responses concise and specific.";
     const prompt = [
-      "You are Capsule AI helping craft ladder content.",
+      "You are an assistant helping craft ladder content.",
       stepInstruction,
       "Use the context below to stay specific.",
       contextLines.join("\n"),
@@ -1208,7 +1208,7 @@ export function LadderWizardController({
         }),
       });
       if (!response.ok) {
-        throw new Error("Capsule AI could not draft that right now.");
+        throw new Error("The assistant could not draft that right now.");
       }
       const payload = (await response.json()) as { action: "chat_reply" | "draft_post"; message?: string; post?: { content?: string }; threadId?: string | null };
       const reply =
@@ -1246,7 +1246,7 @@ export function LadderWizardController({
         isSending: false,
         conversation: [
           ...prev.conversation,
-          createAssistantMessage("ai", "I hit an issue reaching Capsule AI. Try again in a moment."),
+          createAssistantMessage("ai", "I hit an issue reaching your assistant. Try again in a moment."),
         ],
       }));
     } finally {

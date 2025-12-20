@@ -924,7 +924,7 @@ export function CommentPanel({
         <div className={styles.composerSection}>
           <p className={styles.composerHint}>
             <span className={styles.composerHintStrong}>Tip:</span> Attach memories, drop in a GIF,
-            or ask Capsule AI for suggestions before you send.
+            or ask your assistant for suggestions before you send.
           </p>
           <div style={{ position: "relative" }}>
             {isEmojiPickerOpen ? (

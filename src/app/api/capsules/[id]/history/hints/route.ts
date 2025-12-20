@@ -200,7 +200,7 @@ async function requestAiHints(input: NormalizedHintInput): Promise<HintResponse 
       {
         role: "system",
         content:
-          "You are Capsule AI, a strategic community assistant. Give concise, encouraging engagement advice (<=180 chars each) tailored to the provided capsule history data.",
+          "You are a strategic community assistant. Give concise, encouraging engagement advice (<=180 chars each) tailored to the provided capsule history data.",
       },
       {
         role: "user",

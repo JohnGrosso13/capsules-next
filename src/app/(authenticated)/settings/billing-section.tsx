@@ -104,7 +104,7 @@ const PLAN_SUMMARIES: PlanSummary[] = [
     id: "starter",
     title: "Starter · Free",
     bullets: [
-      "Join Capsules, explore feeds, and try Capsule AI.",
+      "Join Capsules, explore feeds, and try your assistant.",
       "Run your first ladders, tournaments, and posts with AI help.",
       "Perfect for vibing, not yet for going live every week.",
     ],

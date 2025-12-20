@@ -749,7 +749,7 @@ export async function generateLadderDraftForCapsule(
   const systemMessage = {
     role: "system",
     content:
-      "You are Capsule AI. Analyze the user's prompt and fill out a ladder configuration with natural, user-aligned copy. Pick the best scoring format (simple, elo, or ai) for the goal and set config.scoring.system accordingly. Respond ONLY with JSON matching the provided schema.",
+      "You are an assistant. Analyze the user's prompt and fill out a ladder configuration with natural, user-aligned copy. Pick the best scoring format (simple, elo, or ai) for the goal and set config.scoring.system accordingly. Respond ONLY with JSON matching the provided schema.",
   } as const;
 
   const userMessage = {

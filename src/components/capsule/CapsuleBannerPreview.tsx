@@ -50,7 +50,7 @@ export function CapsuleBannerPreview() {
     content = (
       <div className={styles.previewPlaceholder}>
         <Sparkle size={32} weight="duotone" />
-        <p>Start by chatting with Capsule AI or choosing an image.</p>
+        <p>Start by chatting with your assistant or choosing an image.</p>
       </div>
     );
   } else if (selectedBanner.kind === "ai") {

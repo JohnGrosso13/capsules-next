@@ -5,6 +5,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { AppPage } from "@/components/app-page";
 import { CapsuleOnboardingStep } from "@/components/capsule/onboarding/CapsuleOnboardingStep";
 
+import capTheme from "../capsule.module.css";
 import styles from "./onboarding.module.css";
 
 export const metadata: Metadata = {
@@ -25,8 +26,10 @@ export default async function CapsuleOnboardingPage() {
 
   return (
     <AppPage activeNav="capsule" showPrompter={false}>
-      <div className={styles.page}>
-        <CapsuleOnboardingStep />
+      <div className={capTheme.theme}>
+        <div className={styles.page}>
+          <CapsuleOnboardingStep />
+        </div>
       </div>
     </AppPage>
   );

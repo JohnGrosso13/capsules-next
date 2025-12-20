@@ -85,7 +85,7 @@ const BlueprintStep = React.memo(function BlueprintStep({
       <CardContent className={styles.namingBody}>
         <div className={styles.namingPrimary} aria-hidden="true" />
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
           placeholder="Example: Weekend 16-team Valorant bracket, double elimination, NA/EU, best-of-three, co-stream friendly finals..."
@@ -141,7 +141,7 @@ const TitleStep = React.memo(function TitleStep({
           />
         </div>
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
           placeholder="Ask for title ideas or anything you need help with..."
@@ -193,11 +193,11 @@ const SummaryStep = React.memo(function SummaryStep({
             value={form.summary}
             onChange={(event) => onFormChange("summary", event.target.value)}
             rows={3}
-            placeholder="Double-elimination showdown with Capsule AI narrating every upset."
+            placeholder="Double-elimination showdown with your assistant narrating every upset."
           />
         </div>
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
           placeholder="Who is this tournament for? What's at stake?"
@@ -458,10 +458,10 @@ const OverviewStep = React.memo(function OverviewStep({
           />
         </div>
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
-          placeholder="Ask Capsule AI to draft the overview or tighten the hook..."
+          placeholder="Ask your assistant to draft the overview or tighten the hook..."
           conversation={conversation}
           draft={form.overview}
           busy={false}
@@ -514,7 +514,7 @@ const RulesStep = React.memo(function RulesStep({
           />
         </div>
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
           placeholder="Ask for a full ruleset, anti-cheat notes, or dispute policy..."
@@ -583,7 +583,7 @@ const ShoutoutsStep = React.memo(function ShoutoutsStep({
           />
         </div>
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
           placeholder="Ask for spotlight themes, weekly awards, or story hooks..."
@@ -613,11 +613,11 @@ const BasicsStep = React.memo(function BasicsStep({
   return (
     <Card className={styles.namingPanel} variant="ghost">
       <CardHeader className={styles.namingHeader}>
-        <CardTitle className={styles.namingTitle}>Basics</CardTitle>
-        <CardDescription className={styles.formCardDescription}>
-          Capsule AI uses this to suggest rules, playlists, stats, and the timeline, but you can keep it lightweight to
-          start.
-        </CardDescription>
+          <CardTitle className={styles.namingTitle}>Basics</CardTitle>
+          <CardDescription className={styles.formCardDescription}>
+            Your assistant uses this to suggest rules, playlists, stats, and the timeline, but you can keep it
+            lightweight to start.
+          </CardDescription>
       </CardHeader>
       <CardContent className={styles.namingBody}>
         <div className={styles.fieldGroup}>
@@ -906,7 +906,7 @@ const RewardsStep = React.memo(function RewardsStep({
           />
         </div>
         <div className={styles.namingOr}>
-          <span>or chat with Capsule AI</span>
+          <span>or chat with your assistant</span>
         </div>
         <AssistantPrompter
           placeholder="Ask for prize ideas, seasonal incentives, or sponsor-friendly rewards..."

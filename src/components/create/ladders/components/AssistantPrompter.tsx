@@ -94,7 +94,7 @@ export function AssistantPrompter({
   }, [conversation]);
 
   return (
-    <section className={styles.stage} aria-label="Capsule AI prompter">
+    <section className={styles.stage} aria-label="Assistant prompter">
       <div className={`${prompterStyles.prompter} ${styles.surface}`}>
         <div className={styles.chatShell}>
           <div className={styles.chatLog} role="log" aria-live="polite" ref={chatLogRef}>
@@ -103,7 +103,7 @@ export function AssistantPrompter({
                 message.sender === "ai"
                   ? styles.chatBubble
                   : `${styles.chatBubble} ${styles.chatBubbleUser}`;
-              const label = message.sender === "ai" ? "Capsule AI" : "You";
+              const label = message.sender === "ai" ? "Assistant" : "You";
               return (
                 <div key={message.id} className={bubbleClass}>
                   <span className={styles.chatLabel}>{label}</span>

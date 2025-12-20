@@ -37,11 +37,16 @@ export function PrompterPreviewModal({ open, url, mime, name, onClose }: Props) 
         if (event.currentTarget === event.target) onClose();
       }}
     >
-      <button className={styles.previewClose} onClick={onClose}>
-        <span aria-hidden>&times;</span>
-        <span className={styles.previewCloseLabel}>Close</span>
-      </button>
       <div className={styles.previewInner}>
+        <button
+          type="button"
+          className={styles.previewClose}
+          onClick={onClose}
+          aria-label="Close attachment preview"
+        >
+          <span aria-hidden>&times;</span>
+          <span className={styles.previewCloseLabel}>Close</span>
+        </button>
         {isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={name ?? "Attachment"} className={styles.previewMedia} />

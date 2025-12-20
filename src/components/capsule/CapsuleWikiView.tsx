@@ -281,7 +281,7 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
               ))}
             </div>
           ) : (
-            <p className={styles.panelPlaceholder}>Capsule AI hasn&apos;t generated a recap for this period yet.</p>
+            <p className={styles.panelPlaceholder}>Your assistant hasn&apos;t generated a recap for this period yet.</p>
           )}
           {activeSummarySources.length ? (
             <div className={styles.summaryCitations}>
@@ -351,7 +351,7 @@ export function CapsuleWikiView({ snapshot, onEdit, canEdit, loading }: CapsuleW
               {summaryExcerpt.length ? (
                 <p className={styles.periodExcerpt}>{summaryExcerpt}</p>
               ) : (
-                <p className={styles.periodExcerptMuted}>Capsule AI is watching for new updates.</p>
+                <p className={styles.periodExcerptMuted}>Your assistant is watching for new updates.</p>
               )}
             </button>
           );

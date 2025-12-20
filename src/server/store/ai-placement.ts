@@ -78,7 +78,7 @@ export async function inferProductPlacement(
   const systemMessage = {
     role: "system" as const,
     content:
-      "You are Capsule AI turning casual placement requests into precise mockup coordinates for merch. Pick the best surface from the provided list, decide a sensible size, and nudge the design using normalized offsets (-1..1 from center). Use larger scale and fit=cover for full-bleed or wrap requests. Stay within allowed surfaces and keep tone concise.",
+      "You are an assistant turning casual placement requests into precise mockup coordinates for merch. Pick the best surface from the provided list, decide a sensible size, and nudge the design using normalized offsets (-1..1 from center). Use larger scale and fit=cover for full-bleed or wrap requests. Stay within allowed surfaces and keep tone concise.",
   };
 
   const surfaceLines = surfaces.map(

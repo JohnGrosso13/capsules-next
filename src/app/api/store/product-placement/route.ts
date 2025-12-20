@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     return returnError(
       500,
       "placement_failed",
-      error instanceof Error ? error.message : "Capsule AI could not place that design.",
+      error instanceof Error ? error.message : "The assistant could not place that design.",
     );
   }
 }

@@ -234,7 +234,11 @@ export function PrompterToolbar({
                   >
                     {att.thumbUrl || att.mimeType.startsWith("image/") ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
+                      <img
+                        src={att.thumbUrl ?? att.url ?? undefined}
+                        alt="Attachment preview"
+                        className={styles.attachThumbImg}
+                      />
                     ) : (
                       <Paperclip className={styles.attachThumbIcon} size={18} weight="duotone" />
                     )}
@@ -243,7 +247,11 @@ export function PrompterToolbar({
                   <span className={styles.attachThumb} aria-hidden>
                     {att.thumbUrl || att.mimeType.startsWith("image/") ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={(att.thumbUrl ?? undefined) || undefined} alt="" className={styles.attachThumbImg} />
+                      <img
+                        src={att.thumbUrl ?? att.url ?? undefined}
+                        alt="Attachment preview"
+                        className={styles.attachThumbImg}
+                      />
                     ) : (
                       <Paperclip className={styles.attachThumbIcon} size={18} weight="duotone" />
                     )}
@@ -264,21 +272,29 @@ export function PrompterToolbar({
                       {att.name}
                     </span>
                   )}
-                  <span className={att.status === "error" ? styles.attachmentStatusError : styles.attachmentStatus}>
-                    {(() => {
-                      if (att.status === "error") {
-                        return att.error ?? "Upload failed";
+                  {(() => {
+                    if (att.status === "error") {
+                      const message = att.error ?? "Upload failed";
+                      return (
+                        <span className={styles.attachmentStatusError}>
+                          {message}
+                        </span>
+                      );
+                    }
+                    if (att.status === "uploading") {
+                      let message: string;
+                      if (att.phase === "finalizing") {
+                        message = "Finishing upload...";
+                      } else {
+                        const pct = Math.round(
+                          Math.min(Math.max(att.progress ?? 0, 0), 1) * 100,
+                        );
+                        message = `Uploading ${pct}%`;
                       }
-                      if (att.status === "uploading") {
-                        if (att.phase === "finalizing") {
-                          return "Finishing upload...";
-                        }
-                        const pct = Math.round(Math.min(Math.max(att.progress ?? 0, 0), 1) * 100);
-                        return `Uploading ${pct}%`;
-                      }
-                      return "Attached";
-                    })()}
-                  </span>
+                      return <span className={styles.attachmentStatus}>{message}</span>;
+                    }
+                    return null;
+                  })()}
                   {att.status === "error" ? (
                     <span className={styles.attachmentActions}>
                       {att.originalFile && onRetryAttachment ? (

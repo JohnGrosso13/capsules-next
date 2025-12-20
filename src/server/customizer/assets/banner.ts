@@ -12,6 +12,7 @@ import { persistAndDescribeImage, toVariantResponse, type AssetResponse } from "
 export type BannerAssetInput = {
   prompt: string;
   ownerId: string;
+  mode?: "banner" | "storeBanner" | "tile";
   capsuleName?: string | null;
   capsuleId?: string | null;
   variantId?: string | null;
@@ -28,9 +29,35 @@ export type BannerEditInput = BannerAssetInput & {
   maskData?: string | null;
 };
 
+type BannerMode = "banner" | "storeBanner" | "tile";
+
+const BANNER_MODE_SPECS: Record<BannerMode, { size: string; compositionHint: string }> = {
+  banner: {
+    size: "1792x1024",
+    compositionHint:
+      "Composition: 16:9 wide hero image with a clear focal point and layered depth; reserve gentle negative space near the top for interface.",
+  },
+  storeBanner: {
+    size: "1792x1024",
+    compositionHint:
+      "Composition: 16:9 store hero with clear focal point and soft top margin for UI overlays.",
+  },
+  tile: {
+    size: "1024x1792",
+    compositionHint:
+      "Composition: 9:16 vertical promo tile with a crisp focal point; leave breathable margin top and bottom for UI chrome.",
+  },
+};
+
+function resolveBannerMode(mode: string | null | undefined): BannerMode {
+  if (mode === "storeBanner" || mode === "tile") return mode;
+  return "banner";
+}
+
 function buildGenerationPrompt(
   prompt: string,
   capsuleName: string,
+  mode: BannerMode,
   _stylePreset?: string | null,
   _persona?: StylePersonaPromptData | null,
 ): string {
@@ -38,11 +65,13 @@ function buildGenerationPrompt(
     userPrompt: prompt,
     capsuleName,
     mode: "generate",
+    compositionHint: BANNER_MODE_SPECS[mode].compositionHint,
   });
 }
 
 function buildEditInstruction(
   prompt: string,
+  mode: BannerMode,
   _stylePreset?: string | null,
   _persona?: StylePersonaPromptData | null,
 ): string {
@@ -52,12 +81,14 @@ function buildEditInstruction(
       userPrompt: "Refresh the existing hero banner with subtle updates to layout and lighting.",
       capsuleName: "",
       mode: "edit",
+      compositionHint: BANNER_MODE_SPECS[mode].compositionHint,
     });
   }
   return buildLiteralBannerPrompt({
     userPrompt: trimmed,
     capsuleName: "",
     mode: "edit",
+    compositionHint: BANNER_MODE_SPECS[mode].compositionHint,
   });
 }
 
@@ -102,6 +133,7 @@ export async function generateBannerAsset(input: BannerAssetInput): Promise<Asse
     prompt,
     ownerId,
     capsuleName,
+    mode,
     capsuleId,
     stylePreset,
     stylePersonaId,
@@ -110,6 +142,8 @@ export async function generateBannerAsset(input: BannerAssetInput): Promise<Asse
     guidance,
   } = input;
   const resolvedCapsuleId = capsuleId ?? null;
+  const bannerMode = resolveBannerMode(mode ?? null);
+  const modeSpec = BANNER_MODE_SPECS[bannerMode];
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const seedValue = sanitizeSeed(seed);
   const guidanceValue = sanitizeGuidance(guidance);
@@ -117,10 +151,16 @@ export async function generateBannerAsset(input: BannerAssetInput): Promise<Asse
     stylePersonaId ?? null,
     ownerId,
   );
-  const bannerPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset, personaPrompt);
+  const bannerPrompt = buildGenerationPrompt(
+    prompt,
+    effectiveName,
+    bannerMode,
+    stylePreset,
+    personaPrompt,
+  );
   const generated = await generateImageFromPrompt(
     bannerPrompt,
-    { quality: "high", size: "1792x1024" },
+    { quality: "high", size: modeSpec.size },
     {
       ownerId,
       assetKind: "banner",
@@ -194,6 +234,7 @@ export async function editBannerAsset(input: BannerEditInput): Promise<AssetResp
     prompt,
     ownerId,
     capsuleName,
+    mode,
     capsuleId,
     variantId,
     stylePreset,
@@ -206,6 +247,8 @@ export async function editBannerAsset(input: BannerEditInput): Promise<AssetResp
     maskData,
   } = input;
   const resolvedCapsuleId = capsuleId ?? null;
+  const bannerMode = resolveBannerMode(mode ?? null);
+  const modeSpec = BANNER_MODE_SPECS[bannerMode];
   const effectiveName = typeof capsuleName === "string" ? capsuleName : "";
   const seedValue = sanitizeSeed(seed);
   const guidanceValue = sanitizeGuidance(guidance);
@@ -238,7 +281,7 @@ export async function editBannerAsset(input: BannerEditInput): Promise<AssetResp
       console.warn("customizer.banner.edit mask store failed", maskError);
     }
   }
-  const instruction = buildEditInstruction(prompt, stylePreset, personaPrompt);
+  const instruction = buildEditInstruction(prompt, bannerMode, stylePreset, personaPrompt);
 
   try {
     const edited = await editImageWithInstruction(
@@ -246,7 +289,7 @@ export async function editBannerAsset(input: BannerEditInput): Promise<AssetResp
       instruction,
       {
         quality: "high",
-        size: "1024x1024",
+        size: modeSpec.size,
       },
       {
         ownerId,
@@ -313,6 +356,7 @@ export async function editBannerAsset(input: BannerEditInput): Promise<AssetResp
     const fallbackResolvedPrompt = buildGenerationPrompt(
       `${prompt.trim()} Remix inspired by the current banner, keep the same mood but refresh composition.`,
       effectiveName,
+      bannerMode,
       stylePreset,
       personaPrompt,
     );
@@ -320,7 +364,7 @@ export async function editBannerAsset(input: BannerEditInput): Promise<AssetResp
       fallbackResolvedPrompt,
       {
         quality: "high",
-        size: "1792x1024",
+        size: modeSpec.size,
       },
       {
         ownerId,

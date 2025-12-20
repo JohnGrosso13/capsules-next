@@ -281,7 +281,7 @@ export function useFeedPreview({
           empty = rounds.length === 0 && !title;
           if (empty) {
             body = renderPlaceholder(
-              "Tell Capsule AI about rounds, seeds, or teams to map the bracket.",
+              "Tell your assistant about rounds, seeds, or teams to map the bracket.",
             );
           } else {
             const displayRounds = rounds.length
@@ -308,7 +308,7 @@ export function useFeedPreview({
           body = renderPostCopy(canEditPostCopy);
           if (empty && !canEditPostCopy) {
             body = renderPlaceholder(
-              `Give Capsule AI a prompt to see your ${label.toLowerCase()} take shape.`,
+              `Give your assistant a prompt to see your ${label.toLowerCase()} take shape.`,
             );
           }
           break;

@@ -82,7 +82,7 @@ export function TournamentBuilder({ capsules, initialCapsuleId = null }: Tournam
           forceSelector
           autoActivate={false}
           selectorTitle="Pick a capsule for your tournament"
-          selectorSubtitle="Capsule AI will reference this community when crafting your bracket plan."
+          selectorSubtitle="Your assistant will reference this community when crafting your bracket plan."
           onCapsuleChosen={handleCapsuleChange}
         />
       </div>

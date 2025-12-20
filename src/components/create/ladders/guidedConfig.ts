@@ -36,7 +36,7 @@ export const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
     id: "summary",
     title: "Summary",
     subtitle: "Explain why this ladder matters in a single sentence.",
-    helper: "Highlight audience, cadence, or prizes so Capsule AI can build the promo copy.",
+    helper: "Highlight audience, cadence, or prizes so your assistant can build the promo copy.",
   },
   {
     id: "registration",
@@ -66,7 +66,7 @@ export const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
     id: "rules",
     title: "Rules",
     subtitle: "Lay down the essentials players need to know.",
-    helper: "Capsule AI will automate the long-form version; just note the must-follow items.",
+    helper: "Your assistant will automate the long-form version; just note the must-follow items.",
   },
   {
     id: "shoutouts",
@@ -84,7 +84,7 @@ export const GUIDED_STEP_DEFINITIONS: GuidedStepDefinition[] = [
     id: "rewards",
     title: "Rewards",
     subtitle: "Tell challengers what they're chasing.",
-    helper: "Capsule AI can hype prizes, shoutouts, or story beats in announcements.",
+    helper: "Your assistant can hype prizes, shoutouts, or story beats in announcements.",
   },
   {
     id: "review",
@@ -134,7 +134,7 @@ export const buildGuidedSummaryIdeas = (options: {
   const cadence = (options.cadence ?? "weekly rounds").trim() || "weekly rounds";
   const rewards = (options.rewardsFocus ?? "spotlight shoutouts").trim() || "spotlight shoutouts";
   return [
-    `${capsule} runs a ${cadence} ${game} ladder with Capsule AI covering every upset.`,
+    `${capsule} runs a ${cadence} ${game} ladder with assistant coverage on every upset.`,
     `${game} challengers climb fast seasons, win ${rewards}, and get auto-generated recaps.`,
   ];
 };

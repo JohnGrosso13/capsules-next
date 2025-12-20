@@ -36,7 +36,7 @@ const clampBias = (value: number) => clamp(value, -1, 1);
 
 const MODE_ASPECT_RATIO: Record<CapsuleCustomizerMode, number> = {
   banner: 16 / 9,
-  storeBanner: 5 / 2,
+  storeBanner: 16 / 9,
   tile: 9 / 16,
   logo: 1,
   avatar: 1,
@@ -47,7 +47,7 @@ const MODE_EXPORT_LIMITS: Record<
   { maxWidth: number; maxHeight: number; aspectRatio: number }
 > = {
   banner: { maxWidth: 1600, maxHeight: 900, aspectRatio: MODE_ASPECT_RATIO.banner },
-  storeBanner: { maxWidth: 1600, maxHeight: 640, aspectRatio: MODE_ASPECT_RATIO.storeBanner },
+  storeBanner: { maxWidth: 1600, maxHeight: 900, aspectRatio: MODE_ASPECT_RATIO.storeBanner },
   tile: { maxWidth: 1080, maxHeight: 1920, aspectRatio: MODE_ASPECT_RATIO.tile },
   logo: { maxWidth: 1024, maxHeight: 1024, aspectRatio: MODE_ASPECT_RATIO.logo },
   avatar: { maxWidth: 1024, maxHeight: 1024, aspectRatio: MODE_ASPECT_RATIO.avatar },

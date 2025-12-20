@@ -32,7 +32,7 @@ export type ComposerUsageSummary = {
   videos: ComposerUsageVideo[];
 };
 
-function textRatesForModel(model: string | null): {
+export function textRatesForModel(model: string | null): {
   inputCreditsPerToken: number;
   outputCreditsPerToken: number;
 } {
@@ -86,6 +86,24 @@ export function computeComposerCredits(usage: ComposerUsageSummary | null | unde
   );
 
   return Math.max(1, Math.ceil(textCredits + imageCredits + videoCredits));
+}
+
+/**
+ * Compute text-only credits when only total token count is available.
+ * Assumes most tokens are prompt-side with a smaller completion tail.
+ */
+export function computeTextCreditsFromTokens(
+  totalTokens: number | null | undefined,
+  model: string | null | undefined,
+): number {
+  if (!totalTokens || !Number.isFinite(totalTokens) || totalTokens <= 0) return 0;
+  const tokens = Math.floor(totalTokens);
+  const { inputCreditsPerToken, outputCreditsPerToken } = textRatesForModel(model ?? null);
+  const promptTokens = Math.max(1, Math.floor(tokens * 0.7));
+  const completionTokens = Math.max(0, tokens - promptTokens);
+  const credits =
+    promptTokens * inputCreditsPerToken + completionTokens * outputCreditsPerToken;
+  return Math.max(1, Math.ceil(credits));
 }
 
 function clampSeconds(seconds: number): number {

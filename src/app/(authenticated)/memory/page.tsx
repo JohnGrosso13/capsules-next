@@ -103,7 +103,7 @@ export default async function MemoryPage() {
       <section className={styles.wrapper}>
         <header className={styles.hero}>
           <h1>Memory</h1>
-          <p>Upload files, media, and documents. Capsule AI will recall them instantly.</p>
+          <p>Upload files, media, and documents. Your assistant will recall them instantly.</p>
         </header>
         <PartyRecapsCarousel initialItems={seeds.partyRecaps} />
         <PollsCarousel initialItems={seeds.polls} />

@@ -85,7 +85,6 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error("store.products.draft_error", error);
-    return returnError(500, "draft_failed", "Capsule AI could not draft this product.");
+    return returnError(500, "draft_failed", "The assistant could not draft this product.");
   }
 }
-

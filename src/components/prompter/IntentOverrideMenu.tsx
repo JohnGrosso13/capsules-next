@@ -3,7 +3,6 @@
 import * as React from "react";
 import styles from "./prompter.module.css";
 import cm from "@/components/ui/context-menu.module.css";
-import { intentLabel } from "@/lib/ai/intent";
 import type { PromptIntent } from "@/lib/ai/intent";
 
 type PostModeOverride = "ai" | "manual" | null;
@@ -35,13 +34,11 @@ export function IntentOverrideMenu({
   renderTrigger?: boolean;
 }) {
   const manualLabel =
-    manualIntent === "post" && manualPostMode === "ai"
-      ? "Draft"
-      : manualIntent === "post" && manualPostMode === "manual"
-        ? "Post"
-        : manualIntent
-          ? intentLabel(manualIntent)
-          : "Auto";
+    manualIntent === "post" && manualPostMode === "manual"
+      ? "Post now"
+      : "Chat";
+
+  const chipLabel = manualLabel;
 
   return (
     <div className={`${styles.intentOverride} ${className ?? ""}`.trim()} ref={menuRef}>
@@ -57,8 +54,7 @@ export function IntentOverrideMenu({
           ref={anchorRef}
           data-intent={manualIntent ?? undefined}
         >
-          {manualIntent ? manualLabel : "Auto"}
-          {manualIntent ? " (override)" : ""}
+          {chipLabel}
           <span className={styles.intentCaret} aria-hidden>
             v
           </span>
@@ -66,15 +62,6 @@ export function IntentOverrideMenu({
       ) : null}
       {open ? (
         <div className={cm.menu} role="listbox" style={{ top: "calc(100% + 8px)", right: 0 }}>
-          <button
-            type="button"
-            className={cm.item}
-            onClick={() => onSelect(null, null)}
-            role="option"
-            aria-selected={manualIntent === null}
-          >
-            Auto (AI decide)
-          </button>
           <button
             type="button"
             className={cm.item}
@@ -87,47 +74,11 @@ export function IntentOverrideMenu({
           <button
             type="button"
             className={cm.item}
-            onClick={() => onSelect("post", "ai")}
-            role="option"
-            aria-selected={manualIntent === "post" && manualPostMode === "ai"}
-          >
-            Draft a post (AI write)
-          </button>
-          <button
-            type="button"
-            className={cm.item}
             onClick={() => onSelect("post", "manual")}
             role="option"
             aria-selected={manualIntent === "post" && manualPostMode === "manual"}
           >
-            Post now (publish)
-          </button>
-          <button
-            type="button"
-            className={cm.item}
-            onClick={() => onSelect("navigate", null)}
-            role="option"
-            aria-selected={manualIntent === "navigate"}
-          >
-            Go
-          </button>
-          <button
-            type="button"
-            className={cm.item}
-            onClick={() => onSelect("style", null)}
-            role="option"
-            aria-selected={manualIntent === "style"}
-          >
-            Style
-          </button>
-          <button
-            type="button"
-            className={cm.item}
-            onClick={() => onSelect("generate", null)}
-            role="option"
-            aria-selected={manualIntent === "generate"}
-          >
-            Generate
+            Post now
           </button>
         </div>
       ) : null}

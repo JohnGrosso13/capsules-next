@@ -136,7 +136,7 @@ export const buildTournamentConfigPayload = (form: TournamentFormState) => {
   if (form.start.trim().length) schedule.kickoff = form.start.trim();
   if (form.timezone.trim().length) schedule.timezone = form.timezone.trim();
   return {
-    objectives: ["Deliver a high-energy bracket with Capsule AI commentary."],
+    objectives: ["Deliver a high-energy bracket with assistant commentary."],
     schedule,
     registration: {
       type: form.registrationType,
@@ -554,7 +554,7 @@ export const useTournamentWizard = ({ selectedCapsule }: UseTournamentWizardArgs
     setGenerating(true);
     try {
       const payload = {
-        goal: `Construct a ${form.format.replace(/_/g, " ")} tournament with Capsule AI coverage.`,
+        goal: `Construct a ${form.format.replace(/_/g, " ")} tournament with assistant coverage.`,
         audience: trimOrNull(form.summary),
         notes: "Focus on bracket hype, match-day storytelling, and automated announcements.",
         participants: parseInteger(form.maxEntrants, 16, { min: 2, max: 128 }),

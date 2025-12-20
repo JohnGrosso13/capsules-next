@@ -147,7 +147,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
           <CardContent className={styles.namingBody}>
             <div className={styles.namingPrimary} aria-hidden="true" />
             <div className={styles.namingOr}>
-              <span>or chat with Capsule AI</span>
+              <span>or chat with your assistant</span>
             </div>
             <AssistantPrompter
               placeholder="Example: Weekly 3v3 Overwatch ladder, open sign-ups, NA/EU, best-of-three, weekly MVP shoutouts..."
@@ -180,7 +180,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
                   placeholder="Type a title..."
                 />
               </div>
-              <div className={styles.namingOr}><span>or chat with Capsule AI</span></div>
+              <div className={styles.namingOr}><span>or chat with your assistant</span></div>
               <AssistantPrompter
                 placeholder="Ask for title ideas or anything you need help with..."
                 conversation={props.assistantConversation}
@@ -209,11 +209,11 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
                 value={props.form.summary}
                 onChange={(event) => props.onFormField("summary", event.target.value)}
                 rows={3}
-                placeholder="Weekly Rocket League duels with Capsule AI recaps + spotlight prizes."
+                placeholder="Weekly Rocket League duels with assistant recaps + spotlight prizes."
               />
             </div>
             <div className={styles.namingOr}>
-              <span>or chat with Capsule AI</span>
+              <span>or chat with your assistant</span>
             </div>
               <AssistantPrompter
                 placeholder="Who is this ladder for? What's at stake?"
@@ -364,7 +364,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
           <CardHeader className={styles.namingHeader}>
             <CardTitle className={styles.namingTitle}>Basics</CardTitle>
             <CardDescription className={styles.formCardDescription}>
-              Capsule AI uses this to suggest rules, playlists, stats, and the timeline, but you can keep it lightweight to start.
+              Your assistant uses this to suggest rules, playlists, stats, and the timeline, but you can keep it lightweight to start.
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.namingBody}>
@@ -632,10 +632,10 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
               />
             </div>
             <div className={styles.namingOr}>
-              <span>or chat with Capsule AI</span>
+              <span>or chat with your assistant</span>
             </div>
             <AssistantPrompter
-              placeholder="Ask Capsule AI to draft the overview or tighten the hook..."
+              placeholder="Ask your assistant to draft the overview or tighten the hook..."
               conversation={props.assistantConversation}
               draft={props.assistantDraft}
               busy={props.assistantBusy ?? false}
@@ -665,7 +665,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
               />
             </div>
             <div className={styles.namingOr}>
-              <span>or chat with Capsule AI</span>
+              <span>or chat with your assistant</span>
             </div>
             <AssistantPrompter
               placeholder="Ask for a full ruleset, anti-cheat notes, or dispute policy..."
@@ -698,7 +698,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
               />
             </div>
           <div className={styles.namingOr}>
-            <span>or chat with Capsule AI</span>
+            <span>or chat with your assistant</span>
           </div>
           <AssistantPrompter
             placeholder="Ask for spotlight themes, weekly awards, or story hooks..."
@@ -750,7 +750,7 @@ function GuidedStepContentBase(props: GuidedStepContentProps) {
               />
             </div>
             <div className={styles.namingOr}>
-              <span>or chat with Capsule AI</span>
+              <span>or chat with your assistant</span>
             </div>
             <AssistantPrompter
               placeholder="Ask for prize ideas, seasonal incentives, or sponsor-friendly rewards..."

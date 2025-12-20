@@ -25,7 +25,7 @@ const responseSchema = z.object({
 });
 
 const SYSTEM_PROMPT =
-  "You are Capsule AI, an editorial assistant that helps creators write vivid one-line ladder summaries. Keep lines under 200 characters, highlight the hook, cadence, or rewards, and write with energy.";
+  "You are an editorial assistant that helps creators write vivid one-line ladder summaries. Keep lines under 200 characters, highlight the hook, cadence, or rewards, and write with energy.";
 
 function mapMessages(
   data: z.infer<typeof requestSchema>,
@@ -56,11 +56,11 @@ function mapMessages(
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
-    return returnError(401, "auth_required", "Sign in to chat with Capsule AI.");
+    return returnError(401, "auth_required", "Sign in to chat with your assistant.");
   }
 
   if (!hasOpenAIApiKey()) {
-    return returnError(503, "ai_unavailable", "Capsule AI is not configured.");
+    return returnError(503, "ai_unavailable", "The assistant is not configured.");
   }
 
   const parsed = await parseJsonBody(req, requestSchema);
@@ -91,18 +91,18 @@ export async function POST(req: Request) {
 
     if (!completion.ok) {
       console.error("ladder-summary.chat failure", payload);
-      return returnError(502, "ai_error", "Capsule AI is unavailable right now.");
+      return returnError(502, "ai_error", "The assistant is unavailable right now.");
     }
 
     const message = payload?.choices?.[0]?.message?.content?.trim() ?? "";
     if (!message) {
-      return returnError(502, "ai_error", "Capsule AI returned an empty response.");
+      return returnError(502, "ai_error", "The assistant returned an empty response.");
     }
 
     return validatedJson(responseSchema, { message });
   } catch (error) {
     console.error("ladder-summary.chat error", error);
-    return returnError(502, "ai_error", "Capsule AI failed to respond.");
+    return returnError(502, "ai_error", "The assistant failed to respond.");
   }
 }
 

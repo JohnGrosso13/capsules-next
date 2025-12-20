@@ -40,7 +40,7 @@ import { usePartyContext, type PartySession } from "@/components/providers/Party
 import { preferDisplayName } from "@/lib/users/format";
 import cm from "@/components/ui/context-menu.module.css";
 import styles from "./party-panel.module.css";
-import { initialsFromName, MAX_TRANSCRIPT_SEGMENTS, type ParticipantProfile, type PartyTranscriptSegment } from "./partyTypes";
+import { initialsFromName, type ParticipantProfile, type PartyTranscriptSegment } from "./partyTypes";
 
 type NavigatorUserMediaSuccessCallback = (stream: MediaStream) => void;
 type NavigatorUserMediaErrorCallback = (error: DOMException) => void;
@@ -229,7 +229,7 @@ const PartyStageScene = React.memo(function PartyStageScene({
       if (Number.isFinite(bStart)) return 1;
       return a.id.localeCompare(b.id);
     });
-    onTranscriptsChange(entries.slice(-MAX_TRANSCRIPT_SEGMENTS));
+    onTranscriptsChange(entries);
   }, [onTranscriptsChange]);
 
   const applyParticipantAudioState = React.useCallback(() => {
@@ -371,22 +371,6 @@ const PartyStageScene = React.memo(function PartyStageScene({
           entry.final = segment.final;
         }
         transcriptBufferRef.current.set(segment.id, entry);
-      }
-
-      if (transcriptBufferRef.current.size > MAX_TRANSCRIPT_SEGMENTS * 2) {
-        const trimmedEntries = Array.from(transcriptBufferRef.current.entries())
-          .sort((a, b) => {
-            const aStart = a[1].startTime ?? Number.POSITIVE_INFINITY;
-            const bStart = b[1].startTime ?? Number.POSITIVE_INFINITY;
-            if (Number.isFinite(aStart) && Number.isFinite(bStart)) {
-              return aStart - bStart;
-            }
-            if (Number.isFinite(aStart)) return -1;
-            if (Number.isFinite(bStart)) return 1;
-            return a[0].localeCompare(b[0]);
-          })
-          .slice(-MAX_TRANSCRIPT_SEGMENTS);
-        transcriptBufferRef.current = new Map(trimmedEntries);
       }
 
       flushTranscripts();

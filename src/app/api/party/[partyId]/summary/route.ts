@@ -4,6 +4,17 @@ import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { summarizeText } from "@/lib/ai/summary";
 import { indexMemory } from "@/lib/supabase/memories";
 import {
+  computeTextCreditsFromTokens,
+  estimateTokensFromText,
+  memoryUpsertCredits,
+} from "@/lib/billing/usage";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import {
   fetchPartyMetadata,
   isUserInParty,
   updatePartyMetadata,
@@ -137,7 +148,7 @@ function formatTimestamp(value: number | undefined): string | null {
   return segments.join(":");
 }
 
-function buildTranscriptSegments(rawSegments: SegmentInput[]): string[] {
+export function buildTranscriptSegments(rawSegments: SegmentInput[]): string[] {
   const deduped = new Map<string, SegmentInput>();
   for (const segment of rawSegments) {
     if (!segment?.id || !segment.text || !segment.text.trim().length) continue;
@@ -156,7 +167,7 @@ function buildTranscriptSegments(rawSegments: SegmentInput[]): string[] {
   });
 
   const formatted: string[] = [];
-  let remaining = 12000;
+  const CHAR_BUDGET = 12000;
 
   for (const entry of entries) {
     const text = entry.text.trim();
@@ -170,14 +181,42 @@ function buildTranscriptSegments(rawSegments: SegmentInput[]): string[] {
     const timestamp = formatTimestamp(entry.startTime);
     const prefix = timestamp ? `[${timestamp}] ${speaker}` : speaker;
     const composed = `${prefix}: ${text}`;
-    const snippet = composed.length > remaining ? composed.slice(0, remaining) : composed;
-    if (!snippet.length) break;
-    formatted.push(snippet);
-    remaining -= snippet.length + 2;
-    if (remaining <= 0) break;
+    formatted.push(composed);
   }
 
-  return formatted;
+  if (!formatted.length) {
+    return [];
+  }
+
+  const totalLength = formatted.reduce((sum, value) => sum + value.length + 2, 0);
+  if (totalLength <= CHAR_BUDGET) {
+    return formatted;
+  }
+
+  // Downsample evenly across the conversation so long parties keep early and late context.
+  const stride = Math.max(1, Math.ceil(totalLength / CHAR_BUDGET));
+  const sampled: string[] = [];
+  for (let index = 0; index < formatted.length; index += stride) {
+    sampled.push(formatted[index]!);
+  }
+  const last = formatted[formatted.length - 1]!;
+  if (sampled[sampled.length - 1] !== last) {
+    sampled.push(last);
+  }
+
+  const trimmed: string[] = [];
+  let remaining = CHAR_BUDGET;
+  for (const snippet of sampled) {
+    if (remaining <= 0) break;
+    const allowed = remaining - 2;
+    if (allowed <= 0) break;
+    const next = snippet.length > allowed ? snippet.slice(0, allowed) : snippet;
+    if (!next.length) continue;
+    trimmed.push(next);
+    remaining -= next.length + 2;
+  }
+
+  return trimmed;
 }
 
 function summarizeResultToResponse(
@@ -301,6 +340,34 @@ export async function POST(
     return returnError(409, "summary_disabled", "Party summaries are currently disabled.");
   }
 
+  let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+  try {
+    walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId: userId,
+      supabaseUserId: userId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "Party summaries",
+    });
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("party.summary.billing_init_failed", billingError);
+    return returnError(500, "billing_error", "Failed to verify summary allowance.");
+  }
+
   const transcriptSegments = buildTranscriptSegments(body.segments);
   if (!transcriptSegments.length) {
     return returnError(400, "no_transcript", "No transcript content provided.");
@@ -329,6 +396,38 @@ export async function POST(
 
   const nowIso = new Date().toISOString();
   const rawTranscript = transcriptSegments.join("\n");
+
+  const textTokenEstimate =
+    summaryInput.tokens ?? estimateTokensFromText(rawTranscript || null) ?? 0;
+  const textCreditCost = computeTextCreditsFromTokens(textTokenEstimate, summaryInput.model);
+  const memoryCreditCost = memoryUpsertCredits(
+    `${summaryInput.summary}\n\nTranscript:\n${rawTranscript}`,
+  );
+  const computeCost = Math.max(0, Math.ceil(textCreditCost + memoryCreditCost));
+
+  try {
+    if (walletContext && computeCost > 0 && !walletContext.bypass) {
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "compute",
+        amount: computeCost,
+        reason: "party.summary",
+        bypass: walletContext.bypass,
+      });
+    }
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("party.summary.billing_charge_failed", billingError);
+    return returnError(500, "billing_error", "Failed to record billing for this summary.");
+  }
 
   const memoryMeta: Record<string, unknown> = {
     party_id: metadata.partyId,

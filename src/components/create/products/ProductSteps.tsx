@@ -308,7 +308,7 @@ export function ProductStepContent({
             </span>
           </div>
           <div className={styles.namingOr}>
-            <span>or chat with Capsule AI</span>
+            <span>or chat with your assistant</span>
           </div>
           <AssistantPrompter
             placeholder="Example: Limited-run hoodie collab with embroidered logo, heavy weight, unisex fit..."
@@ -349,7 +349,7 @@ export function ProductStepContent({
             rows={2}
           />
           <div className={styles.namingOr}>
-            <span>or chat with Capsule AI</span>
+            <span>or chat with your assistant</span>
           </div>
           <AssistantPrompter
             placeholder="Ask for title ideas or anything you need help with..."
@@ -381,7 +381,7 @@ export function ProductStepContent({
             rows={3}
           />
           <div className={styles.namingOr}>
-            <span>or chat with Capsule AI</span>
+            <span>or chat with your assistant</span>
           </div>
           <AssistantPrompter
             placeholder="Who is this for? What’s the vibe? Any shoutouts or causes to mention?"
@@ -422,7 +422,7 @@ export function ProductStepContent({
             />
           </div>
           <div className={styles.namingOr}>
-            <span>or chat with Capsule AI</span>
+            <span>or chat with your assistant</span>
           </div>
           <AssistantPrompter
             placeholder="Share your target margin or competitor pricing and I'll suggest a price..."

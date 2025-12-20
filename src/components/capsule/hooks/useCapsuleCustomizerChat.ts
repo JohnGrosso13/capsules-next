@@ -20,8 +20,13 @@ import { capsuleVariantSchema, type CapsuleVariant } from "./capsuleCustomizerTy
 import { buildPromptEnvelope } from "./capsulePromptUtils";
 import { base64ToFile } from "./capsuleImageUtils";
 import { callAiPrompt } from "@/services/composer/ai";
+import {
+  fetchCustomizerConversations,
+  fetchCustomizerConversationSnapshot,
+  type CustomizerConversationSnapshot,
+} from "@/services/customizer/conversations";
 import { customizerDraftSchema, type CustomizerDraft } from "@/shared/schemas/customizer";
-import type { ComposerChatMessage } from "@/lib/composer/chat-types";
+import { sanitizeComposerChatHistory, type ComposerChatMessage } from "@/lib/composer/chat-types";
 import type { ComposerImageQuality } from "@/lib/composer/image-settings";
 
 const MAX_PROMPT_REFINEMENTS = 4;
@@ -31,7 +36,7 @@ const SYSTEM_PROMPT =
 
 const MODE_ASPECT_RATIO: Record<CapsuleCustomizerMode, number> = {
   banner: 16 / 9,
-  storeBanner: 5 / 2,
+  storeBanner: 16 / 9,
   tile: 9 / 16,
   logo: 1,
   avatar: 1,
@@ -47,6 +52,51 @@ const AI_CROP_BIAS: Record<CapsuleCustomizerMode, { x: number; y: number }> = {
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 const clampBias = (value: number) => clamp(value, -1, 1);
+const RECENTS_LIMIT = 20;
+const RECENT_SNIPPET_LIMIT = 160;
+
+type RecentConversation = {
+  threadId: string;
+  title: string;
+  subtitle: string;
+  updatedAt: string;
+  prompt: string;
+  message: string | null;
+};
+
+function truncate(text: string, max: number = RECENT_SNIPPET_LIMIT): string {
+  if (!text || !text.trim().length) return "";
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, max - 3))}...`;
+}
+
+function mapHistoryToChatMessages(history: ComposerChatMessage[]): ChatMessage[] {
+  return history
+    .filter((entry) => entry && (entry.role === "user" || entry.role === "assistant"))
+    .map((entry, index) => {
+      const role: ChatMessage["role"] = entry.role === "assistant" ? "assistant" : "user";
+      return {
+        id: entry.id || `${entry.role}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        role,
+        content: typeof entry.content === "string" ? entry.content : "",
+      };
+    })
+    .filter((entry) => entry.content.trim().length);
+}
+
+function buildRecentFromSnapshot(snapshot: CustomizerConversationSnapshot): RecentConversation {
+  const promptSnippet = truncate(snapshot.prompt, RECENT_SNIPPET_LIMIT);
+  const messageSnippet = truncate(snapshot.message ?? "", RECENT_SNIPPET_LIMIT);
+  return {
+    threadId: snapshot.threadId,
+    title: promptSnippet || "Untitled chat",
+    subtitle: messageSnippet || "Open to continue",
+    updatedAt: snapshot.updatedAt,
+    prompt: snapshot.prompt,
+    message: snapshot.message,
+  };
+}
 
 type UseCustomizerChatOptions = {
   aiWorkingMessage: string;
@@ -108,9 +158,10 @@ function shouldUseChatMode(prompt: string): boolean {
 function mapMessagesToComposerHistory(entries: ChatMessage[]): ComposerChatMessage[] {
   return entries.map((entry, index) => ({
     id: entry.id,
-    role: entry.role,
+    role: entry.role === "assistant" ? "assistant" : "user",
     content: entry.content,
     createdAt: new Date(Date.now() - (entries.length - index) * 1000).toISOString(),
+    attachments: null,
   }));
 }
 
@@ -242,7 +293,7 @@ function _buildAssistantResponse({
 
 function buildIntroMessages(
   intro: string,
-  clarifier?: CapsulePromptClarifier | null,
+  _clarifier?: CapsulePromptClarifier | null,
 ): ChatMessage[] {
   const normalizedIntro = intro.trim().length
     ? intro.trim()
@@ -252,21 +303,10 @@ function buildIntroMessages(
     role: "assistant",
     content: normalizedIntro,
   };
-  const clarifierPrompt = clarifier?.prompt?.trim();
-  if (!clarifierPrompt) {
-    return [introMessage];
-  }
-  const normalizedSuggestions =
-    clarifier?.suggestions
-      ?.map((suggestion) => suggestion.trim())
-      .filter((suggestion) => suggestion.length > 0) ?? [];
-  const clarifierMessage: ChatMessage = {
-    id: randomId(),
-    role: "assistant",
-    content: clarifierPrompt,
-    suggestions: normalizedSuggestions,
-  };
-  return [introMessage, clarifierMessage];
+  // For the customizer, keep the intro lightweight and conversational.
+  // Avoid injecting clarifier messages or intent chips so the flow
+  // matches the standard AI Composer experience.
+  return [introMessage];
 }
 
 export function useCapsuleCustomizerChat({
@@ -294,6 +334,10 @@ export function useCapsuleCustomizerChat({
   const [messages, setMessages] = React.useState<ChatMessage[]>(() =>
     buildIntroMessages(assistantIntro, clarifier),
   );
+  const [threadId, setThreadId] = React.useState<string | null>(null);
+  const [recents, setRecents] = React.useState<RecentConversation[]>([]);
+  const [recentsLoading, setRecentsLoading] = React.useState(true);
+  const [recentsError, setRecentsError] = React.useState<string | null>(null);
   const [chatBusy, setChatBusy] = React.useState(false);
   const [prompterSession, setPrompterSession] = React.useState(0);
   const chatLogRef = React.useRef<HTMLDivElement | null>(null);
@@ -333,6 +377,41 @@ export function useCapsuleCustomizerChat({
     setChatBusy(false);
   }, [abortInFlight, shouldAbort]);
 
+  const refreshRecents = React.useCallback(async () => {
+    setRecentsLoading(true);
+    setRecentsError(null);
+    try {
+      const summaries = await fetchCustomizerConversations();
+      const mapped = summaries.map((summary) =>
+        buildRecentFromSnapshot({
+          threadId: summary.threadId,
+          prompt: summary.prompt,
+          message: summary.message,
+          updatedAt: summary.updatedAt,
+          history: summary.history ?? [],
+        }),
+      );
+      setRecents(mapped.slice(0, RECENTS_LIMIT));
+    } catch (error) {
+      console.warn("customizer recents load failed", error);
+      setRecentsError(error instanceof Error ? error.message : "Failed to load recent chats.");
+    } finally {
+      setRecentsLoading(false);
+    }
+  }, []);
+
+  const upsertRecent = React.useCallback((next: RecentConversation) => {
+    setRecents((prev) => {
+      const filtered = prev.filter((entry) => entry.threadId !== next.threadId);
+      return [next, ...filtered].slice(0, RECENTS_LIMIT);
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    void refreshRecents();
+  }, [open, refreshRecents]);
+
   const resetPromptHistory = React.useCallback(() => {
     promptHistoryRef.current = { base: null, refinements: [], sourceKey: null };
   }, []);
@@ -362,6 +441,32 @@ export function useCapsuleCustomizerChat({
     return `Recent conversation (${chatParts || "none"}). Current selection: ${selectionSummary}.`;
   }, [selectedBannerRef]);
 
+  const handleSelectRecentConversation = React.useCallback(
+    async (targetThreadId: string) => {
+      if (!targetThreadId) return;
+      setChatBusy(true);
+      try {
+        const snapshot = await fetchCustomizerConversationSnapshot(targetThreadId);
+        if (!snapshot) {
+          await refreshRecents();
+          return;
+        }
+        const mapped = mapHistoryToChatMessages(snapshot.history);
+        setMessages(mapped.length ? mapped : buildIntroMessages(assistantIntro, clarifier));
+        setThreadId(snapshot.threadId);
+        updateSelectedBanner(null);
+        resetPromptHistory();
+        setPrompterSession((value) => value + 1);
+      } catch (error) {
+        console.warn("customizer recent load failed", error);
+        setRecentsError(error instanceof Error ? error.message : "Failed to open conversation.");
+      } finally {
+        setChatBusy(false);
+      }
+    },
+    [assistantIntro, clarifier, refreshRecents, resetPromptHistory, updateSelectedBanner],
+  );
+
   const resetConversation = React.useCallback(
     (intro: string, clarifierOverride?: CapsulePromptClarifier | null) => {
       const clarifierToUse =
@@ -371,6 +476,7 @@ export function useCapsuleCustomizerChat({
       updateSelectedBanner(null);
       resetPromptHistory();
       customizerDraftRef.current = null;
+      setThreadId(null);
       setPrompterSession((value) => value + 1);
     },
     [clarifier, resetPromptHistory, updateSelectedBanner],
@@ -792,6 +898,7 @@ export function useCapsuleCustomizerChat({
             const promptResponse = await callAiPrompt({
               message: trimmed,
               options: customizerPayload,
+              threadId: threadId ?? null,
               capsuleId: capsuleId ?? null,
               attachments: actionAttachments ?? null,
               history: historyPayload,
@@ -810,6 +917,8 @@ export function useCapsuleCustomizerChat({
                 ? promptResponse.message.trim()
                 : null) ??
               "Let me know if you want me to generate or edit a visual.";
+            const resolvedThreadId = promptResponse.threadId?.trim() || threadId || randomId();
+            setThreadId(resolvedThreadId);
             setMessages((prev) =>
               prev.map((entry) =>
                 entry.id === assistantId
@@ -821,6 +930,14 @@ export function useCapsuleCustomizerChat({
               ),
             );
             setChatBusy(false);
+            const recentEntry = buildRecentFromSnapshot({
+              threadId: resolvedThreadId,
+              prompt: trimmed,
+              message: replyText,
+              updatedAt: new Date().toISOString(),
+              history: sanitizeComposerChatHistory(promptResponse.history ?? historyPayload),
+            });
+            upsertRecent(recentEntry);
             return;
           }
 
@@ -892,6 +1009,7 @@ export function useCapsuleCustomizerChat({
             message: promptForRequest,
             options: customizerPayload,
             ...(previousDraftPayload ? { post: previousDraftPayload } : {}),
+            threadId: threadId ?? null,
             capsuleId: capsuleId ?? null,
             attachments: actionAttachments ?? null,
             history: historyPayload,
@@ -907,6 +1025,11 @@ export function useCapsuleCustomizerChat({
               );
             },
           });
+          const resolvedThreadId = promptResponse.threadId?.trim() || threadId || randomId();
+          setThreadId(resolvedThreadId);
+          const normalizedHistory = sanitizeComposerChatHistory(
+            promptResponse.history ?? historyPayload,
+          );
 
           if (promptResponse.action === "chat_reply") {
             const replyText =
@@ -923,6 +1046,14 @@ export function useCapsuleCustomizerChat({
                   : entry,
               ),
             );
+            const recentEntry = buildRecentFromSnapshot({
+              threadId: resolvedThreadId,
+              prompt: trimmed,
+              message: replyText,
+              updatedAt: new Date().toISOString(),
+              history: sanitizeComposerChatHistory(promptResponse.history ?? historyPayload),
+            });
+            upsertRecent(recentEntry);
             return;
           }
 
@@ -949,7 +1080,7 @@ export function useCapsuleCustomizerChat({
 
           const assetUrl = draft?.asset?.url ?? null;
           if (!assetUrl) {
-            throw new Error("Capsule AI did not return an asset to preview.");
+            throw new Error("The assistant did not return an asset to preview.");
           }
           const mimeType =
             draft?.asset?.mimeType && draft.asset.mimeType.trim().length
@@ -1016,11 +1147,18 @@ export function useCapsuleCustomizerChat({
                     ...entry,
                     content: responseCopy,
                     bannerOptions: [bannerOption],
-                    suggestions: draft?.suggestions ?? [],
                   }
                 : entry,
             ),
           );
+          const recentEntry = buildRecentFromSnapshot({
+            threadId: resolvedThreadId,
+            prompt: trimmed,
+            message: responseCopy,
+            updatedAt: new Date().toISOString(),
+            history: normalizedHistory,
+          });
+          upsertRecent(recentEntry);
         } catch (error) {
           if ((error as { name?: string })?.name === "AbortError") {
             return;
@@ -1070,11 +1208,17 @@ export function useCapsuleCustomizerChat({
   return {
     messages,
     chatBusy,
+    recents,
+    recentsLoading,
+    recentsError,
     prompterSession,
     chatLogRef,
     handlePrompterAction,
     handleBannerOptionSelect,
     handleSuggestionSelect,
+    onSelectRecent: handleSelectRecentConversation,
+    refreshRecents,
+    threadId,
     resetPromptHistory,
     resetConversation,
     syncBannerCropToMessages,

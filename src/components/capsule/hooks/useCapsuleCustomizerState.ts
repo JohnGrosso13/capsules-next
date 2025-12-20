@@ -76,7 +76,7 @@ const DEFAULT_PROMPTER_CHIPS = [
 
 const COMMON_CUSTOMIZER_CLARIFIER: CapsulePromptClarifier = {
   prompt:
-    "You're chatting with Capsule AI while you customize. I can generate visuals or just chat—feel free to ask anything.",
+    "You're chatting with your assistant while you customize. I can generate visuals or just chat-feel free to ask anything.",
   suggestions: [
     "Brainstorm a banner idea",
     "Help with capsule copy",
@@ -107,10 +107,23 @@ export type UseCapsuleCustomizerOptions = {
 export type CapsuleChatState = {
   messages: ChatMessage[];
   busy: boolean;
+  recents: Array<{
+    threadId: string;
+    title: string;
+    subtitle: string;
+    updatedAt: string;
+    prompt: string;
+    message: string | null;
+  }>;
+  recentsLoading: boolean;
+  recentsError: string | null;
   prompterSession: number;
+  threadId: string | null;
   onPrompterAction: (action: PrompterAction) => void;
   onBannerSelect: (option: ChatBannerOption) => void;
   onSuggestionSelect: (value: string) => void;
+  onSelectRecent: (threadId: string) => void;
+  refreshRecents: () => void;
   logRef: React.RefObject<HTMLDivElement | null>;
   smartContextEnabled: boolean;
   onToggleSmartContext: () => void;
@@ -509,11 +522,17 @@ export function useCapsuleCustomizerState(
   const {
     messages,
     chatBusy,
+    recents,
+    recentsLoading,
+    recentsError,
     prompterSession,
+    threadId,
     chatLogRef,
     handlePrompterAction,
     handleBannerOptionSelect,
     handleSuggestionSelect,
+    onSelectRecent,
+    refreshRecents,
     resetPromptHistory,
     resetConversation,
     syncBannerCropToMessages,
@@ -681,10 +700,16 @@ export function useCapsuleCustomizerState(
     chat: {
       messages,
       busy: chatBusy,
+      recents,
+      recentsLoading,
+      recentsError,
       prompterSession,
+      threadId,
       onPrompterAction: handlePrompterAction,
       onBannerSelect: handleBannerOptionSelect,
       onSuggestionSelect: handleSuggestionSelect,
+      onSelectRecent,
+      refreshRecents,
       logRef: chatLogRef,
       smartContextEnabled,
       onToggleSmartContext: handleToggleSmartContext,

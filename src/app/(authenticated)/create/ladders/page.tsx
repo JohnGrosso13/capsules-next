@@ -12,7 +12,7 @@ import { resolveCapsuleGate, getCapsuleSummaryForViewer } from "@/server/capsule
 export const metadata: Metadata = {
   title: "Ladders & Tournaments - Capsules",
   description:
-    "Build ladders and tournament brackets with Capsule AI handling copy, schedules, and community updates.",
+    "Build ladders and tournament brackets with your assistant handling copy, schedules, and community updates.",
 };
 
 type LadderCreateSearchParams = Record<string, string | string[] | undefined>;

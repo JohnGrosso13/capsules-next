@@ -34,6 +34,7 @@ type UsePartySummaryOptions = {
 
 export function usePartySummary({ session, updateMetadata }: UsePartySummaryOptions) {
   const [summaryError, setSummaryError] = React.useState<string | null>(null);
+  const [summaryErrorCode, setSummaryErrorCode] = React.useState<string | null>(null);
   const [summaryUpdating, setSummaryUpdating] = React.useState(false);
   const [summaryGenerating, setSummaryGenerating] = React.useState(false);
   const [summaryResult, setSummaryResult] = React.useState<SummaryResult | null>(null);
@@ -64,6 +65,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
     if (!session) {
       setSummaryResult(null);
       setSummaryError(null);
+      setSummaryErrorCode(null);
       setTranscriptSegments([]);
     }
   }, [session?.partyId, session]);
@@ -71,6 +73,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
   React.useEffect(() => {
     if (!summarySettings.enabled) {
       setSummaryResult(null);
+      setSummaryErrorCode(null);
     }
   }, [summarySettings.enabled]);
 
@@ -83,6 +86,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
       setSummaryUpdating(true);
       setSummaryError(null);
       try {
+        setSummaryErrorCode(null);
         const response = await fetch(`/api/party/${session.partyId}/summary`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -90,6 +94,10 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok) {
+          const errorCode =
+            payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string"
+              ? ((payload as { error: string }).error as string)
+              : null;
           const message =
             (payload &&
               typeof payload === "object" &&
@@ -97,6 +105,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
               typeof (payload as { message?: unknown }).message === "string"
               ? (payload as { message?: string }).message
               : null) ?? "Unable to update summary settings.";
+          if (errorCode) setSummaryErrorCode(errorCode);
           throw new Error(message);
         }
         const parsed = partySummarySettingsSchema.safeParse(payload);
@@ -158,9 +167,9 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
     }
     setSummaryGenerating(true);
     setSummaryError(null);
+    setSummaryErrorCode(null);
     try {
-      const recentSegments = transcriptSegments.slice(-160);
-      const segmentsPayload = recentSegments.map((segment) => {
+      const segmentsPayload = transcriptSegments.map((segment) => {
         const payload: {
           id: string;
           text: string;
@@ -191,7 +200,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
         return payload;
       });
       const participantMap = new Map<string, string | null>();
-      for (const segment of recentSegments) {
+      for (const segment of transcriptSegments) {
         if (segment.speakerId && !participantMap.has(segment.speakerId)) {
           participantMap.set(segment.speakerId, segment.speakerName ?? null);
         }
@@ -220,6 +229,10 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
         typeof payload !== "object" ||
         (payload as PartySummaryResponse).status !== "ok"
       ) {
+        const errorCode =
+          payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string"
+            ? ((payload as { error: string }).error as string)
+            : null;
         const message =
           payload &&
           typeof payload === "object" &&
@@ -227,6 +240,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
           typeof (payload as { message?: unknown }).message === "string"
             ? (payload as { message?: string }).message
             : "Unable to generate a party summary.";
+        if (errorCode) setSummaryErrorCode(errorCode);
         throw new Error(message);
       }
       const summaryPayload = payload as PartySummaryResponse;
@@ -261,6 +275,7 @@ export function usePartySummary({ session, updateMetadata }: UsePartySummaryOpti
     summarySettings,
     summaryResult,
     summaryError,
+    summaryErrorCode,
     summaryUpdating,
     summaryGenerating,
     transcriptSegments,

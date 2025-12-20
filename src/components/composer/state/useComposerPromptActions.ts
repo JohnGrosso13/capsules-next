@@ -352,7 +352,7 @@ export function useComposerPromptActions({
         const errorMessage =
           error instanceof Error && error.message
             ? error.message.trim()
-            : "Capsule AI ran into an unexpected error.";
+            : "Your assistant ran into an unexpected error.";
         const assistantError: ComposerChatMessage = {
           id: safeRandomUUID(),
           role: "assistant",
@@ -746,7 +746,9 @@ export function useComposerPromptActions({
         console.error("Composer prompt submit failed", error);
         if (!isRequestActive(requestToken)) return;
         const errorMessage =
-          error instanceof Error && error.message ? error.message.trim() : "Capsule AI ran into an unexpected error.";
+          error instanceof Error && error.message
+            ? error.message.trim()
+            : "Your assistant ran into an unexpected error.";
         setState((prev) => {
           const fallbackVideoStatus = expectVideo
             ? {

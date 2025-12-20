@@ -109,7 +109,7 @@ function buildFallbackArticles(
   if (!fallbackParagraphs.length) {
     const message =
       timeframe.posts.length === 0
-        ? `Capsule AI didn't find new activity for ${timeframe.label.toLowerCase()}. Share an update to get this wiki started.`
+        ? `Your assistant didn't find new activity for ${timeframe.label.toLowerCase()}. Share an update to get this wiki started.`
         : `${timeframe.posts.length} update${timeframe.posts.length === 1 ? "" : "s"} were shared. Capture the highlights to keep your team aligned.`;
     fallbackParagraphs.push(message);
   }
@@ -137,7 +137,7 @@ function buildFallbackArticles(
     links,
   };
   if (!metadata.paragraphs.length) {
-    metadata.paragraphs = [`Capsule AI is still gathering updates for ${timeframe.label.toLowerCase()}.`];
+    metadata.paragraphs = [`Your assistant is still gathering updates for ${timeframe.label.toLowerCase()}.`];
   }
   const articleText = metadata.paragraphs[0] ?? `${timeframe.label} recap`;
 

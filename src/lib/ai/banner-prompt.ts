@@ -53,6 +53,7 @@ export function buildLiteralBannerPrompt(options: {
   userPrompt: string;
   capsuleName?: string | null;
   mode?: BannerPromptMode;
+  compositionHint?: string | null;
 }): string {
   const userPrompt = normalize(options.userPrompt);
   const capsuleName = normalize(options.capsuleName || "");
@@ -76,19 +77,16 @@ export function buildLiteralBannerPrompt(options: {
 
   lines.push(subjectLine);
 
-  if (mode === "generate") {
-    lines.push(
-      "Composition: 16:9 wide hero image with a clear focal point and layered depth; reserve gentle negative space near the top for interface.",
-    );
-  } else {
-    lines.push(
-      "Edit the supplied image to follow the instruction while keeping overall composition and focal hierarchy. Maintain 16:9 hero framing.",
-    );
-  }
+  const compositionLine =
+    typeof options.compositionHint === "string" && options.compositionHint.trim().length
+      ? options.compositionHint.trim()
+      : mode === "generate"
+        ? "Composition: 16:9 wide hero image with a clear focal point and layered depth; reserve gentle negative space near the top for interface."
+        : "Edit the supplied image to follow the instruction while keeping overall composition and focal hierarchy. Maintain 16:9 hero framing.";
+  lines.push(compositionLine);
 
   lines.push("Constraints: No text, no logos, no watermarks. Keep the top third low-noise.");
   lines.push(ipSafeNote);
 
   return lines.join("\n");
 }
-

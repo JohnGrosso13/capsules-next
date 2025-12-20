@@ -209,9 +209,12 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       throw new Error("render_banner requires a prompt.");
     }
     const { compose } = runtime;
+    const bannerMode =
+      compose.mode === "storeBanner" || compose.mode === "tile" ? compose.mode : "banner";
     const options: BannerAssetInput = {
       prompt,
       ownerId: runtime.ownerId,
+      mode: bannerMode,
       capsuleName: compose.capsuleName ?? compose.displayName ?? null,
       capsuleId: runtime.capsuleId ?? null,
       stylePreset: compose.stylePreset ?? null,
@@ -265,7 +268,8 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   },
   async edit_asset(input, runtime) {
     const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
-    const asset = typeof input.asset === "string" ? input.asset : runtime.compose.mode;
+    const rawAsset = typeof input.asset === "string" ? input.asset : runtime.compose.mode;
+    const asset = rawAsset === "storeBanner" || rawAsset === "tile" ? "banner" : rawAsset;
     if (!prompt.length) {
       throw new Error("edit_asset requires a prompt.");
     }
@@ -277,9 +281,12 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
       throw new Error("No asset available to edit.");
     }
     if (asset === "banner") {
+      const bannerMode =
+        compose.mode === "storeBanner" || compose.mode === "tile" ? compose.mode : "banner";
       const options: BannerEditInput = {
         prompt,
         ownerId: runtime.ownerId,
+        mode: bannerMode,
         capsuleName: compose.capsuleName ?? compose.displayName ?? null,
         capsuleId: runtime.capsuleId ?? null,
         variantId: compose.variantId ?? null,

@@ -5,7 +5,9 @@ import {
   sanitizeComposerChatAttachment,
   sanitizeComposerChatHistory,
   type ComposerChatAttachment,
+  type ComposerChatMessage,
 } from "@/lib/composer/chat-types";
+import { safeRandomUUID } from "@/lib/random";
 import { promptResponseSchema } from "@/shared/schemas/ai";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
 import { runCustomizerToolSession, type CustomizerComposeContext } from "@/server/customizer/run";
@@ -24,6 +26,10 @@ import {
 } from "@/server/chat/retrieval";
 import { getUserCardCached } from "@/server/chat/user-card";
 import { shouldEnableMemoryContext } from "@/server/chat/context-gating";
+import {
+  storeCustomizerConversationSnapshot,
+  type CustomizerConversationSnapshot,
+} from "@/server/customizer/conversation-store";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -56,6 +62,7 @@ const requestSchema = z.object({
   capsuleId: z.string().uuid().optional().nullable(),
   useContext: z.boolean().optional(),
   stream: z.boolean().optional(),
+  threadId: z.string().optional(),
 });
 
 function sanitizeAttachments(
@@ -130,6 +137,7 @@ type ContextRecord = {
 
 const CONTEXT_SNIPPET_LIMIT = 6;
 const CONTEXT_CHAR_BUDGET = 4000;
+const HISTORY_RETURN_LIMIT = 24;
 
 function trimContextSnippets(
   snippets: ChatMemorySnippet[],
@@ -160,6 +168,11 @@ export async function POST(req: Request) {
   }
 
   const { message, options, post, history, attachments, capsuleId, stream } = parsed.data;
+  const providedThreadId =
+    typeof parsed.data.threadId === "string" && parsed.data.threadId.trim().length
+      ? parsed.data.threadId.trim()
+      : null;
+  const threadId = providedThreadId ?? safeRandomUUID();
 
   const rawReplyMode =
     options && typeof options === "object" && typeof (options as Record<string, unknown>).replyMode === "string"
@@ -354,6 +367,14 @@ export async function POST(req: Request) {
         const send = (payload: Record<string, unknown>) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
         };
+        const timestamp = new Date().toISOString();
+        const userEntry: ComposerChatMessage = {
+          id: safeRandomUUID(),
+          role: "user",
+          content: message,
+          createdAt: timestamp,
+          attachments: attachmentList.length ? attachmentList : null,
+        };
         try {
           const run = await runCustomizerToolSession({
             ownerId,
@@ -373,13 +394,47 @@ export async function POST(req: Request) {
               },
             },
           });
-          send({ event: "done", payload: { ...run.response, context: responseContext } });
+          const assistantMessage =
+            typeof run.response.message === "string" && run.response.message.trim().length
+              ? run.response.message.trim()
+              : "Updated your capsule visual.";
+          const assistantEntry: ComposerChatMessage = {
+            id: safeRandomUUID(),
+            role: "assistant" as const,
+            content: assistantMessage,
+            createdAt: new Date().toISOString(),
+            attachments: null,
+          };
+          const historyOut: ComposerChatMessage[] = [
+            ...historySanitized,
+            userEntry,
+            assistantEntry,
+          ].slice(-HISTORY_RETURN_LIMIT);
+          const responseWithThread = {
+            ...run.response,
+            threadId: run.response.threadId ?? threadId,
+            history: run.response.history ?? historyOut,
+          };
+
+          const snapshot: CustomizerConversationSnapshot = {
+            threadId: responseWithThread.threadId,
+            prompt: message,
+            message: assistantMessage,
+            history: historyOut,
+            updatedAt: assistantEntry.createdAt,
+          };
+          const snapshotThreadId = responseWithThread.threadId;
+          storeCustomizerConversationSnapshot(ownerId, snapshotThreadId, snapshot).catch((error) => {
+            console.warn("customizer conversation store failed", error);
+          });
+
+          send({ event: "done", payload: { ...responseWithThread, context: responseContext } });
           controller.close();
         } catch (error) {
           console.error("customizer_stream_failed", error);
           send({
             event: "error",
-            error: "Capsule AI ran into an error customizing that.",
+            error: "Your assistant ran into an error customizing that.",
           });
           controller.close();
         }
@@ -409,10 +464,52 @@ export async function POST(req: Request) {
       contextOptions,
       contextEnabled,
     });
-    return validatedJson(promptResponseSchema, { ...run.response, context: responseContext });
+    const assistantMessage =
+      typeof run.response.message === "string" && run.response.message.trim().length
+        ? run.response.message.trim()
+        : "Updated your capsule visual.";
+    const now = new Date().toISOString();
+    const userEntry: ComposerChatMessage = {
+      id: safeRandomUUID(),
+      role: "user",
+      content: message,
+      createdAt: now,
+      attachments: attachmentList.length ? attachmentList : null,
+    };
+    const assistantEntry: ComposerChatMessage = {
+      id: safeRandomUUID(),
+      role: "assistant",
+      content: assistantMessage,
+      createdAt: now,
+      attachments: null,
+    };
+    const historyOut: ComposerChatMessage[] = [
+      ...historySanitized,
+      userEntry,
+      assistantEntry,
+    ].slice(-HISTORY_RETURN_LIMIT);
+    const responseWithThread = {
+      ...run.response,
+      threadId: run.response.threadId ?? threadId,
+      history: run.response.history ?? historyOut,
+    };
+
+    const snapshot: CustomizerConversationSnapshot = {
+      threadId: responseWithThread.threadId,
+      prompt: message,
+      message: assistantMessage,
+      history: historyOut,
+      updatedAt: assistantEntry.createdAt,
+    };
+    const snapshotThreadId = responseWithThread.threadId;
+    storeCustomizerConversationSnapshot(ownerId, snapshotThreadId, snapshot).catch((error) => {
+      console.warn("customizer conversation store failed", error);
+    });
+
+    return validatedJson(promptResponseSchema, { ...responseWithThread, context: responseContext });
   } catch (error) {
     console.error("customizer_prompt_failed", error);
-    return returnError(502, "ai_error", "Capsule AI ran into an error customizing that.");
+    return returnError(502, "ai_error", "Your assistant ran into an error customizing that.");
   }
 }
 

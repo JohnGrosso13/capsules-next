@@ -695,8 +695,8 @@ export function CapsuleEventsSection({
       <div className={styles.stateCard}>
         <div className={styles.stateHeading}>No ladders in this capsule</div>
         <p className={styles.stateBody}>
-          This capsule doesn&apos;t have any ladders right now. Create one with Capsule AI to manage
-          standings, match results, rules, and shoutouts here.
+          This capsule doesn&apos;t have any ladders right now. Create one with your assistant to
+          manage standings, match results, rules, and shoutouts here.
         </p>
       </div>
     );

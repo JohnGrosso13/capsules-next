@@ -41,6 +41,30 @@
   -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
 
+.headerUpload {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: flex-start;
+}
+
+.headerUpload .headerMain {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.headerUploadDrop {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.headerUploadDrop .uploadDropzone {
+  width: 100%;
+  max-width: 640px;
+  min-height: 210px;
+}
+
 .headerMain {
   display: grid;
   gap: 10px;
@@ -217,6 +241,274 @@
 
 .cardAccent {
   padding-bottom: 16px;
+}
+
+.uploadCard {
+  display: grid;
+  gap: 12px;
+}
+
+.uploadDropzone {
+  position: relative;
+  border: 1.5px dashed
+    color-mix(in srgb, var(--surface-outline) 82%, color-mix(in srgb, var(--color-brand) 38%, transparent));
+  border-radius: 18px;
+  padding: 26px 18px;
+  min-height: 180px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--color-brand) 18%, transparent), transparent 58%),
+    radial-gradient(120% 160% at 100% 0%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 64%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-elevated) 96%, transparent),
+      color-mix(in srgb, var(--surface-app) 88%, transparent)
+    );
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.uploadDropzone[data-active="true"],
+.uploadDropzone:hover {
+  border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-accent) 30%);
+  box-shadow:
+    0 16px 32px color-mix(in srgb, var(--color-brand) 24%, rgba(5, 10, 30, 0.6)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+}
+
+.uploadDropzone:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 60%, var(--color-accent) 40%);
+  outline-offset: 2px;
+}
+
+.uploadInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.uploadDropzoneBody {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.uploadIcon {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--color-brand) 72%, var(--color-accent) 28%);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 50%, var(--surface-outline) 55%);
+  background:
+    radial-gradient(120% 160% at 50% 0%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--insight-ink) 30%, transparent), color-mix(in srgb, var(--insight-ink-strong) 35%, transparent));
+  box-shadow:
+    0 12px 22px rgba(15, 23, 42, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.uploadHeadline {
+  font-size: 0.97rem;
+  font-weight: 700;
+  color: var(--insight-ink-stronger);
+}
+
+.uploadEmphasis {
+  font-weight: 800;
+}
+
+.uploadLink {
+  color: color-mix(in srgb, var(--color-brand) 65%, var(--color-accent) 35%);
+  text-decoration: underline;
+}
+
+.uploadHint {
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+
+.uploadFileName {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--text);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--insight-ink) 26%, transparent),
+    color-mix(in srgb, var(--insight-ink-strong) 32%, transparent)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--surface-outline) 70%, color-mix(in srgb, var(--color-brand) 30%, transparent));
+}
+
+.chatShell {
+  display: grid;
+  gap: 14px;
+}
+
+.chatContext {
+  padding: 4px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.chatCoachBubble {
+  max-width: min(82%, 640px);
+  padding: 12px 16px;
+  border-radius: 18px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--surface-outline) 78%,
+      color-mix(in srgb, var(--color-brand) 24%, var(--color-accent) 16%)
+    );
+  background:
+    radial-gradient(
+      120% 160% at 0% 0%,
+      color-mix(in srgb, var(--color-brand) 18%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-elevated) 96%, transparent),
+      color-mix(in srgb, var(--surface-app) 88%, transparent)
+    );
+  box-shadow: 0 14px 30px rgba(5, 10, 30, 0.65);
+}
+
+.chatCoachLead {
+  font-weight: 700;
+  font-size: 0.96rem;
+}
+
+.chatCoachText {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+.chatMeta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.8rem;
+  justify-content: space-between;
+}
+
+.chatMetaLabel {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 65%, var(--color-accent) 35%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 24%, transparent),
+    color-mix(in srgb, var(--color-accent) 32%, transparent)
+  );
+  font-weight: 700;
+}
+
+.chatMetaValue {
+  color: var(--text-2);
+  opacity: 0.9;
+}
+
+.chatCoachLabel {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+
+.chatHintLine {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.chatHintLine span {
+  font-weight: 600;
+}
+
+.chatPrompter {
+  border-radius: 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--surface-outline) 80%, color-mix(in srgb, var(--color-brand) 28%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated) 94%, transparent),
+    color-mix(in srgb, var(--surface-app) 86%, transparent)
+  );
+  padding: 10px 12px 12px;
+}
+
+.analysisList {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.analysisItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--surface-outline) 76%, color-mix(in srgb, var(--color-brand) 30%, var(--color-accent) 18%));
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--color-brand) 18%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--insight-ink), var(--insight-ink-strong));
+}
+
+.analysisTimestamp {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 60%, var(--color-brand) 40%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-accent) 28%, transparent),
+    color-mix(in srgb, var(--color-brand) 22%, transparent)
+  );
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.analysisContent {
+  display: grid;
+  gap: 6px;
+}
+
+.analysisTitle {
+  font-weight: 700;
+}
+
+.analysisNotes {
+  display: grid;
+  gap: 4px;
+  padding-left: 16px;
+  list-style: disc;
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+.analysisNote {
+  line-height: 1.4;
 }
 
 .cardHeaderRow {

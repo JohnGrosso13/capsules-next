@@ -73,7 +73,7 @@ export async function draftStoreProductCopy(params: ProductDraftRequest): Promis
   const systemMessage = {
     role: "system" as const,
     content:
-      "You are Capsule AI helping a creator draft storefront copy for a merch product. Respond with concise, plain-English text and a numeric price in the requested currency. Do not include emoji.",
+      "You are an assistant helping a creator draft storefront copy for a merch product. Respond with concise, plain-English text and a numeric price in the requested currency. Do not include emoji.",
   };
 
   const userLines: string[] = [];

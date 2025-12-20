@@ -671,9 +671,10 @@
   /* Enhanced status row */
   .statusRow {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
+    padding-inline: var(--space-lg, 16px);
   }
 
   .statusHint {
@@ -744,28 +745,49 @@
     line-height: 1.2;
   }
 
+  @media (max-width: 640px) {
+    .statusRow {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      padding-inline: 0;
+    }
+
+    .attachmentStrip {
+      max-width: 100%;
+    }
+
+    .attachmentCard {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
   /* Attachment card with preview + progress */
   .attachmentCard {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 14px;
-    border: 1px solid var(--pill-border, var(--color-border));
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--color-border, var(--pill-border)) 85%, transparent);
     background: linear-gradient(
-      150deg,
-      var(--glass-bg-1),
-      var(--glass-bg-2)
+      145deg,
+      color-mix(in srgb, var(--glass-bg-1) 80%, transparent),
+      color-mix(in srgb, var(--glass-bg-2) 92%, transparent)
     );
     color: var(--color-fg);
     box-shadow: var(--shadow-sm, 0 8px 18px color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 22%, transparent));
-    max-width: 60%;
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: min(360px, 100%);
+    flex-shrink: 0;
   }
 
   .attachThumb {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     overflow: hidden;
     display: grid;
     place-items: center;
@@ -790,18 +812,24 @@
 
   .attachMeta {
     display: grid;
+    grid-template-columns: 1fr auto;
+    grid-auto-rows: auto;
+    column-gap: 8px;
+    row-gap: 3px;
     align-items: center;
-    gap: 2px;
+    min-width: 0;
   }
 
   .progressTrack {
     position: relative;
-    margin-top: 2px;
-    width: 140px;
+    margin-top: 4px;
+    width: 100%;
+    max-width: 180px;
     height: 4px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--color-fg) 14%, transparent);
     overflow: hidden;
+    grid-column: 1 / -1;
   }
 
   .progressBar {
@@ -818,7 +846,7 @@
     align-items: center;
     gap: 8px;
     overflow-x: auto;
-    max-width: 70%;
+    max-width: 75%;
     padding-bottom: 4px;
   }
 
@@ -853,9 +881,9 @@
   }
 
   .previewClose {
-    position: fixed;
-    top: 18px;
-    right: 22px;
+    position: absolute;
+    top: 14px;
+    right: 16px;
     border: none;
     background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 72%, transparent);
     color: white;
@@ -1067,7 +1095,7 @@
   }
 
   .attachmentName {
-    max-width: 140px;
+    max-width: 220px;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1076,31 +1104,40 @@
     border: 0;
     color: inherit;
     cursor: pointer;
+    grid-column: 1 / -1;
   }
 
   .attachmentStatus {
     font-size: 0.74rem;
-    color: color-mix(in srgb, var(--color-fg) 68%, transparent);
+    color: color-mix(in srgb, var(--color-fg) 72%, transparent);
+    grid-column: 1;
+    align-self: center;
   }
 
   .attachmentStatusError {
     font-size: 0.74rem;
     color: var(--color-danger);
+    grid-column: 1;
+    align-self: center;
   }
 
   .attachmentActions {
-    display: inline-flex;
-    gap: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
     margin-top: 4px;
+    grid-column: 1 / -1;
+    grid-row: auto;
   }
 
   .attachmentActionButton {
-    border: none;
-    background: color-mix(in srgb, var(--color-fg) 12%, transparent);
-    color: color-mix(in srgb, var(--color-fg) 90%, transparent);
-    border-radius: 8px;
-    padding: 4px 10px;
-    font-size: 0.74rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 72%, transparent);
+    color: color-mix(in srgb, var(--color-fg) 96%, transparent);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: background 0.2s ease, color 0.2s ease;
   }
@@ -1115,23 +1152,26 @@
   }
 
   .attachmentRemove {
-    border: none;
-    background: color-mix(in srgb, var(--color-fg) 12%, transparent);
-    color: color-mix(in srgb, var(--color-fg) 85%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 72%, transparent);
+    color: color-mix(in srgb, var(--color-fg) 96%, transparent);
     cursor: pointer;
-    padding: 0;
-    width: 26px;
-    height: 26px;
+    padding: 5px 14px;
+    min-width: 84px;
+    height: auto;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    line-height: 1;
-    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+    line-height: 1.2;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
   }
 
   .attachmentRemove:hover {
-    background: color-mix(in srgb, var(--color-fg) 22%, transparent);
+    background: color-mix(in srgb, var(--surface-overlay, var(--surface-app)) 86%, transparent);
+    border-color: color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 55%, transparent);
   }
 
   .attachmentRemove:focus-visible {

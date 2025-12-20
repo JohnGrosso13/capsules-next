@@ -2444,6 +2444,15 @@
   border: 1px solid color-mix(in srgb, var(--party-summary-error-base) 28%, transparent);
   color: color-mix(in srgb, var(--text) 92%, transparent);
   font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.summaryErrorLink {
+  color: var(--color-link, var(--color-fg));
+  font-weight: 600;
+  text-decoration: underline;
 }
 
 .summaryResultCard {

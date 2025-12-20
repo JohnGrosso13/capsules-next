@@ -184,6 +184,7 @@ type SummaryPanelProps = {
   summaryGenerateLabel: string;
   summaryResult: SummaryResult | null;
   summaryError: string | null;
+  summaryErrorCode?: string | null;
   transcriptsReady: boolean;
   summaryLastSavedLabel: string | null;
   summaryMemoryId: string | null;
@@ -205,6 +206,7 @@ const SummaryPanel = React.memo(function SummaryPanel({
   summaryGenerateLabel,
   summaryResult,
   summaryError,
+  summaryErrorCode,
   transcriptsReady,
   summaryLastSavedLabel,
   summaryMemoryId,
@@ -304,7 +306,12 @@ const SummaryPanel = React.memo(function SummaryPanel({
         </div>
         {summaryError ? (
           <div className={styles.summaryError} role="status">
-            {summaryError}
+            <span>{summaryError}</span>
+            {summaryErrorCode === "insufficient_compute" ? (
+              <a className={styles.summaryErrorLink} href="/settings/billing">
+                View billing
+              </a>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -533,6 +540,7 @@ React.useEffect(() => {
     summarySettings,
     summaryResult,
     summaryError,
+    summaryErrorCode,
     summaryUpdating,
     summaryGenerating,
     transcriptSegments,
@@ -914,6 +922,7 @@ React.useEffect(() => {
               summaryGenerateLabel={summaryGenerateLabel}
               summaryResult={summaryResult}
               summaryError={summaryError}
+              summaryErrorCode={summaryErrorCode}
               transcriptsReady={transcriptsReady}
               summaryLastSavedLabel={summaryLastSavedLabel}
               summaryMemoryId={summaryMemoryId}

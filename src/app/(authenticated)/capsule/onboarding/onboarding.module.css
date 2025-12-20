@@ -2,16 +2,35 @@
   min-height: calc(100vh - 4rem);
   background:
     radial-gradient(
-      120% 120% at 20% 0%,
-      color-mix(in srgb, var(--color-brand, #5669ff) 24%, transparent),
-      color-mix(in srgb, var(--surface-overlay, rgba(18, 22, 42, 0.05)) 55%, transparent) 55%,
-      transparent 85%
+      160% 180% at -10% 0%,
+      color-mix(
+        in srgb,
+        var(--brand-from, var(--color-brand, #6366f1)) 20%,
+        transparent
+      ),
+      transparent 60%
     ),
     radial-gradient(
-      140% 140% at 110% 10%,
-      color-mix(in srgb, var(--color-accent, #22d3ee) 24%, transparent),
-      color-mix(in srgb, var(--surface-overlay, rgba(10, 12, 24, 0.05)) 60%, transparent) 60%,
-      transparent 85%
+      170% 190% at 110% -10%,
+      color-mix(
+        in srgb,
+        var(--brand-mid, var(--color-brand-strong, #4f46e5)) 18%,
+        transparent
+      ),
+      transparent 70%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(
+        in srgb,
+        var(--surface-overlay, rgba(10, 14, 30, 0.72)) 78%,
+        transparent
+      ),
+      color-mix(
+        in srgb,
+        var(--surface-muted, rgba(17, 22, 45, 0.8)) 86%,
+        transparent
+      )
     ),
     var(--surface-app, var(--app-bg, #05070f));
   display: flex;

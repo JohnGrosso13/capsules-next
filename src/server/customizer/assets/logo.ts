@@ -259,7 +259,7 @@ export async function editLogoAsset(input: LogoEditInput): Promise<AssetResponse
     instruction,
     {
       quality: "high",
-      size: "768x768",
+      size: "1024x1024",
     },
     {
       ownerId,

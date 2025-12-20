@@ -349,15 +349,11 @@ export async function POST(req: Request) {
   const startedAt = Date.now();
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
-    return returnError(401, "auth_required", "Sign in to use Capsule AI.");
+    return returnError(401, "auth_required", "Sign in to use your assistant.");
   }
 
   if (!hasOpenAIApiKey()) {
-    return returnError(
-      503,
-      "ai_unavailable",
-      "Capsule AI is not configured right now.",
-    );
+    return returnError(503, "ai_unavailable", "The assistant is not configured right now.");
   }
 
   const parsed = await parseJsonBody(req, requestSchema);
@@ -818,7 +814,7 @@ export async function POST(req: Request) {
           console.error("composer prompt failed (stream)", error);
           send({
             event: "error",
-            error: "Capsule AI ran into an error drafting that.",
+            error: "Your assistant ran into an error drafting that.",
           });
           controller.close();
         }
@@ -950,11 +946,7 @@ export async function POST(req: Request) {
     return validatedJson(promptResponseSchema, finalResponse);
   } catch (error) {
     console.error("composer prompt failed", error);
-    return returnError(
-      502,
-      "ai_error",
-      "Capsule AI ran into an error drafting that.",
-    );
+    return returnError(502, "ai_error", "Your assistant ran into an error drafting that.");
   }
 }
 

@@ -153,7 +153,7 @@ export async function generateAvatarAsset(input: AvatarAssetInput): Promise<Asse
   const avatarPrompt = buildGenerationPrompt(prompt, effectiveName, stylePreset, personaPrompt);
   const generated = await generateImageFromPrompt(
     avatarPrompt,
-    { quality: "standard", size: "768x768" },
+    { quality: "standard", size: "1024x1024" },
     {
       ownerId,
       assetKind: "avatar",
@@ -277,7 +277,7 @@ export async function editAvatarAsset(input: AvatarEditInput): Promise<AssetResp
       instruction,
       {
         quality: "standard",
-        size: "768x768",
+        size: "1024x1024",
       },
       {
         ownerId,

@@ -23,8 +23,6 @@ export type PartyTranscriptSegment = {
   final?: boolean;
 };
 
-export const MAX_TRANSCRIPT_SEGMENTS = 240;
-
 export function formatRelativeTime(value: string | null | undefined): string {
   if (!value) return "";
   const timestamp = new Date(value).getTime();

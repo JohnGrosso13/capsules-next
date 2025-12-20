@@ -107,25 +107,62 @@ function ChatMessageBubble({
         <div className={styles.chatMessageText}>{message.content}</div>
         {message.bannerOptions && message.bannerOptions.length ? (
           <div className={styles.chatBannerGallery} role="list">
-            {message.bannerOptions.map((option, index) => (
-              <button
-                key={option.id}
-                type="button"
-                className={styles.chatBannerOption}
-                onClick={() => onBannerSelect(option)}
-                role="listitem"
-                aria-label={`Add banner option ${index + 1} to selection`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={option.previewUrl}
-                  alt={`Banner concept ${index + 1}`}
-                  className={styles.chatBannerImage}
-                  loading="lazy"
-                />
-                <span className={styles.chatBannerOptionOverlay}>Add to banner</span>
-              </button>
-            ))}
+            {message.bannerOptions.map((option, index) => {
+              const downloadUrl =
+                (option.banner.kind === "upload" && option.banner.url) || option.previewUrl;
+              const label = option.label || `Banner concept ${index + 1}`;
+              const helperLabel =
+                option.banner.kind === "upload"
+                  ? option.banner.name ?? null
+                  : option.banner.kind === "memory"
+                    ? option.banner.title ?? null
+                    : null;
+              return (
+                <div
+                  key={option.id}
+                  className={styles.chatGeneratedAttachment}
+                  role="listitem"
+                >
+                  <div className={styles.chatGeneratedMediaWrap}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={option.previewUrl}
+                      alt={label}
+                      className={styles.chatGeneratedMedia}
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className={styles.chatGeneratedMeta}>
+                    <div className={styles.chatGeneratedActions}>
+                      {downloadUrl ? (
+                        <a
+                          className={`${styles.chatGeneratedButton} ${styles.chatGeneratedGhost}`.trim()}
+                          href={downloadUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          download
+                        >
+                          Download
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`${styles.chatGeneratedButton} ${styles.chatGeneratedPrimary}`.trim()}
+                        onClick={() => onBannerSelect(option)}
+                      >
+                        Add to preview
+                      </button>
+                    </div>
+                    <div className={styles.chatGeneratedText}>
+                      {label ? <p>{label}</p> : null}
+                      {helperLabel ? (
+                        <span className={styles.chatGeneratedSubdued}>{helperLabel}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : null}
         {message.suggestions && message.suggestions.length ? (
@@ -582,24 +619,27 @@ function CapsuleCustomizerContent({
               <h3 id="customizer-recent-heading">Recent chats</h3>
             </div>
             <div className={styles.recentDescription}>
-              Pull a message from this session back into the prompt.
+              Reopen a recent conversation with your assistant.
             </div>
             <div className={styles.recentList} role="list">
-              {chat.messages.length ? (
-                [...chat.messages].slice(-8).reverse().map((message) => {
-                  const label = message.role === "user" ? "You" : "Capsule AI";
-                  const snippet = truncate(message.content, 120);
+              {chat.recentsLoading ? (
+                <p className={styles.recentHint}>Loading your recent chats...</p>
+              ) : chat.recentsError ? (
+                <p className={styles.recentHint}>{chat.recentsError}</p>
+              ) : chat.recents.length ? (
+                chat.recents.map((recent) => {
+                  const snippet = truncate(recent.subtitle, 120);
                   return (
                     <button
-                      key={message.id}
+                      key={recent.threadId}
                       type="button"
                       role="listitem"
                       className={styles.recentItem}
-                      onClick={() => chat.onSuggestionSelect(message.content)}
-                      aria-label={`Reuse ${label.toLowerCase()} message "${snippet}"`}
+                      onClick={() => chat.onSelectRecent(recent.threadId)}
+                      aria-label={`Resume chat "${recent.title}"`}
                     >
                       <div className={styles.recentMeta}>
-                        <span className={styles.recentTitle}>{label}</span>
+                        <span className={styles.recentTitle}>{recent.title}</span>
                         <span className={styles.recentSnippet}>{snippet}</span>
                       </div>
                     </button>
@@ -607,7 +647,7 @@ function CapsuleCustomizerContent({
                 })
               ) : (
                 <p className={styles.recentHint}>
-                  Start chatting with Capsule AI to see history here.
+                  Start chatting with your assistant to see history here.
                 </p>
               )}
             </div>
@@ -704,7 +744,7 @@ function CapsuleCustomizerContent({
                   })
                 ) : (
                   <p className={styles.recentHint}>
-                    Drafts appear here after you generate or edit with Capsule AI.
+                    Drafts appear here after you generate or edit with your assistant.
                   </p>
                 )}
               </div>

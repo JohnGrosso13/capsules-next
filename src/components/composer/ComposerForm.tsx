@@ -61,7 +61,7 @@ import { useComposerSaveDialog } from "./hooks/useComposerSaveDialog";
 import { useComposerMobileLayout } from "./hooks/useComposerMobileLayout";
 
 const PANEL_WELCOME =
-  "Hey, I'm Capsule AI. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
+  "Hey, I'm your assistant. Tell me what you're building: posts, polls, visuals, documents, tournaments, anything. I'll help you shape it.";
 
 const ASSET_KIND_OPTIONS = [
   { key: "text", label: "Text" },

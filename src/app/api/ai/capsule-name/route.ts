@@ -21,7 +21,7 @@ const responseSchema = z.object({
 });
 
 const SYSTEM_PROMPT =
-  "You are Capsule AI, a creative assistant that helps creators name their Capsules - online hubs where they host communities, share content, and run events. Keep replies concise and upbeat. Offer 2-3 name options per answer, each on its own line, and include a short reason in parentheses.";
+  "You are a creative assistant that helps creators name their Capsules - online hubs where they host communities, share content, and run events. Keep replies concise and upbeat. Offer 2-3 name options per answer, each on its own line, and include a short reason in parentheses.";
 
 function mapMessages(
   data: z.infer<typeof requestSchema>,
@@ -43,11 +43,11 @@ function mapMessages(
 export async function POST(req: Request) {
   const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
   if (!ownerId) {
-    return returnError(401, "auth_required", "Sign in to chat with Capsule AI.");
+    return returnError(401, "auth_required", "Sign in to chat with your assistant.");
   }
 
   if (!hasOpenAIApiKey()) {
-    return returnError(503, "ai_unavailable", "Capsule AI is not configured.");
+    return returnError(503, "ai_unavailable", "The assistant is not configured.");
   }
 
   const parsed = await parseJsonBody(req, requestSchema);
@@ -78,18 +78,18 @@ export async function POST(req: Request) {
 
     if (!completion.ok) {
       console.error("capsule-name.chat failure", payload);
-      return returnError(502, "ai_error", "Capsule AI is unavailable right now.");
+      return returnError(502, "ai_error", "The assistant is unavailable right now.");
     }
 
     const message = payload?.choices?.[0]?.message?.content?.trim() ?? "";
     if (!message) {
-      return returnError(502, "ai_error", "Capsule AI returned an empty response.");
+      return returnError(502, "ai_error", "The assistant returned an empty response.");
     }
 
     return validatedJson(responseSchema, { message });
   } catch (error) {
     console.error("capsule-name.chat error", error);
-    return returnError(502, "ai_error", "Capsule AI failed to respond.");
+    return returnError(502, "ai_error", "The assistant failed to respond.");
   }
 }
 

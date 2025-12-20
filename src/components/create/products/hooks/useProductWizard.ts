@@ -591,7 +591,7 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as unknown;
-        const message = extractApiMessage(body) ?? "Capsule AI could not draft this product.";
+        const message = extractApiMessage(body) ?? "The assistant could not draft this product.";
         throw new Error(message);
       }
       const json = (await res.json()) as { title?: string; summary?: string; price?: number };
@@ -605,9 +605,9 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
             ? json.price
             : previous.price,
       }));
-      setStatusMessage("Capsule AI updated your title, summary, and price.");
+      setStatusMessage("Your assistant updated your title, summary, and price.");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to get a draft from Capsule AI.");
+      setErrorMessage(error instanceof Error ? error.message : "Unable to get a draft from your assistant.");
     } finally {
       setAiDraftBusy(false);
     }
@@ -635,7 +635,7 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
     if (detail) parts.push(`Design details: ${detail}`);
     const prompt = parts.join(". ");
     if (!prompt.trim().length) {
-      setErrorMessage("Add a short design prompt or summary before asking Capsule AI to generate art.");
+      setErrorMessage("Add a short design prompt or summary before asking your assistant to generate art.");
       return;
     }
     setImageBusy(true);
@@ -690,7 +690,7 @@ export function useProductWizard({ capsuleId, capsuleName, template }: UseProduc
 
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as unknown;
-          const message = extractApiMessage(body) ?? "Capsule AI couldn't apply that placement.";
+          const message = extractApiMessage(body) ?? "The assistant couldn't apply that placement.";
           throw new Error(message);
         }
 

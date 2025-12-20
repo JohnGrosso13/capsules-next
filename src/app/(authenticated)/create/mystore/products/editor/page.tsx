@@ -20,7 +20,7 @@ type ProductEditorPageProps = { searchParams?: ProductEditorSearchParams | Promi
 
 export const metadata: Metadata = {
   title: "Product editor - Capsules",
-  description: "Design, price, and publish Printful-backed products with Capsule AI.",
+  description: "Design, price, and publish Printful-backed products with your assistant.",
 };
 
 export default async function ProductEditorPage({ searchParams }: ProductEditorPageProps) {

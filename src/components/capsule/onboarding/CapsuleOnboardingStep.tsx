@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import styles from "./CapsuleOnboardingStep.module.css";
-import { PaperPlaneTilt, Microphone, MicrophoneSlash } from "@phosphor-icons/react/dist/ssr";
+import { ArrowUp, Plus } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
@@ -16,6 +16,8 @@ type ChatMessage = {
   role: ChatRole;
   content: string;
 };
+
+type WizardStep = "name" | "membership";
 
 const NAME_LIMIT = 80;
 const MESSAGE_LIMIT = 2000;
@@ -66,13 +68,23 @@ function randomId(): string {
 export function CapsuleOnboardingStep(): React.JSX.Element {
   const router = useRouter();
 
+  const [step, setStep] = React.useState<WizardStep>("name");
   const [name, setName] = React.useState("");
-  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>(() => [
+    {
+      id: randomId(),
+      role: "assistant",
+      content:
+        "Start with a capsule name that reflects your community or project. Your assistant can brainstorm ideas with you below.",
+    },
+  ]);
   const [messageDraft, setMessageDraft] = React.useState("");
   const [chatBusy, setChatBusy] = React.useState(false);
   const [chatError, setChatError] = React.useState<string | null>(null);
   const [finishBusy, setFinishBusy] = React.useState(false);
   const [finishError, setFinishError] = React.useState<string | null>(null);
+  const [membershipPolicy, setMembershipPolicy] =
+    React.useState<"open" | "request_only" | "invite_only">("request_only");
   const voiceSessionCounterRef = React.useRef(1);
   const activeVoiceSessionRef = React.useRef<number | null>(null);
   const processedVoiceSessionRef = React.useRef<number | null>(null);
@@ -136,11 +148,7 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
         ? "Processing your speech..."
         : null;
   const voiceErrorMessage = describeVoiceError(voiceErrorCode);
-  const statusMessage =
-    voiceStatusText ??
-    (chatBusy
-      ? "Capsule AI is riffing..."
-      : "Tip: Press Enter to send. Shift + Enter for a new line.");
+  const statusMessage = voiceStatusText ?? (chatBusy ? "Your assistant is riffing..." : null);
 
   React.useEffect(() => {
     const node = chatLogRef.current;
@@ -230,7 +238,7 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
 
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
       if (!response.ok || !payload?.message) {
-        throw new Error("Capsule AI unavailable");
+        throw new Error("Assistant unavailable");
       }
 
       const assistantMessage: ChatMessage = {
@@ -241,7 +249,7 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
       setMessages((prev) => [...prev, assistantMessage].slice(-10));
     } catch (error) {
       console.error("capsule onboarding chat error", error);
-      setChatError("Capsule AI couldn't respond. Try again in a moment.");
+      setChatError("Your assistant couldn't respond. Try again in a moment.");
     } finally {
       setChatBusy(false);
     }
@@ -256,6 +264,16 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
     },
     [sendChat],
   );
+
+  const handleStepClick = React.useCallback((next: WizardStep) => {
+    setStep(next);
+  }, []);
+
+  const handleNext = React.useCallback(() => {
+    if (step === "name") {
+      setStep("membership");
+    }
+  }, [step]);
 
   const handleFinish = React.useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -276,12 +294,31 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
           body: JSON.stringify({ name: finalName }),
         });
 
-        const payload = (await response.json().catch(() => null)) as { capsule?: unknown } | null;
-        if (!response.ok || !payload?.capsule) {
+        const payload = (await response.json().catch(() => null)) as {
+          capsule?: { id?: string | null } | null;
+        } | null;
+        const capsuleId = payload?.capsule?.id ?? null;
+        if (!response.ok || !capsuleId) {
           throw new Error("Capsule creation failed");
         }
 
-        router.push("/capsule");
+        if (membershipPolicy !== "request_only") {
+          try {
+            await fetch(`/api/capsules/${capsuleId}/membership`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "set_policy",
+                membershipPolicy,
+              }),
+            });
+          } catch (policyError) {
+            console.error("capsule onboarding membership update error", policyError);
+          }
+        }
+
+        router.push(`/capsule?capsuleId=${capsuleId}`);
       } catch (error) {
         console.error("capsule onboarding finish error", error);
         setFinishError("We couldn't create your capsule. Please try again.");
@@ -289,7 +326,7 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
         setFinishBusy(false);
       }
     },
-    [router, trimmedName],
+    [membershipPolicy, router, trimmedName],
   );
 
   return (
@@ -297,116 +334,172 @@ export function CapsuleOnboardingStep(): React.JSX.Element {
       <form className={styles.panel} onSubmit={handleFinish} noValidate>
         <aside className={styles.stepper}>
           <div>
-            <span className={styles.stepTitle}>Step 1 of 4</span>
+            <span className={styles.stepTitle}>Step 1 of 2</span>
           </div>
           <div className={styles.stepList}>
-            <div className={styles.stepItem} data-active="true">
+            <button
+              type="button"
+              className={styles.stepItem}
+              data-active={step === "name" ? "true" : undefined}
+              onClick={() => handleStepClick("name")}
+            >
               <span className={styles.stepBullet} aria-hidden />
-              <span>Goal</span>
-            </div>
-            <div className={styles.stepItem}>
+              <span>Name</span>
+            </button>
+            <button
+              type="button"
+              className={styles.stepItem}
+              data-active={step === "membership" ? "true" : undefined}
+              onClick={() => handleStepClick("membership")}
+            >
               <span className={styles.stepBullet} aria-hidden />
-              <span>Interests</span>
-            </div>
-            <div className={styles.stepItem}>
-              <span className={styles.stepBullet} aria-hidden />
-              <span>Connect</span>
-            </div>
-            <div className={styles.stepItem}>
-              <span className={styles.stepBullet} aria-hidden />
-              <span>Finish</span>
-            </div>
+              <span>Membership</span>
+            </button>
           </div>
         </aside>
 
         <section className={styles.content}>
           <header className={styles.header}>
-            <h1 className={styles.title}>Choose a Capsule Name</h1>
+            <h1 className={styles.title}>
+              {step === "name" ? "Choose a Capsule Name" : "Choose Membership Settings"}
+            </h1>
           </header>
 
           <div className={styles.form}>
-            <label className={styles.label} htmlFor="capsule-name">
-              <span>Capsule name</span>
-              <Input
-                id="capsule-name"
-                value={name}
-                onChange={handleNameChange}
-                className={styles.nameInput}
-                placeholder="Give your Capsule a memorable name"
-              />
-            </label>
+            {step === "name" ? (
+              <>
+                <label className={styles.label} htmlFor="capsule-name">
+                  <span>Capsule name</span>
+                  <Input
+                    id="capsule-name"
+                    value={name}
+                    onChange={handleNameChange}
+                    className={styles.nameInput}
+                    placeholder="Give your Capsule a memorable name"
+                  />
+                </label>
 
-            <div className={styles.chatStack}>
-              <div ref={chatLogRef} className={styles.chatLog} aria-live="polite">
-                {messages.map((message) => (
-                  <div key={message.id} className={styles.chatMessage} data-role={message.role}>
-                    <span className={styles.chatAvatar} aria-hidden>
-                      {message.role === "assistant" ? "AI" : "You"}
-                    </span>
-                    <div className={styles.chatBubble}>{message.content}</div>
+                <div className={styles.chatStack}>
+                  <div ref={chatLogRef} className={styles.chatLog} aria-live="polite">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={styles.chatMessage}
+                        data-role={message.role}
+                      >
+                        <span className={styles.chatAvatar} aria-hidden>
+                          {message.role === "assistant" ? "AI" : "You"}
+                        </span>
+                        <div className={styles.chatBubble}>{message.content}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              <div className={styles.prompterShell}>
-                <textarea
-                  value={messageDraft}
-                  onChange={handleMessageChange}
-                  onKeyDown={handleChatKeyDown}
-                  className={styles.chatTextarea}
-                  placeholder="Tell Capsule AI about your idea or the vibe you want..."
-                  maxLength={MESSAGE_LIMIT}
-                />
-                <div className={styles.prompterActions}>
+                  <div className={styles.prompterShell}>
+                    <div className={styles.prompterActions}>
+                      <button
+                        type="button"
+                        className={styles.voiceButton}
+                        onClick={handleVoiceToggle}
+                        aria-label={voiceButtonLabel}
+                        title={voiceButtonLabel}
+                        aria-pressed={voiceStatus === "listening"}
+                        data-active={
+                          voiceStatus === "listening" || voiceStatus === "stopping"
+                            ? "true"
+                            : undefined
+                        }
+                        disabled={voiceStatus === "stopping"}
+                      >
+                        <Plus weight="bold" size={18} />
+                      </button>
+                    </div>
+                    <textarea
+                      value={messageDraft}
+                      onChange={handleMessageChange}
+                      onKeyDown={handleChatKeyDown}
+                      className={styles.chatTextarea}
+                      placeholder="Tell your assistant about your idea or the vibe you want..."
+                      maxLength={MESSAGE_LIMIT}
+                    />
+                    <button
+                      type="button"
+                      className={styles.prompterSend}
+                      onClick={() => void sendChat()}
+                      disabled={chatBusy || !messageDraft.trim()}
+                      aria-label="Ask your assistant"
+                    >
+                      <ArrowUp weight="bold" size={18} />
+                    </button>
+                  </div>
+
+                  <div className={styles.prompterMeta}>
+                    <span className={styles.chatStatus}>{statusMessage}</span>
+                    {chatError ? <span className={styles.chatError}>{chatError}</span> : null}
+                    {voiceErrorMessage ? (
+                      <span className={styles.chatError}>{voiceErrorMessage}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className={styles.membershipSection}>
+                <p className={styles.membershipIntro}>
+                  Choose how people can join your capsule. You can change this anytime in settings.
+                </p>
+                <div
+                  className={styles.membershipOptions}
+                  role="radiogroup"
+                  aria-label="Capsule membership policy"
+                >
                   <button
                     type="button"
-                    className={styles.prompterSend}
-                    onClick={() => void sendChat()}
-                    disabled={chatBusy || !messageDraft.trim()}
-                    aria-label="Ask Capsule AI"
+                    className={styles.membershipOption}
+                    data-selected={membershipPolicy === "open" ? "true" : undefined}
+                    onClick={() => setMembershipPolicy("open")}
                   >
-                    <PaperPlaneTilt weight="fill" size={20} />
+                    <span className={styles.membershipLabel}>Open</span>
+                    <span className={styles.membershipDescription}>
+                      Anyone can join instantly. Best for casual, high-traffic communities.
+                    </span>
                   </button>
                   <button
                     type="button"
-                    className={styles.voiceButton}
-                    onClick={handleVoiceToggle}
-                    aria-label={voiceButtonLabel}
-                    title={voiceButtonLabel}
-                    aria-pressed={voiceStatus === "listening"}
-                    data-active={
-                      voiceStatus === "listening" || voiceStatus === "stopping" ? "true" : undefined
-                    }
-                    disabled={voiceStatus === "stopping"}
+                    className={styles.membershipOption}
+                    data-selected={membershipPolicy === "request_only" ? "true" : undefined}
+                    onClick={() => setMembershipPolicy("request_only")}
                   >
-                    {voiceStatus === "listening" || voiceStatus === "stopping" ? (
-                      <MicrophoneSlash weight="fill" size={18} />
-                    ) : (
-                      <Microphone weight="duotone" size={18} />
-                    )}
+                    <span className={styles.membershipLabel}>Request to join</span>
+                    <span className={styles.membershipDescription}>
+                      People request access and you approve or deny. Great default for most capsules.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.membershipOption}
+                    data-selected={membershipPolicy === "invite_only" ? "true" : undefined}
+                    onClick={() => setMembershipPolicy("invite_only")}
+                  >
+                    <span className={styles.membershipLabel}>Invite only</span>
+                    <span className={styles.membershipDescription}>
+                      Only invited members can join. Best for private teams or early experiments.
+                    </span>
                   </button>
                 </div>
               </div>
-
-              <div className={styles.prompterMeta}>
-                <span className={styles.chatStatus}>{statusMessage}</span>
-                {chatError ? <span className={styles.chatError}>{chatError}</span> : null}
-                {voiceErrorMessage ? (
-                  <span className={styles.chatError}>{voiceErrorMessage}</span>
-                ) : null}
-              </div>
-
-              <p className={styles.prompterHint}>
-                Start with a capsule name that reflects your community or project. Capsule AI can
-                brainstorm ideas with you below.
-              </p>
-            </div>
+            )}
           </div>
 
           {finishError ? <span className={styles.error}>{finishError}</span> : null}
 
           <div className={styles.controls}>
-            <Button type="button" size="lg" variant="secondary" disabled>
+            <Button
+              type="button"
+              size="lg"
+              variant="secondary"
+              onClick={handleNext}
+              disabled={step !== "name" || !trimmedName.length || finishBusy}
+            >
               Next
             </Button>
             <Button

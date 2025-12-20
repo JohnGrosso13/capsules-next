@@ -18,7 +18,7 @@ export function SummaryCTA({ pending, hasPosts, onSummarize }: SummaryCTAProps) 
     <section className={styles.summaryCta} aria-live="polite">
       <div className={styles.summaryCtaContent}>
         <Notebook weight="duotone" className={styles.summaryCtaIcon} />
-        <p className={styles.summaryCtaCopy}>Let Assistant surface quick highlights from your friends.</p>
+        <p className={styles.summaryCtaCopy}>See quick highlights from your friends.</p>
       </div>
       <button
         type="button"

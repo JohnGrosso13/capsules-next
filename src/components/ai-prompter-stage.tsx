@@ -30,6 +30,8 @@ type Props = {
   showIntentMenu?: boolean;
   submitVariant?: "default" | "icon";
   surface?: string | null;
+  showStatusRow?: boolean;
+  showSuggestedActions?: boolean;
 };
 
 export type {
@@ -39,7 +41,8 @@ export type {
 } from "@/components/prompter/hooks/usePrompterStageController";
 
 export function AiPrompterStage(props: Props) {
-  const controller = usePrompterStageController(props);
+  const { showStatusRow = true, showSuggestedActions = true, ...rest } = props;
+  const controller = usePrompterStageController(rest);
   const {
     chipOptions,
     variantConfig,
@@ -144,6 +147,8 @@ export function AiPrompterStage(props: Props) {
     [buttonDisabled, handleReadyResume, variantConfig.multilineInput],
   );
 
+  const resolvedShowHint = showStatusRow && showHint;
+
   return (
     <section
       className={styles.prompterStage}
@@ -227,7 +232,7 @@ export function AiPrompterStage(props: Props) {
           activeTool={activeTool}
           onSelectTool={variantConfig.allowTools ? setManualTool : () => {}}
           onClearTool={variantConfig.allowTools ? () => setManualTool(null) : noop}
-          showHint={showHint}
+          showHint={resolvedShowHint}
           showAttachmentStatus={attachmentsEnabled}
           composerLoading={composerLoading}
           composerLoadingProgress={composerLoadingProgress}
@@ -247,7 +252,9 @@ export function AiPrompterStage(props: Props) {
           onClose={closePreview}
         />
 
-        <PrompterSuggestedActions actions={chipOptions} onSelect={handleSuggestedAction} />
+        {showSuggestedActions ? (
+          <PrompterSuggestedActions actions={chipOptions} onSelect={handleSuggestedAction} />
+        ) : null}
       </div>
     </section>
   );
