@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import Link from "next/link";
 
 import { AppPage } from "@/components/app-page";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
@@ -24,7 +25,9 @@ export const metadata: Metadata = {
   description: "All orders for your Capsule storefront.",
 };
 
-type MyStoreOrdersPageProps = { searchParams?: { capsuleId?: string; switch?: string; view?: string } };
+type MyStoreOrdersPageProps = {
+  searchParams?: { capsuleId?: string; switch?: string; view?: string } | Promise<{ capsuleId?: string; switch?: string; view?: string }>;
+};
 
 type OwnerOrderEntry = Awaited<ReturnType<typeof listOrdersForCapsuleOwner>>[number];
 
@@ -225,6 +228,12 @@ const MOCK_ORDER_ENTRIES: OwnerOrderEntry[] = [
 ];
 
 export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersPageProps) {
+  const resolvedSearchParams =
+    typeof searchParams === "object" &&
+    searchParams !== null &&
+    typeof (searchParams as Promise<unknown>).then === "function"
+      ? await (searchParams as Promise<{ capsuleId?: string; switch?: string; view?: string }>)
+      : ((searchParams as { capsuleId?: string; switch?: string; view?: string } | undefined) ?? {});
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/create/mystore/orders");
@@ -249,13 +258,17 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
   const ownedCapsules = (await getUserCapsules(supabaseUserId, { origin: requestOrigin })).filter(
     (capsule) => capsule.ownership === "owner",
   );
-  const requestedCapsuleId = searchParams?.capsuleId?.trim() ?? null;
+  const requestedCapsuleId = resolvedSearchParams.capsuleId?.trim() ?? null;
   const selectedCapsule: CapsuleSummary | null =
-    requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
+    (requestedCapsuleId
+      ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId)
+      : ownedCapsules.length === 1
+        ? ownedCapsules[0]
+        : null) ?? null;
   const { avatarUrl: selectedCapsuleLogo, avatarInitial: selectedCapsuleInitial } =
     resolveCapsuleAvatar(selectedCapsule, requestOrigin);
   const selectedCapsuleId = selectedCapsule?.id ?? null;
-  const showSelector = !selectedCapsule;
+  const showSelector = !selectedCapsule && !requestedCapsuleId;
   const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
 
   let orders: OwnerOrderEntry[] = [];
@@ -329,9 +342,9 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
               </div>
             </div>
             <div className={styles.headerActions}>
-              <a href={switchHref} className={styles.chipButton} data-variant="ghost">
-                Open Capsule Gate
-              </a>
+            <Link href={switchHref} className={styles.chipButton} data-variant="ghost">
+              Open Capsule Gate
+            </Link>
               <button className={styles.iconButtonSimple} type="button" aria-label="Notifications">
                 <span className={styles.iconDot} />
               </button>

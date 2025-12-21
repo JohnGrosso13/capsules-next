@@ -13,6 +13,13 @@ import {
   listMemoryIdsForPostOwnerAndSource,
   upsertPostMemory,
 } from "@/server/posts/repository";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { memoryUpsertCredits } from "@/lib/billing/usage";
 
 export const runtime = "nodejs";
 
@@ -104,6 +111,32 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   try {
     if (action === "remember") {
+      let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+      try {
+        walletContext = await resolveWalletContext({
+          ownerType: "user",
+          ownerId: userId,
+          supabaseUserId: userId,
+          req,
+          ensureDevCredits: true,
+        });
+        ensureFeatureAccess({
+          balance: walletContext.balance,
+          bypass: walletContext.bypass,
+          requiredTier: "starter",
+          featureName: "Memory save",
+        });
+      } catch (billingError) {
+        if (billingError instanceof EntitlementError) {
+          return NextResponse.json(
+            { error: billingError.message, details: billingError.details ?? null },
+            { status: billingError.status },
+          );
+        }
+        console.error("billing.post_memory.init_failed", billingError);
+        return NextResponse.json({ error: "Billing check failed" }, { status: 500 });
+      }
+
       const metadata: Record<string, unknown> = {
         source: "post_memory",
         post_id: memoryPostId,
@@ -117,6 +150,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       if (postAuthorName) descriptionParts.push(`By ${postAuthorName}`);
       if (truncatedContent) descriptionParts.push(truncatedContent);
       const description = descriptionParts.length ? descriptionParts.join(" | ") : null;
+      const memoryTextParts = [title, description, truncatedContent].filter(Boolean).join(" ");
 
       const isTextOnly = !mediaUrl;
       const memoryKind = isTextOnly ? "text" : "post";
@@ -173,6 +207,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         }
       } catch (pineconeSyncError) {
         console.warn("Memory Pinecone sync failed", pineconeSyncError);
+      }
+
+      try {
+        const computeCost = memoryUpsertCredits(memoryTextParts);
+        if (walletContext && computeCost > 0 && !walletContext.bypass) {
+          await chargeUsage({
+            wallet: walletContext.wallet,
+            balance: walletContext.balance,
+            metric: "compute",
+            amount: computeCost,
+            reason: "post.memory.remember",
+            bypass: walletContext.bypass,
+          });
+        }
+      } catch (billingError) {
+        if (billingError instanceof EntitlementError) {
+          return NextResponse.json(
+            { error: billingError.message, details: billingError.details ?? null },
+            { status: billingError.status },
+          );
+        }
+        console.error("billing.post_memory.charge_failed", billingError);
+        return NextResponse.json({ error: "Failed to record memory usage" }, { status: 500 });
       }
 
       return NextResponse.json({ success: true, remembered: true });

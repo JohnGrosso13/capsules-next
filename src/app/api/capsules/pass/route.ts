@@ -8,6 +8,9 @@ import { resolveWalletContext, chargeUsage, EntitlementError } from "@/server/bi
 import { recordFundingIfMissing } from "@/server/billing/service";
 import { usdMicrosToCredits } from "@/lib/billing/pricebook";
 import { creditPlatformCut } from "@/server/billing/platform";
+import { createNotifications } from "@/server/notifications/service";
+import { sendNotificationEmails } from "@/server/notifications/email";
+import { getCapsuleAdminRecipients } from "@/server/notifications/recipients";
 
 const requestSchema = z.object({
   capsuleId: z.string().uuid(),
@@ -33,11 +36,14 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) return parsed.response;
   const { capsuleId, amountUsd } = parsed.data;
+  const amountLabel = `$${amountUsd.toFixed(2)}`;
 
   let founderUserId: string;
+  let capsuleName = "the capsule";
   try {
     const capsule = await requireCapsule(capsuleId);
     founderUserId = capsule.ownerId;
+    capsuleName = (capsule.capsule as { name?: string | null })?.name ?? capsuleName;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Capsule not found.";
     return returnError(
@@ -126,6 +132,62 @@ export async function POST(req: Request) {
       },
     }).catch((error) => console.warn("capsule.pass.platform_cut_failed", error));
   }
+
+  const adminRecipients = await getCapsuleAdminRecipients(capsuleId, founderUserId);
+  const recipientData = {
+    capsuleId,
+    founderUserId,
+    fromUserId: supabaseUserId,
+    usdMicros,
+    amountUsd,
+    grossCredits,
+    founderCredits,
+  };
+
+  if (adminRecipients.length) {
+    await createNotifications(
+      adminRecipients,
+      {
+        type: "capsule_pass_received",
+        title: `${amountLabel} Capsule Pass purchased for ${capsuleName}`,
+        body: "A supporter just contributed a Capsule Pass to your capsule.",
+        data: recipientData,
+        actorId: supabaseUserId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      adminRecipients,
+      {
+        type: "capsule_pass_received",
+        title: `${amountLabel} Capsule Pass purchased for ${capsuleName}`,
+        body: "A supporter just contributed a Capsule Pass to your capsule.",
+        data: recipientData,
+      },
+      { respectPreferences: true },
+    );
+  }
+
+  await createNotifications(
+    [supabaseUserId],
+    {
+      type: "capsule_pass_sent",
+      title: `You bought a Capsule Pass for ${capsuleName}`,
+      body: `${amountLabel} converted to ${founderCredits} credits for the founder.`,
+      data: recipientData,
+    },
+    { respectPreferences: true },
+  );
+  void sendNotificationEmails(
+    [supabaseUserId],
+    {
+      type: "capsule_pass_sent",
+      title: `You bought a Capsule Pass for ${capsuleName}`,
+      body: `${amountLabel} converted to ${founderCredits} credits for the founder.`,
+      data: recipientData,
+    },
+    { respectPreferences: true },
+  );
 
   return validatedJson(responseSchema, {
     ok: true,

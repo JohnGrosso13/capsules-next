@@ -164,6 +164,18 @@ class StripeBillingAdapter implements BillingAdapter {
           },
         };
       }
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = getInvoiceSubscriptionId(invoice);
+        return {
+          type: event.type,
+          invoice: {
+            id: invoice.id ?? null,
+            subscriptionId,
+            metadata: invoice.metadata ?? {},
+          },
+        };
+      }
       default:
         return { type: event.type, raw: event.data.object };
     }

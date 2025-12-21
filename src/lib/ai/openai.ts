@@ -280,10 +280,13 @@ function resolveCaptionUrl(raw: string): string | null {
   }
 }
 
-export async function captionImage(url: string): Promise<string | null> {
-  if (!hasOpenAIApiKey()) return null;
+export async function captionImage(
+  url: string,
+  options?: { includeUsage?: boolean },
+): Promise<{ caption: string | null; tokensUsed: number }> {
+  if (!hasOpenAIApiKey()) return { caption: null, tokensUsed: 0 };
   const resolvedUrl = resolveCaptionUrl(url);
-  if (!resolvedUrl) return null;
+  if (!resolvedUrl) return { caption: null, tokensUsed: 0 };
   try {
     const normalized = resolvedUrl.toLowerCase();
     if (
@@ -291,7 +294,7 @@ export async function captionImage(url: string): Promise<string | null> {
       normalized.startsWith("http://localhost") ||
       normalized.startsWith("https://localhost")
     ) {
-      return null;
+      return { caption: null, tokensUsed: 0 };
     }
   } catch {
     // ignore URL parse errors
@@ -301,6 +304,7 @@ export async function captionImage(url: string): Promise<string | null> {
     const tokenLimit = buildCompletionTokenLimit(model, 180);
     const result = await postOpenAIJson<{
       choices?: Array<{ message?: { content?: string } }>;
+      usage?: { total_tokens?: number };
     }>("/chat/completions", {
       model,
       temperature: 0.2,
@@ -322,26 +326,31 @@ export async function captionImage(url: string): Promise<string | null> {
     });
     if (!result.ok || !result.data) {
       console.error("OpenAI caption error", result.parsedBody);
-      return null;
+      return { caption: null, tokensUsed: 0 };
     }
     const text = result.data.choices?.[0]?.message?.content?.trim() ?? null;
-    return text && text.length ? text : null;
+    const tokens =
+      options?.includeUsage && typeof result.data.usage?.total_tokens === "number"
+        ? result.data.usage.total_tokens
+        : 0;
+    return { caption: text && text.length ? text : null, tokensUsed: tokens };
   } catch (error) {
     console.error("captionImage error", error);
-    return null;
+    return { caption: null, tokensUsed: 0 };
   }
 }
 
 export async function captionVideo(
   url: string | null | undefined,
   thumbnailUrl?: string | null | undefined,
-): Promise<string | null> {
+  options?: { includeUsage?: boolean },
+): Promise<{ caption: string | null; tokensUsed: number }> {
   const thumb = typeof thumbnailUrl === "string" && thumbnailUrl.trim().length ? thumbnailUrl : null;
   if (thumb) {
-    const caption = await captionImage(thumb);
-    if (caption) return caption;
+    const result = await captionImage(thumb, options);
+    if (result.caption) return result;
   }
   const targetUrl = typeof url === "string" && url.trim().length ? url : null;
-  if (!targetUrl) return null;
-  return captionImage(targetUrl);
+  if (!targetUrl) return { caption: null, tokensUsed: 0 };
+  return captionImage(targetUrl, options);
 }

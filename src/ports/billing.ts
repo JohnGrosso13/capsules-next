@@ -39,6 +39,14 @@ export type BillingWebhookEvent =
       };
     }
   | {
+      type: "invoice.payment_failed";
+      invoice: {
+        id: string | null;
+        subscriptionId: string | null;
+        metadata: Record<string, unknown>;
+      };
+    }
+  | {
       type: string;
       raw: unknown;
     };

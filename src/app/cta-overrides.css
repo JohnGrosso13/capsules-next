@@ -1,8 +1,21 @@
 /* CTA gradient overrides to fine-tune Launch Capsule look */
 :root {
+  /* Single source of truth for the rich purple→blue CTA used in dark mode */
+  --cta-gradient-launch-dark: linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%);
   --cta-gradient: var(--cta-gradient-launch-dark);
 }
 
 :root[data-theme="light"] {
+  /* Add a lighter leading purple for the three-stop feel seen in dark mode */
+  --cta-gradient-launch-light: linear-gradient(
+    120deg,
+    #c084fc 0%,
+    #8b5cf6 32%,
+    #6366f1 62%,
+    #22d3ee 100%
+  );
   --cta-gradient: var(--cta-gradient-launch-light);
+  --cta-button-gradient: var(--cta-gradient-launch-light);
+  --cta-chip-gradient: var(--cta-gradient-launch-light);
+  --cta-button-text: #ffffff;
 }

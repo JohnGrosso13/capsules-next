@@ -5,6 +5,13 @@ import { validateThemeVariantsInput } from "@/lib/theme/validate";
 import { limitThemeVariants, MAX_RETURNED_VARS, resolveStylerPlan } from "@/server/ai/styler";
 import { returnError, validatedJson } from "@/server/validation/http";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens, estimateTokensFromText } from "@/lib/billing/usage";
 
 const VARIANT_MAP_SCHEMA = z.record(z.string(), z.string());
 const VARIANTS_SCHEMA = z.object({
@@ -48,6 +55,34 @@ export async function POST(req: Request) {
     const ownerId = await ensureUserFromRequest(req, {}, { allowGuests: false });
     if (!ownerId) {
       return returnError(401, "auth_required", "Authentication required");
+    }
+
+    let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+    try {
+      walletContext = await resolveWalletContext({
+        ownerType: "user",
+        ownerId,
+        supabaseUserId: ownerId,
+        req,
+        ensureDevCredits: true,
+      });
+      ensureFeatureAccess({
+        balance: walletContext.balance,
+        bypass: walletContext.bypass,
+        requiredTier: "starter",
+        featureName: "AI styler",
+      });
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
+      }
+      console.error("billing.styler.init_failed", billingError);
+      return returnError(500, "billing_error", "Failed to verify styling allowance");
     }
 
     let body: unknown;
@@ -131,6 +166,34 @@ export async function POST(req: Request) {
         source: "styler",
         tags: [plan.source, "styler"],
       });
+    }
+
+    try {
+      const tokensUsed = estimateTokensFromText(
+        [prompt, plan.summary, JSON.stringify(plan.variants ?? {}), combinedDetails ?? ""].join("\n"),
+      );
+      const computeCost = computeTextCreditsFromTokens(tokensUsed, null);
+      if (walletContext && computeCost > 0 && !walletContext.bypass) {
+        await chargeUsage({
+          wallet: walletContext.wallet,
+          balance: walletContext.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "ai.styler",
+          bypass: walletContext.bypass,
+        });
+      }
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
+      }
+      console.error("billing.styler.charge_failed", billingError);
+      return returnError(500, "billing_error", "Failed to record styling usage");
     }
 
     return validatedJson(responseSchema, {

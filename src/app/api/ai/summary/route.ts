@@ -24,6 +24,13 @@ import type {
   SummaryTarget,
 } from "@/types/summary";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens, estimateTokensFromText } from "@/lib/billing/usage";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -173,6 +180,7 @@ function isLikelyImageAttachment(mimeType: string | null | undefined, url: strin
 
 async function buildAttachmentCaptionSegments(
   attachments: Array<z.infer<typeof attachmentSchema>> | undefined,
+  ownerId: string,
 ): Promise<string[]> {
   if (!attachments?.length) return [];
   const segments: string[] = [];
@@ -211,6 +219,7 @@ async function buildAttachmentCaptionSegments(
             ? attachment.mimeType
             : null,
         thumbnailUrl: absoluteThumb,
+        ownerId,
       });
       if (!caption) continue;
       seen.add(absoluteUrl);
@@ -226,11 +235,14 @@ async function buildAttachmentCaptionSegments(
 
   return segments;
 }
+type SummaryHandlerResult = { payload: z.infer<typeof summaryResponseSchema>; tokensUsed: number };
+
 async function handleFeedSummary(
   body: ParsedBody,
-): Promise<z.infer<typeof summaryResponseSchema> | NextResponse> {
+  ownerId: string,
+): Promise<SummaryHandlerResult | NextResponse> {
   const providedSegments = collectSegments(body);
-  const captionSegments = await buildAttachmentCaptionSegments(body.attachments);
+  const captionSegments = await buildAttachmentCaptionSegments(body.attachments, ownerId);
   const summarySegments = [...providedSegments, ...captionSegments];
   const normalizedAttachments = normalizeAttachments(body.attachments);
   const normalizedMeta = normalizeMeta(body.meta);
@@ -247,7 +259,8 @@ async function handleFeedSummary(
 
   const cached = await readSummaryCache(signaturePayload);
   if (cached) {
-    return cached;
+    // Cache hits already paid for; no new usage incurred.
+    return { payload: cached, tokensUsed: 0 };
   }
 
   if (summarySegments.length) {
@@ -271,7 +284,9 @@ async function handleFeedSummary(
     }
     const payload = mapSummaryResult(summary);
     await writeSummaryCache(signaturePayload, payload);
-    return payload;
+    const tokensUsed =
+      typeof summary.tokens === "number" && Number.isFinite(summary.tokens) ? summary.tokens : 0;
+    return { payload, tokensUsed };
   }
 
   try {
@@ -296,7 +311,7 @@ async function handleFeedSummary(
     };
     const payload = mapSummaryResult(result);
     await writeSummaryCache(signaturePayload, payload);
-    return payload;
+    return { payload, tokensUsed: 0 };
   } catch (error) {
     console.error("summarizeFeedFromDB error", error);
     return returnError(502, "summary_failed", "Unable to summarize feed.");
@@ -306,9 +321,10 @@ async function handleFeedSummary(
 async function handleGenericSummary(
   body: ParsedBody,
   target: SummaryTarget,
-): Promise<z.infer<typeof summaryResponseSchema> | NextResponse> {
+  ownerId: string,
+): Promise<SummaryHandlerResult | NextResponse> {
   const segments = collectSegments(body);
-  const captionSegments = await buildAttachmentCaptionSegments(body.attachments);
+  const captionSegments = await buildAttachmentCaptionSegments(body.attachments, ownerId);
   const combinedSegments = [...segments, ...captionSegments];
   const normalizedAttachments = normalizeAttachments(body.attachments);
   const normalizedMeta = normalizeMeta(body.meta);
@@ -325,7 +341,7 @@ async function handleGenericSummary(
 
   const cached = await readSummaryCache(signaturePayload);
   if (cached) {
-    return cached;
+    return { payload: cached, tokensUsed: 0 };
   }
 
   if (!combinedSegments.length) {
@@ -354,7 +370,8 @@ async function handleGenericSummary(
 
   const payload = mapSummaryResult(summary);
   await writeSummaryCache(signaturePayload, payload);
-  return payload;
+  const tokensUsed = typeof summary.tokens === "number" && Number.isFinite(summary.tokens) ? summary.tokens : 0;
+  return { payload, tokensUsed };
 }
 
 export async function POST(req: NextRequest) {
@@ -384,17 +401,73 @@ export async function POST(req: NextRequest) {
     return parsed.response;
   }
 
-  const body = parsed.data;
-
-  let payload: z.infer<typeof summaryResponseSchema> | NextResponse;
-  if (body.target === "feed") {
-    payload = await handleFeedSummary(body);
-  } else {
-    payload = await handleGenericSummary(body, body.target);
+  let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+  try {
+    walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "AI summaries",
+    });
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.summary.init_failed", billingError);
+    return returnError(500, "billing_error", "Failed to verify summary allowance.");
   }
 
-  if (payload instanceof NextResponse) {
-    return payload;
+  const body = parsed.data;
+
+  let handlerResult: SummaryHandlerResult | NextResponse;
+  if (body.target === "feed") {
+    handlerResult = await handleFeedSummary(body, ownerId);
+  } else {
+    handlerResult = await handleGenericSummary(body, body.target, ownerId);
+  }
+
+  if (handlerResult instanceof NextResponse) {
+    return handlerResult;
+  }
+
+  const { payload, tokensUsed } = handlerResult;
+
+  try {
+    const effectiveTokens = tokensUsed || estimateTokensFromText(payload.summary);
+    const computeCost = computeTextCreditsFromTokens(effectiveTokens, payload.model);
+    if (walletContext && computeCost > 0 && !walletContext.bypass) {
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "compute",
+        amount: computeCost,
+        reason: "ai.summary",
+        bypass: walletContext.bypass,
+      });
+    }
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.summary.charge_failed", billingError);
+    return returnError(500, "billing_error", "Failed to record summary usage.");
   }
 
   return validatedJson(summaryResponseSchema, payload);

@@ -25,6 +25,16 @@ export const NOTIFICATION_TYPES = [
   "mention_in_chat",
   "live_event_starting",
   "stream_status",
+  "billing_payment_failed",
+  "billing_payment_succeeded",
+  "billing_plan_changed",
+  "capsule_power_sent",
+  "capsule_power_received",
+  "capsule_pass_sent",
+  "capsule_pass_received",
+  "store_order_paid",
+  "store_order_failed",
+  "store_order_sold",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -82,6 +92,18 @@ export type NotificationSettings = {
   liveEventStartingEmail: boolean;
   streamStatus: boolean;
   streamStatusEmail: boolean;
+  billingIssues: boolean;
+  billingIssuesEmail: boolean;
+  billingUpdates: boolean;
+  billingUpdatesEmail: boolean;
+  capsuleSupportSent: boolean;
+  capsuleSupportSentEmail: boolean;
+  capsuleSupportReceived: boolean;
+  capsuleSupportReceivedEmail: boolean;
+  storeOrders: boolean;
+  storeOrdersEmail: boolean;
+  storeSales: boolean;
+  storeSalesEmail: boolean;
   emailDigestFrequency: "instant" | "daily" | "weekly" | "off";
 };
 
@@ -138,5 +160,17 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   liveEventStartingEmail: true,
   streamStatus: true,
   streamStatusEmail: true,
+  billingIssues: true,
+  billingIssuesEmail: true,
+  billingUpdates: true,
+  billingUpdatesEmail: true,
+  capsuleSupportSent: true,
+  capsuleSupportSentEmail: true,
+  capsuleSupportReceived: true,
+  capsuleSupportReceivedEmail: true,
+  storeOrders: true,
+  storeOrdersEmail: true,
+  storeSales: true,
+  storeSalesEmail: true,
   emailDigestFrequency: "instant",
 };

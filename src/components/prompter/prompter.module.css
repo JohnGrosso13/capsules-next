@@ -460,12 +460,10 @@
     border-radius: var(--radius-pill, 999px);
     border: 1px solid var(--cta-chip-border);
     background: var(
-      --prompter-primary-button-background,
-      var(
-        --cta-button-gradient,
-        var(--cta-gradient)
+        --prompter-primary-button-background,
+        var(--cta-button-gradient, var(--cta-gradient))
       )
-    );
+      center / 155% 155% no-repeat;
     color: var(
       --prompter-primary-button-text,
       var(--cta-button-text, var(--text-on-brand, var(--text)))

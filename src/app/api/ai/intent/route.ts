@@ -11,6 +11,14 @@ import {
   type RateLimitDefinition,
 } from "@/server/rate-limit";
 import { resolveClientIp } from "@/server/http/ip";
+import { ensureUserFromRequest } from "@/lib/auth/payload";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens, estimateTokensFromText } from "@/lib/billing/usage";
 
 const requestSchema = z.object({ message: z.string().min(1) });
 
@@ -53,6 +61,11 @@ function clampConfidence(value: unknown, fallback: number): number {
 }
 
 export async function POST(req: Request) {
+  const userId = await ensureUserFromRequest(req, {}, { allowGuests: false });
+  if (!userId) {
+    return returnError(401, "auth_required", "Sign in to classify intent.");
+  }
+
   const clientIp = resolveClientIp(req);
   const rateLimit = await checkRateLimits([
     { definition: INTENT_RATE_LIMIT, identifier: "intent:global" },
@@ -73,6 +86,34 @@ export async function POST(req: Request) {
 
   const text = parsed.data.message.trim();
   const heuristic = detectIntentHeuristically(text);
+
+  let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+  try {
+    walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId: userId,
+      supabaseUserId: userId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "Intent classification",
+    });
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.intent.init_failed", billingError);
+    return returnError(500, "billing_error", "Failed to verify intent allowance.");
+  }
 
   if (!hasOpenAIApiKey()) {
     return validatedJson(responseSchema, {
@@ -114,14 +155,18 @@ export async function POST(req: Request) {
     ],
   };
 
-  let classified: ClassifiedIntent = FALLBACK_RESPONSE;
-  try {
-    const result = await postOpenAIJson<{ choices?: Array<{ message?: { content?: string } }> }>(
-      "/chat/completions",
-      body,
-    );
-    const content = result.data?.choices?.[0]?.message?.content;
-    if (content) {
+let classified: ClassifiedIntent = FALLBACK_RESPONSE;
+let completionUsageTokens = 0;
+try {
+  const result = await postOpenAIJson<{ choices?: Array<{ message?: { content?: string } }>; usage?: { total_tokens?: number } }>(
+    "/chat/completions",
+    body,
+  );
+  if (typeof result.data?.usage?.total_tokens === "number" && Number.isFinite(result.data.usage.total_tokens)) {
+    completionUsageTokens = result.data.usage.total_tokens;
+  }
+  const content = result.data?.choices?.[0]?.message?.content;
+  if (content) {
       const parsed = safeParseJson(content);
       const parsedIntent = parsed && typeof parsed.intent === "string" ? parsed.intent : null;
       if (parsed && parsedIntent) {
@@ -149,6 +194,42 @@ export async function POST(req: Request) {
 
   if (!classified.intent) {
     classified = { ...FALLBACK_RESPONSE, intent: heuristic.intent };
+  }
+
+  try {
+    const tokensUsed =
+      completionUsageTokens ||
+      estimateTokensFromText(
+        [
+          text,
+          classified.intent,
+          classified.reason ?? "",
+          classified.postMode ?? "",
+          String(classified.confidence ?? heuristic.confidence ?? 0),
+        ].join("\n"),
+      );
+    const computeCost = computeTextCreditsFromTokens(tokensUsed, model);
+    if (walletContext && computeCost > 0 && !walletContext.bypass) {
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "compute",
+        amount: computeCost,
+        reason: "ai.intent",
+        bypass: walletContext.bypass,
+      });
+    }
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.intent.charge_failed", billingError);
+    return returnError(500, "billing_error", "Failed to record intent usage.");
   }
 
   return validatedJson(responseSchema, {

@@ -5,6 +5,13 @@ import { buildCompletionTokenLimit } from "@/lib/ai/openai";
 import { ensureUserFromRequest } from "@/lib/auth/payload";
 import { serverEnv } from "@/lib/env/server";
 import { parseJsonBody, returnError, validatedJson } from "@/server/validation/http";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens, estimateTokensFromText } from "@/lib/billing/usage";
 
 const messageSchema = z.object({
   role: z.union([z.literal("user"), z.literal("assistant")]),
@@ -60,6 +67,34 @@ export async function POST(req: Request) {
     return returnError(401, "auth_required", "Sign in to chat with your assistant.");
   }
 
+  let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+  try {
+    walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "Ladder format AI",
+    });
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.ladder_format.init_failed", billingError);
+    return returnError(500, "billing_error", "Failed to verify ladder format allowance.");
+  }
+
   if (!hasOpenAIApiKey()) {
     return returnError(503, "ai_unavailable", "The assistant is not configured.");
   }
@@ -88,6 +123,7 @@ export async function POST(req: Request) {
 
     const payload = (await completion.json().catch(() => null)) as {
       choices?: Array<{ message?: { content?: string } | null }>;
+      usage?: { total_tokens?: number };
     } | null;
 
     if (!completion.ok) {
@@ -98,6 +134,37 @@ export async function POST(req: Request) {
     const message = payload?.choices?.[0]?.message?.content?.trim() ?? "";
     if (!message) {
       return returnError(502, "ai_error", "The assistant returned an empty response.");
+    }
+
+    try {
+      const tokensUsed =
+        typeof payload?.usage?.total_tokens === "number" && Number.isFinite(payload.usage.total_tokens)
+          ? payload.usage.total_tokens
+          : estimateTokensFromText(
+              [JSON.stringify(parsed.data.messages), parsed.data.capsuleName ?? "", parsed.data.summary ?? "", message].join("\n"),
+            );
+      const computeCost = computeTextCreditsFromTokens(tokensUsed, model);
+      if (walletContext && computeCost > 0 && !walletContext.bypass) {
+        await chargeUsage({
+          wallet: walletContext.wallet,
+          balance: walletContext.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "ai.ladder_format",
+          bypass: walletContext.bypass,
+        });
+      }
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
+      }
+      console.error("billing.ladder_format.charge_failed", billingError);
+      return returnError(500, "billing_error", "Failed to record ladder format usage.");
     }
 
     return validatedJson(responseSchema, { message });

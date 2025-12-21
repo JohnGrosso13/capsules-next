@@ -17,6 +17,8 @@ import { normalizeUuid, pruneNullish } from "./utils";
 import { moderateTextContent, ModerationError } from "@/server/moderation/text";
 import { enqueueCapsuleKnowledgeRefresh } from "@/server/capsules/knowledge";
 import { notifyCapsulePost } from "@/server/notifications/triggers";
+import { chargeUsage, resolveWalletContext, EntitlementError } from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens } from "@/lib/billing/usage";
 
 export { fetchPostRowByIdentifierFromRepository as fetchPostRowByIdentifier };
 
@@ -604,20 +606,49 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
         try {
           const targetUrl = typeof row.media_url === "string" ? row.media_url : null;
           if (targetUrl) {
-            generatedCaption =
-              draftKind === "video"
-                ? await captionVideo(targetUrl, null)
-                : await captionImage(targetUrl);
-            if (generatedCaption) {
-              memoryDescription = memoryDescription
-                ? `${memoryDescription} | ${generatedCaption}`
-                : generatedCaption;
+          const captionResult =
+            draftKind === "video"
+              ? await captionVideo(targetUrl, null)
+              : await captionImage(targetUrl);
+          generatedCaption = captionResult.caption;
+        if (generatedCaption) {
+          memoryDescription = memoryDescription
+            ? `${memoryDescription} | ${generatedCaption}`
+            : generatedCaption;
+        }
+        const tokensUsed = captionResult.tokensUsed ?? 0;
+        if (tokensUsed > 0 && typeof payload.user_id === "string") {
+          try {
+            const wallet = await resolveWalletContext({
+              ownerType: "user",
+              ownerId: payload.user_id,
+              supabaseUserId: payload.user_id,
+              req: null,
+              ensureDevCredits: true,
+            });
+            const computeCost = computeTextCreditsFromTokens(tokensUsed, "gpt-4o-mini");
+            if (computeCost > 0 && !wallet.bypass) {
+              await chargeUsage({
+                wallet: wallet.wallet,
+                balance: wallet.balance,
+                metric: "compute",
+                amount: computeCost,
+                reason: "ai.caption",
+                bypass: wallet.bypass,
+              });
             }
+          } catch (err) {
+            if (err instanceof EntitlementError) {
+              throw err;
+            }
+            console.warn("post caption billing failed", err);
           }
-        } catch (err) {
-          console.warn("caption main media failed", err);
         }
       }
+    } catch (err) {
+      console.warn("caption main media failed", err);
+    }
+  }
       const memoryMetadata: Record<string, unknown> = {
         source: "post",
         kind: memoryKind,
@@ -711,13 +742,41 @@ export async function createPostRecord(post: CreatePostInput, ownerId: string) {
       let generatedCaption: string | null = null;
       if (!description || description.trim().length < 6) {
         try {
-          if (mime && mime.startsWith("video/")) {
-            generatedCaption = await captionVideo(effectiveUrl, thumb ?? null);
-          } else {
-            generatedCaption = await captionImage(effectiveUrl);
-          }
+          const captionResult =
+            mime && mime.startsWith("video/")
+              ? await captionVideo(effectiveUrl, thumb ?? null)
+              : await captionImage(effectiveUrl);
+          generatedCaption = captionResult.caption;
           if (generatedCaption) {
             description = description ? `${description} | ${generatedCaption}` : generatedCaption;
+          }
+          const tokensUsed = captionResult.tokensUsed ?? 0;
+          if (tokensUsed > 0 && typeof payload.user_id === "string") {
+            try {
+              const wallet = await resolveWalletContext({
+                ownerType: "user",
+                ownerId: payload.user_id,
+                supabaseUserId: payload.user_id,
+                req: null,
+                ensureDevCredits: true,
+              });
+              const computeCost = computeTextCreditsFromTokens(tokensUsed, "gpt-4o-mini");
+              if (computeCost > 0 && !wallet.bypass) {
+                await chargeUsage({
+                  wallet: wallet.wallet,
+                  balance: wallet.balance,
+                  metric: "compute",
+                  amount: computeCost,
+                  reason: "ai.caption",
+                  bypass: wallet.bypass,
+                });
+              }
+            } catch (err) {
+              if (err instanceof EntitlementError) {
+                throw err;
+              }
+              console.warn("post attachment caption billing failed", err);
+            }
           }
         } catch (err) {
           console.warn("caption attachment failed", err);

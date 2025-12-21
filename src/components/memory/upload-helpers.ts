@@ -1,11 +1,48 @@
 import type { DisplayMemoryUpload } from "./uploads-types";
 
-export function isVideo(mime: string | null | undefined): boolean {
-  return typeof mime === "string" && mime.startsWith("video/");
+const VIDEO_EXTS = new Set([
+  "MP4",
+  "MOV",
+  "M4V",
+  "WEBM",
+  "MKV",
+  "AVI",
+  "WMV",
+  "3GP",
+]);
+
+const IMAGE_EXTS = new Set([
+  "JPG",
+  "JPEG",
+  "PNG",
+  "GIF",
+  "WEBP",
+  "HEIC",
+  "HEIF",
+  "AVIF",
+  "BMP",
+  "TIFF",
+  "TIF",
+  "SVG",
+  "DNG",
+]);
+
+export function isVideo(mime: string | null | undefined, extension?: string | null): boolean {
+  if (typeof mime === "string" && mime.toLowerCase().startsWith("video/")) return true;
+  if (extension) {
+    const upper = extension.toUpperCase();
+    if (VIDEO_EXTS.has(upper)) return true;
+  }
+  return false;
 }
 
-export function isImage(mime: string | null | undefined): boolean {
-  return typeof mime === "string" && mime.startsWith("image/");
+export function isImage(mime: string | null | undefined, extension?: string | null): boolean {
+  if (typeof mime === "string" && mime.toLowerCase().startsWith("image/")) return true;
+  if (extension) {
+    const upper = extension.toUpperCase();
+    if (IMAGE_EXTS.has(upper)) return true;
+  }
+  return false;
 }
 
 function toExtension(value: unknown): string | null {

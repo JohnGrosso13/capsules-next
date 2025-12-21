@@ -57,6 +57,18 @@ export const notificationSettingsSchema = z.object({
   liveEventStartingEmail: z.boolean(),
   streamStatus: z.boolean(),
   streamStatusEmail: z.boolean(),
+  billingIssues: z.boolean(),
+  billingIssuesEmail: z.boolean(),
+  billingUpdates: z.boolean(),
+  billingUpdatesEmail: z.boolean(),
+  capsuleSupportSent: z.boolean(),
+  capsuleSupportSentEmail: z.boolean(),
+  capsuleSupportReceived: z.boolean(),
+  capsuleSupportReceivedEmail: z.boolean(),
+  storeOrders: z.boolean(),
+  storeOrdersEmail: z.boolean(),
+  storeSales: z.boolean(),
+  storeSalesEmail: z.boolean(),
   emailDigestFrequency: z.enum(["instant", "daily", "weekly", "off"]),
 });
 

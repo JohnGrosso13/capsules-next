@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import Link from "next/link";
 
 import { AppPage } from "@/components/app-page";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
@@ -146,11 +147,15 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
   );
   const requestedCapsuleId = resolvedSearchParams?.capsuleId?.trim() ?? null;
   const selectedCapsule: CapsuleSummary | null =
-    requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
+    (requestedCapsuleId
+      ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId)
+      : ownedCapsules.length === 1
+        ? ownedCapsules[0]
+        : null) ?? null;
   const { avatarUrl: selectedCapsuleLogo, avatarInitial: selectedCapsuleInitial } =
     resolveCapsuleAvatar(selectedCapsule, requestOrigin);
   const selectedCapsuleId = selectedCapsule?.id ?? null;
-  const showSelector = !selectedCapsule;
+  const showSelector = !selectedCapsule && !requestedCapsuleId;
   const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
   const activeNav = resolvedSearchParams?.view === "reports" ? "reports" : "home";
 
@@ -198,7 +203,7 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
     {
       id: "visitors",
       label: "Visitors",
-      value: "—",
+      value: "\u2014",
       hint: "Traffic insights coming soon",
       tone: "steady",
     },
@@ -255,9 +260,9 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
             </div>
           </div>
           <div className={styles.headerActions}>
-            <a href={switchHref} className={styles.chipButton} data-variant="ghost">
+            <Link href={switchHref} className={styles.chipButton} data-variant="ghost">
               Open Capsule Gate
-            </a>
+            </Link>
             <button className={styles.iconButtonSimple} type="button" aria-label="Notifications">
               <span className={styles.iconDot} />
               </button>
@@ -381,14 +386,15 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
                     <h2 className={styles.cardTitle}>Orders</h2>
                     <p className={styles.cardSubtitle}>Latest activity from your store.</p>
                   </div>
-                  <a
-                    href={ordersHref}
+                  <Link
+                    href={selectedCapsule ? ordersHref : "#"}
                     className={styles.cardLink}
                     aria-disabled={!selectedCapsule}
                     data-disabled={!selectedCapsule ? "true" : undefined}
+                    tabIndex={!selectedCapsule ? -1 : undefined}
                   >
                     View all
-                  </a>
+                  </Link>
                 </header>
                 {displayRecentOrders.length ? (
                   <table className={styles.table}>
@@ -451,14 +457,15 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
                     Active and featured products that buyers see in your store.
                   </p>
                 </div>
-                <a
-                  href={productsHref}
+                <Link
+                  href={selectedCapsule ? productsHref : "#"}
                   className={styles.cardLink}
                   aria-disabled={!selectedCapsule}
                   data-disabled={!selectedCapsule ? "true" : undefined}
+                  tabIndex={!selectedCapsule ? -1 : undefined}
                 >
                   View all
-                </a>
+                </Link>
               </header>
               {catalog.length ? (
                 <table className={styles.table}>
@@ -484,7 +491,7 @@ export default async function MyStorePage({ searchParams }: MyStorePageProps) {
                             data-status={item.active ? "live" : "draft"}
                           >
                             {item.active ? "Live" : "Draft"}
-                            {item.featured ? " · Featured" : ""}
+                            {item.featured ? " - Featured" : ""}
                           </span>
                         </td>
                       </tr>

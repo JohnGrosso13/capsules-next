@@ -1,4 +1,7 @@
-import type { JSX } from "react";
+"use client";
+
+import type { JSX, MouseEvent } from "react";
+import Link from "next/link";
 
 import { ChartLineUp, House, Package, Receipt } from "@phosphor-icons/react/dist/ssr";
 
@@ -81,8 +84,15 @@ export function StoreNavigation({ capsuleId, active, disabled = false }: StoreNa
 
           const href = buildHref(item, capsuleId);
 
+          const handleClick = (event: MouseEvent) => {
+            if (isDisabled) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          };
+
           return (
-            <a
+            <Link
               key={item.id}
               href={href}
               className={className}
@@ -90,10 +100,12 @@ export function StoreNavigation({ capsuleId, active, disabled = false }: StoreNa
               data-disabled={isDisabled ? "true" : undefined}
               aria-current={isActive ? "page" : undefined}
               tabIndex={isDisabled ? -1 : undefined}
+              onClick={handleClick}
+              prefetch
             >
               {item.icon}
               <span className={styles.storeTabLabel}>{item.label}</span>
-            </a>
+            </Link>
           );
         })}
       </div>

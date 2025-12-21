@@ -38,6 +38,8 @@ import { searchWeb, isWebSearchConfigured } from "@/server/search/web-search";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import PptxGenJS from "pptxgenjs";
 import { uploadBufferToStorage } from "@/lib/supabase/storage";
+import { chargeUsage, resolveWalletContext, EntitlementError } from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens } from "@/lib/billing/usage";
 import { indexMemory } from "@/lib/supabase/memories";
 
 export type ComposerToolEvent =
@@ -1052,14 +1054,44 @@ async function handleSummarizeVideo(
   const rawThumb = attachment.thumbnailUrl ?? null;
   const accessibleUrl = await ensureAccessibleMediaUrl(rawUrl);
   const accessibleThumb = await ensureAccessibleMediaUrl(rawThumb);
-  const summary = await captionVideo(accessibleUrl ?? rawUrl, accessibleThumb ?? rawThumb);
-  if (!summary) {
+  const summaryResult = await captionVideo(accessibleUrl ?? rawUrl, accessibleThumb ?? rawThumb);
+  if (!summaryResult.caption) {
     return { status: "empty", attachmentId };
+  }
+  try {
+    const tokensUsed = summaryResult.tokensUsed ?? 0;
+    if (tokensUsed > 0 && runtime.ownerId) {
+      const wallet = await resolveWalletContext({
+        ownerType: "user",
+        ownerId: runtime.ownerId,
+        supabaseUserId: runtime.ownerId,
+        req: null,
+        ensureDevCredits: true,
+      });
+      const computeCost = computeTextCreditsFromTokens(tokensUsed, "gpt-4o-mini");
+      if (computeCost > 0 && !wallet.bypass) {
+        await chargeUsage({
+          wallet: wallet.wallet,
+          balance: wallet.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "ai.caption",
+          bypass: wallet.bypass,
+        });
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof EntitlementError)) {
+      console.warn("composer caption billing failed", error);
+    } else {
+      throw error;
+    }
   }
   return {
     status: "succeeded",
     attachmentId,
-    summary,
+    summary: summaryResult.caption,
+    tokensUsed: summaryResult.tokensUsed ?? 0,
   };
 }
 

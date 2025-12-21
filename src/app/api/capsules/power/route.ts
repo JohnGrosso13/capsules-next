@@ -8,6 +8,9 @@ import { resolveWalletContext, chargeUsage, EntitlementError } from "@/server/bi
 import { recordFundingIfMissing } from "@/server/billing/service";
 import { usdMicrosToCredits } from "@/lib/billing/pricebook";
 import { creditPlatformCut } from "@/server/billing/platform";
+import { createNotifications } from "@/server/notifications/service";
+import { sendNotificationEmails } from "@/server/notifications/email";
+import { getCapsuleAdminRecipients } from "@/server/notifications/recipients";
 
 const requestSchema = z.object({
   capsuleId: z.string().uuid(),
@@ -32,9 +35,14 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) return parsed.response;
   const { capsuleId, amountUsd } = parsed.data;
+  const amountLabel = `$${amountUsd.toFixed(2)}`;
 
+  let capsuleName = "your capsule";
+  let capsuleOwnerId: string;
   try {
-    await requireCapsule(capsuleId);
+    const { capsule, ownerId } = await requireCapsule(capsuleId);
+    capsuleOwnerId = ownerId;
+    capsuleName = (capsule as { name?: string | null })?.name ?? capsuleName;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Capsule not found.";
     return returnError(
@@ -122,6 +130,61 @@ export async function POST(req: Request) {
       },
     }).catch((error) => console.warn("capsule.power.platform_cut_failed", error));
   }
+
+  const adminRecipients = await getCapsuleAdminRecipients(capsuleId, capsuleOwnerId);
+  const recipientData = {
+    capsuleId,
+    fromUserId: supabaseUserId,
+    usdMicros,
+    amountUsd,
+    grossCredits,
+    capsuleCredits,
+  };
+
+  if (adminRecipients.length) {
+    await createNotifications(
+      adminRecipients,
+      {
+        type: "capsule_power_received",
+        title: `${amountLabel} Capsule Power added to ${capsuleName}`,
+        body: "A supporter boosted your capsule's compute balance.",
+        data: recipientData,
+        actorId: supabaseUserId,
+      },
+      { respectPreferences: true },
+    );
+    void sendNotificationEmails(
+      adminRecipients,
+      {
+        type: "capsule_power_received",
+        title: `${amountLabel} Capsule Power added to ${capsuleName}`,
+        body: "A supporter boosted your capsule's compute balance.",
+        data: recipientData,
+      },
+      { respectPreferences: true },
+    );
+  }
+
+  await createNotifications(
+    [supabaseUserId],
+    {
+      type: "capsule_power_sent",
+      title: `You added ${amountLabel} Capsule Power`,
+      body: `Converted to ${capsuleCredits} credits for ${capsuleName}.`,
+      data: recipientData,
+    },
+    { respectPreferences: true },
+  );
+  void sendNotificationEmails(
+    [supabaseUserId],
+    {
+      type: "capsule_power_sent",
+      title: `You added ${amountLabel} Capsule Power`,
+      body: `Converted to ${capsuleCredits} credits for ${capsuleName}.`,
+      data: recipientData,
+    },
+    { respectPreferences: true },
+  );
 
   return validatedJson(responseSchema, {
     ok: true,

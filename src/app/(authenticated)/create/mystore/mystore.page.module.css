@@ -5,6 +5,46 @@
   padding: 12px 4px 32px;
 }
 
+.shell[data-surface="store"] {
+  --store-surface-base: var(
+    --store-panel-bg,
+    color-mix(in srgb, var(--surface-elevated) 90%, var(--surface-muted) 60%)
+  );
+  --store-surface-highlight: var(
+    --store-panel-highlight-bg,
+    color-mix(in srgb, var(--store-surface-base) 94%, transparent)
+  );
+  --store-surface-strong: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--store-surface-base) 96%, transparent),
+    color-mix(in srgb, var(--store-surface-base) 99%, transparent)
+  );
+  --store-surface-soft: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--store-surface-base) 92%, transparent),
+    color-mix(in srgb, var(--store-surface-base) 97%, transparent)
+  );
+  --store-surface-deep: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--store-surface-base) 98%, transparent),
+    color-mix(in srgb, var(--store-surface-base) 100%, transparent)
+  );
+  --store-surface-solid: color-mix(in srgb, var(--store-surface-base) 96%, transparent);
+  --store-border-soft: color-mix(in srgb, var(--card-border, var(--surface-outline)) 82%, transparent);
+  --store-border-strong: color-mix(in srgb, var(--card-border, var(--surface-outline)) 88%, transparent);
+  --store-shadow-strong: var(
+    --store-primary-shadow,
+    0 16px 32px color-mix(in srgb, var(--store-surface-base) 45%, transparent)
+  );
+  --store-shadow-soft: 0 12px 26px color-mix(in srgb, var(--store-surface-base) 38%, transparent);
+  --store-cta-gradient: var(--cta-button-gradient, var(--cta-gradient));
+  --store-cta-foreground: var(--cta-button-text, var(--text-on-brand, var(--text)));
+  --store-positive: var(--color-success, #22c55e);
+  --store-warning: var(--color-warning, #f59e0b);
+  --store-danger: var(--color-danger, #dc2626);
+  --store-info: var(--color-info, #0284c7);
+}
+
 .header {
   display: flex;
   flex-direction: column;
@@ -55,7 +95,7 @@
   display: grid;
   gap: 12px;
   padding-top: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(15, 23, 42, 0.9));
+  border-top: 1px solid color-mix(in srgb, var(--surface-outline) 80%, var(--store-surface-base));
 }
 
 .brand {
@@ -87,9 +127,9 @@
     );
   border: 1px solid color-mix(in srgb, var(--surface-outline) 72%, rgba(255, 255, 255, 0.1));
   box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.85),
+    0 10px 24px color-mix(in srgb, var(--store-surface-base) 48%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
   flex-shrink: 0;
   background-size: cover, auto, auto;
   background-position: center;
@@ -115,7 +155,7 @@
   border-radius: inherit;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.75);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 78%, transparent);
   z-index: 1;
 }
 
@@ -127,7 +167,7 @@
   width: 100%;
   height: 100%;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-on-brand, #ffffff);
   font-size: clamp(0.82rem, calc(var(--capsule-logo-size) * 0.42), 1rem);
   letter-spacing: -0.01em;
   z-index: 0;
@@ -164,7 +204,7 @@
   box-shadow:
     0 18px 34px rgba(5, 10, 30, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.78);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 80%, transparent);
 }
 
 .storeTabStrip {
@@ -217,7 +257,7 @@
     color-mix(in srgb, var(--color-brand-strong) 80%, transparent)
   );
   box-shadow:
-    0 12px 26px rgba(15, 23, 42, 0.85),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
@@ -231,7 +271,7 @@
   height: 34px;
   border-radius: 999px;
   border: 1px solid var(--surface-outline);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1));
+  background: var(--store-surface-deep);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -241,7 +281,11 @@
   width: 4px;
   height: 12px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(148, 163, 184, 0.4), rgba(148, 163, 184, 0.98));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--text-2) 60%, transparent),
+    color-mix(in srgb, var(--text-2) 98%, transparent)
+  );
 }
 
 .capsuleGatePanel {
@@ -302,7 +346,7 @@
   box-shadow:
     0 18px 38px rgba(5, 10, 30, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.85);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .summaryLabel {
@@ -361,7 +405,7 @@
   box-shadow:
     0 20px 48px rgba(5, 10, 30, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 76%, transparent);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
 }
@@ -403,15 +447,15 @@
   background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7),
-    0 8px 20px rgba(15, 23, 42, 0.55);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 74%, transparent),
+    0 8px 20px color-mix(in srgb, var(--store-surface-base) 38%, transparent);
 }
 .chipButton[data-active="true"] {
   border-color: color-mix(in srgb, var(--color-brand) 70%, var(--pill-border));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.8),
-    0 10px 22px color-mix(in srgb, var(--color-brand) 50%, rgba(15, 23, 42, 0.9));
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 78%, transparent),
+    0 10px 22px color-mix(in srgb, var(--color-brand) 50%, color-mix(in srgb, var(--store-surface-base) 60%, transparent));
 }
 .chipButton[data-disabled="true"] {
   opacity: 0.6;
@@ -420,8 +464,8 @@
 
 .chipButton[data-variant="ghost"] {
   border-color: color-mix(in srgb, var(--surface-outline) 85%, var(--chip-border));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.8);
+  background: var(--store-surface-strong);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--store-surface-base) 46%, transparent);
 }
 
 .connectStatusBody {
@@ -431,7 +475,7 @@
 
 .connectError {
   margin: 0;
-  color: #f87171;
+  color: var(--store-danger);
   font-weight: 700;
 }
 
@@ -448,7 +492,7 @@
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid var(--card-border, var(--surface-outline));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.98));
+  background: var(--store-surface-strong);
 }
 
 .connectLabel {
@@ -484,7 +528,7 @@
   border-radius: 14px;
   border: 1px solid var(--card-border, var(--surface-outline));
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.98)),
+    var(--store-surface-strong),
     linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 14%, transparent), transparent);
 }
 
@@ -523,14 +567,14 @@
 }
 
 .ctaPrimary {
-  background: linear-gradient(90deg, #5a61ff 0%, #35c0ff 100%);
-  color: #fff;
+  background: var(--store-cta-gradient);
+  color: var(--store-cta-foreground);
 }
 
 .ctaSecondary {
-  background: linear-gradient(180deg, rgba(36, 33, 81, 0.95), rgba(20, 20, 60, 0.95));
-  border-color: color-mix(in srgb, #7a7def 55%, rgba(118, 127, 255, 0.5));
-  color: #f8fafc;
+  background: var(--store-surface-strong);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, var(--store-border-soft));
+  color: var(--text);
   box-shadow:
     0 12px 26px rgba(5, 10, 30, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -566,11 +610,11 @@
   margin-top: 14px;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.8));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+  border: 1px solid var(--store-border-soft);
+  background: var(--store-surface-strong);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 76%, transparent);
   display: grid;
   gap: 12px;
 }
@@ -594,8 +638,8 @@
   align-items: center;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 85%, rgba(148, 163, 184, 0.7));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96));
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 85%, var(--text-2));
+  background: var(--store-surface-soft);
 }
 
 .shippingToggle {
@@ -637,8 +681,8 @@
   width: 100%;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 85%, rgba(148, 163, 184, 0.8));
-  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid var(--store-border-soft);
+  background: var(--store-surface-solid);
   color: var(--text);
 }
 
@@ -660,8 +704,8 @@
   gap: 6px;
   padding: 5px 11px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 85%, rgba(148, 163, 184, 0.8));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 85%, var(--text-2));
+  background: var(--store-surface-deep);
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-2);
@@ -672,7 +716,7 @@
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 5px solid rgba(148, 163, 184, 0.9);
+  border-top: 5px solid color-mix(in srgb, var(--text-2) 92%, transparent);
 }
 
 .salesBody {
@@ -706,12 +750,12 @@
       color-mix(in srgb, var(--color-brand-strong) 36%, var(--color-accent) 22%),
       transparent 60%
     ),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96));
+    var(--store-surface-soft);
   overflow: hidden;
   box-shadow:
-    0 14px 32px rgba(15, 23, 42, 0.9),
+    var(--store-shadow-strong),
     inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .salesChartGrid {
@@ -749,7 +793,7 @@
 
 .salesChartDots circle {
   fill: color-mix(in srgb, var(--color-brand) 82%, var(--color-accent) 18%);
-  stroke: color-mix(in srgb, var(--surface-app) 80%, rgba(15, 23, 42, 0.9));
+  stroke: color-mix(in srgb, var(--surface-app) 80%, var(--store-surface-base));
   stroke-width: 1.8;
 }
 
@@ -787,7 +831,7 @@
 .tableCellRight {
   padding: 10px 0;
   font-size: 0.85rem;
-  border-top: 1px solid color-mix(in srgb, var(--surface-outline) 85%, rgba(15, 23, 42, 0.9));
+  border-top: 1px solid color-mix(in srgb, var(--surface-outline) 85%, var(--store-surface-base));
 }
 
 .tableCellMuted {
@@ -820,17 +864,17 @@
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 600;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 85%, rgba(148, 163, 184, 0.9));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
+  border: 1px solid var(--store-border-strong);
+  background: var(--store-surface-deep);
 }
 
 .productStatus[data-status="live"] {
-  border-color: rgba(52, 211, 153, 0.8);
-  color: rgba(94, 234, 212, 1);
+  border-color: color-mix(in srgb, var(--store-positive) 65%, var(--store-border-strong));
+  color: color-mix(in srgb, var(--store-positive) 82%, var(--text));
 }
 
 .productStatus[data-status="draft"] {
-  border-color: rgba(148, 163, 184, 0.8);
+  border-color: var(--store-border-soft);
   color: var(--text-2);
 }
 
@@ -862,9 +906,9 @@
       color-mix(in srgb, var(--surface-app) 86%, transparent)
     );
   box-shadow:
-    0 14px 32px rgba(15, 23, 42, 0.7),
+    var(--store-shadow-strong),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.8);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 80%, transparent);
 }
 
 .metricTileLabel {
@@ -891,7 +935,7 @@
 }
 
 .metricTile[data-tone="down"] .metricTileTrend {
-  color: rgba(248, 113, 113, 0.9);
+  color: color-mix(in srgb, var(--store-danger) 82%, var(--text));
 }
 
 .metricTile[data-tone="steady"] .metricTileTrend {
@@ -942,12 +986,12 @@
       color-mix(in srgb, var(--color-brand-strong) 36%, var(--color-accent) 22%),
       transparent 60%
     ),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96));
+    var(--store-surface-soft);
   overflow: hidden;
   box-shadow:
-    0 14px 32px rgba(15, 23, 42, 0.9),
+    var(--store-shadow-strong),
     inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .miniTimelineGlow {
@@ -1014,9 +1058,9 @@
       color-mix(in srgb, var(--surface-app) 86%, transparent)
     );
   box-shadow:
-    0 14px 32px rgba(15, 23, 42, 0.68),
+    var(--store-shadow-strong),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.8);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 80%, transparent);
 }
 
 .segmentLabel {
@@ -1051,7 +1095,7 @@
   padding: 8px 9px;
   border-radius: 13px;
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.92)),
+    var(--store-surface-soft),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 26%, transparent),
@@ -1064,9 +1108,9 @@
       color-mix(in srgb, var(--card-border, var(--surface-outline)) 38%, transparent)
     );
   box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.85),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.85);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .contentBadge {
@@ -1112,7 +1156,7 @@
   padding: 8px 9px;
   border-radius: 13px;
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    var(--store-surface-strong),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 24%, transparent),
@@ -1125,9 +1169,9 @@
       color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
     );
   box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.85),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.85);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .catalogMeta {
@@ -1153,12 +1197,16 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.52));
-  border: 1px solid rgba(96, 165, 250, 0.9);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand) 28%, transparent),
+    color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 52%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand) 78%, transparent);
   box-shadow:
-    0 8px 18px rgba(30, 64, 175, 0.8),
-    inset 0 1px 0 rgba(239, 246, 255, 0.7),
-    inset 0 -1px 0 rgba(30, 64, 175, 0.9);
+    0 8px 18px color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 45%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--surface-overlay) 70%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 70%, transparent);
 }
 .orderList {
   margin-top: 10px;
@@ -1174,7 +1222,7 @@
   border-radius: 13px;
   border: 1px solid color-mix(in srgb, var(--color-brand) 40%, var(--surface-outline));
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96)),
+    var(--store-surface-soft),
     linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent);
 }
 .orderMetaBlock {
@@ -1230,31 +1278,31 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 26%, transparent);
 }
 .statusPill[data-tone="success"] {
-  color: #4ade80;
-  border-color: color-mix(in srgb, #22c55e 50%, var(--surface-outline));
-  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: var(--store-positive);
+  border-color: color-mix(in srgb, var(--store-positive) 55%, var(--surface-outline));
+  background: color-mix(in srgb, var(--store-positive) 14%, transparent);
 }
 .statusPill[data-tone="warning"] {
-  color: #fbbf24;
-  border-color: color-mix(in srgb, #f59e0b 50%, var(--surface-outline));
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: var(--store-warning);
+  border-color: color-mix(in srgb, var(--store-warning) 55%, var(--surface-outline));
+  background: color-mix(in srgb, var(--store-warning) 14%, transparent);
 }
 .statusPill[data-tone="danger"] {
-  color: #f87171;
-  border-color: color-mix(in srgb, #ef4444 55%, var(--surface-outline));
-  background: color-mix(in srgb, #ef4444 14%, transparent);
+  color: var(--store-danger);
+  border-color: color-mix(in srgb, var(--store-danger) 55%, var(--surface-outline));
+  background: color-mix(in srgb, var(--store-danger) 14%, transparent);
 }
 .statusPill[data-tone="info"] {
-  color: #60a5fa;
-  border-color: color-mix(in srgb, #3b82f6 50%, var(--surface-outline));
-  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  color: var(--store-info);
+  border-color: color-mix(in srgb, var(--store-info) 55%, var(--surface-outline));
+  background: color-mix(in srgb, var(--store-info) 14%, transparent);
 }
 .emptyCard {
   padding: 12px;
   border-radius: 12px;
   border: 1px dashed color-mix(in srgb, var(--surface-outline) 80%, var(--color-brand));
   color: var(--text-2);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.9));
+  background: var(--store-surface-soft);
 }
 
 .playbookList {
@@ -1271,7 +1319,7 @@
   padding: 9px 10px;
   border-radius: 14px;
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    var(--store-surface-strong),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 32%, transparent),
@@ -1284,9 +1332,9 @@
       color-mix(in srgb, var(--card-border, var(--surface-outline)) 42%, transparent)
     );
   box-shadow:
-    0 12px 26px rgba(15, 23, 42, 0.9),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .playbookMeta {
@@ -1307,14 +1355,18 @@
 .playbookCta {
   padding: 5px 11px;
   border-radius: 999px;
-  border: 1px solid rgba(191, 219, 254, 0.8);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 28%, var(--store-border-strong));
   font-size: 0.78rem;
   font-weight: 600;
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.12), rgba(191, 219, 254, 0.16));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-overlay) 26%, transparent),
+    color-mix(in srgb, var(--surface-overlay) 32%, transparent)
+  );
   box-shadow:
-    0 10px 22px rgba(15, 23, 42, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    0 10px 22px color-mix(in srgb, var(--store-panel-bg, var(--surface-elevated)) 40%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--surface-overlay) 70%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--store-panel-bg, var(--surface-elevated)) 82%, transparent);
 }
 
 .linkList {
@@ -1333,16 +1385,16 @@
       color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
     );
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.98)),
+    var(--store-surface-strong),
     radial-gradient(
       140% 180% at 0% 0%,
       color-mix(in srgb, var(--color-brand) 28%, transparent),
       transparent 65%
     );
   box-shadow:
-    0 10px 22px rgba(15, 23, 42, 0.9),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .linkMeta {
@@ -1385,30 +1437,30 @@
       color-mix(in srgb, var(--card-border, var(--surface-outline)) 40%, transparent)
     );
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    var(--store-surface-strong),
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--color-brand) 28%, transparent),
       color-mix(in srgb, var(--color-brand-strong) 22%, transparent)
     );
   box-shadow:
-    0 12px 26px rgba(15, 23, 42, 0.9),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .taskCheckbox {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  border: 1px solid rgba(191, 219, 254, 0.9);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 32%, var(--store-border-strong));
   background:
-    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.8), transparent 70%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 1));
+    radial-gradient(circle at 30% 0%, color-mix(in srgb, var(--surface-overlay) 78%, transparent), transparent 70%),
+    var(--store-surface-deep);
   box-shadow:
-    0 6px 16px rgba(15, 23, 42, 0.8),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    0 6px 16px color-mix(in srgb, var(--store-panel-bg, var(--surface-elevated)) 46%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--surface-overlay) 70%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--store-panel-bg, var(--surface-elevated)) 82%, transparent);
 }
 
 .taskBody {
@@ -1434,12 +1486,16 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: linear-gradient(180deg, rgba(52, 211, 153, 0.18), rgba(34, 197, 94, 0.46));
-  border: 1px solid rgba(74, 222, 128, 0.85);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--store-positive) 28%, transparent),
+    color-mix(in srgb, var(--store-positive) 56%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--store-positive) 75%, transparent);
   box-shadow:
-    0 8px 18px rgba(21, 128, 61, 0.8),
-    inset 0 1px 0 rgba(240, 253, 244, 0.7),
-    inset 0 -1px 0 rgba(21, 128, 61, 0.9);
+    0 8px 18px color-mix(in srgb, var(--store-positive) 42%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--surface-overlay) 72%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--store-positive) 78%, transparent);
 }
 
 .ordersPage {
@@ -1491,16 +1547,16 @@
       color-mix(in srgb, var(--color-brand) 35%, transparent)
     );
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
+    var(--store-surface-strong),
     radial-gradient(
       140% 180% at 0% 0%,
       color-mix(in srgb, var(--color-brand) 24%, var(--color-accent) 18%),
       transparent 60%
     );
   box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.85),
+    var(--store-shadow-soft),
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
 }
 
 .ordersSearchInput {
@@ -1526,7 +1582,7 @@
   box-shadow:
     0 18px 38px rgba(5, 10, 30, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.85);
+    inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
   display: grid;
   gap: 14px;
 }
@@ -1563,8 +1619,8 @@
   text-align: left;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.8));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  border: 1px solid var(--store-border-soft);
+  background: var(--store-surface-strong);
   color: var(--text);
   font-weight: 600;
 }
@@ -1572,7 +1628,7 @@
 .wizardCategoryActive {
   border-color: color-mix(in srgb, var(--color-brand) 70%, var(--surface-outline));
   box-shadow:
-    0 10px 22px rgba(15, 23, 42, 0.7),
+    0 10px 22px color-mix(in srgb, var(--store-surface-base) 42%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
@@ -1592,8 +1648,8 @@
   text-align: left;
   padding: 12px 12px 11px;
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.9));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, var(--text-2));
+  background: var(--store-surface-strong);
   color: var(--text);
   display: grid;
   gap: 6px;
@@ -1602,7 +1658,7 @@
 .wizardCardActive {
   border-color: color-mix(in srgb, var(--color-brand) 70%, var(--surface-outline));
   box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.8),
+    0 10px 24px color-mix(in srgb, var(--store-surface-base) 45%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
@@ -1636,7 +1692,7 @@
   padding: 12px;
   border-radius: 14px;
   border: 1px dashed color-mix(in srgb, var(--surface-outline) 80%, var(--color-brand));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.96));
+  background: var(--store-surface-soft);
   display: grid;
   gap: 6px;
 }
@@ -1682,8 +1738,8 @@
 .wizardChip {
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.8));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  border: 1px solid var(--store-border-soft);
+  background: var(--store-surface-strong);
   font-size: 0.82rem;
 }
 
@@ -1697,7 +1753,7 @@
 
 .wizardVariantStatus {
   font-size: 0.82rem;
-  color: color-mix(in srgb, var(--text-2) 86%, rgba(56, 189, 248, 0.8));
+  color: color-mix(in srgb, var(--text-2) 86%, var(--color-accent));
 }
 
 .wizardVariantActions {
@@ -1727,8 +1783,8 @@
 .wizardChipButton {
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 80%, rgba(148, 163, 184, 0.8));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+  border: 1px solid var(--store-border-soft);
+  background: var(--store-surface-strong);
   font-size: 0.82rem;
   color: var(--text);
   display: inline-flex;
@@ -1747,11 +1803,11 @@
   border-color: color-mix(in srgb, var(--color-brand) 65%, var(--surface-outline));
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-brand) 36%, rgba(15, 23, 42, 0.8)),
-    rgba(15, 23, 42, 0.98)
+    color-mix(in srgb, var(--color-brand) 36%, var(--store-surface-base)),
+    color-mix(in srgb, var(--store-surface-base) 98%, transparent)
   );
   box-shadow:
-    0 8px 18px rgba(15, 23, 42, 0.6),
+    0 8px 18px color-mix(in srgb, var(--store-surface-base) 40%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -1769,14 +1825,14 @@
   height: 16px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-brand) 80%, var(--color-accent));
-  color: rgba(15, 23, 42, 0.95);
+  color: var(--text-on-brand, var(--color-brand-foreground, #0e1024));
   font-size: 0.72rem;
   font-weight: 800;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .wizardVariantWarning {
-  color: #fca5a5;
+  color: color-mix(in srgb, var(--store-danger) 72%, var(--text));
   font-size: 0.82rem;
 }
 
@@ -1841,9 +1897,9 @@
   .header {
     border-radius: 0;
     box-shadow:
-      0 18px 42px rgba(15, 23, 42, 0.8),
+      0 18px 42px color-mix(in srgb, var(--store-surface-base) 48%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 rgba(15, 23, 42, 0.9);
+      inset 0 -1px 0 color-mix(in srgb, var(--store-surface-base) 82%, transparent);
   }
   .card,
   .cardAccent {

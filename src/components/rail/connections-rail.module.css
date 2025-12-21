@@ -121,17 +121,15 @@
     padding: 10px;
     min-height: 44px;
     border-radius: 12px;
-    border: 1px solid var(--pill-border, var(--color-border));
+    border: 1px solid
+      var(--rail-chip-border, var(--icon-plate-border, var(--pill-border, var(--color-border))));
     background: linear-gradient(
       180deg,
-      var(--glass-bg-1, color-mix(in srgb, var(--surface-overlay) 6%, transparent)),
-      var(--glass-bg-2, color-mix(in srgb, var(--surface-overlay) 4%, transparent))
+      var(--rail-chip-bg-1, var(--icon-plate-bg-1, var(--glass-bg-1))),
+      var(--rail-chip-bg-2, var(--icon-plate-bg-2, var(--glass-bg-2)))
     );
-    color: var(--color-fg);
-    box-shadow: var(
-      --home-railtab-box-shadow,
-      inset 0 1px 0 color-mix(in srgb, var(--color-fg) 12%, transparent)
-    );
+    color: var(--rail-chip-icon, var(--color-fg));
+    box-shadow: var(--home-railtab-box-shadow, var(--icon-plate-highlight));
     transition:
       transform 0.16s ease,
       border-color 0.16s ease,
@@ -204,11 +202,14 @@
     min-height: 38px;
     border-radius: 999px;
     border: 1px solid
-      color-mix(in srgb, var(--rail-border, var(--card-border, var(--color-border))) 80%, transparent);
+      var(
+        --rail-chip-border,
+        var(--icon-plate-border, var(--rail-border, var(--card-border, var(--color-border))))
+      );
     background: linear-gradient(
-      140deg,
-      color-mix(in srgb, var(--color-fg) 32%, transparent),
-      color-mix(in srgb, var(--color-fg) 16%, transparent)
+      180deg,
+      var(--rail-chip-bg-1, var(--icon-plate-bg-1, var(--glass-bg-1))),
+      var(--rail-chip-bg-2, var(--icon-plate-bg-2, var(--glass-bg-2)))
     );
     color: var(--cta-button-text, var(--text));
     font-weight: 700;
@@ -293,6 +294,19 @@
     background: color-mix(in srgb, var(--color-fg) 20%, transparent);
     color: var(--text-on-brand, var(--color-fg));
     border: 1px solid color-mix(in srgb, var(--color-border-strong, var(--color-border)) 70%, transparent);
+  }
+
+  /* Light mode: crisp, even icon plates for rail header chips and actions */
+  :global(:root[data-theme="light"]) .railHeaderRow {
+    --rail-chip-bg-1: #f8fbff;
+    --rail-chip-bg-2: #e5eaf3;
+    --rail-chip-border: #c9d3e3;
+    --rail-chip-icon: #0f172a;
+    --home-railtab-box-shadow: var(
+      --rail-chip-shadow,
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 8px 16px rgba(15, 23, 42, 0.12)
+    );
   }
 
 
@@ -550,6 +564,25 @@
   .railPanelActionButton[aria-pressed="true"] {
     border-color: color-mix(in srgb, var(--color-brand) 76%, transparent);
     box-shadow: 0 10px 20px color-mix(in srgb, var(--color-brand) 24%, transparent);
+  }
+
+  /* Light mode: brighten panel header chips (icon + invite) without touching top-level tabs */
+  :global(:root[data-theme="light"]) .panelShellTitleIcon,
+  :global(:root[data-theme="light"]) .railPanelTitleIcon,
+  :global(:root[data-theme="light"]) .railPanelActionButton {
+    border-color: #cdd6e6;
+    background: linear-gradient(180deg, #f9fbff 0%, #e5eaf3 100%);
+    color: #0f172a;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 6px 14px rgba(15, 23, 42, 0.1);
+  }
+
+  :global(:root[data-theme="light"]) .railPanelActionButton[aria-pressed="true"] {
+    border-color: #9fb3d4;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      0 10px 18px rgba(99, 102, 241, 0.18);
   }
 
   .friendDiscover {

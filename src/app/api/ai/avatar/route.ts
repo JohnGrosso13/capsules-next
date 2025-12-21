@@ -12,6 +12,13 @@ import {
 } from "@/server/rate-limit";
 import { resolveClientIp } from "@/server/http/ip";
 import { generateAvatarAsset, editAvatarAsset } from "@/server/customizer/assets/avatar";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { imageCreditsForQuality } from "@/lib/billing/usage";
 
 const requestSchema = z.object({
   prompt: z.string().min(1),
@@ -112,6 +119,29 @@ export async function POST(req: Request) {
   const requestOrigin = deriveRequestOrigin(req) ?? serverEnv.SITE_URL;
 
   try {
+    const walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "AI avatar generation",
+    });
+    const computeCost = imageCreditsForQuality("medium");
+    await chargeUsage({
+      wallet: walletContext.wallet,
+      balance: walletContext.balance,
+      metric: "compute",
+      amount: computeCost,
+      reason: "ai.avatar",
+      bypass: walletContext.bypass,
+    });
+
     const baseOptions = {
       prompt,
       ownerId,
@@ -142,6 +172,9 @@ export async function POST(req: Request) {
       ...(result.variant ? { variant: result.variant } : {}),
     });
   } catch (error) {
+    if (error instanceof EntitlementError) {
+      return returnError(error.status, error.code, error.message, error.details);
+    }
     const code = (error as { code?: string }).code ?? null;
     if (code === "style_persona_not_found") {
       return returnError(404, "style_persona_not_found", "The selected style persona is not available.");

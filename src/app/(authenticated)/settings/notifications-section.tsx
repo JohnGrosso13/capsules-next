@@ -15,7 +15,7 @@ type NotificationsSettingsSectionProps = {
   initialSettings: NotificationSettings;
 };
 
-const OPTIONS: Array<{
+const ACTIVITY_OPTIONS: Array<{
   key: ToggleKey;
   emailKey: ToggleKey;
   title: string;
@@ -179,6 +179,79 @@ const OPTIONS: Array<{
   },
 ];
 
+const BILLING_OPTIONS: Array<{
+  key: ToggleKey;
+  emailKey: ToggleKey;
+  title: string;
+  description: string;
+}> = [
+  {
+    key: "billingIssues",
+    emailKey: "billingIssuesEmail",
+    title: "Billing issues",
+    description: "Payment failures, past-due renewals, or anything that blocks your subscription.",
+  },
+  {
+    key: "billingUpdates",
+    emailKey: "billingUpdatesEmail",
+    title: "Billing receipts and changes",
+    description: "Successful charges, plan updates, and cancellations.",
+  },
+];
+
+const COMMERCE_OPTIONS: Array<{
+  key: ToggleKey;
+  emailKey: ToggleKey;
+  title: string;
+  description: string;
+}> = [
+  {
+    key: "capsuleSupportSent",
+    emailKey: "capsuleSupportSentEmail",
+    title: "Support I send (Power/Pass)",
+    description: "Receipts when you top up Capsule Power or buy Capsule Passes.",
+  },
+  {
+    key: "capsuleSupportReceived",
+    emailKey: "capsuleSupportReceivedEmail",
+    title: "Support my capsule receives",
+    description: "Alerts when your capsule or team gets Power or Pass contributions.",
+  },
+  {
+    key: "storeOrders",
+    emailKey: "storeOrdersEmail",
+    title: "My store orders",
+    description: "Purchase confirmations and failures for orders you place.",
+  },
+  {
+    key: "storeSales",
+    emailKey: "storeSalesEmail",
+    title: "Store sales",
+    description: "Alerts when someone buys from your capsule store.",
+  },
+];
+
+const SECTIONS = [
+  {
+    id: "activity",
+    title: "Activity & messages",
+    description: "Social, collaboration, and live session alerts.",
+    options: ACTIVITY_OPTIONS,
+  },
+  {
+    id: "billing",
+    title: "Billing & payments",
+    description: "Stay informed about charges and subscription health.",
+    options: BILLING_OPTIONS,
+  },
+  {
+    id: "commerce",
+    title: "Commerce & support",
+    description: "Capsule Power/Pass contributions and store orders/sales.",
+    options: COMMERCE_OPTIONS,
+  },
+];
+
 function coerceSettings(
   fallback: NotificationSettings,
   updates: Partial<NotificationSettings> | null,
@@ -258,57 +331,69 @@ export function NotificationsSettingsSection({
         ) : null}
       </header>
       <div className={cards.cardBody}>
-        <div className={styles.columnsHeader} aria-hidden="true">
-          <div className={styles.columnsHeaderSpacer} />
-          <div className={styles.columnsHeaderLabels}>
-            <span className={styles.columnsHeaderLabel}>Notifications</span>
-            <span className={styles.columnsHeaderLabel}>Emails</span>
-          </div>
-        </div>
-        <div className={styles.options}>
-          {OPTIONS.map((option) => {
-            const enabled = Boolean(settings[option.key]);
-            const emailEnabled = Boolean(settings[option.emailKey]);
-            const isSaving = savingKey === option.key;
-            const isEmailSaving = savingKey === option.emailKey;
-            return (
-              <div key={option.key} className={styles.option}>
-                <div className={styles.optionText}>
-                  <div className={styles.optionTitle}>{option.title}</div>
-                  <p className={styles.optionDescription}>{option.description}</p>
-                </div>
-                <div className={styles.optionToggles}>
-                  <button
-                    type="button"
-                    className={`${styles.toggle} ${enabled ? styles.toggleOn : ""} ${
-                      isSaving ? styles.toggleBusy : ""
-                    }`.trim()}
-                    role="switch"
-                    aria-checked={enabled}
-                    aria-label={`${option.title} (in-app)`}
-                    disabled={isSaving}
-                    onClick={() => handleToggle(option.key)}
-                  >
-                    <span className={styles.toggleThumb} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.toggle} ${emailEnabled ? styles.toggleOn : ""} ${
-                      isEmailSaving ? styles.toggleBusy : ""
-                    }`.trim()}
-                    role="switch"
-                    aria-checked={emailEnabled}
-                    aria-label={`${option.title} (email)`}
-                    disabled={isEmailSaving}
-                    onClick={() => handleToggle(option.emailKey)}
-                  >
-                    <span className={styles.toggleThumb} />
-                  </button>
-                </div>
+        {SECTIONS.map((section) => (
+          <section key={section.id} className={styles.section}>
+            <div className={styles.sectionHeaderRow}>
+              <div>
+                <p className={styles.sectionTitle}>{section.title}</p>
+                {section.description ? (
+                  <p className={styles.sectionDescription}>{section.description}</p>
+                ) : null}
               </div>
-            );
-          })}
-        </div>
+            </div>
+            <div className={styles.columnsHeader} aria-hidden="true">
+              <div className={styles.columnsHeaderSpacer} />
+              <div className={styles.columnsHeaderLabels}>
+                <span className={styles.columnsHeaderLabel}>Notifications</span>
+                <span className={styles.columnsHeaderLabel}>Emails</span>
+              </div>
+            </div>
+            <div className={styles.options}>
+              {section.options.map((option) => {
+                const enabled = Boolean(settings[option.key]);
+                const emailEnabled = Boolean(settings[option.emailKey]);
+                const isSaving = savingKey === option.key;
+                const isEmailSaving = savingKey === option.emailKey;
+                return (
+                  <div key={option.key} className={styles.option}>
+                    <div className={styles.optionText}>
+                      <div className={styles.optionTitle}>{option.title}</div>
+                      <p className={styles.optionDescription}>{option.description}</p>
+                    </div>
+                    <div className={styles.optionToggles}>
+                      <button
+                        type="button"
+                        className={`${styles.toggle} ${enabled ? styles.toggleOn : ""} ${
+                          isSaving ? styles.toggleBusy : ""
+                        }`.trim()}
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`${option.title} (in-app)`}
+                        disabled={isSaving}
+                        onClick={() => handleToggle(option.key)}
+                      >
+                        <span className={styles.toggleThumb} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.toggle} ${emailEnabled ? styles.toggleOn : ""} ${
+                          isEmailSaving ? styles.toggleBusy : ""
+                        }`.trim()}
+                        role="switch"
+                        aria-checked={emailEnabled}
+                        aria-label={`${option.title} (email)`}
+                        disabled={isEmailSaving}
+                        onClick={() => handleToggle(option.emailKey)}
+                      >
+                        <span className={styles.toggleThumb} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     </article>
   );

@@ -11,7 +11,7 @@ import { computeDisplayUploads } from "./process-uploads";
 import { useMemoryUploads } from "./use-memory-uploads";
 import type { DisplayMemoryUpload } from "./uploads-types";
 import { getUploadExtension, isImage, isVideo } from "./upload-helpers";
-import { isAiVideoMemory, isPdfMemory } from "./uploads-carousel";
+import { isAiVideoMemory, isPdfMemory, isPowerpointMemory } from "./uploads-carousel";
 
 type MemoryTab = {
   value: string;
@@ -53,6 +53,14 @@ const MEMORY_TABS: MemoryTab[] = [
     filter: isPdfMemory,
     emptyLoading: "Loading your PDFs...",
     emptyNone: "No PDFs yet. Generate or upload a PDF to see it here.",
+  },
+  {
+    value: "powerpoints",
+    label: "Powerpoints",
+    kind: "upload",
+    filter: isPowerpointMemory,
+    emptyLoading: "Loading your Powerpoints...",
+    emptyNone: "No Powerpoints yet. Generate a PPTX in Composer to see it here.",
   },
   {
     value: "polls",
@@ -152,9 +160,9 @@ export function UploadsGallery({ initialTab }: UploadsGalleryProps) {
     const mime = item.media_type || null;
     const title = item.title?.trim() || item.description?.trim() || "Upload";
     const desc = item.description?.trim() || null;
-    const imageLike = isImage(mime);
-    const videoLike = isVideo(mime);
     const extension = getUploadExtension(item);
+    const imageLike = isImage(mime, extension);
+    const videoLike = isVideo(mime, extension);
     const metaType = mime ?? extension ?? null;
 
     return (

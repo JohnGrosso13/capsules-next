@@ -53,6 +53,37 @@
   text-align: center;
 }
 
+.section {
+  display: grid;
+  gap: 8px;
+  padding: 6px 0 2px;
+}
+
+.section + .section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-weight: 750;
+  color: var(--text, rgba(255, 255, 255, 0.9));
+}
+
+.sectionDescription {
+  margin: 4px 0 0;
+  color: var(--text-2, rgba(255, 255, 255, 0.72));
+  font-size: 0.9rem;
+}
+
 .options {
   display: grid;
   gap: 14px;

@@ -1,5 +1,6 @@
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import { buildCloudflareImageUrl } from "@/lib/cloudflare/images";
+import { getUploadExtension } from "./upload-helpers";
 
 import type { DisplayMemoryUpload, MemoryUploadItem } from "./uploads-types";
 
@@ -33,6 +34,20 @@ function selectMetaThumbnail(meta: Record<string, unknown> | null | undefined): 
   return null;
 }
 
+function selectDerivedAsset(meta: Record<string, unknown> | null | undefined): string | null {
+  if (!meta || typeof meta !== "object") return null;
+  const derived = (meta as { derived_assets?: unknown }).derived_assets;
+  if (!Array.isArray(derived)) return null;
+  for (const entry of derived) {
+    if (typeof entry === "string" && entry.trim().length) return entry.trim();
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      const url = (entry as { url?: unknown }).url;
+      if (typeof url === "string" && url.trim().length) return url.trim();
+    }
+  }
+  return null;
+}
+
 function toAbsolute(url: string | null | undefined, origin: string | null): string | null {
   if (!url || typeof url !== "string") return null;
   return resolveToAbsoluteUrl(url, origin);
@@ -54,6 +69,26 @@ function canOptimizeWithCloudflare(url: string | null, origin: string | null): b
   return false;
 }
 
+function deriveMimeFromExtension(ext: string | null | undefined): string | null {
+  if (!ext) return null;
+  const value = ext.toUpperCase();
+  if (value === "MOV" || value === "MP4" || value === "M4V" || value === "WEBM") return "video/mp4";
+  if (value === "MKV") return "video/x-matroska";
+  if (value === "AVI") return "video/x-msvideo";
+  if (value === "WMV") return "video/x-ms-wmv";
+  if (value === "3GP") return "video/3gpp";
+  if (value === "GIF") return "image/gif";
+  if (value === "PNG") return "image/png";
+  if (value === "JPG" || value === "JPEG") return "image/jpeg";
+  if (value === "WEBP") return "image/webp";
+  if (value === "HEIC" || value === "HEIF") return "image/heic";
+  if (value === "AVIF") return "image/avif";
+  if (value === "BMP") return "image/bmp";
+  if (value === "TIFF" || value === "TIF") return "image/tiff";
+  if (value === "DNG") return "image/x-adobe-dng";
+  return null;
+}
+
 export function computeDisplayUploads(
   items: MemoryUploadItem[],
   { origin, cloudflareEnabled }: TransformOptions,
@@ -62,44 +97,55 @@ export function computeDisplayUploads(
   const effectiveOrigin = origin ?? (typeof window !== "undefined" ? window.location.origin : null);
   const allowCloudflare = cloudflareEnabled;
 
-  return items
-    .map((item) => {
-      const rawUrl = typeof item.media_url === "string" ? item.media_url.trim() : "";
-      const absoluteFull = toAbsolute(rawUrl, effectiveOrigin);
-      const normalizedFull = typeof absoluteFull === "string" ? absoluteFull.trim() : "";
+  const results: DisplayMemoryUpload[] = [];
 
-      const metaThumb = selectMetaThumbnail(
-        item.meta as Record<string, unknown> | null | undefined,
-      );
-      const absoluteThumb = toAbsolute(metaThumb, effectiveOrigin);
-      const normalizedThumb = typeof absoluteThumb === "string" ? absoluteThumb.trim() : "";
+  items.forEach((item) => {
+    const rawUrl = typeof item.media_url === "string" ? item.media_url.trim() : "";
+    const absoluteFull = toAbsolute(rawUrl, effectiveOrigin);
+    const normalizedFull = typeof absoluteFull === "string" ? absoluteFull.trim() : "";
 
-      const baseDisplay = normalizedThumb.length ? normalizedThumb : normalizedFull;
-      if (!baseDisplay.length) {
-        return null;
+    const meta = item.meta as Record<string, unknown> | null | undefined;
+    const metaThumb = selectMetaThumbnail(meta);
+    const derivedAsset = selectDerivedAsset(meta);
+
+    const absoluteThumb = toAbsolute(metaThumb ?? derivedAsset, effectiveOrigin);
+    const normalizedThumb = typeof absoluteThumb === "string" ? absoluteThumb.trim() : "";
+
+    const baseDisplay = normalizedThumb.length ? normalizedThumb : normalizedFull;
+    if (!baseDisplay.length) {
+      return;
+    }
+
+    let displayUrl = baseDisplay;
+    if (allowCloudflare && canOptimizeWithCloudflare(baseDisplay, effectiveOrigin)) {
+      const optimized = buildCloudflareImageUrl(baseDisplay, {
+        width: FALLBACK_THUMB_SIZE,
+        height: FALLBACK_THUMB_SIZE,
+        fit: "cover",
+        gravity: "faces",
+        quality: 82,
+        format: "auto",
+        sharpen: 1,
+      });
+      if (optimized) {
+        displayUrl = optimized;
       }
+    }
 
-      let displayUrl = baseDisplay;
-      if (allowCloudflare && canOptimizeWithCloudflare(baseDisplay, effectiveOrigin)) {
-        const optimized = buildCloudflareImageUrl(baseDisplay, {
-          width: FALLBACK_THUMB_SIZE,
-          height: FALLBACK_THUMB_SIZE,
-          fit: "cover",
-          gravity: "faces",
-          quality: 82,
-          format: "auto",
-          sharpen: 1,
-        });
-        if (optimized) {
-          displayUrl = optimized;
-        }
-      }
+    const extension = getUploadExtension({
+      ...item,
+      fullUrl: normalizedFull.length ? normalizedFull : baseDisplay,
+      displayUrl,
+    } as DisplayMemoryUpload);
+    const inferredMime = item.media_type ?? deriveMimeFromExtension(extension);
 
-      return {
-        ...item,
-        displayUrl,
-        fullUrl: normalizedFull.length ? normalizedFull : baseDisplay,
-      };
-    })
-    .filter((upload): upload is DisplayMemoryUpload => upload !== null);
+    results.push({
+      ...item,
+      media_type: inferredMime ?? item.media_type ?? null,
+      displayUrl,
+      fullUrl: normalizedFull.length ? normalizedFull : baseDisplay,
+    });
+  });
+
+  return results;
 }

@@ -30,6 +30,13 @@ import {
   storeCustomizerConversationSnapshot,
   type CustomizerConversationSnapshot,
 } from "@/server/customizer/conversation-store";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens, estimateTokensFromText } from "@/lib/billing/usage";
 
 const attachmentSchema = z.object({
   id: z.string(),
@@ -165,6 +172,29 @@ export async function POST(req: Request) {
   const parsed = await parseJsonBody(req, requestSchema);
   if (!parsed.success) {
     return parsed.response;
+  }
+
+  let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+  try {
+    walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "AI customizer",
+    });
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(billingError.status, billingError.code, billingError.message, billingError.details);
+    }
+    console.error("billing.customize.init_failed", billingError);
+    return returnError(500, "billing_error", "Failed to verify allowance for customization.");
   }
 
   const { message, options, post, history, attachments, capsuleId, stream } = parsed.data;
@@ -428,6 +458,40 @@ export async function POST(req: Request) {
             console.warn("customizer conversation store failed", error);
           });
 
+          try {
+            const estimatedTokens = estimateTokensFromText(
+              [message, JSON.stringify(run.response ?? {}), JSON.stringify(historyOut ?? [])].join("\n"),
+            );
+            const computeCost = computeTextCreditsFromTokens(estimatedTokens, null);
+            if (walletContext && computeCost > 0 && !walletContext.bypass) {
+              await chargeUsage({
+                wallet: walletContext.wallet,
+                balance: walletContext.balance,
+                metric: "compute",
+                amount: computeCost,
+                reason: "ai.customize",
+                bypass: walletContext.bypass,
+              });
+            }
+          } catch (billingError) {
+            if (billingError instanceof EntitlementError) {
+              send({
+                event: "error",
+                error: billingError.message,
+                details: billingError.details,
+              });
+              controller.close();
+              return;
+            }
+            console.error("billing.customize.stream_charge_failed", billingError);
+            send({
+              event: "error",
+              error: "Billing failed for this request.",
+            });
+            controller.close();
+            return;
+          }
+
           send({ event: "done", payload: { ...responseWithThread, context: responseContext } });
           controller.close();
         } catch (error) {
@@ -505,6 +569,34 @@ export async function POST(req: Request) {
     storeCustomizerConversationSnapshot(ownerId, snapshotThreadId, snapshot).catch((error) => {
       console.warn("customizer conversation store failed", error);
     });
+
+    try {
+      const estimatedTokens = estimateTokensFromText(
+        [message, JSON.stringify(run.response ?? {}), JSON.stringify(historyOut ?? [])].join("\n"),
+      );
+      const computeCost = computeTextCreditsFromTokens(estimatedTokens, null);
+      if (walletContext && computeCost > 0 && !walletContext.bypass) {
+        await chargeUsage({
+          wallet: walletContext.wallet,
+          balance: walletContext.balance,
+          metric: "compute",
+          amount: computeCost,
+          reason: "ai.customize",
+          bypass: walletContext.bypass,
+        });
+      }
+    } catch (billingError) {
+      if (billingError instanceof EntitlementError) {
+        return returnError(
+          billingError.status,
+          billingError.code,
+          billingError.message,
+          billingError.details,
+        );
+      }
+      console.error("customizer_prompt.billing_failed", billingError);
+      return returnError(500, "billing_error", "Failed to record customization usage");
+    }
 
     return validatedJson(promptResponseSchema, { ...responseWithThread, context: responseContext });
   } catch (error) {

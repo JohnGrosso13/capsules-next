@@ -6,6 +6,13 @@ import { hasOpenAIApiKey, postOpenAIJson } from "@/adapters/ai/openai/server";
 import { buildCompletionTokenLimit } from "@/lib/ai/openai";
 import { returnError, validatedJson } from "@/server/validation/http";
 import type { CapsuleHistoryPeriod } from "@/types/capsules";
+import {
+  chargeUsage,
+  ensureFeatureAccess,
+  resolveWalletContext,
+  EntitlementError,
+} from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens } from "@/lib/billing/usage";
 
 const paramsSchema = z.object({
   id: z.string().uuid("capsule id must be a valid UUID"),
@@ -46,6 +53,7 @@ const responseSchema = z.object({
 });
 
 type HintResponse = z.infer<typeof responseSchema>;
+type HintResult = { hints: HintResponse; tokensUsed: number };
 
 type NormalizedHintInput = {
   period: CapsuleHistoryPeriod;
@@ -60,6 +68,7 @@ type NormalizedHintInput = {
 
 type OpenAIChatResponse = {
   choices?: Array<{ message?: { content?: string | null } | null }>;
+  usage?: { total_tokens?: number };
 };
 
 const MAX_SECTION_TEXT = 600;
@@ -171,7 +180,7 @@ function stripFence(raw: string | null | undefined): string {
   return raw.replace(/```json|```/gi, "").trim();
 }
 
-async function requestAiHints(input: NormalizedHintInput): Promise<HintResponse | null> {
+async function requestAiHints(input: NormalizedHintInput): Promise<HintResult | null> {
   if (!hasOpenAIApiKey()) return null;
 
   const model = "gpt-4o-mini";
@@ -238,13 +247,19 @@ async function requestAiHints(input: NormalizedHintInput): Promise<HintResponse 
   }
 
   return {
-    summary: sanitizeText(parsed.summary_hint, 220),
-    timeline: sanitizeText(parsed.timeline_hint, 220),
-    articles: sanitizeText(parsed.articles_hint, 220),
+    hints: {
+      summary: sanitizeText(parsed.summary_hint, 220),
+      timeline: sanitizeText(parsed.timeline_hint, 220),
+      articles: sanitizeText(parsed.articles_hint, 220),
+    },
+    tokensUsed:
+      typeof result.data.usage?.total_tokens === "number" && Number.isFinite(result.data.usage.total_tokens)
+        ? result.data.usage.total_tokens
+        : 0,
   };
 }
 
-async function generateHints(input: NormalizedHintInput): Promise<HintResponse> {
+async function generateHints(input: NormalizedHintInput): Promise<HintResult> {
   try {
     const aiHints = await requestAiHints(input);
     if (aiHints) {
@@ -253,7 +268,7 @@ async function generateHints(input: NormalizedHintInput): Promise<HintResponse> 
   } catch (error) {
     console.error("capsules.history.hints ai_generation_failed", error);
   }
-  return buildFallbackHints(input);
+  return { hints: buildFallbackHints(input), tokensUsed: 0 };
 }
 
 export async function POST(
@@ -278,8 +293,61 @@ export async function POST(
     return returnError(400, "invalid_request", "Invalid request body.");
   }
 
+  let walletContext: Awaited<ReturnType<typeof resolveWalletContext>> | null = null;
+  try {
+    walletContext = await resolveWalletContext({
+      ownerType: "user",
+      ownerId: viewerId,
+      supabaseUserId: viewerId,
+      req,
+      ensureDevCredits: true,
+    });
+    ensureFeatureAccess({
+      balance: walletContext.balance,
+      bypass: walletContext.bypass,
+      requiredTier: "starter",
+      featureName: "Capsule history hints",
+    });
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.capsule_history_hints.init_failed", billingError);
+    return returnError(500, "billing_error", "Failed to verify allowance for hints.");
+  }
+
   const normalized = normalizeHintInput(body);
-  const hints = await generateHints(normalized);
+  const { hints, tokensUsed } = await generateHints(normalized);
+  try {
+    const computeCost = computeTextCreditsFromTokens(tokensUsed, "gpt-4o-mini");
+    if (walletContext && computeCost > 0 && !walletContext.bypass) {
+      await chargeUsage({
+        wallet: walletContext.wallet,
+        balance: walletContext.balance,
+        metric: "compute",
+        amount: computeCost,
+        reason: "capsule.history.hints",
+        bypass: walletContext.bypass,
+      });
+    }
+  } catch (billingError) {
+    if (billingError instanceof EntitlementError) {
+      return returnError(
+        billingError.status,
+        billingError.code,
+        billingError.message,
+        billingError.details,
+      );
+    }
+    console.error("billing.capsule_history_hints.charge_failed", billingError);
+    return returnError(500, "billing_error", "Failed to record hint usage.");
+  }
+
   return validatedJson(responseSchema, hints);
 }
 

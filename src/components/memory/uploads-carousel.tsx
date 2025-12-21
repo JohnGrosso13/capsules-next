@@ -352,9 +352,9 @@ export function UploadsCarousel({
     const mime = item.media_type || null;
     const cardTitle = item.title?.trim() || item.description?.trim() || "Upload";
     const desc = item.description?.trim() || null;
-    const imageLike = isImage(mime);
-    const videoLike = isVideo(mime);
     const extension = getUploadExtension(item);
+    const imageLike = isImage(mime, extension);
+    const videoLike = isVideo(mime, extension);
     const shortLabel = extension ?? (mime ? mime.split("/")[0]?.toUpperCase() ?? null : null);
     const metaType = mime ?? extension ?? null;
 

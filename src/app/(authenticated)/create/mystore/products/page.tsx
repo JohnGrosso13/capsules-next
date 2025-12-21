@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import Link from "next/link";
 
 import { AppPage } from "@/components/app-page";
 import { ProductWizardMock } from "@/components/create/products/ProductWizardMock";
@@ -103,14 +104,18 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
     searchParams !== null &&
     typeof (searchParams as Promise<unknown>).then === "function"
       ? await searchParams
-      : (searchParams as RawSearchParams | undefined) ?? {};
+      : ((searchParams as RawSearchParams | undefined) ?? {});
   const requestedCapsuleId = resolvedSearchParams.capsuleId?.trim() ?? null;
   const selectedCapsule: CapsuleSummary | null =
-    requestedCapsuleId ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId) ?? null : null;
+    (requestedCapsuleId
+      ? ownedCapsules.find((capsule) => capsule.id === requestedCapsuleId)
+      : ownedCapsules.length === 1
+        ? ownedCapsules[0]
+        : null) ?? null;
   const { avatarUrl: selectedCapsuleLogo, avatarInitial: selectedCapsuleInitial } =
     resolveCapsuleAvatar(selectedCapsule, requestOrigin);
   const selectedCapsuleId = selectedCapsule?.id ?? null;
-  const showSelector = !selectedCapsule;
+  const showSelector = !selectedCapsule && !requestedCapsuleId;
   const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
 
   let catalogProducts: Awaited<ReturnType<typeof loadStoreCatalog>>["products"] = [];
@@ -188,9 +193,9 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
             </div>
           </div>
           <div className={styles.headerActions}>
-            <a href={switchHref} className={styles.chipButton} data-variant="ghost">
+            <Link href={switchHref} className={styles.chipButton} data-variant="ghost">
               Open Capsule Gate
-            </a>
+            </Link>
             <button className={styles.iconButtonSimple} type="button" aria-label="Notifications">
               <span className={styles.iconDot} />
               </button>
@@ -224,14 +229,15 @@ export default async function MyStoreProductsPage({ searchParams }: MyStoreProdu
                 </p>
               </div>
               <div className={styles.headerActions}>
-                <a
-                  href={productEditorHref}
+                <Link
+                  href={selectedCapsule ? productEditorHref : "#"}
                   className={styles.newProductButton}
                   aria-disabled={!selectedCapsule}
                   data-disabled={!selectedCapsule ? "true" : undefined}
+                  tabIndex={!selectedCapsule ? -1 : undefined}
                 >
                   + Add product
-                </a>
+                </Link>
               </div>
             </header>
 

@@ -69,8 +69,8 @@ export function MemoryUploadDetailDialog({ item, onClose, poll }: MemoryUploadDe
   const desc = item.description?.trim() || null;
   const mime = item.media_type || null;
   const extension = getUploadExtension(item);
-  const videoLike = isVideo(mime);
-  const imageLike = isImage(mime);
+  const videoLike = isVideo(mime, extension);
+  const imageLike = isImage(mime, extension);
   const fileUrl = item.fullUrl || item.displayUrl || item.media_url || null;
   const createdAt = formatCreatedAt(item.created_at);
   const hasPoll = Boolean(poll?.options?.length);

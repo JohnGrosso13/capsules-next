@@ -47,6 +47,9 @@ import {
   quotePrintfulShipping,
 } from "./printful";
 import { resolveConnectCharge } from "./connect";
+import { createNotifications } from "@/server/notifications/service";
+import { sendNotificationEmails } from "@/server/notifications/email";
+import { getCapsuleAdminRecipients } from "@/server/notifications/recipients";
 
 export class StoreCheckoutError extends Error {
   status: number;
@@ -143,6 +146,18 @@ function generateConfirmationCode(): string {
     output += alphabet[crypto.randomInt(0, alphabet.length)];
   }
   return output;
+}
+
+function formatCurrency(amountCents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      currencyDisplay: "narrowSymbol",
+    }).format(amountCents / 100);
+  } catch {
+    return `$${(amountCents / 100).toFixed(2)}`;
+  }
 }
 
 async function calculateTax({
@@ -672,13 +687,109 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
         } catch (error) {
           console.error("store.order.receipt_failed", { orderId: order.id, error });
         }
+        const buyerRecipients = order.buyerUserId ? [order.buyerUserId] : [];
+        const sellerRecipients = order.capsuleId ? await getCapsuleAdminRecipients(order.capsuleId, null) : [];
+        const amountLabel = formatCurrency(order.totalCents, order.currency);
+        const orderCode = order.confirmationCode ?? order.id;
+        const data = {
+          orderId: order.id,
+          capsuleId: order.capsuleId,
+          amountCents: order.totalCents,
+          currency: order.currency,
+        };
+
+        if (buyerRecipients.length) {
+          await createNotifications(
+            buyerRecipients,
+            {
+              type: "store_order_paid",
+              title: `Order ${orderCode} confirmed`,
+              body: `Payment succeeded for ${amountLabel}.`,
+              href: "/orders",
+              data,
+            },
+            { respectPreferences: true },
+          );
+          void sendNotificationEmails(
+            buyerRecipients,
+            {
+              type: "store_order_paid",
+              title: `Order ${orderCode} confirmed`,
+              body: `Payment succeeded for ${amountLabel}.`,
+              href: "/orders",
+              data,
+            },
+            { respectPreferences: true },
+          );
+        }
+
+        if (sellerRecipients.length) {
+          await createNotifications(
+            sellerRecipients,
+            {
+              type: "store_order_sold",
+              title: `New order ${orderCode} paid`,
+              body: `Buyer paid ${amountLabel} in your store.`,
+              href: order.capsuleId
+                ? `/create/mystore/orders?capsuleId=${encodeURIComponent(order.capsuleId)}`
+                : null,
+              data,
+            },
+            { respectPreferences: true },
+          );
+          void sendNotificationEmails(
+            sellerRecipients,
+            {
+              type: "store_order_sold",
+              title: `New order ${orderCode} paid`,
+              body: `Buyer paid ${amountLabel} in your store.`,
+              href: order.capsuleId
+                ? `/create/mystore/orders?capsuleId=${encodeURIComponent(order.capsuleId)}`
+                : null,
+              data,
+            },
+            { respectPreferences: true },
+          );
+        }
       }
       break;
     }
     case "payment_intent.payment_failed":
     case "payment_intent.canceled": {
       const intent = event.data.object as Stripe.PaymentIntent;
-      await updateOrderFromPaymentIntent(intent, "failed");
+      const order = await updateOrderFromPaymentIntent(intent, "failed");
+      if (order?.buyerUserId) {
+        const amountLabel = formatCurrency(order.totalCents, order.currency);
+        const orderCode = order.confirmationCode ?? order.id;
+        const data = {
+          orderId: order.id,
+          capsuleId: order.capsuleId,
+          amountCents: order.totalCents,
+          currency: order.currency,
+        };
+        await createNotifications(
+          [order.buyerUserId],
+          {
+            type: "store_order_failed",
+            title: `Payment failed for order ${orderCode}`,
+            body: `We couldn't process ${amountLabel}. Update your payment method to try again.`,
+            href: "/orders",
+            data,
+          },
+          { respectPreferences: true },
+        );
+        void sendNotificationEmails(
+          [order.buyerUserId],
+          {
+            type: "store_order_failed",
+            title: `Payment failed for order ${orderCode}`,
+            body: `We couldn't process ${amountLabel}. Update your payment method to try again.`,
+            href: "/orders",
+            data,
+          },
+          { respectPreferences: true },
+        );
+      }
       break;
     }
     default:

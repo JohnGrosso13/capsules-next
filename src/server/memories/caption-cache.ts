@@ -1,6 +1,8 @@
 ﻿import { getDatabaseAdminClient } from "@/config/database";
 import { captionImage, captionVideo } from "@/lib/ai/openai";
 import { ensureAccessibleMediaUrl } from "@/server/posts/media";
+import { chargeUsage, resolveWalletContext, EntitlementError } from "@/server/billing/entitlements";
+import { computeTextCreditsFromTokens } from "@/lib/billing/usage";
 
 const CAPTION_KEY = "ai_caption";
 const CAPTION_SOURCE_KEY = "ai_caption_source";
@@ -17,6 +19,7 @@ type CaptionRequest = {
   mediaUrl?: string | null;
   mimeType?: string | null;
   thumbnailUrl?: string | null;
+  ownerId?: string | null;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -101,12 +104,44 @@ async function updateCaptionMeta(id: string, meta: Record<string, unknown>, capt
 type CaptionGenerationResult = {
   caption: string;
   source: string;
+  tokensUsed: number;
 };
+
+async function billCaptionUsage(tokensUsed: number, ownerId: string | null): Promise<void> {
+  if (!ownerId) return;
+  if (!tokensUsed || tokensUsed <= 0) return;
+  try {
+    const wallet = await resolveWalletContext({
+      ownerType: "user",
+      ownerId,
+      supabaseUserId: ownerId,
+      req: null,
+      ensureDevCredits: true,
+    });
+    const credits = computeTextCreditsFromTokens(tokensUsed, "gpt-4o-mini");
+    if (credits > 0 && !wallet.bypass) {
+      await chargeUsage({
+        wallet: wallet.wallet,
+        balance: wallet.balance,
+        metric: "compute",
+        amount: credits,
+        reason: "ai.caption",
+        bypass: wallet.bypass,
+      });
+    }
+  } catch (error) {
+    if (error instanceof EntitlementError) {
+      throw error;
+    }
+    console.warn("caption billing failed", error);
+  }
+}
 
 async function generateCaptionForMedia(
   mediaUrl: string | null,
   mimeType: string | null,
   thumbnailUrl: string | null,
+  ownerId?: string | null,
 ): Promise<CaptionGenerationResult | null> {
   const accessibleMedia = await ensureAccessibleMediaUrl(mediaUrl);
   const accessibleThumb = await ensureAccessibleMediaUrl(thumbnailUrl);
@@ -114,20 +149,24 @@ async function generateCaptionForMedia(
   const trimmedMime = mimeType ? mimeType.trim().toLowerCase() : null;
 
   if (trimmedMime && trimmedMime.startsWith("video/")) {
-    const caption = await captionVideo(accessibleMedia ?? mediaUrl ?? null, accessibleThumb);
-    if (caption && caption.trim().length) {
+    const result = await captionVideo(accessibleMedia ?? mediaUrl ?? null, accessibleThumb, {
+      includeUsage: true,
+    });
+    if (result.caption && result.caption.trim().length) {
       const source = accessibleThumb ? "video_thumbnail" : "video";
-      return { caption: caption.trim(), source };
+      await billCaptionUsage(result.tokensUsed, ownerId ?? null);
+      return { caption: result.caption.trim(), source, tokensUsed: result.tokensUsed };
     }
     return null;
   }
 
   const target = accessibleMedia ?? accessibleThumb ?? mediaUrl ?? thumbnailUrl;
   if (!target) return null;
-  const caption = await captionImage(target);
-  if (!caption || !caption.trim().length) return null;
+  const result = await captionImage(target, { includeUsage: true });
+  if (!result.caption || !result.caption.trim().length) return null;
   const source = accessibleThumb ? "image_thumbnail" : "image";
-  return { caption: caption.trim(), source };
+  await billCaptionUsage(result.tokensUsed, ownerId ?? null);
+  return { caption: result.caption.trim(), source, tokensUsed: result.tokensUsed };
 }
 
 export async function getOrCreateMemoryCaption({
@@ -135,6 +174,7 @@ export async function getOrCreateMemoryCaption({
   mediaUrl,
   mimeType,
   thumbnailUrl,
+  ownerId,
 }: CaptionRequest): Promise<string | null> {
   let normalizedId = normalizeUuid(memoryId);
   let record: CaptionCacheRow | null = null;
@@ -155,7 +195,12 @@ export async function getOrCreateMemoryCaption({
     return existingCaption;
   }
 
-  const captionResult = await generateCaptionForMedia(record?.media_url ?? mediaUrl ?? null, mimeType ?? null, thumbnailUrl ?? null);
+  const captionResult = await generateCaptionForMedia(
+    record?.media_url ?? mediaUrl ?? null,
+    mimeType ?? null,
+    thumbnailUrl ?? null,
+    ownerId ?? null,
+  );
   if (!captionResult) return null;
 
   if (normalizedId) {
