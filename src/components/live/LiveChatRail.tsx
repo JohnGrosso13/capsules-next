@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { ChatsCircle, Broadcast, ArrowUp } from "@phosphor-icons/react/dist/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import styles from "./live-chat-rail.module.css";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browser";
+import { getRealtimeClientFactory } from "@/config/realtime-client";
+import type { RealtimeAuthPayload, RealtimeClient } from "@/ports/realtime";
+import { getCapsuleLiveChatChannel } from "@/shared/live-chat";
 import { useCurrentUser } from "@/services/auth/client";
 
 type LiveChatStatus = "waiting" | "scheduled" | "live" | "ended";
@@ -41,6 +42,35 @@ function formatTimestamp(value: string): string {
 }
 
 const EMPTY_MESSAGES: LiveChatMessage[] = [];
+const MAX_MESSAGES = 100;
+
+async function fetchLiveChatAuth(capsuleId: string): Promise<RealtimeAuthPayload> {
+  const response = await fetch(`/api/live/chat/token?capsuleId=${encodeURIComponent(capsuleId)}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const contentType = response.headers.get("Content-Type") ?? "";
+    let message = "Unable to fetch live chat token.";
+    if (contentType.includes("application/json")) {
+      try {
+        const data = (await response.json()) as { message?: string; error?: string };
+        if (data?.message) {
+          message = data.message;
+        } else if (data?.error) {
+          message = data.error;
+        }
+      } catch {
+        // ignore parse failures
+      }
+    } else {
+      message = (await response.text().catch(() => message)) || message;
+    }
+    const error = new Error(message) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+  return (await response.json()) as RealtimeAuthPayload;
+}
 
 export function LiveChatRail({
   capsuleId: capsuleIdProp = null,
@@ -58,8 +88,15 @@ export function LiveChatRail({
   );
   const [messages, setMessages] = React.useState<LiveChatMessage[]>(initialMessages);
   const [draft, setDraft] = React.useState("");
-  const supabaseRef = React.useRef<SupabaseClient | null>(null);
-  const channelRef = React.useRef<ReturnType<SupabaseClient["channel"]> | null>(null);
+  const [connecting, setConnecting] = React.useState(false);
+  const [connected, setConnected] = React.useState(false);
+  const [chatError, setChatError] = React.useState<string | null>(null);
+
+  const clientFactoryRef = React.useRef(getRealtimeClientFactory());
+  const clientRef = React.useRef<RealtimeClient | null>(null);
+  const activeChannelRef = React.useRef<string | null>(null);
+  const unsubscribeRef = React.useRef<(() => Promise<void> | void) | null>(null);
+  const presenceUnsubRef = React.useRef<(() => Promise<void> | void) | null>(null);
   const messageIdsRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
@@ -79,63 +116,155 @@ export function LiveChatRail({
   }, [participantCountProp]);
 
   React.useEffect(() => {
+    messageIdsRef.current = new Set(initialMessages.map((m) => m.id));
     setMessages((prev) => (prev === initialMessages ? prev : initialMessages));
   }, [initialMessages]);
+
+  const cleanupConnection = React.useCallback(async () => {
+    setConnected(false);
+    const presenceCleanup = presenceUnsubRef.current;
+    presenceUnsubRef.current = null;
+    if (presenceCleanup) {
+      try {
+        await presenceCleanup();
+      } catch (error) {
+        console.warn("livechat.presence.unsubscribe.error", error);
+      }
+    }
+
+    const subscriptionCleanup = unsubscribeRef.current;
+    unsubscribeRef.current = null;
+    if (subscriptionCleanup) {
+      try {
+        await subscriptionCleanup();
+      } catch (error) {
+        console.warn("livechat.unsubscribe.error", error);
+      }
+    }
+
+    const client = clientRef.current;
+    clientRef.current = null;
+    const factory = clientFactoryRef.current;
+    const activeChannel = activeChannelRef.current;
+    activeChannelRef.current = null;
+    if (client && activeChannel) {
+      try {
+        await client.presence(activeChannel).leave();
+      } catch (error) {
+        console.warn("livechat.presence.leave.error", error);
+      }
+    }
+    if (client && factory) {
+      try {
+        await factory.release(client);
+      } catch (error) {
+        console.warn("livechat.client.release.error", error);
+      }
+    }
+  }, []);
 
   React.useEffect(() => {
     const appendMessage = (incoming: LiveChatMessage) => {
       if (messageIdsRef.current.has(incoming.id)) return;
       messageIdsRef.current.add(incoming.id);
-      setMessages((prev) => [...prev.slice(-99), incoming]);
+      setMessages((prev) => [...prev.slice(-(MAX_MESSAGES - 1)), incoming]);
     };
 
-    const connect = async (capsule: string) => {
-      try {
-        supabaseRef.current = getBrowserSupabaseClient();
-      } catch (error) {
-        console.warn("livechat.supabase.unavailable", error);
-        return;
-      }
-      const supabase = supabaseRef.current;
-      const channelName = `capsule-live-chat:${capsule}`;
-      const channel = supabase.channel(channelName, {
-        config: { broadcast: { self: true } },
-      });
-      channel
-        .on("broadcast", { event: "message" }, (payload) => {
-          const data = payload?.payload as Partial<LiveChatMessage> | undefined;
-          if (!data?.id || !data.body || !data.authorName || !data.sentAt) return;
-          appendMessage({
-            id: data.id,
-            body: data.body,
-            authorName: data.authorName,
-            authorAvatar: data.authorAvatar ?? null,
-            sentAt: data.sentAt,
-          });
-        })
-        .subscribe();
-
-      channelRef.current = channel;
-    };
-
-    if (!capsuleId) {
-      if (channelRef.current) {
-        void channelRef.current.unsubscribe();
-        channelRef.current = null;
-      }
-      return;
+    const factory = clientFactoryRef.current;
+    if (!factory) {
+      setChatError("Realtime chat is not configured.");
+      return undefined;
+    }
+    if (!capsuleId || !user) {
+      void cleanupConnection();
+      setChatError(null);
+      return undefined;
     }
 
-    messageIdsRef.current = new Set(initialMessages.map((m) => m.id));
-    void connect(capsuleId);
+    let cancelled = false;
+    const channelName = getCapsuleLiveChatChannel(capsuleId);
 
-    return () => {
-      if (channelRef.current) {
-        void channelRef.current.unsubscribe();
-        channelRef.current = null;
+    const connect = async () => {
+      setConnecting(true);
+      setChatError(null);
+      setConnected(false);
+
+      try {
+        const client = await factory.getClient(() => fetchLiveChatAuth(capsuleId));
+        if (cancelled) {
+          await factory.release(client);
+          return;
+        }
+        clientRef.current = client;
+        activeChannelRef.current = channelName;
+
+        const unsubscribe = await client.subscribe(channelName, (event) => {
+          const payload = event?.data as Partial<LiveChatMessage> | undefined;
+          if (!payload || typeof payload !== "object") return;
+          if (!payload.id || !payload.body || !payload.authorName || !payload.sentAt) return;
+          appendMessage({
+            id: String(payload.id),
+            body: String(payload.body),
+            authorName: String(payload.authorName),
+            authorAvatar: payload.authorAvatar ?? null,
+            sentAt: String(payload.sentAt),
+          });
+        });
+        unsubscribeRef.current = unsubscribe;
+
+        const presence = client.presence(channelName);
+        const refreshPresence = async () => {
+          try {
+            const members = await presence.getMembers();
+            if (!cancelled) {
+              setParticipantCount(members.length);
+            }
+          } catch (error) {
+            console.warn("livechat.presence.refresh.error", error);
+          }
+        };
+
+        await refreshPresence();
+        const presenceUnsub = await presence.subscribe(() => {
+          void refreshPresence();
+        });
+        presenceUnsubRef.current = presenceUnsub;
+
+        await presence.enter({
+          capsuleId,
+          capsuleName,
+          userName: user.name ?? user.email ?? "Viewer",
+        });
+
+        if (!cancelled) {
+          setConnected(true);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Unable to connect to live chat.";
+        const status = (error as { status?: number }).status;
+        const resolvedMessage =
+          status === 401 ? "Sign in to chat with the stream." : message;
+        if (!cancelled) {
+          setChatError(resolvedMessage);
+          await cleanupConnection();
+        }
+      } finally {
+        if (!cancelled) {
+          setConnecting(false);
+        }
       }
     };
-  }, [capsuleId, initialMessages]);
+
+    void connect();
+
+    return () => {
+      cancelled = true;
+      void cleanupConnection();
+    };
+  }, [capsuleId, capsuleName, user, cleanupConnection]);
 
   React.useEffect(() => {
     const handleCapsuleEvent = (event: Event) => {
@@ -167,7 +296,8 @@ export function LiveChatRail({
     };
   }, []);
 
-  const canSend = status === "live" && Boolean(capsuleId) && Boolean(user);
+  const canSend =
+    status === "live" && Boolean(capsuleId) && Boolean(user) && connected && !chatError;
   const hasMessages = messages.length > 0;
   const authorName = user?.name?.trim() || user?.email?.trim() || "You";
 
@@ -189,23 +319,31 @@ export function LiveChatRail({
       authorAvatar: user?.avatarUrl ?? null,
     };
     messageIdsRef.current.add(id);
-    setMessages((prev) => [...prev.slice(-99), message]);
+    setMessages((prev) => [...prev.slice(-(MAX_MESSAGES - 1)), message]);
     setDraft("");
-    const channel = channelRef.current;
-    if (channel) {
-      await channel.send({
-        type: "broadcast",
-        event: "message",
-        payload: message,
-      });
+    const client = clientRef.current;
+    const channelName = capsuleId ? getCapsuleLiveChatChannel(capsuleId) : null;
+    if (client && channelName) {
+      try {
+        await client.publish(channelName, "message", message);
+      } catch (error) {
+        console.warn("livechat.publish.error", error);
+        setChatError("Unable to send message. Please try again.");
+      }
     }
   };
 
   let subtitle = "Live chat will unlock once your stream starts.";
-  if (!capsuleId) {
+  if (chatError) {
+    subtitle = chatError;
+  } else if (!capsuleId) {
     subtitle = "Select a capsule to prepare the live chat.";
+  } else if (!user) {
+    subtitle = "Sign in to chat with the stream.";
+  } else if (connecting && !connected) {
+    subtitle = "Connecting to live chat...";
   } else if (status === "scheduled") {
-    subtitle = "You're scheduled—chat will open when you go live.";
+    subtitle = "Your chat will open when you go live.";
   } else if (status === "live") {
     subtitle = hasMessages
       ? "Chat with your community in real time."
@@ -277,13 +415,22 @@ export function LiveChatRail({
           <input
             className={styles.composerInput}
             placeholder={
-              canSend ? "Share something with the stream..." : "Chat is locked until you're live"
+              canSend
+                ? "Share something with the stream..."
+                : chatError || !user
+                  ? "Sign in to chat"
+                  : "Chat is locked until you're live"
             }
             disabled={!canSend}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
-          <button className={styles.composerSend} type="submit" disabled={!canSend} aria-label="Send message">
+          <button
+            className={styles.composerSend}
+            type="submit"
+            disabled={!canSend}
+            aria-label="Send message"
+          >
             <ArrowUp size={18} weight="bold" />
           </button>
         </div>

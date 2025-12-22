@@ -34,16 +34,14 @@ binding = "R2_BUCKET"
 bucket_name = "capsules-next"
 
 [vars]
-# Public base for objects in your R2 bucket. Works without a custom domain.
-PUBLIC_MEDIA_BASE_URL = "https://media.local.example"
-# Cloudflare Image Resizing endpoint. If you don't have a zone yet, leave as-is and we will fall back.
-# For production, point this at a domain you control on Cloudflare with Image Resizing enabled, e.g. https://media.example.com/cdn-cgi/image
-IMAGE_RESIZE_BASE_URL = "https://media.local.example/cdn-cgi/image"
-# Base URL (absolute) for the Next.js raw preview API. Used to generate JPEG fallbacks for RAW uploads.
-RAW_PREVIEW_BASE_URL = "https://local.capsules.test/api/uploads/raw-preview"
+PUBLIC_MEDIA_BASE_URL = "https://pub-2b1bf33660e3415da40fb0404caaeaae.r2.dev"
+# If you add Cloudflare Image Resizing on a custom domain, point this to that domain + /cdn-cgi/image.
+# The r2.dev URL will not provide resizing, but setting it keeps URLs consistent.
+IMAGE_RESIZE_BASE_URL = "https://pub-2b1bf33660e3415da40fb0404caaeaae.r2.dev/cdn-cgi/image"
+RAW_PREVIEW_BASE_URL = "https://capsules-next-john-grossos-projects.vercel.app/api/uploads/raw-preview"
 
-# Supabase service creds (fill with your project values)
-SUPABASE_URL = "https://YOUR-PROJECT.supabase.co"
+# Supabase project URL (service role key is stored as a secret, not here)
+SUPABASE_URL = "https://znuuipmrdecdawupumja.supabase.co"
 # Account context for diagnostics
 CF_ACCOUNT_ID = "173291b59bbb656d3287ca191b6d2189"
 CF_WAF_RULE_ID = ""

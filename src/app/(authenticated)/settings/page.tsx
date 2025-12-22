@@ -18,12 +18,12 @@ export const metadata: Metadata = {
 };
 
 type SettingsPageProps = {
-  searchParams?: {
-    tab?: string;
-  };
+  searchParams?: { tab?: string } | Promise<{ tab?: string }>;
 };
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
+  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/settings");
@@ -77,7 +77,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         initialCapsules={ownedCapsules}
         accountProfile={accountProfile}
         notificationSettings={notificationSettings}
-        initialTab={searchParams?.tab ?? null}
+        initialTab={resolvedSearchParams?.tab ?? null}
       />
     </AppPage>
   );
