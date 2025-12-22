@@ -1099,6 +1099,20 @@
     --accessibility-text-scale: 1;
   }
 
+  /* Align all Connections tile icons to the Assistant purple gradient in dark mode */
+  :root:not([data-theme="light"]) {
+    --connections-assistant-icon-bg: linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%);
+    --connections-assistant-icon-fg: #eef2ff;
+    --connections-friends-icon-bg: var(--connections-assistant-icon-bg);
+    --connections-party-icon-bg: var(--connections-assistant-icon-bg);
+    --connections-chats-icon-bg: var(--connections-assistant-icon-bg);
+    --connections-requests-icon-bg: var(--connections-assistant-icon-bg);
+    --connections-friends-icon-fg: var(--connections-assistant-icon-fg);
+    --connections-party-icon-fg: var(--connections-assistant-icon-fg);
+    --connections-chats-icon-fg: var(--connections-assistant-icon-fg);
+    --connections-requests-icon-fg: var(--connections-assistant-icon-fg);
+  }
+
   html {
     font-size: calc(16px * var(--accessibility-text-scale, 1));
     line-height: calc(1.5 * var(--accessibility-text-scale, 1));

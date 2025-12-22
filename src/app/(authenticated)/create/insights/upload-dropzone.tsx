@@ -7,9 +7,10 @@ import styles from "./insights.page.module.css";
 
 type UploadDropzoneProps = {
   inputId?: string;
+  variant?: "panel" | "button";
 };
 
-export function UploadDropzone({ inputId = "personal-coach-upload" }: UploadDropzoneProps) {
+export function UploadDropzone({ inputId = "personal-coach-upload", variant = "panel" }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -51,9 +52,11 @@ export function UploadDropzone({ inputId = "personal-coach-upload" }: UploadDrop
     assignFilesToInput(event.target.files);
   };
 
+  const isButton = variant === "button";
+
   return (
     <div
-      className={styles.uploadDropzone}
+      className={`${styles.uploadDropzone} ${isButton ? styles.uploadButton : ""}`}
       data-active={isDragActive ? "true" : undefined}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -92,18 +95,29 @@ export function UploadDropzone({ inputId = "personal-coach-upload" }: UploadDrop
             />
           </svg>
         </div>
-        <div className={styles.uploadHeadline}>
-          <span className={styles.uploadEmphasis}>Drag &amp; Drop Video</span> Here or{" "}
-          <span className={styles.uploadLink}>Browse Files</span>
-        </div>
-        <div id={`${inputId}-hint`} className={styles.uploadHint}>
-          Supports MP4, MOV, up to 1GB
-        </div>
-        {selectedFileName ? (
-          <div className={styles.uploadFileName} aria-live="polite">
-            Selected: {selectedFileName}
-          </div>
-        ) : null}
+        {isButton ? (
+          <>
+            <div className={styles.uploadButtonLabel}>{selectedFileName ?? "Upload Clip"}</div>
+            <div id={`${inputId}-hint`} className={styles.uploadHint}>
+              MP4 / MOV, up to 1GB
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.uploadHeadline}>
+              <span className={styles.uploadEmphasis}>Drag &amp; Drop Video</span> Here or{" "}
+              <span className={styles.uploadLink}>Browse Files</span>
+            </div>
+            <div id={`${inputId}-hint`} className={styles.uploadHint}>
+              Supports MP4, MOV, up to 1GB
+            </div>
+            {selectedFileName ? (
+              <div className={styles.uploadFileName} aria-live="polite">
+                Selected: {selectedFileName}
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );

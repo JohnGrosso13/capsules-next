@@ -338,6 +338,86 @@
   font-weight: 600;
 }
 
+:global(:root[data-theme="light"]) .overlay {
+  --chat-overlay-strong: color-mix(in srgb, var(--surface-overlay, #ffffff) 90%, rgba(15, 23, 42, 0.08));
+}
+
+:global(:root[data-theme="light"]) .backdrop {
+  background: color-mix(in srgb, var(--chat-overlay-strong) 94%, rgba(15, 23, 42, 0.04));
+}
+
+:global(:root[data-theme="light"]) .panel {
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffffff 96%, transparent),
+      color-mix(in srgb, #f5f7ff 92%, transparent)
+    );
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(14, 23, 42, 0.12)) 92%, transparent);
+  box-shadow: 0 24px 48px color-mix(in srgb, rgba(15, 23, 42, 0.18) 70%, transparent);
+}
+
+:global(:root[data-theme="light"]) .closeButton {
+  background: linear-gradient(180deg, #ffffff, color-mix(in srgb, #eef2ff 70%, transparent));
+  border-color: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 85%, transparent);
+  color: var(--text);
+}
+
+:global(:root[data-theme="light"]) .friendItem {
+  background: linear-gradient(180deg, #ffffff 92%, #f3f6ff 88%);
+  border-color: color-mix(in srgb, var(--card-border, rgba(14, 23, 42, 0.12)) 90%, transparent);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+:global(:root[data-theme="light"]) .friendItemSelectable:hover {
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 36%, transparent);
+  transform: translateY(-1px);
+}
+
+:global(:root[data-theme="light"]) .friendAvatar {
+  background: linear-gradient(145deg, color-mix(in srgb, #dfe9ff 88%, transparent), #eef4ff);
+  color: var(--text);
+}
+
+:global(:root[data-theme="light"]) .friendListEmpty {
+  background: color-mix(in srgb, #f8fbff 92%, transparent);
+  border-color: color-mix(in srgb, var(--card-border, rgba(14, 23, 42, 0.12)) 90%, transparent);
+}
+
+:global(:root[data-theme="light"]) .searchRow {
+  background: color-mix(in srgb, #ffffff 94%, #eef3ff 88%);
+  border-color: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 90%, transparent);
+}
+
+:global(:root[data-theme="light"]) .textInput {
+  background: linear-gradient(180deg, #ffffff, color-mix(in srgb, #eef3ff 80%, transparent));
+  border-color: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 92%, transparent);
+}
+
+:global(:root[data-theme="light"]) .toggleButton {
+  background: linear-gradient(180deg, #ffffff 94%, #eef3ff 90%);
+  border-color: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 90%, transparent);
+  color: var(--text);
+}
+
+:global(:root[data-theme="light"]) .toggleActive {
+  background: linear-gradient(135deg, color-mix(in srgb, #60a5fa 68%, #2563eb), #2563eb);
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+  color: var(--text-on-brand, #ffffff);
+}
+
+:global(:root[data-theme="light"]) .secondaryButton {
+  background: linear-gradient(180deg, #ffffff 96%, #f3f6ff 92%);
+  border-color: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 88%, transparent);
+  color: var(--text);
+}
+
+:global(:root[data-theme="light"]) .primaryButton {
+  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 55%, #0ea5e9 100%);
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 60%, transparent);
+  color: var(--text-on-brand, #ffffff);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+}
+
 @media (max-width: 720px) {
   .panel {
     padding: 20px;

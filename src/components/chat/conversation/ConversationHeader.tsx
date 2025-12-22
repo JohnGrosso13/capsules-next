@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ArrowLeft, UserPlus, NotePencil } from "@phosphor-icons/react/dist/ssr";
 
 import type { ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
-import { ChatMenu } from "../ChatMenu";
 import { initialsFrom } from "./utils";
 import styles from "../chat.module.css";
 
@@ -23,12 +22,12 @@ export type ConversationHeaderProps = {
 export function ConversationHeader({
   session,
   title,
-  presence,
+  presence: _presence,
   remoteParticipants,
   onBack,
   onRenameGroup,
   onInviteParticipants,
-  onDelete,
+  onDelete: _onDelete,
 }: ConversationHeaderProps) {
   React.useEffect(() => {
     if (!onBack) return;
@@ -63,7 +62,6 @@ export function ConversationHeader({
           </span>
           <div className={styles.conversationTitleBlock}>
             <span className={styles.conversationTitle}>{title}</span>
-            {presence ? <span className={styles.conversationSubtitle}>{presence}</span> : null}
           </div>
         </div>
       </div>
@@ -88,19 +86,14 @@ export function ConversationHeader({
               session.type === "group"
                 ? "Add participants"
                 : "Add people to this chat"
-            }
-            title={
-              session.type === "group"
-                ? "Add participants"
-                : "Add people to this chat"
-            }
-          >
-            <UserPlus size={18} weight="bold" />
-          </button>
-        ) : null}
-        {onDelete ? (
-          <ChatMenu onDelete={onDelete} conversationId={session.id} />
-        ) : null}
+             }
+             title={
+               session.type === "group" ? "Add participants" : "Add people to this chat"
+             }
+           >
+             <UserPlus size={18} weight="bold" />
+           </button>
+         ) : null}
       </div>
     </div>
   );
@@ -178,4 +171,3 @@ function renderConversationAvatar(
     </span>
   );
 }
-

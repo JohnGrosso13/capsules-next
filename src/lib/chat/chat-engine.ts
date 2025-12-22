@@ -47,6 +47,8 @@ import type {
 import { RealtimeChatEventBus, type ChatEventBusConnection } from "@/lib/chat/event-bus";
 import { ChatStoreReconciler } from "@/lib/chat/store-reconciler";
 
+type StorageLike = Storage | Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
 const DIRECT_CHANNEL_WATERMARK_PREFIX = "capsule:chat:watermark:direct:";
 const TYPING_EVENT_REFRESH_MS = 2500;
 const TYPING_EVENT_IDLE_TIMEOUT_MS = 5000;
@@ -54,6 +56,7 @@ const TYPING_EVENT_TTL_MS = 6000;
 const TYPING_LOCAL_DEBOUNCE_MS = 400;
 const RETRY_DELAY_MS = 250;
 const RETRY_MAX_DELAY_MS = 1200;
+const CLEARED_CONVERSATIONS_KEY = "capsules:chat:cleared";
 
 type StartChatResult = {
   id: string;
@@ -77,6 +80,7 @@ type UserProfile = {
 export class ChatEngine {
   private readonly store: ChatStore;
   private readonly reconciler: ChatStoreReconciler;
+  private storage: StorageLike | null = null;
   private clientChannelName: string | null = null;
   private eventBus: RealtimeChatEventBus | null = null;
   private connectPromise: Promise<ChatEventBusConnection> | null = null;
@@ -91,6 +95,9 @@ export class ChatEngine {
     (status: "disconnected" | "connecting" | "connected" | "degraded") => void
   >();
   private userProfile: UserProfile = { id: null, name: null, email: null, avatarUrl: null };
+  private clearedConversations = new Set<string>();
+  private clearedStorageKey = CLEARED_CONVERSATIONS_KEY;
+  private clearedPersistenceDisabled = false;
   private conversationHistoryLoaded = new Set<string>();
   private conversationHistoryLoading = new Map<string, Promise<void>>();
   private inboxLoaded = false;
@@ -117,8 +124,10 @@ export class ChatEngine {
     return this.store;
   }
 
-  hydrate(storage: Storage | Pick<Storage, "getItem" | "setItem" | "removeItem"> | null): void {
-    this.store.setStorage(storage ?? null);
+  hydrate(storage: StorageLike | null): void {
+    this.storage = storage ?? null;
+    this.restoreClearedConversations(this.storage, { fallback: true });
+    this.store.setStorage(this.storage);
     this.store.hydrateFromStorage();
   }
 
@@ -128,6 +137,93 @@ export class ChatEngine {
 
   getSnapshot(): ReturnType<ChatStore["getSnapshot"]> {
     return this.store.getSnapshot();
+  }
+
+  private normalizeConversationId(conversationId: string | null | undefined): string | null {
+    const trimmed =
+      typeof conversationId === "string"
+        ? conversationId.trim()
+        : typeof conversationId === "number"
+          ? String(conversationId).trim()
+          : "";
+    return trimmed.length ? trimmed : null;
+  }
+
+  private isConversationCleared(conversationId: string | null | undefined): boolean {
+    const normalized = this.normalizeConversationId(conversationId);
+    return normalized ? this.clearedConversations.has(normalized) : false;
+  }
+
+  private markConversationCleared(conversationId: string): void {
+    const normalized = this.normalizeConversationId(conversationId);
+    if (!normalized) return;
+    this.clearedConversations.add(normalized);
+    this.conversationHistoryLoaded.add(normalized);
+    this.conversationHistoryLoading.delete(normalized);
+    this.persistClearedConversations();
+  }
+
+  private persistClearedConversations(): void {
+    if (!this.storage || this.clearedPersistenceDisabled) return;
+    try {
+      if (this.clearedConversations.size === 0) {
+        this.storage.removeItem(this.clearedStorageKey);
+        return;
+      }
+      this.storage.setItem(
+        this.clearedStorageKey,
+        JSON.stringify(Array.from(this.clearedConversations)),
+      );
+    } catch (error) {
+      console.warn("chat cleared conversations persist failed", error);
+      this.clearedPersistenceDisabled = true;
+    }
+  }
+
+  private restoreClearedConversations(
+    storage: StorageLike | null,
+    options: { fallback?: boolean } = {},
+  ): void {
+    if (!storage || this.clearedPersistenceDisabled) {
+      this.clearedConversations = new Set<string>();
+      return;
+    }
+    const keys = [this.clearedStorageKey];
+    if (options.fallback && this.clearedStorageKey !== CLEARED_CONVERSATIONS_KEY) {
+      keys.push(CLEARED_CONVERSATIONS_KEY);
+    }
+    const restored = new Set<string>();
+    for (const key of keys) {
+      try {
+        const raw = storage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const candidates = Array.isArray(parsed)
+          ? parsed
+          : parsed && typeof parsed === "object"
+            ? Object.keys(parsed)
+            : [];
+        candidates.forEach((id) => {
+          const normalized = this.normalizeConversationId(
+            typeof id === "string" || typeof id === "number" ? String(id) : null,
+          );
+          if (normalized) {
+            restored.add(normalized);
+          }
+        });
+        if (restored.size > 0) break;
+      } catch (error) {
+        console.warn("chat cleared conversations restore failed", error);
+      }
+    }
+    this.clearedConversations = restored;
+  }
+
+  private updateClearedStorageKey(userId: string | null): void {
+    const nextKey = userId ? `${CLEARED_CONVERSATIONS_KEY}:${userId}` : CLEARED_CONVERSATIONS_KEY;
+    if (this.clearedStorageKey === nextKey) return;
+    this.clearedStorageKey = nextKey;
+    this.restoreClearedConversations(this.storage, { fallback: true });
   }
 
   setUserProfile(profile: UserProfile): void {
@@ -161,6 +257,7 @@ export class ChatEngine {
     this.resetInboxState();
     const previousSupabaseId = this.supabaseUserId;
     this.supabaseUserId = normalized;
+    this.updateClearedStorageKey(normalized);
     this.updateDirectChannelWatermarkContext(normalized);
     if (!normalized) {
       this.store.setCurrentUserId(null);
@@ -317,7 +414,11 @@ export class ChatEngine {
     if (options?.activate ?? true) {
       this.store.resetUnread(conversationId);
     }
-    void this.ensureConversationHistory(conversationId);
+    if (this.isConversationCleared(conversationId)) {
+      this.conversationHistoryLoaded.add(conversationId);
+    } else {
+      void this.ensureConversationHistory(conversationId);
+    }
     return { id: conversationId, created };
   }
 
@@ -442,6 +543,11 @@ export class ChatEngine {
   openSession(sessionId: string): void {
     this.store.setActiveSession(sessionId);
     this.store.resetUnread(sessionId);
+    const normalized = this.normalizeConversationId(sessionId);
+    if (normalized && this.isConversationCleared(normalized)) {
+      this.conversationHistoryLoaded.add(normalized);
+      return;
+    }
     void this.ensureConversationHistory(sessionId);
   }
 
@@ -450,9 +556,15 @@ export class ChatEngine {
   }
 
   deleteSession(sessionId: string): void {
-    this.store.deleteSession(sessionId);
-    this.conversationHistoryLoaded.delete(sessionId);
-    this.conversationHistoryLoading.delete(sessionId);
+    const normalized = this.normalizeConversationId(sessionId);
+    const targetId = normalized ?? sessionId;
+    this.store.deleteSession(targetId);
+    if (normalized) {
+      this.markConversationCleared(normalized);
+    } else {
+      this.conversationHistoryLoaded.delete(targetId);
+      this.conversationHistoryLoading.delete(targetId);
+    }
   }
 
   async sendMessage(
@@ -478,7 +590,12 @@ export class ChatEngine {
     });
     if (!prepared) return;
     const { message } = prepared;
-    void this.ensureConversationHistory(effectiveConversationId);
+    const normalizedConversationId = this.normalizeConversationId(effectiveConversationId);
+    if (normalizedConversationId && this.isConversationCleared(normalizedConversationId)) {
+      this.conversationHistoryLoaded.add(normalizedConversationId);
+    } else {
+      void this.ensureConversationHistory(effectiveConversationId);
+    }
 
     try {
       const attachmentDtos =
@@ -891,6 +1008,11 @@ export class ChatEngine {
   ): Promise<void> {
     const normalizedId = typeof conversationId === "string" ? conversationId.trim() : "";
     if (!normalizedId) return Promise.resolve();
+    if (this.isConversationCleared(normalizedId)) {
+      this.conversationHistoryLoaded.add(normalizedId);
+      this.conversationHistoryLoading.delete(normalizedId);
+      return Promise.resolve();
+    }
     if (this.conversationHistoryLoaded.has(normalizedId) && !options.force) {
       return Promise.resolve();
     }
@@ -947,6 +1069,12 @@ export class ChatEngine {
       return;
     }
     data.conversations.forEach((conversation: ChatConversationDTO) => {
+      const normalizedId = this.normalizeConversationId(conversation.conversationId);
+      if (!normalizedId) return;
+      if (this.isConversationCleared(normalizedId)) {
+        this.conversationHistoryLoaded.add(normalizedId);
+        return;
+      }
       const participants = (conversation.participants ?? [])
         .map((participant) => ({
           id: participant.id,
@@ -956,7 +1084,7 @@ export class ChatEngine {
         .filter((participant): participant is ChatParticipant => Boolean(participant.id));
       if (!participants.length) return;
       const descriptor = {
-        id: conversation.conversationId,
+        id: normalizedId,
         type: conversation.session?.type ?? "direct",
         title: conversation.session?.title ?? "",
         avatar: conversation.session?.avatar ?? null,
@@ -1144,7 +1272,8 @@ export class ChatEngine {
   if (
     payload &&
     typeof payload.conversationId === "string" &&
-    !this.conversationHistoryLoaded.has(payload.conversationId)
+    !this.conversationHistoryLoaded.has(payload.conversationId) &&
+    !this.isConversationCleared(payload.conversationId)
   ) {
     void this.ensureConversationHistory(payload.conversationId);
   }
@@ -1186,7 +1315,12 @@ export class ChatEngine {
       await deleteGroupConversationAction(trimmed);
     } catch (error) {
       console.error("ChatEngine deleteGroupConversation error", error);
-      throw error;
+      if (!this.isRecoverableDeleteError(error)) {
+        throw error;
+      }
+      // Fall back to local removal when we no longer have server access to the thread.
+      this.deleteSession(trimmed);
+      return;
     }
     this.deleteSession(trimmed);
   }
@@ -1313,5 +1447,23 @@ export class ChatEngine {
       }
     }
     throw lastError ?? new Error("retry failed");
+  }
+
+  private isRecoverableDeleteError(error: unknown): boolean {
+    const code = (error as { code?: string | null })?.code ?? null;
+    const name = (error as { name?: string | null })?.name ?? null;
+    const status =
+      (error as { status?: number | string | null })?.status ??
+      (error as { httpStatus?: number | string | null })?.httpStatus ??
+      null;
+    const message = (error as { message?: string | null })?.message ?? "";
+    const statusNumber =
+      typeof status === "string" ? Number(status) : typeof status === "number" ? status : null;
+    if (statusNumber === 403 || statusNumber === 404) return true;
+    if (code && (code === "forbidden" || code === "invalid_conversation" || code === "not_found")) {
+      return true;
+    }
+    if (name && (name === "forbidden" || name === "invalid_conversation")) return true;
+    return typeof message === "string" && /do not have access|not be found/i.test(message);
   }
 }

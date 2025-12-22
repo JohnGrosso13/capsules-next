@@ -72,6 +72,108 @@
     --glass-bg-1: rgba(255, 255, 255, 0.9);
     --glass-bg-2: rgba(255, 255, 255, 0.78);
     --gradient-brand: linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
+    /* Connections tiles: match all icons to Friends gradient in light mode */
+    --connections-friends-icon-bg: linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%);
+    --connections-friends-icon-fg: #e8f3ff;
+    --connections-party-icon-bg: var(--connections-friends-icon-bg);
+    --connections-chats-icon-bg: var(--connections-friends-icon-bg);
+    --connections-requests-icon-bg: var(--connections-friends-icon-bg);
+    --connections-assistant-icon-bg: var(--connections-friends-icon-bg);
+    --connections-party-icon-fg: var(--connections-friends-icon-fg);
+    --connections-chats-icon-fg: var(--connections-friends-icon-fg);
+    --connections-requests-icon-fg: var(--connections-friends-icon-fg);
+    --connections-assistant-icon-fg: var(--connections-friends-icon-fg);
+    /* Direct Messages: light-mode surfaces */
+    --chats-panel-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-bg-1, #ffffff) 96%, transparent),
+      color-mix(in srgb, var(--card-bg-2, #f7f9ff) 92%, transparent)
+    );
+    --chats-panel-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+    --chats-empty-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffffff 94%, transparent),
+      color-mix(in srgb, #eef3ff 90%, transparent)
+    );
+    --chats-thread-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffffff 95%, transparent),
+      color-mix(in srgb, #eff4ff 90%, transparent)
+    );
+    --chats-thread-active-shadow: 0 14px 28px rgba(37, 99, 235, 0.18);
+    --chats-avatar-background: var(
+      --style-chats-icon-bg,
+      color-mix(in srgb, var(--color-brand, #2563eb) 18%, #e9f1ff)
+    );
+    --chats-thread-badge-background: var(
+      --style-chats-badge-bg,
+      color-mix(in srgb, var(--color-brand, #2563eb) 22%, #e9f3ff)
+    );
+    --chats-thread-badge-text: var(--style-chats-badge-color, var(--color-brand-strong, #1d4ed8));
+    --chats-conversation-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #f9fbff 92%, transparent),
+      color-mix(in srgb, #eef3ff 88%, transparent)
+    );
+    --chats-conversation-header-background: color-mix(
+      in srgb,
+      #ffffff 96%,
+      var(--surface-muted, #f7f9ff) 8%
+    );
+    --chats-control-background: linear-gradient(
+      180deg,
+      color-mix(in srgb, #ffffff 94%, transparent),
+      color-mix(in srgb, #f2f6ff 88%, transparent)
+    );
+    --chats-message-attachment-background: var(--chats-message-background);
+    --chats-message-attachment-border: color-mix(
+      in srgb,
+      var(--color-border, rgba(14, 23, 42, 0.12)) 88%,
+      transparent
+    );
+    --chats-message-attachment-self-background: var(--chats-message-self-background);
+    --chats-message-background: color-mix(in srgb, #eef3ff 78%, #ffffff);
+    --chats-message-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    --chats-message-self-background: linear-gradient(
+      135deg,
+      color-mix(in srgb, #60a5fa 82%, #2563eb),
+      color-mix(in srgb, #2563eb 76%, #0ea5e9 62%)
+    );
+    --chats-message-self-text: var(--text-on-brand, #ffffff);
+    --chats-error-border: color-mix(in srgb, #ef4444 55%, transparent);
+    --chats-error-background: color-mix(in srgb, #fee2e2 85%, #ffffff);
+    --chats-error-text: #7f1d1d;
+    --chats-composer-background: color-mix(in srgb, #ffffff 95%, var(--surface-muted, #f7f9ff));
+    --chats-input-border: color-mix(
+      in srgb,
+      var(--color-border, rgba(14, 23, 42, 0.12)) 90%,
+      transparent
+    );
+    --chats-input-background: color-mix(in srgb, #ffffff 94%, #eef2ff 82%);
+    --chats-send-button-border: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
+    --chats-send-button-background: var(
+      --cta-button-gradient,
+      linear-gradient(135deg, #60a5fa 0%, #2563eb 55%, #0ea5e9 100%)
+    );
+    --chats-send-button-text: var(--text-on-brand, #ffffff);
+    --chats-reaction-background: color-mix(in srgb, #f8fbff 92%, #ffffff);
+    --chats-reaction-border: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 85%, transparent);
+    --chats-reaction-active-background: color-mix(in srgb, #2563eb 26%, #0ea5e9 18%);
+    --chats-reaction-active-shadow: 0 12px 24px rgba(37, 99, 235, 0.16);
+    --chats-reaction-add-background: var(
+      --cta-button-gradient,
+      linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #0ea5e9 100%)
+    );
+    --chats-reaction-add-icon-color: var(--text-on-brand, #ffffff);
+    --chats-reaction-picker-border: color-mix(
+      in srgb,
+      var(--card-border, rgba(14, 23, 42, 0.12)) 88%,
+      transparent
+    );
+    --chats-reaction-picker-background: color-mix(in srgb, #ffffff 96%, #eef2ff 90%);
+    --chats-reaction-picker-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+    --chats-menu-panel-background: color-mix(in srgb, #ffffff 96%, #f3f6ff 92%);
+    --chats-menu-panel-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
     --header-accent: var(--color-accent);
     --header-border-color: rgba(14, 23, 42, 0.08);
     --header-brand: #0ea5e9;

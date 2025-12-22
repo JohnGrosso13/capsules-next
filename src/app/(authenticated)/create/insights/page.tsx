@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
+import React from "react";
+
+import { CloudArrowUp, Headphones } from "@phosphor-icons/react/dist/ssr";
 
 import { AppPage } from "@/components/app-page";
 import { AiPrompterStage } from "@/components/ai-prompter-stage";
@@ -6,34 +10,107 @@ import { AiPrompterStage } from "@/components/ai-prompter-stage";
 import styles from "./insights.page.module.css";
 import { UploadDropzone } from "./upload-dropzone";
 
-type AnalysisEntry = {
+type ActionCard = {
   id: string;
-  timestamp: string;
   title: string;
-  notes: string[];
+  description: string;
+  cta: string;
+  tone: "upload" | "live";
+  icon: React.ReactElement;
 };
 
-const ANALYSIS_ENTRIES: AnalysisEntry[] = [
+type UpdateCard = {
+  id: string;
+  title: string;
+  meta: string;
+  image: string;
+};
+
+type ChatMessage = {
+  id: string;
+  from: "coach" | "user";
+  text?: string;
+  title?: string;
+  image?: string;
+};
+
+const ACTIONS: ActionCard[] = [
   {
-    id: "analysis_1",
-    timestamp: "02:14",
-    title: "Early pressure fight",
-    notes: ["Great positioning but rotated out late", "Callouts were calm, need earlier ult plan"],
+    id: "upload",
+    title: "Analyze My Clip",
+    description: "Upload a clip, get expert analysis and tips.",
+    cta: "Upload Clip",
+    tone: "upload",
+    icon: <CloudArrowUp size={26} weight="fill" />,
   },
   {
-    id: "analysis_2",
-    timestamp: "14:52",
-    title: "Mid-game reset",
-    notes: [
-      "Energy dip after wipe — take a 60s reset",
-      "Warmup routine helped mechanics; keep the same opener next session",
-    ],
+    id: "live",
+    title: "Start Live Session",
+    description: "Get real-time feedback and coaching.",
+    cta: "Launch Capsule",
+    tone: "live",
+    icon: <Headphones size={26} weight="fill" />,
+  },
+];
+
+const RECENT_UPDATES: UpdateCard[] = [
+  {
+    id: "update_1",
+    title: "Shamna bp: Tune shorter intros.",
+    meta: "2m • SCP",
+    image:
+      "https://images.unsplash.com/photo-1517242810446-cc8951b2be90?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    id: "analysis_3",
-    timestamp: "26:18",
-    title: "Clutch push",
-    notes: ["Decision-making looked confident", "Great tempo; keep pacing at this speed"],
+    id: "update_2",
+    title: "Terns Clip Feedback.",
+    meta: "20m • STP",
+    image:
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "update_3",
+    title: "Snowboarding analysts.",
+    meta: "1hr • SP",
+    image:
+      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "update_4",
+    title: "Mountain trail review.",
+    meta: "Yesterday • HD",
+    image:
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80",
+  },
+];
+
+const CHAT_MESSAGES: ChatMessage[] = [
+  {
+    id: "chat_intro",
+    from: "coach",
+    title: "ChatGPT, your personal coach!",
+    text: "Certainly! Let me analyze your mountain biking clip.",
+  },
+  {
+    id: "chat_insight_1",
+    from: "coach",
+    text: "Your positioning is mostly centered, which is great for balance, but you can try lowering your center of gravity a bit more to gain better control during turns and rough terrain.",
+  },
+  {
+    id: "chat_insight_2",
+    from: "coach",
+    text: "In the last segment, your speed through that rocky section appears a little fast. You might benefit from braking earlier, maintaining control, and adjusting your weight back before entering. I can create a clip to show this.",
+  },
+  {
+    id: "chat_user",
+    from: "user",
+    text: "That sounds helpful. Please create a clip to demonstrate if you’d like!",
+  },
+  {
+    id: "chat_clip",
+    from: "coach",
+    image:
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80",
   },
 ];
 
@@ -46,88 +123,153 @@ export const metadata: Metadata = {
 export default function PersonalCoachPage() {
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
-      <div className={styles.shell} data-surface="insights">
-        <header className={`${styles.header} ${styles.headerUpload}`} aria-label="Upload your clip">
-          <div className={styles.headerMain}>
-            <div className={styles.pill}>Personal Coach</div>
-            <h1 className={styles.title}>Upload your clip</h1>
-            <p className={styles.subtitle}>
-              Drop a video clip you&apos;d like us to analyze and improve. Drag and drop or browse to upload MP4
-              or MOV files up to 1GB.
-            </p>
-          </div>
-          <div className={styles.headerUploadDrop}>
-            <UploadDropzone />
-          </div>
-        </header>
-
-        <main className={styles.layout}>
-          <section className={styles.columnPrimary} aria-label="Chat and coach feedback">
-            <section className={styles.card} aria-label="Chat with your coach">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>Chat with your coach</h2>
-                <p className={styles.cardSubtitle}>
-                  Discuss your coach&apos;s analysis, ask follow-up questions, or turn it into a simple plan you
-                  can run next session.
-                </p>
+      <div className={styles.page} data-surface="insights">
+        <div className={styles.layout}>
+          <div className={styles.columnMain}>
+            <section className={`${styles.panel} ${styles.heroCard}`} aria-label="Personal Coach actions">
+              <header className={styles.heroHeader}>
+                <p className={styles.eyebrow}>Personal Coach</p>
+                <h1 className={styles.heroTitle}>
+                  Personal <span className={styles.accent}>Coach</span>
+                </h1>
+                <p className={styles.heroSubtitle}>Upload your clips for personalized feedback and analysis.</p>
               </header>
-              <div className={styles.chatShell}>
-                <div className={styles.chatContext}>
-                  <div className={styles.chatCoachBubble}>
-                    <p className={styles.chatCoachLabel}>Coach</p>
-                    <p className={styles.chatCoachLead}>Here&apos;s what I&apos;m seeing in this session.</p>
-                    <p className={styles.chatCoachText}>
-                      Your focus is strongest once you&apos;re warmed up. Ask about any moment you&apos;re unsure
-                      about, or what to practice next so we can turn this analysis into clear steps.
-                    </p>
+              <div className={styles.actionGrid}>
+                {ACTIONS.map((action) => (
+                  <article key={action.id} className={styles.actionCard} data-tone={action.tone}>
+                    <div className={styles.actionIcon} aria-hidden>
+                      {action.icon}
+                    </div>
+                    <div className={styles.actionCopy}>
+                      <p className={styles.actionTitle}>{action.title}</p>
+                      <p className={styles.actionText}>{action.description}</p>
+                    </div>
+                    <div className={styles.actionControl}>
+                      {action.tone === "upload" ? (
+                        <UploadDropzone inputId="personal-coach-upload" variant="button" />
+                      ) : (
+                        <button type="button" className={styles.secondaryButton}>
+                          {action.cta}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className={`${styles.panel} ${styles.mediaCard}`} aria-label="Clip analysis and feedback">
+              <div className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Clip Analysis &amp; Feedback</h2>
+              </div>
+              <div className={styles.videoFrame}>
+                <div
+                  className={styles.videoImage}
+                  role="presentation"
+                  aria-hidden="true"
+                  style={{
+                    backgroundImage:
+                      "url(https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=80)",
+                  }}
+                />
+                <div className={styles.videoOverlay}>
+                  <div className={styles.videoScrim} />
+                  <div className={styles.videoMetaRow}>
+                    <div className={styles.videoProgress}>
+                      <div className={styles.videoProgressFill} style={{ width: "42%" }} />
+                    </div>
+                    <div className={styles.videoTime}>
+                      <span>1:36</span>
+                      <span>/ 3:45</span>
+                      <span className={styles.videoBadge}>HD</span>
+                    </div>
                   </div>
-                  <p className={styles.chatHintLine}>
-                    Try asking: <span>&quot;What should I work on first?&quot;</span>{" "}
-                    <span>&quot;Turn this into a 3-step plan.&quot;</span>
-                  </p>
-                </div>
-                <div className={styles.chatPrompter}>
-                  <AiPrompterStage
-                    placeholder="Ask for a highlight reel, next steps, or clarification..."
-                    chips={[]}
-                    surface="personal_coach_chat"
-                    submitVariant="icon"
-                    showStatusRow={false}
-                    showSuggestedActions={false}
-                  />
                 </div>
               </div>
             </section>
-          </section>
 
-          <section className={styles.columnSecondary} aria-label="Written analysis">
-            <section className={styles.card} aria-label="Written analysis">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>Written analysis</h2>
-                <p className={styles.cardSubtitle}>
-                  Time-stamped highlights from your coach so you can revisit key moments quickly.
-                </p>
-              </header>
-              <ul className={styles.analysisList}>
-                {ANALYSIS_ENTRIES.map((entry) => (
-                  <li key={entry.id} className={styles.analysisItem}>
-                    <div className={styles.analysisTimestamp}>{entry.timestamp}</div>
-                    <div className={styles.analysisContent}>
-                      <div className={styles.analysisTitle}>{entry.title}</div>
-                      <ul className={styles.analysisNotes}>
-                        {entry.notes.map((note, index) => (
-                          <li key={`${entry.id}_note_${index}`} className={styles.analysisNote}>
-                            {note}
-                          </li>
-                        ))}
-                      </ul>
+            <section className={`${styles.panel} ${styles.updatesCard}`} aria-label="Recent updates">
+              <div className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Recent Updates</h2>
+                <button type="button" className={styles.linkButton}>
+                  View all
+                </button>
+              </div>
+              <div className={styles.updatesGrid}>
+                {RECENT_UPDATES.map((update) => (
+                  <article
+                    key={update.id}
+                    className={styles.updateCard}
+                    style={{ backgroundImage: `url(${update.image})` }}
+                  >
+                    <div className={styles.updateOverlay} />
+                    <div className={styles.updateMeta}>
+                      <span className={styles.updateMetaTag}>{update.meta}</span>
+                      <h3 className={styles.updateTitle}>{update.title}</h3>
                     </div>
-                  </li>
+                  </article>
                 ))}
-              </ul>
+              </div>
             </section>
-          </section>
-        </main>
+          </div>
+
+          <aside className={styles.columnChat} aria-label="Coach chat">
+            <section className={`${styles.panel} ${styles.chatCard}`}>
+              <header className={styles.chatHeader}>
+                <div>
+                  <p className={styles.sectionLabel}>Coach Chat</p>
+                  <p className={styles.sectionSubLabel}>ChatGPT, your personal coach</p>
+                </div>
+                <div className={styles.chatHeaderActions}>
+                  <span className={styles.iconBadge} aria-hidden>
+                    ↗
+                  </span>
+                  <span className={styles.iconBadge} aria-hidden>
+                    ⚙
+                  </span>
+                </div>
+              </header>
+
+              <div className={styles.chatMessages} role="log" aria-live="polite">
+                {CHAT_MESSAGES.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`${styles.chatBubble} ${
+                      message.from === "user" ? styles.chatBubbleUser : styles.chatBubbleCoach
+                    }`}
+                  >
+                    {message.title ? <p className={styles.chatBubbleTitle}>{message.title}</p> : null}
+                    {message.text ? <p className={styles.chatBubbleText}>{message.text}</p> : null}
+                    {message.image ? (
+                      <div className={styles.chatImage} aria-hidden>
+                        <Image src={message.image} alt="" fill sizes="(min-width: 1100px) 320px, 100vw" />
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.chipRow} aria-label="Quick actions">
+                {["Ask For Tip", "Clip Feedback", "More"].map((chip) => (
+                  <button key={chip} type="button" className={styles.chipButton}>
+                    {chip}
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.chatInput}>
+                <AiPrompterStage
+                  placeholder="Type your question..."
+                  chips={[]}
+                  surface="personal_coach_chat"
+                  submitVariant="icon"
+                  showStatusRow={false}
+                  showSuggestedActions={false}
+                />
+              </div>
+            </section>
+          </aside>
+        </div>
       </div>
     </AppPage>
   );

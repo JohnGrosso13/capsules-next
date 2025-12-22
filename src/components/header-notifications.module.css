@@ -162,3 +162,66 @@
   color: #fca5a5;
   border: 1px solid rgba(239, 68, 68, 0.4);
 }
+
+:global(:root[data-theme="light"]) .panel {
+  background: linear-gradient(180deg, #ffffff 95%, #eef2ff 90%);
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(14, 23, 42, 0.12)) 92%, transparent);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.16);
+}
+
+:global(:root[data-theme="light"]) .panelTitle {
+  color: var(--text, rgba(14, 16, 36, 0.96));
+}
+
+:global(:root[data-theme="light"]) .panelSubTitle {
+  color: var(--text-2, rgba(14, 16, 36, 0.7));
+}
+
+:global(:root[data-theme="light"]) .markAll {
+  border-color: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 88%, transparent);
+  background: linear-gradient(180deg, #ffffff 94%, #eef2ff 90%);
+  color: var(--text, rgba(14, 16, 36, 0.96));
+}
+
+:global(:root[data-theme="light"]) .list {
+  scrollbar-color: color-mix(in srgb, var(--color-border, rgba(14, 23, 42, 0.12)) 75%, transparent)
+    transparent;
+}
+
+:global(:root[data-theme="light"]) .item {
+  background: linear-gradient(180deg, #ffffff 94%, #f5f7ff 90%);
+  border-color: color-mix(in srgb, var(--card-border, rgba(14, 23, 42, 0.12)) 90%, transparent);
+  color: var(--text, rgba(14, 16, 36, 0.96));
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+:global(:root[data-theme="light"]) .itemUnread {
+  border-color: color-mix(in srgb, var(--color-brand, #2563eb) 38%, transparent);
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--color-brand, #2563eb) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+:global(:root[data-theme="light"]) .itemTitle {
+  color: var(--text, rgba(14, 16, 36, 0.96));
+}
+
+:global(:root[data-theme="light"]) .itemBody {
+  color: var(--text-2, rgba(14, 16, 36, 0.74));
+}
+
+:global(:root[data-theme="light"]) .itemMeta {
+  color: var(--text-3, rgba(14, 16, 36, 0.6));
+}
+
+:global(:root[data-theme="light"]) .empty,
+:global(:root[data-theme="light"]) .error {
+  background: color-mix(in srgb, #f7f9ff 92%, transparent);
+  color: var(--text-2, rgba(14, 16, 36, 0.72));
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(14, 23, 42, 0.12)) 85%, transparent);
+}
+
+:global(:root[data-theme="light"]) .badge {
+  background: linear-gradient(135deg, #ef4444, #f59e0b);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.24);
+}
