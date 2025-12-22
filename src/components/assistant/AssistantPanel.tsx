@@ -8,8 +8,9 @@ import type { AssistantTaskSummary } from "@/types/assistant";
 import { buildProfileHref } from "@/lib/profile/routes";
 import type { FriendItem } from "@/hooks/useFriendsData";
 import { requestChatStart } from "@/components/providers/ChatProvider";
-import { ASSISTANT_DISPLAY_NAME, ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { ASSISTANT_DISPLAY_NAME, ASSISTANT_USER_ID, isAssistantUserId } from "@/shared/assistant/constants";
 import { ChatStartOverlay } from "@/components/chat/ChatStartOverlay";
+import { useRouter } from "next/navigation";
 
 import styles from "./assistant-panel.module.css";
 
@@ -172,13 +173,14 @@ function CollapsibleSection({
   );
 }
 
-const BLOCKED_RECIPIENT_IDS = new Set(["capsules", "memory", "dream", ASSISTANT_USER_ID].map((id) => id.toLowerCase()));
+const BLOCKED_RECIPIENT_IDS = new Set(["capsules", "memory", "dream"].map((id) => id.toLowerCase()));
 
 function isEligibleRecipient(friend: FriendItem): friend is FriendItem & { userId: string } {
   if (typeof friend.userId !== "string") return false;
   const trimmed = friend.userId.trim();
   if (!trimmed) return false;
-  return !BLOCKED_RECIPIENT_IDS.has(trimmed.toLowerCase());
+  if (BLOCKED_RECIPIENT_IDS.has(trimmed.toLowerCase())) return false;
+  return !isAssistantUserId(trimmed);
 }
 
 export function AssistantPanel({
@@ -211,6 +213,7 @@ export function AssistantPanel({
   const [composerExpanded, setComposerExpanded] = React.useState(false);
   const [tasksExpanded, setTasksExpanded] = React.useState(false);
   const [inviteOpen, setInviteOpen] = React.useState(false);
+  const router = useRouter();
   const hasTasks = Boolean(tasks?.length);
   const waitingState = loading && !hasTasks;
   const primaryError = !loading && !hasTasks && error ? error : null;
@@ -232,10 +235,11 @@ export function AssistantPanel({
         },
         { activate: true },
       );
+      router.push("/friends?tab=Assistant");
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Unable to open assistant chat.");
     }
-  }, []);
+  }, [router]);
 
   const handleCreateTask = React.useCallback(async () => {
     setCreateError(null);
@@ -333,10 +337,11 @@ export function AssistantPanel({
       const directionLabel = direction === "incoming" ? "Incoming request" : "Outgoing request";
       const isFinalized =
         task.status === "completed" || task.status === "partial" || task.status === "canceled";
-      const canCancel =
-        onCancelTask && !isFinalized;
+      const canCancel = onCancelTask && !isFinalized;
       const canRemove = onRemoveTask && isFinalized;
       const stageLabel = describeTaskStatus(task);
+      const isIncoming = direction === "incoming";
+      const isNewIncoming = isIncoming && !isFinalized && metrics.responded === 0;
 
       return (
         <li key={task.id} className={styles.taskCard}>
@@ -348,6 +353,7 @@ export function AssistantPanel({
             </div>
             <div>
               <span className={styles.taskTitle}>{getTaskTitle(task)}</span>
+              {isNewIncoming ? <span className={styles.taskBadge}>New</span> : null}
             </div>
           </div>
           {task.recipients.length ? (

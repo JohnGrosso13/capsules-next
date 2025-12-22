@@ -1,6 +1,7 @@
 import { findUserIdentity } from "./repository";
 import type { ChatParticipantRow } from "./repository";
 import { normalizeId, type ResolvedIdentity } from "./utils";
+import { ASSISTANT_DISPLAY_NAME, ASSISTANT_DEFAULT_AVATAR, isAssistantUserId } from "@/shared/assistant/constants";
 
 export async function resolveIdentity(
   cache: Map<string, ResolvedIdentity | null>,
@@ -11,6 +12,18 @@ export async function resolveIdentity(
   if (!normalized) return null;
   if (cache.has(normalized)) {
     return cache.get(normalized) ?? null;
+  }
+
+  if (isAssistantUserId(normalized)) {
+    const synthetic: ChatParticipantRow = {
+      id: normalized,
+      full_name: ASSISTANT_DISPLAY_NAME,
+      avatar_url: ASSISTANT_DEFAULT_AVATAR,
+      user_key: ASSISTANT_DISPLAY_NAME.toLowerCase(),
+    };
+    const resolved: ResolvedIdentity = { canonicalId: normalized, profile: synthetic };
+    cache.set(normalized, resolved);
+    return resolved;
   }
 
   const probes = new Set<string>();

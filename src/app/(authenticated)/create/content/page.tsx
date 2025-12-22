@@ -1,349 +1,321 @@
 import type { Metadata } from "next";
+import type { ReactElement } from "react";
+import {
+  CalendarBlank,
+  ChartLineUp,
+  FilePdf,
+  FileText,
+  ImageSquare,
+  MagicWand,
+  NotePencil,
+  PresentationChart,
+  Sparkle,
+  VideoCamera,
+} from "@phosphor-icons/react/dist/ssr";
 
 import { AppPage } from "@/components/app-page";
 
 import styles from "./content.page.module.css";
 
-type AspectFormatId = "vertical" | "horizontal" | "square";
-
-type AspectFormat = {
-  id: AspectFormatId;
-  label: string;
+type QuickAction = {
+  id: string;
+  title: string;
   description: string;
+  icon: ReactElement;
+  tone: "video" | "image" | "social" | "edit" | "deck" | "pdf";
 };
 
-type LayoutHelper = {
+type OverviewCard = {
   id: string;
   label: string;
-  hint: string;
+  total: string;
+  delta: string;
+  action: string;
+  icon: ReactElement;
 };
 
-type MediaKind = "clip" | "image" | "bumper";
-
-type MediaItem = {
-  id: string;
-  kind: MediaKind;
-  title: string;
-  detail: string;
-  badgeLabel: string;
-};
-
-type PromptDraft = {
-  id: string;
-  label: string;
-  text: string;
-};
-
-type ProjectSummary = {
+type RecentCreation = {
   id: string;
   title: string;
-  subtitle: string;
-  tagline: string;
-  aspect: string;
-  duration: string;
+  category: string;
+  image: string;
 };
 
-const PROJECT_SUMMARY: ProjectSummary = {
-  id: "proj_01",
-  title: "Ranked clutch montage",
-  subtitle: "Capsule neon • bold captions",
-  tagline: "Match point, one chance.",
-  aspect: "9:16 short",
-  duration: "00:34",
+type WorkflowShortcut = {
+  id: string;
+  title: string;
+  description: string;
+  icon: ReactElement;
+  tag?: string;
 };
 
-const ASPECT_FORMATS: AspectFormat[] = [
+const QUICK_ACTIONS: QuickAction[] = [
   {
-    id: "vertical",
-    label: "Vertical",
-    description: "9:16 – Shorts / Reels",
+    id: "video",
+    title: "Generate Video",
+    description: "Create eye-catching, short videos from ideas.",
+    icon: <VideoCamera size={22} weight="fill" />,
+    tone: "video",
   },
   {
-    id: "horizontal",
-    label: "Horizontal",
-    description: "16:9 – YouTube / VODs",
+    id: "image",
+    title: "Generate Image",
+    description: "Generate photos, graphics, banners, and more.",
+    icon: <ImageSquare size={22} weight="fill" />,
+    tone: "image",
   },
   {
-    id: "square",
-    label: "Square",
-    description: "1:1 – Feed posts",
-  },
-];
-
-const LAYOUT_HELPERS: LayoutHelper[] = [
-  {
-    id: "safe-zones",
-    label: "Safe zones",
-    hint: "Ensure overlays avoid platform UI and chat.",
+    id: "social",
+    title: "Create Social Post",
+    description: "Compose posts with trending captions and images.",
+    icon: <NotePencil size={22} weight="fill" />,
+    tone: "social",
   },
   {
-    id: "caption-style",
-    label: "Caption style",
-    hint: "Bold gaming subtitles with subtle outline.",
+    id: "edit",
+    title: "Edit Image",
+    description: "Retouch, upscale, and clean up existing shots.",
+    icon: <MagicWand size={22} weight="fill" />,
+    tone: "edit",
   },
   {
-    id: "transitions",
-    label: "Transitions",
-    hint: "Quick cuts between big reactions and plays.",
-  },
-];
-
-const MEDIA_ITEMS: MediaItem[] = [
-  {
-    id: "media_01",
-    kind: "clip",
-    title: "Ace on Split – Round 11",
-    detail: "0:18 • Auto-clipped from last broadcast",
-    badgeLabel: "Clip",
+    id: "deck",
+    title: "Create Presentation",
+    description: "Auto-build decks with branded slides and speaker notes.",
+    icon: <PresentationChart size={22} weight="fill" />,
+    tone: "deck",
   },
   {
-    id: "media_02",
-    kind: "image",
-    title: "Match MVP screenshot",
-    detail: "PNG • Captured via Capsules overlay",
-    badgeLabel: "Image",
-  },
-  {
-    id: "media_03",
-    kind: "bumper",
-    title: "\"Community night\" intro sting",
-    detail: "0:06 • Animated bumper",
-    badgeLabel: "Bumper",
+    id: "pdf",
+    title: "Create PDF",
+    description: "Design export-ready PDFs with covers, sections, and CTAs.",
+    icon: <FilePdf size={22} weight="fill" />,
+    tone: "pdf",
   },
 ];
 
-const PROMPT_DRAFTS: PromptDraft[] = [
+const OVERVIEW_CARDS: OverviewCard[] = [
   {
-    id: "prompt_title",
-    label: "Title & hook",
-    text: "He queued solo, but his aim didn't get the memo.",
+    id: "drafts",
+    label: "Drafts",
+    total: "14",
+    delta: "+5 in the last 7",
+    action: "View drafts",
+    icon: <FileText size={22} weight="bold" />,
   },
   {
-    id: "prompt_description",
-    label: "Description",
-    text: "Short recap optimized for YouTube, with timestamps and a soft CTA to follow your Capsule.",
+    id: "scheduled",
+    label: "Scheduled",
+    total: "6",
+    delta: "+2 in the last 7",
+    action: "Manage queue",
+    icon: <CalendarBlank size={22} weight="bold" />,
+  },
+];
+
+const RECENT_CREATIONS: RecentCreation[] = [
+  {
+    id: "city",
+    title: "Rainy Cyberpunk City",
+    category: "Short video",
+    image:
+      "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    id: "prompt_cross_post",
-    label: "Cross-post copy",
-    text: "Variants for Discord announcements, Capsule posts, and a quick X / Threads caption.",
+    id: "reading",
+    title: "Cozy Reading Corner",
+    category: "Image set",
+    image:
+      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "forest",
+    title: "Misty Pine Forest",
+    category: "Post bundle",
+    image:
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
+  },
+];
+
+const WORKFLOW_SHORTCUTS: WorkflowShortcut[] = [
+  {
+    id: "templates",
+    title: "Template Library",
+    description: "Curated looks for intros, promos, and merch drops.",
+    icon: <Sparkle size={20} weight="fill" />,
+    tag: "Popular",
+  },
+  {
+    id: "remix",
+    title: "Remix & Resize",
+    description: "Duplicate, switch aspect ratios, and auto-adjust captions.",
+    icon: <MagicWand size={20} weight="fill" />,
+    tag: "New",
+  },
+  {
+    id: "insights",
+    title: "Performance Insights",
+    description: "Find the clips with the strongest retention to schedule next.",
+    icon: <ChartLineUp size={20} weight="fill" />,
+  },
+  {
+    id: "handoff",
+    title: "Producer Handoff",
+    description: "Lock brand kit, attach briefs, and invite editors.",
+    icon: <NotePencil size={20} weight="fill" />,
   },
 ];
 
 export const metadata: Metadata = {
-  title: "Content Studio - Capsules",
-  description:
-    "Turn raw clips and screenshots into on-brand highlights, thumbnails, and posts with Capsules AI.",
+  title: "Content Creation - Capsules",
+  description: "Generate and edit videos, images, decks, and posts with Capsules AI.",
 };
 
-export default function ContentStudioPage() {
+export default function ContentCreationPage() {
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
-      <div className={styles.shell} data-surface="content">
-        <header className={styles.header}>
-          <div className={styles.headerMain}>
-            <div className={styles.pill}>Content Studio</div>
-            <h1 className={styles.title}>Design highlights, thumbnails, and posts with AI</h1>
+      <div className={styles.page}>
+        <header className={styles.hero}>
+          <div>
+            <p className={styles.eyebrow}>Content Creation</p>
+            <h1 className={styles.title}>Generate & edit videos, images, and posts</h1>
             <p className={styles.subtitle}>
-              Drop in your footage and screenshots. Capsules helps you cut, caption, and style content so it
-              feels unmistakably on-brand for your community.
+              Start with a format, keep everything on-brand, and publish to every channel without leaving
+              Capsules.
             </p>
-            <div className={styles.headerActions}>
-              <button type="button" className={styles.primaryButton}>
-                New project
-              </button>
-              <button type="button" className={styles.secondaryButton}>
-                Upload assets
-              </button>
-            </div>
           </div>
-          <div className={styles.headerMeta}>
-            <div className={styles.metaCard}>
-              <div className={styles.metaLabel}>Preset</div>
-              <div className={styles.metaValue}>Highlight reel</div>
-              <div className={styles.metaHint}>Best for Twitch &amp; YouTube Shorts</div>
-            </div>
-            <div className={styles.metaCard}>
-              <div className={styles.metaLabel}>Look</div>
-              <div className={styles.metaValue}>Capsule neon</div>
-              <div className={styles.metaHint}>Uses your Capsule colors &amp; fonts</div>
-            </div>
+          <div className={styles.heroActions}>
+            <button type="button" className={styles.primaryButton}>
+              + New post
+            </button>
+            <button type="button" className={styles.ghostButton}>
+              Upload assets
+            </button>
           </div>
         </header>
 
-        <main className={styles.layout}>
-          <section className={styles.columnPrimary} aria-label="Project canvas">
-            <section className={styles.cardAccent} aria-label="Preview and timeline">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Project canvas</h2>
-                  <p className={styles.cardSubtitle}>
-                    Preview your edit with a timeline for cuts, captions, and overlays.
-                  </p>
-                </div>
-                <div className={styles.tabStrip}>
-                  <button type="button" className={styles.tabButton} data-state="active">
-                    Timeline
-                  </button>
-                  <button type="button" className={styles.tabButton}>
-                    Storyboard
-                  </button>
-                </div>
-              </header>
-              <div className={styles.previewShell}>
-                <div className={styles.previewFrame}>
-                  <div className={styles.previewSafeLines} aria-hidden="true" />
-                  <div className={styles.previewBadge}>
-                    {PROJECT_SUMMARY.aspect} • {PROJECT_SUMMARY.duration}
-                  </div>
-                  <div className={styles.previewTagline}>{PROJECT_SUMMARY.tagline}</div>
-                  <div className={styles.previewOverlayBottom}>
-                    <div className={styles.previewTitle}>{PROJECT_SUMMARY.title}</div>
-                    <div className={styles.previewSubtitle}>{PROJECT_SUMMARY.subtitle}</div>
-                  </div>
-                </div>
-                <div className={styles.timelineShell} aria-hidden="true">
-                  <div className={styles.timelineWave} />
-                  <div className={styles.timelineClips}>
-                    <div className={styles.timelineClip} data-kind="clip" />
-                    <div className={styles.timelineClip} data-kind="clip" />
-                    <div className={styles.timelineClip} data-kind="clip" />
-                  </div>
-                  <div className={styles.timelineTracks}>
-                    <div className={styles.timelineTrackLabel}>Captions</div>
-                    <div className={styles.timelineTrackLine} />
-                    <div className={styles.timelineTrackLabel}>Overlays</div>
-                    <div className={styles.timelineTrackLine} />
-                  </div>
-                </div>
+        <div className={styles.topRow}>
+          <section className={styles.panel}>
+            <header className={styles.sectionHeader}>
+              <div>
+                <p className={styles.sectionEyebrow}>Quick Create</p>
+                <h2 className={styles.sectionTitle}>Start with a mode</h2>
+                <p className={styles.sectionSubtitle}>
+                  Spin up new content with presets for every channel and deliverable.
+                </p>
               </div>
-            </section>
-
-            <section className={styles.card} aria-label="Format and layout presets">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Format &amp; layout</h2>
-                  <p className={styles.cardSubtitle}>
-                    Choose aspect ratios, framing, and safe zones before you publish.
-                  </p>
-                </div>
-                <button type="button" className={styles.chipButton}>
-                  Apply Capsule theme
+              <button type="button" className={styles.linkButton}>
+                View automations
+              </button>
+            </header>
+            <div className={styles.quickGrid}>
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  className={styles.quickCard}
+                  data-tone={action.tone}
+                  aria-label={action.title}
+                >
+                  <span className={styles.quickIcon} data-tone={action.tone} aria-hidden>
+                    {action.icon}
+                  </span>
+                  <div className={styles.quickCopy}>
+                    <div className={styles.quickTitle}>{action.title}</div>
+                    <p className={styles.quickDescription}>{action.description}</p>
+                  </div>
                 </button>
-              </header>
-              <div className={styles.formatGrid}>
-                {ASPECT_FORMATS.map((format) => (
-                  <div key={format.id} className={styles.formatChoice}>
-                    <div className={styles.formatBadge}>{format.label}</div>
-                    <div className={styles.formatLabel}>{format.description}</div>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.layoutHelpers}>
-                {LAYOUT_HELPERS.map((helper) => (
-                  <div key={helper.id} className={styles.layoutHelper}>
-                    <div className={styles.layoutLabel}>{helper.label}</div>
-                    <p className={styles.layoutHint}>{helper.hint}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+              ))}
+            </div>
           </section>
 
-          <section className={styles.columnSecondary} aria-label="Media library and AI helpers">
-            <section className={styles.card} aria-label="Media library">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Media library</h2>
-                  <p className={styles.cardSubtitle}>
-                    Clips and images pulled from your streams, uploads, and Capsules.
-                  </p>
-                </div>
-                <button type="button" className={styles.chipButton}>
-                  Import from Stream Studio
-                </button>
-              </header>
-              <ul className={styles.mediaList}>
-                {MEDIA_ITEMS.map((item) => (
-                  <li
-                    key={item.id}
-                    className={styles.mediaItem}
-                    data-kind={item.kind}
-                    data-media-id={item.id}
-                  >
-                    <div className={styles.mediaThumb} />
-                    <div className={styles.mediaMeta}>
-                      <div className={styles.mediaTitle}>{item.title}</div>
-                      <p className={styles.mediaHint}>{item.detail}</p>
-                    </div>
-                    <span className={styles.mediaTag}>{item.badgeLabel}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className={styles.card} aria-label="AI prompts and drafts">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>AI prompts &amp; drafts</h2>
-                <p className={styles.cardSubtitle}>
-                  Ask Capsules to name, describe, and package your edit for different platforms.
-                </p>
-              </header>
-              <ul className={styles.promptList}>
-                {PROMPT_DRAFTS.map((prompt) => (
-                  <li key={prompt.id} className={styles.promptItem}>
-                    <div className={styles.promptLabel}>{prompt.label}</div>
-                    <p className={styles.promptText}>{prompt.text}</p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className={styles.card} aria-label="Brand kit and export">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>Brand kit &amp; export</h2>
-                <p className={styles.cardSubtitle}>
-                  Lock in colors, logos, and fonts once. Reuse them across every clip and thumbnail.
-                </p>
-              </header>
-              <div className={styles.brandGrid}>
-                <div className={styles.brandPalette}>
-                  <div className={styles.brandLabel}>Palette</div>
-                  <div className={styles.swatchRow}>
-                    <span className={styles.swatch} data-tone="primary" />
-                    <span className={styles.swatch} data-tone="accent" />
-                    <span className={styles.swatch} data-tone="highlight" />
-                  </div>
-                </div>
-                <div className={styles.brandFonts}>
-                  <div className={styles.brandLabel}>Typography</div>
-                  <div className={styles.fontChip}>Headline – Bold</div>
-                  <div className={styles.fontChip} data-variant="sub">
-                    Body – Clean
-                  </div>
-                </div>
-                <div className={styles.brandLogos}>
-                  <div className={styles.brandLabel}>Logos &amp; watermark</div>
-                  <div className={styles.logoMock} />
-                </div>
+          <aside className={styles.panelAlt} aria-label="Post overview">
+            <header className={styles.sectionHeader}>
+              <div>
+                <p className={styles.sectionEyebrow}>Post Overview</p>
+                <h2 className={styles.sectionTitle}>Pipeline</h2>
+                <p className={styles.sectionSubtitle}>Track drafts, schedules, and week-over-week lifts.</p>
               </div>
-              <div className={styles.exportRow}>
-                <div className={styles.exportMeta}>
-                  <div className={styles.exportLabel}>Ready to export</div>
-                  <p className={styles.exportHint}>Create a Capsule post and optional social versions.</p>
-                </div>
-                <div className={styles.exportButtons}>
+            </header>
+            <div className={styles.overviewList}>
+              {OVERVIEW_CARDS.map((card) => (
+                <div key={card.id} className={styles.overviewCard} data-tone={card.id}>
+                  <div className={styles.overviewIcon} aria-hidden>
+                    {card.icon}
+                  </div>
+                  <div className={styles.overviewMeta}>
+                    <div className={styles.overviewLabel}>{card.label}</div>
+                    <div className={styles.overviewValue}>{card.total}</div>
+                    <div className={styles.overviewDelta}>{card.delta}</div>
+                  </div>
                   <button type="button" className={styles.secondaryButton}>
-                    Save draft
-                  </button>
-                  <button type="button" className={styles.primaryButton}>
-                    Export &amp; publish
+                    {card.action}
                   </button>
                 </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+
+        <div className={styles.bottomRow}>
+          <section className={styles.panel}>
+            <header className={styles.sectionHeader}>
+              <div>
+                <p className={styles.sectionEyebrow}>Recent Creations</p>
+                <h2 className={styles.sectionTitle}>Keep the momentum</h2>
               </div>
-            </section>
+              <button type="button" className={styles.linkButton}>
+                View all
+              </button>
+            </header>
+            <div className={styles.recentGrid}>
+              {RECENT_CREATIONS.map((creation) => (
+                <article
+                  key={creation.id}
+                  className={styles.recentCard}
+                  style={{ backgroundImage: `url(${creation.image})` }}
+                >
+                  <div className={styles.recentOverlay} />
+                  <div className={styles.recentMeta}>
+                    <span className={styles.recentTag}>{creation.category}</span>
+                    <h3 className={styles.recentTitle}>{creation.title}</h3>
+                  </div>
+                </article>
+              ))}
+            </div>
           </section>
-        </main>
+
+          <section className={styles.panelAlt}>
+            <header className={styles.sectionHeader}>
+              <div>
+                <p className={styles.sectionEyebrow}>Workflow Shortcuts</p>
+                <h2 className={styles.sectionTitle}>Ship faster</h2>
+                <p className={styles.sectionSubtitle}>
+                  Replace the resource drawer with guided flows your team actually uses.
+                </p>
+              </div>
+            </header>
+            <div className={styles.workflowList}>
+              {WORKFLOW_SHORTCUTS.map((workflow) => (
+                <div key={workflow.id} className={styles.workflowCard}>
+                  <div className={styles.workflowIcon} aria-hidden>
+                    {workflow.icon}
+                  </div>
+                  <div className={styles.workflowCopy}>
+                    <div className={styles.workflowTitle}>
+                      {workflow.title}
+                      {workflow.tag ? <span className={styles.workflowTag}>{workflow.tag}</span> : null}
+                    </div>
+                    <p className={styles.workflowDescription}>{workflow.description}</p>
+                  </div>
+                  <button type="button" className={styles.ghostButton}>
+                    Open
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
     </AppPage>
   );

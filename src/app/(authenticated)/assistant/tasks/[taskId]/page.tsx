@@ -70,15 +70,19 @@ function TaskThreadCard({
                     </Link>
                     <span className={styles.recipientStatus}>{recipient.status.replace(/_/g, " ")}</span>
                   </div>
-                  <div className={styles.recipientActions}>
-                    <button
-                      type="button"
-                      className={styles.primaryButton}
-                      onClick={() => onOpenConversation(recipient.userId, recipient.conversationId, recipient.name)}
-                    >
-                      Open chat
-                    </button>
-                  </div>
+                  {task.direction === "incoming" && recipient.conversationId ? (
+                    <div className={styles.recipientActions}>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() =>
+                          onOpenConversation(recipient.userId, recipient.conversationId, recipient.name)
+                        }
+                      >
+                        Reply in Assistant
+                      </button>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
@@ -107,7 +111,7 @@ function TaskDetailInner() {
       // Prefer an existing conversation id if available.
       if (conversationId) {
         openSession(conversationId);
-        router.push("/friends?tab=Chats");
+        router.push("/friends?tab=Assistant");
         return;
       }
       await requestChatStart(
@@ -118,7 +122,7 @@ function TaskDetailInner() {
         },
         { activate: true },
       );
-      router.push("/friends?tab=Chats");
+      router.push("/friends?tab=Assistant");
     },
     [openSession, router],
   );
@@ -130,7 +134,7 @@ function TaskDetailInner() {
         : null;
     if (conversationId) {
       openSession(conversationId);
-      router.push("/friends?tab=Chats");
+      router.push("/friends?tab=Assistant");
       return;
     }
     await requestChatStart(
@@ -141,7 +145,7 @@ function TaskDetailInner() {
       },
       { activate: true },
     );
-    router.push("/friends?tab=Chats");
+    router.push("/friends?tab=Assistant");
   }, [openSession, router, task?.conversationId]);
 
   return (

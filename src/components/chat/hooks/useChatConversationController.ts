@@ -19,7 +19,7 @@ import type { ChatComposerProps, ComposerStatus } from "../ChatComposer";
 import { useReactionPicker } from "./useReactionPicker";
 import { useChatAttachments } from "./useChatAttachments";
 import { useChatContextMenu } from "./useChatContextMenu";
-import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { isAssistantUserId } from "@/shared/assistant/constants";
 
 export type ChatConversationControllerResult = {
   isAssistantConversation: boolean;
@@ -110,9 +110,9 @@ export function useChatConversationController({
   onDeleteMessage,
 }: ChatConversationProps): ChatConversationControllerResult {
   const isAssistantConversation = React.useMemo(
-    () => session.participants.some((participant) => participant.id === ASSISTANT_USER_ID),
-    [session.participants],
-  );
+    () => session.participants.some((participant) => isAssistantUserId(participant.id)),
+  [session.participants],
+);
   const { user } = useCurrentUser();
   const { friends } = useFriendsDataContext();
   const friendLookup = React.useMemo(() => {

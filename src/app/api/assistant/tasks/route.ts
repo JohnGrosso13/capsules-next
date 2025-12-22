@@ -99,9 +99,8 @@ export async function POST(request: Request) {
     const target = targetMap.get(recipient.userId);
     if (!target) continue;
     try {
-      const sendResult = await deps.sendUserMessage({
+      const sendResult = await deps.sendAssistantMessage({
         conversationId: target.conversation_id,
-        senderId: supabaseUserId,
         body: prompt,
         task: { id: task.task.id, title: taskTitle ?? prompt },
       });

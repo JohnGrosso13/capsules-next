@@ -1,589 +1,678 @@
-.shell {
+.page {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   padding: 12px 4px 32px;
+  color: var(--text);
 }
 
-.header {
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 6px 6px;
+}
+
+.pageTitles {
   display: grid;
-  grid-template-columns: minmax(0, 2.5fr) minmax(0, 1.3fr);
-  gap: 18px;
-  padding: 16px 18px 18px;
-  border-radius: var(--card-radius);
-  border: 1px solid var(--card-border, var(--surface-outline));
-  background:
-    radial-gradient(1400px 70% at -10% -10%, rgba(248, 250, 252, 0.16), transparent 60%),
-    radial-gradient(1200px 75% at 110% -10%, color-mix(in srgb, var(--color-brand) 28%, var(--color-accent) 22%), transparent 65%),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--surface-elevated) 96%, transparent),
-      color-mix(in srgb, var(--surface-app) 82%, transparent)
-    );
-  box-shadow:
-    0 26px 72px rgba(5, 10, 30, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(2, 6, 23, 0.6);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  gap: 6px;
 }
 
-.headerMain {
-  display: grid;
-  gap: 10px;
-}
-
-.pill {
-  align-self: flex-start;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, rgba(248, 250, 252, 0.8));
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    radial-gradient(120% 200% at 0% 0%, color-mix(in srgb, var(--color-brand) 32%, var(--color-accent) 28%), transparent 60%);
-  box-shadow:
-    0 10px 20px rgba(15, 23, 42, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
-  font-size: 0.75rem;
-  font-weight: 700;
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-weight: 800;
+  color: var(--text-3);
 }
 
-.title {
-  font-size: 1.6rem;
+.pageTitle {
+  margin: 0;
+  font-size: 1.9rem;
   font-weight: 900;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
-.subtitle {
-  font-size: 0.95rem;
+.pageLead {
+  margin: 0;
   color: var(--text-2);
-  max-width: 36rem;
+  font-size: 0.98rem;
+  max-width: 640px;
 }
 
 .headerActions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  margin-top: 8px;
-}
-
-.primaryButton,
-.secondaryButton {
-  border-radius: 999px;
-  padding: 7px 16px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border: 1px solid transparent;
 }
 
 .primaryButton {
-  border-color: color-mix(in srgb, var(--color-brand) 70%, var(--color-accent) 30%);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand) 82%, var(--color-accent) 18%),
-      color-mix(in srgb, var(--color-brand-strong) 85%, var(--color-accent) 15%)
+  border: 1px solid color-mix(in srgb, var(--color-brand) 55%, var(--color-border, rgba(255, 255, 255, 0.18)));
+  background: var(
+      --cta-button-gradient,
+      var(--gradient-brand, linear-gradient(135deg, #4f46e5, #6366f1))
     ),
-    radial-gradient(160% 200% at 0% 0%, color-mix(in srgb, var(--color-accent) 32%, transparent), transparent 60%);
+    radial-gradient(140% 180% at 0% 0%, color-mix(in srgb, var(--color-brand) 24%, transparent), transparent 55%);
+  color: var(--text-on-brand, #f8fafc);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 9px 16px;
+  border-radius: 12px;
   box-shadow:
-    0 16px 32px color-mix(in srgb, var(--color-brand) 35%, rgba(5, 10, 30, 0.8)),
-    inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
-}
-
-.secondaryButton {
-  border-color: color-mix(in srgb, var(--color-brand) 70%, transparent);
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand) 30%, transparent),
-      color-mix(in srgb, var(--color-brand-strong) 26%, transparent)
-    );
-  box-shadow:
-    0 10px 22px rgba(15, 23, 42, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.9);
-}
-
-.headerMeta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.metricCard {
-  border-radius: 18px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--surface-outline) 70%, var(--color-brand));
-  background:
-    radial-gradient(160% 180% at 0% 0%, color-mix(in srgb, var(--color-brand) 28%, var(--color-accent) 22%), transparent 60%),
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--surface-elevated) 96%, transparent),
-      color-mix(in srgb, var(--surface-app) 86%, transparent)
-    );
-  box-shadow:
-    0 18px 36px rgba(5, 10, 30, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7);
-}
-
-.metricLabel {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.8;
-}
-
-.metricValue {
-  font-size: 1.1rem;
-  font-weight: 800;
-  margin-top: 2px;
-}
-
-.metricHint {
-  font-size: 0.8rem;
-  margin-top: 4px;
-  color: var(--text-2);
+    var(--cta-chip-shadow, 0 18px 34px rgba(40, 74, 170, 0.35)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  cursor: pointer;
 }
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.25fr);
-  gap: 18px;
+  grid-template-columns: 1.05fr 1.15fr 0.95fr;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
 }
 
-.columnPrimary,
-.columnSecondary {
+.column {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
-.card,
-.cardAccent {
-  border-radius: 20px;
-  padding: 16px 16px 14px;
-  border: 1px solid var(--card-border, var(--surface-outline));
+.card {
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
   background:
-    radial-gradient(135% 180% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%), transparent 60%),
-    radial-gradient(
-      130% 200% at 100% -10%,
-      color-mix(in srgb, var(--color-brand) 32%, transparent),
-      transparent 70%
-    ),
+    radial-gradient(140% 120% at 0% 0%, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent 58%),
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 60%),
     linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-elevated) 96%, transparent),
-      color-mix(in srgb, var(--surface-app) 86%, transparent)
+      185deg,
+      color-mix(in srgb, var(--card-bg-1) 94%, transparent),
+      color-mix(in srgb, var(--card-bg-2) 98%, transparent)
     );
-  box-shadow:
-    0 20px 48px rgba(5, 10, 30, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: var(--card-shadow, 0 20px 44px rgba(5, 10, 30, 0.6));
+  backdrop-filter: blur(var(--glass-blur, 14px)) saturate(var(--glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 14px)) saturate(var(--glass-saturate, 120%));
 }
 
-.cardAccent {
-  padding-bottom: 16px;
-}
-
-.cardHeaderRow {
+.cardHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.cardHeaderStacked {
-  display: grid;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 10px;
 }
 
 .cardTitle {
-  font-size: 1rem;
+  margin: 0;
+  font-size: 1.05rem;
   font-weight: 800;
 }
 
 .cardSubtitle {
-  font-size: 0.85rem;
+  margin: 4px 0 0;
   color: var(--text-2);
+  font-size: 0.86rem;
 }
 
-.chipButton {
-  border-radius: 999px;
-  border: 1px solid var(--pill-border);
-  padding: 4px 11px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: linear-gradient(180deg, var(--pill-bg-1), var(--pill-bg-2));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(15, 23, 42, 0.7),
-    0 8px 20px rgba(15, 23, 42, 0.55);
-}
-
-.queueHeaderMeta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.queueBadge {
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border: 1px solid var(--chip-border);
-  background: linear-gradient(180deg, var(--chip-bg-1), var(--chip-bg-2));
-  box-shadow: var(--chip-shadow);
-}
-
-.queueFilters {
-  margin-top: 8px;
-  padding: 8px 9px;
-  border-radius: 14px;
-  border: 1px solid var(--card-border, var(--surface-outline));
-  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-  box-shadow: var(--card-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.queueFilterGroup {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.filterChip {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border: 1px solid var(--chip-border);
-  background: linear-gradient(180deg, var(--chip-bg-1), var(--chip-bg-2));
-  box-shadow: var(--chip-shadow);
-}
-
-.filterChip[data-state="active"] {
-  border-color: var(--chip-active-border);
-  background: linear-gradient(180deg, var(--chip-active-bg-1), var(--chip-active-bg-2));
-  color: var(--text);
-  box-shadow: var(--chip-active-shadow);
-}
-
-.flagList {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.flagItem {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px 9px;
-  border-radius: 14px;
-  border: 1px solid
-    color-mix(in srgb, var(--color-brand) 72%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
-  background:
-    radial-gradient(135% 200% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, var(--color-accent) 18%), transparent 65%),
-    linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-}
-
-.flagTypeColumn {
-  display: grid;
-  gap: 4px;
-}
-
-.flagType {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border: 1px solid
-    color-mix(in srgb, var(--color-brand) 76%, color-mix(in srgb, var(--card-border, #ffffff) 44%, transparent));
-}
-
-.flagMeta {
-  font-size: 0.75rem;
-  color: var(--text-2);
-}
-
-.flagBody {
-  display: grid;
-  gap: 3px;
-}
-
-.flagSnippet {
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.flagHint {
-  font-size: 0.78rem;
-  color: var(--text-2);
-}
-
-.flagActor {
-  font-weight: 600;
-}
-
-.flagTags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 3px;
-}
-
-.flagTag {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  border: 1px solid
-    color-mix(in srgb, var(--color-brand) 72%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-brand) 30%, transparent),
-      color-mix(in srgb, var(--color-brand-strong) 24%, transparent)
-    );
-}
-
-.flagTag[data-tone="issue"] {
-  border-color: color-mix(in srgb, var(--color-brand-strong) 70%, transparent);
+.cardTag {
+  padding: 6px 10px;
+  border-radius: var(--pill-radius, 999px);
+  border: 1px solid var(--pill-border, rgba(255, 255, 255, 0.16));
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-brand-strong) 28%, transparent),
-    color-mix(in srgb, var(--color-brand-strong) 62%, transparent)
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.02))
   );
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
 }
 
-.flagTag[data-tone="urgent"] {
-  border-color: rgba(248, 250, 252, 0.9);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.16), rgba(248, 250, 252, 0.6));
-  color: var(--text);
-}
-
-.flagStatus {
-  align-self: center;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border: 1px solid
-    color-mix(in srgb, var(--color-brand) 76%, color-mix(in srgb, var(--card-border, #ffffff) 44%, transparent));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
-}
-
-.flagStatus[data-tone="review"] {
-  border-color: color-mix(in srgb, var(--color-brand) 65%, var(--color-accent) 35%);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-brand) 22%, transparent),
-    color-mix(in srgb, var(--color-accent) 32%, transparent)
-  );
-  color: var(--text);
-}
-
-.flagStatus[data-tone="urgent"] {
-  border-color: color-mix(in srgb, var(--color-brand-strong) 70%, var(--color-accent) 30%);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-brand-strong) 26%, transparent),
-    color-mix(in srgb, var(--color-brand-strong) 62%, transparent)
-  );
-}
-
-.flagStatus[data-tone="blocked"] {
-  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-brand) 24%, transparent),
-    color-mix(in srgb, var(--color-brand-strong) 72%, transparent)
-  );
-}
-
-.flagActionsColumn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.flagActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.queueAction,
-.queueActionSecondary {
-  padding: 4px 11px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border: 1px solid var(--chip-border);
-  background: linear-gradient(180deg, var(--chip-bg-1), var(--chip-bg-2));
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.queueActionSecondary {
-  border-style: dashed;
-}
-
-.overviewGrid {
-  margin-top: 10px;
+.statGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.overviewItem {
+.statCard {
+  padding: 10px 12px;
   border-radius: 14px;
-  padding: 9px 10px;
-  border: 1px solid var(--card-border, var(--surface-outline));
-  background: linear-gradient(180deg, var(--card-bg-1), var(--card-bg-2));
-  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-bg-1) 90%, transparent),
+      color-mix(in srgb, var(--card-bg-2) 96%, transparent)
+    ),
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent 70%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.overviewLabel {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.8;
+.statLabel {
+  font-size: 0.86rem;
+  color: var(--text-2);
 }
 
-.overviewValue {
+.statValue {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+
+.statDelta {
+  font-size: 0.82rem;
+  color: var(--color-success);
   margin-top: 4px;
-  font-size: 0.9rem;
-  font-weight: 600;
 }
 
-.incidentList {
-  margin-top: 10px;
+.statDelta[data-trend="down"] {
+  color: var(--color-danger);
+}
+
+.linkButton {
+  border: none;
+  background: transparent;
+  color: var(--link-color, var(--color-brand));
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.tableHead {
   display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr 0.9fr 0.9fr;
   gap: 8px;
+  padding: 0 4px 8px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
 }
 
-.incidentItem {
-  padding: 8px 9px;
-  border-radius: 14px;
-  border: 1px solid
-    color-mix(in srgb, var(--color-brand) 70%, color-mix(in srgb, var(--card-border, #ffffff) 42%, transparent));
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98)),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.7));
+.alignRight {
+  text-align: right;
+}
+
+.tableBody {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 6px;
 }
 
-.incidentMeta {
+.tableRow {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr 0.9fr 0.9fr;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card-bg-1) 90%, transparent),
+    color-mix(in srgb, var(--card-bg-2) 94%, transparent)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.alertCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.alertText {
   display: grid;
   gap: 2px;
 }
 
-.incidentTitle {
-  font-size: 0.9rem;
-  font-weight: 600;
+.alertThumb {
+  width: 40px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.12));
+  box-shadow: var(--chip-shadow, 0 10px 24px rgba(5, 10, 30, 0.4));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 38%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-brand-strong, #4f46e5) 30%, var(--card-bg-2))
+  );
 }
 
-.incidentHint {
-  font-size: 0.78rem;
+.alertThumb[data-accent="rose"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-danger) 36%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-danger) 22%, var(--card-bg-2))
+  );
+}
+
+.alertThumb[data-accent="amber"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-warning) 36%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-warning) 22%, var(--card-bg-2))
+  );
+}
+
+.alertThumb[data-accent="blue"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-info) 38%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-info) 24%, var(--card-bg-2))
+  );
+}
+
+.alertThumb[data-accent="indigo"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand-strong, #4f46e5) 42%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-brand) 26%, var(--card-bg-2))
+  );
+}
+
+.alertLabel {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.subtle {
   color: var(--text-2);
+  font-size: 0.9rem;
+  min-width: 0;
 }
 
-.incidentBadges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.queueCard {
+  height: 100%;
 }
 
-.incidentBadge {
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
+.filterButton {
+  border-radius: 10px;
+  border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--chip-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--chip-bg-2, rgba(255, 255, 255, 0.02))
+  );
+  padding: 6px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.queueHeadings {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto;
+  gap: 10px;
+  padding: 2px 4px 8px;
+  font-size: 0.78rem;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.queueList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.queueRow {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-bg-1) 90%, transparent),
+      color-mix(in srgb, var(--card-bg-2) 96%, transparent)
+    ),
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent 70%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.queueIssue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.queueThumb {
+  width: 64px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.12));
+  box-shadow:
+    0 12px 28px rgba(5, 10, 30, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 38%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-brand-strong, #4f46e5) 30%, var(--card-bg-2))
+  );
+}
+
+.queueThumb[data-accent="indigo"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand-strong, #4f46e5) 44%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-brand) 28%, var(--card-bg-2))
+  );
+}
+
+.queueThumb[data-accent="rose"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-danger) 40%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-danger) 26%, var(--card-bg-2))
+  );
+}
+
+.queueThumb[data-accent="amber"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-warning) 40%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-warning) 26%, var(--card-bg-2))
+  );
+}
+
+.queueThumb[data-accent="teal"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-success) 38%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-success) 26%, var(--card-bg-2))
+  );
+}
+
+.issueTitle {
+  font-weight: 700;
+  font-size: 0.96rem;
+  line-height: 1.3;
+}
+
+.issueMeta {
+  margin: 4px 0 0;
+  color: var(--text-2);
+  font-size: 0.82rem;
+}
+
+.queueType {
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+.statusBadge {
+  justify-self: end;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.14));
+  background: linear-gradient(
+    180deg,
+    var(--chip-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--chip-bg-2, rgba(255, 255, 255, 0.02))
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.statusBadge[data-tone="pending"] {
+  border-color: color-mix(in srgb, var(--color-warning) 60%, var(--chip-border, transparent));
+  color: color-mix(in srgb, var(--color-warning) 75%, var(--text));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-warning) 28%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-warning) 14%, var(--card-bg-2))
+  );
+  box-shadow: 0 10px 18px color-mix(in srgb, var(--color-warning) 26%, rgba(5, 10, 30, 0.32));
+}
+
+.statusBadge[data-tone="flagged"] {
+  border-color: color-mix(in srgb, var(--color-warning) 70%, var(--chip-border, transparent));
+  color: color-mix(in srgb, var(--color-warning) 82%, var(--text));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-warning) 32%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-warning) 18%, var(--card-bg-2))
+  );
+  box-shadow: 0 10px 18px color-mix(in srgb, var(--color-warning) 30%, rgba(5, 10, 30, 0.28));
+}
+
+.statusBadge[data-tone="removed"] {
+  border-color: color-mix(in srgb, var(--color-success) 60%, var(--chip-border, transparent));
+  color: color-mix(in srgb, var(--color-success) 82%, var(--text));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-success) 30%, var(--card-bg-1)),
+    color-mix(in srgb, var(--color-success) 16%, var(--card-bg-2))
+  );
+  box-shadow: 0 10px 18px color-mix(in srgb, var(--color-success) 28%, rgba(5, 10, 30, 0.28));
+}
+
+.settingsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-bg-1) 92%, transparent),
+      color-mix(in srgb, var(--card-bg-2) 96%, transparent)
+    ),
+    radial-gradient(90% 120% at 0% 0%, color-mix(in srgb, var(--color-brand) 10%, transparent), transparent 70%);
+}
+
+.settingTitle {
+  font-weight: 700;
+  font-size: 0.96rem;
+}
+
+.settingHint {
+  margin: 4px 0 0;
+  color: var(--text-3);
+  font-size: 0.84rem;
+}
+
+.manageButton {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 60%, var(--chip-border, rgba(255, 255, 255, 0.2)));
+  background: var(
+    --cta-button-gradient,
+    linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 62%, #3757c7), var(--color-accent, #4e7df2))
+  );
+  color: var(--text-on-brand, #f8fafc);
+  font-weight: 700;
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--color-brand) 28%, rgba(5, 10, 30, 0.28));
+  cursor: pointer;
+}
+
+.switch {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.switchTrack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    var(--pill-bg-1, rgba(255, 255, 255, 0.08)),
+    var(--pill-bg-2, rgba(255, 255, 255, 0.02))
+  );
+  color: var(--text-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.switchTrack[data-state="on"] {
+  border-color: color-mix(in srgb, var(--color-brand) 60%, var(--chip-border, rgba(255, 255, 255, 0.16)));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 74%, transparent),
+    color-mix(in srgb, var(--color-accent) 48%, transparent)
+  );
+  color: var(--text-on-brand, #0e1024);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 10px 20px color-mix(in srgb, var(--color-brand) 32%, rgba(5, 10, 30, 0.35));
+}
+
+.switchLabel {
+  position: relative;
+  z-index: 1;
+  font-size: 0.72rem;
+  font-weight: 800;
   letter-spacing: 0.08em;
-  border: 1px solid
-    color-mix(in srgb, var(--color-brand) 72%, color-mix(in srgb, var(--card-border, #ffffff) 40%, transparent));
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
 }
 
-.incidentBadge[data-tone="blocked"] {
-  border-color: color-mix(in srgb, var(--color-brand) 78%, transparent);
+.switchThumb {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-brand) 24%, transparent),
-    color-mix(in srgb, var(--color-brand-strong) 72%, transparent)
+    color-mix(in srgb, var(--card-bg-1) 92%, rgba(255, 255, 255, 0.9)),
+    color-mix(in srgb, var(--card-bg-2) 80%, rgba(255, 255, 255, 0.75))
   );
+  box-shadow:
+    0 6px 12px rgba(5, 10, 30, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
-.incidentBadge[data-tone="urgent"] {
-  border-color: color-mix(in srgb, var(--color-brand-strong) 70%, var(--color-accent) 30%);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-brand-strong) 26%, transparent),
-    color-mix(in srgb, var(--color-brand-strong) 62%, transparent)
-  );
+.switchTrack[data-state="on"] .switchThumb {
+  transform: translateX(32px);
 }
 
-@media (max-width: 1024px) {
-  .header {
+.switchTrack[data-state="off"] .switchThumb {
+  transform: translateX(0);
+}
+
+.beaconCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 16px 14px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 38%, var(--card-border, rgba(255, 255, 255, 0.14)));
+  background:
+    radial-gradient(140% 120% at 82% 0%, color-mix(in srgb, var(--color-brand) 26%, transparent), transparent 52%),
+    radial-gradient(120% 140% at 24% 24%, color-mix(in srgb, var(--color-accent) 20%, transparent), transparent 60%),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--card-bg-1) 94%, transparent),
+      color-mix(in srgb, var(--card-bg-2) 96%, transparent)
+    );
+  box-shadow: 0 20px 46px rgba(6, 12, 36, 0.55);
+}
+
+.beaconCard::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  top: 6px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(
+    60% 60% at 50% 50%,
+    color-mix(in srgb, var(--color-brand) 28%, transparent),
+    transparent 70%
+  );
+  filter: blur(8px);
+  opacity: 0.6;
+}
+
+.beaconTitle {
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.beaconHint {
+  margin: 6px 0 12px;
+  color: var(--text-2);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1180px) {
+  .layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .pageHeader {
+    flex-direction: column;
+  }
+
+  .layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .headerMeta {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-  .layout {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.3fr);
-  }
-}
 
-@media (max-width: 860px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
+  .tableHead,
+  .tableRow {
+    grid-template-columns: 1.2fr 1fr 0.9fr 0.9fr;
   }
-  .columnSecondary {
-    order: -1;
+
+  .tableHead span:nth-child(3),
+  .tableRow > :nth-child(3) {
+    display: none;
+  }
+
+  .queueHeadings,
+  .queueRow {
+    grid-template-columns: 1.2fr 1fr auto;
   }
 }
 
 @media (max-width: 640px) {
-  .shell {
+  .page {
     padding-inline: 0;
   }
-  .header {
-    border-radius: 0;
-    box-shadow:
-      0 18px 42px rgba(15, 23, 42, 0.8),
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 -1px 0 rgba(15, 23, 42, 0.9);
-  }
+
   .card,
-  .cardAccent {
-    border-radius: 0;
+  .beaconCard {
+    border-radius: 14px;
   }
-  .filterGrid {
-    grid-template-columns: minmax(0, 1fr);
+
+  .tableHead,
+  .tableRow {
+    grid-template-columns: 1fr 0.9fr 0.9fr;
+  }
+
+  .tableHead span:nth-child(2),
+  .tableRow > :nth-child(2) {
+    display: none;
   }
 }

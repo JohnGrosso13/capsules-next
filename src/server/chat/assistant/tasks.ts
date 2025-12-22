@@ -9,13 +9,14 @@ import {
   markTaskTargetCanceled,
   markTaskTargetResponded,
   markTaskTargetSent,
+  listTaskTargetsByConversationAny,
   updateAssistantTask,
   type AssistantTaskRow,
   type AssistantTaskTargetRow,
   deleteAssistantTask,
   deleteTaskTargetsByTask,
 } from "./repository";
-import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { ASSISTANT_USER_ID, getScopedAssistantUserId } from "@/shared/assistant/constants";
 
 export type MessagingRecipient = {
   userId: string;
@@ -175,7 +176,8 @@ export async function createMessagingTask(options: {
   payload?: Record<string, unknown> | null;
   recipients: MessagingRecipient[];
 }): Promise<MessagingTask> {
-  const assistantUserId = options.assistantUserId ?? ASSISTANT_USER_ID;
+  const assistantUserId =
+    options.assistantUserId ?? getScopedAssistantUserId(options.ownerUserId) ?? ASSISTANT_USER_ID;
   const payloadTitle =
     options.payload && typeof (options.payload as Record<string, unknown>).title === "string"
       ? ((options.payload as Record<string, unknown>).title as string)
@@ -226,8 +228,8 @@ export async function createMessagingTask(options: {
       {
         taskId: mirrorTask.id,
         ownerUserId: recipient.userId,
-        targetUserId: options.ownerUserId,
-        conversationId: getChatConversationId(recipient.userId, options.ownerUserId),
+        targetUserId: recipient.userId,
+        conversationId: getTaskConversationId(recipient.userId, assistantUserId),
         status: "awaiting_response",
         data: serializeTargetData({
           name: recipient.name ?? null,
@@ -245,7 +247,7 @@ export async function createMessagingTask(options: {
       taskId: task.id,
       ownerUserId: options.ownerUserId,
       targetUserId: recipient.userId,
-      conversationId: getChatConversationId(options.ownerUserId, recipient.userId),
+      conversationId: getTaskConversationId(recipient.userId, assistantUserId),
       status: "pending",
       data: serializeTargetData({
         name: recipient.name ?? null,
@@ -386,14 +388,19 @@ export async function recordRecipientResponse(params: {
 }
 
 export async function findAwaitingTargetsForConversation(params: {
-  ownerUserId: string;
   conversationId: string;
+  ownerUserId?: string;
 }): Promise<AssistantTaskTargetRow[]> {
-  const results = await listTaskTargetsByConversation({
-    ownerUserId: params.ownerUserId,
-    conversationId: params.conversationId,
-    statuses: ["awaiting_response"],
-  });
+  const results = params.ownerUserId
+    ? await listTaskTargetsByConversation({
+        ownerUserId: params.ownerUserId,
+        conversationId: params.conversationId,
+        statuses: ["awaiting_response"],
+      })
+    : await listTaskTargetsByConversationAny({
+        conversationId: params.conversationId,
+        statuses: ["awaiting_response"],
+      });
   return results.filter((target) => targetNeedsResponse(target));
 }
 

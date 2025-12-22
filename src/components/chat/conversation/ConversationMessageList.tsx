@@ -6,7 +6,7 @@ import { Paperclip, Smiley } from "@phosphor-icons/react/dist/ssr";
 
 import type { ChatMessage, ChatParticipant, ChatSession } from "@/components/providers/ChatProvider";
 import Link from "next/link";
-import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { isAssistantUserId } from "@/shared/assistant/constants";
 
 import { chatCopy } from "../copy";
 import { formatAttachmentSize } from "../utils";
@@ -158,7 +158,7 @@ export function ConversationMessageList({
         const taskLabelDisplay =
           taskLabel.length > 60 ? `${taskLabel.slice(0, 57)}...` : taskLabel;
         const showTaskHint =
-          !showTaskBadge && isAssistantConversation && message.authorId === ASSISTANT_USER_ID;
+          !showTaskBadge && isAssistantConversation && isAssistantUserId(message.authorId ?? "");
         const itemClassName = `${styles.messageItem} ${
           isSelf ? styles.messageItemSelf : styles.messageItemOther
         } ${grouped ? styles.messageItemGrouped : ""}`.trim();

@@ -5,6 +5,9 @@ vi.mock("@/lib/auth/payload", () => ({
 }));
 vi.mock("@/server/capsules/domain/common", () => ({
   requireCapsule: vi.fn(),
+  normalizeId: vi.fn((value: unknown) =>
+    typeof value === "string" ? value.trim().toLowerCase() : value ? String(value).toLowerCase() : "",
+  ),
 }));
 vi.mock("@/server/billing/entitlements", () => ({
   resolveWalletContext: vi.fn(),
@@ -26,6 +29,16 @@ vi.mock("@/server/billing/service", () => ({
 vi.mock("@/server/billing/platform", () => ({
   creditPlatformCut: vi.fn(),
 }));
+vi.mock("@/server/notifications/service", () => ({
+  createNotifications: vi.fn().mockResolvedValue([]),
+  getNotificationSettings: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/server/notifications/email", () => ({
+  sendNotificationEmails: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/server/notifications/recipients", () => ({
+  getCapsuleAdminRecipients: vi.fn().mockResolvedValue([]),
+}));
 
 import { POST as passPost } from "@/app/api/capsules/pass/route";
 import { POST as powerPost } from "@/app/api/capsules/power/route";
@@ -34,6 +47,8 @@ import { requireCapsule } from "@/server/capsules/domain/common";
 import { resolveWalletContext, chargeUsage, EntitlementError } from "@/server/billing/entitlements";
 import { recordFundingIfMissing } from "@/server/billing/service";
 import { creditPlatformCut } from "@/server/billing/platform";
+import { getCapsuleAdminRecipients } from "@/server/notifications/recipients";
+import { createNotifications } from "@/server/notifications/service";
 
 const mockWalletContext = (id: string) => ({
   wallet: { id, ownerType: "user" as const, ownerId: id, displayName: null, createdAt: "", updatedAt: "" },
@@ -66,6 +81,8 @@ describe("capsule pass & power routes", () => {
     vi.mocked(chargeUsage).mockResolvedValue(mockWalletContext("wallet-user-1").balance);
     vi.mocked(recordFundingIfMissing).mockResolvedValue(true);
     vi.mocked(creditPlatformCut).mockResolvedValue(true);
+    vi.mocked(getCapsuleAdminRecipients).mockResolvedValue([]);
+    vi.mocked(createNotifications).mockResolvedValue([]);
   });
 
   it("successfully processes a Capsule Pass and credits founder + platform", async () => {

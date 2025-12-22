@@ -6,7 +6,7 @@ import {
   publishMessageDeletedEvent,
   publishMessageUpdateEvent,
 } from "@/services/realtime/chat";
-import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { ASSISTANT_USER_ID, isAssistantUserId } from "@/shared/assistant/constants";
 import { handleAssistantMessage, handleAssistantTaskResponse } from "../assistant/service";
 import type { AssistantDependencies } from "../assistant/service";
 import { listSocialGraph } from "@/server/friends/service";
@@ -55,16 +55,19 @@ export function createAssistantDependenciesForUser(ownerUserId: string): Assista
         requesterId: ownerUserId,
         ...(typeof limit === "number" ? { limit } : {}),
       }),
-    sendAssistantMessage: async ({ conversationId, body, task }) => {
+    sendAssistantMessage: async ({ conversationId, body, task, messageId }) => {
       try {
-        await sendDirectMessage({
+        const parsed = parseConversationId(conversationId);
+        const assistantId = isAssistantUserId(parsed.left) ? parsed.left : isAssistantUserId(parsed.right) ? parsed.right : ASSISTANT_USER_ID;
+        const result = await sendDirectMessage({
           conversationId,
-          senderId: ASSISTANT_USER_ID,
-          messageId: randomUUID(),
+          senderId: assistantId,
+          messageId: messageId ?? randomUUID(),
           body,
           attachments: [],
           ...(task ? { task } : {}),
         });
+        return { messageId: result.message.id };
       } catch (error) {
         console.error("assistant send message error", error);
       }
@@ -229,11 +232,10 @@ export async function sendDirectMessage(params: {
     },
   });
 
-  const isAssistantSender = canonicalSenderId === ASSISTANT_USER_ID;
-  const involvesAssistant =
-    canonicalLeft === ASSISTANT_USER_ID || canonicalRight === ASSISTANT_USER_ID;
+  const isAssistantSender = isAssistantUserId(canonicalSenderId);
+  const involvesAssistant = isAssistantUserId(canonicalLeft) || isAssistantUserId(canonicalRight);
 
-  if (!isAssistantSender && otherCanonicalId === ASSISTANT_USER_ID) {
+  if (!isAssistantSender && isAssistantUserId(otherCanonicalId)) {
     const deps = createAssistantDependenciesForUser(canonicalSenderId);
     void (async () => {
       try {
@@ -245,14 +247,21 @@ export async function sendDirectMessage(params: {
           },
           deps,
         );
+        await handleAssistantTaskResponse(
+          {
+            conversationId: canonicalConversationId,
+            message: messageRecord,
+          },
+          deps,
+        );
       } catch (error) {
         console.error("assistant conversation error", error);
       }
     })();
   } else if (!involvesAssistant || (involvesAssistant && !isAssistantSender)) {
     const owners = new Set<string>();
-    if (canonicalSenderId !== ASSISTANT_USER_ID) owners.add(canonicalSenderId);
-    if (otherCanonicalId !== ASSISTANT_USER_ID) owners.add(otherCanonicalId);
+    if (!isAssistantUserId(canonicalSenderId)) owners.add(canonicalSenderId);
+    if (!isAssistantUserId(otherCanonicalId)) owners.add(otherCanonicalId);
     owners.forEach((ownerId) => {
       const deps = createAssistantDependenciesForUser(ownerId);
       void (async () => {

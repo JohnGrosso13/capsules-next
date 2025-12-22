@@ -237,6 +237,22 @@ export async function listTaskTargetsByConversation(params: {
   return expectArrayResult(result, "assistant_task_targets.list_by_conversation");
 }
 
+export async function listTaskTargetsByConversationAny(params: {
+  conversationId: string;
+  statuses?: string[];
+}): Promise<AssistantTaskTargetRow[]> {
+  const db = getDatabaseAdminClient();
+  let query = db
+    .from(TARGETS_TABLE)
+    .select<AssistantTaskTargetRow>("*")
+    .eq("conversation_id", params.conversationId);
+  if (Array.isArray(params.statuses) && params.statuses.length > 0) {
+    query = query.in("status", params.statuses);
+  }
+  const result = await query.fetch();
+  return expectArrayResult(result, "assistant_task_targets.list_by_conversation_any");
+}
+
 export async function getAssistantTaskById(taskId: string): Promise<AssistantTaskRow | null> {
   const db = getDatabaseAdminClient();
   const result = await db.from(TASKS_TABLE).select<AssistantTaskRow>("*").eq("id", taskId).maybeSingle();

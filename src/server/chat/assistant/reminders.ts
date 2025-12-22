@@ -1,7 +1,7 @@
 import { getChatConversationId } from "@/lib/chat/channels";
 import { createAssistantDependenciesForUser } from "@/server/chat/service";
 import { serverEnv } from "@/lib/env/server";
-import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { getScopedAssistantUserId } from "@/shared/assistant/constants";
 
 import {
   listAwaitingTargetsOlderThan,
@@ -56,7 +56,8 @@ export async function runAssistantReminderSweep(options: ReminderOptions = {}) {
       1,
       Math.round((Date.now() - Date.parse(target.updated_at)) / (60 * 60 * 1000)),
     );
-    const conversationId = getChatConversationId(target.owner_user_id, ASSISTANT_USER_ID);
+    const scopedAssistantId = getScopedAssistantUserId(target.owner_user_id);
+    const conversationId = getChatConversationId(target.owner_user_id, scopedAssistantId);
     const body = `Still awaiting a reply from ${recipientName} (${ageHours}h). Want me to send a polite follow-up or summarize where things stand?`;
 
     try {

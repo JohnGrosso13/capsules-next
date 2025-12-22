@@ -4,304 +4,305 @@ import { AppPage } from "@/components/app-page";
 
 import styles from "./moderation.page.module.css";
 
-type ModerationContentType = "post" | "comment" | "message" | "upload" | "live";
-type ModerationQueueStatus = "needs_review" | "priority" | "auto_blocked";
-
-type ModerationQueueItem = {
+type AlertMetric = {
   id: string;
-  contentType: ModerationContentType;
-  capsuleName: string;
-  actorHandle: string;
-  snippet: string;
-  reason: string;
-  tags: string[];
-  status: ModerationQueueStatus;
+  label: string;
+  value: number;
+  delta: string;
+  trend: "up" | "down";
 };
 
-type ModerationDecisionItem = {
+type ReviewItem = {
+  id: string;
+  issue: string;
+  user: string;
+  contentType: string;
+  status: "pending" | "flagged" | "removed";
+  accent: "indigo" | "amber" | "rose" | "teal";
+};
+
+type RecentAlert = {
+  id: string;
+  label: string;
+  stream: string;
+  creator: string;
+  flaggedAt: string;
+  resolvedAt: string;
+  accent: "rose" | "amber" | "blue" | "indigo";
+};
+
+type SafetyControl = {
   id: string;
   title: string;
-  detail: string;
-  primaryOutcome: string;
-  secondaryOutcome?: string;
-  tone?: "blocked" | "urgent";
+  description?: string;
+  enabled?: boolean;
+  actionLabel?: string;
 };
 
-const QUEUE_STATUS_LABEL: Record<ModerationQueueStatus, string> = {
-  needs_review: "Needs review",
-  priority: "Priority",
-  auto_blocked: "Auto-blocked",
-};
+const ALERT_METRICS: AlertMetric[] = [
+  { id: "suspicious", label: "Suspicious Reports", value: 174, delta: "+42% from yesterday", trend: "up" },
+  { id: "actions", label: "Action Taken Today", value: 52, delta: "+44% from yesterday", trend: "up" },
+  { id: "violations", label: "Stream Violations Today", value: 18, delta: "+50% from yesterday", trend: "up" },
+  { id: "blocks", label: "Auto Blocks Today", value: 83, delta: "+20% from yesterday", trend: "up" },
+];
 
-const QUEUE_STATUS_TONE: Record<ModerationQueueStatus, "review" | "urgent" | "blocked"> = {
-  needs_review: "review",
-  priority: "urgent",
-  auto_blocked: "blocked",
-};
-
-const MOCK_QUEUE: ModerationQueueItem[] = [
+const REVIEW_QUEUE: ReviewItem[] = [
   {
-    id: "evt_01",
-    contentType: "post",
-    capsuleName: "Match recap thread",
-    actorHandle: "@clutch-or-crash",
-    snippet: `"You're actually terrible, uninstall already."`,
-    reason: "Targeted harassment toward another member, high toxicity score.",
-    tags: ["Harassment", "Toxicity"],
-    status: "needs_review",
+    id: "queue-01",
+    issue: "Live match flagged for toxic voice chat",
+    user: "User_Guy07",
+    contentType: "Live Stream",
+    status: "pending",
+    accent: "indigo",
   },
   {
-    id: "evt_02",
-    contentType: "comment",
-    capsuleName: "Daily check-in",
-    actorHandle: "@softqueue",
-    snippet: `"Can we talk? I've been feeling really low lately."`,
-    reason: "Language associated with self-harm risk. Model recommends escalation.",
-    tags: ["Self-harm", "Support"],
-    status: "priority",
+    id: "queue-02",
+    issue: "AI image blurred for explicit content risk",
+    user: "GamerKing",
+    contentType: "Image Upload",
+    status: "flagged",
+    accent: "rose",
   },
   {
-    id: "evt_03",
-    contentType: "message",
-    capsuleName: "DMs",
-    actorHandle: "@ranked-boosts",
-    snippet: `"DM me for 'boosting services' — cheap wins, no risk."`,
-    reason: "Likely spam and boosting solicitation. Pattern matches past violations.",
-    tags: ["Spam", "Scam risk"],
-    status: "auto_blocked",
+    id: "queue-03",
+    issue: "Profile update contains hateful slur",
+    user: "SaltyT1",
+    contentType: "Profile Update",
+    status: "pending",
+    accent: "amber",
+  },
+  {
+    id: "queue-04",
+    issue: "VOD removed for spam link blast",
+    user: "AndyTop99",
+    contentType: "Recorded Stream",
+    status: "removed",
+    accent: "teal",
   },
 ];
 
-const MOCK_DECISIONS: ModerationDecisionItem[] = [
+const RECENT_ALERTS: RecentAlert[] = [
   {
-    id: "evt_10",
-    title: "Toxic post in match recap thread",
-    detail: "AI blocked the post. You softened the wording and re-published.",
-    primaryOutcome: "Blocked",
-    secondaryOutcome: "Edited & released",
-    tone: "blocked",
+    id: "alert-01",
+    label: "Hate Speech",
+    stream: "SwiftSniper",
+    creator: "SwiftSniper",
+    flaggedAt: "12:23 PM",
+    resolvedAt: "12:23 PM",
+    accent: "rose",
   },
   {
-    id: "evt_11",
-    title: "DM flagged for self-harm concern",
-    detail: "AI escalated to review. You responded with resources and promoted a trusted mod.",
-    primaryOutcome: "Priority",
-    secondaryOutcome: "Followed up",
-    tone: "urgent",
+    id: "alert-02",
+    label: "Spam/Scam",
+    stream: `"Free:Gift Cers.Link!"`,
+    creator: "GamerKing",
+    flaggedAt: "11:44 AM",
+    resolvedAt: "11:50 AM",
+    accent: "amber",
   },
   {
-    id: "evt_12",
-    title: "Spam linking “boosting services”",
-    detail: "Repeated DM blasts from a new account. Capsules auto-blocked and banned the sender.",
-    primaryOutcome: "Auto-blocked",
-    secondaryOutcome: "Account removed",
-    tone: "blocked",
+    id: "alert-03",
+    label: "Bullying",
+    stream: "Epic Monster Hunter",
+    creator: "Epic Monster Hunter",
+    flaggedAt: "10:50 AM",
+    resolvedAt: "10:30 AM",
+    accent: "blue",
+  },
+  {
+    id: "alert-04",
+    label: "Explicit Content",
+    stream: "Co Op Maich",
+    creator: "Co Op Maich",
+    flaggedAt: "9:37 AM",
+    resolvedAt: "9:37 AM",
+    accent: "indigo",
   },
 ];
 
-const pendingCount = MOCK_QUEUE.filter((item) => item.status !== "auto_blocked").length;
-const autoBlockedCount = MOCK_QUEUE.filter((item) => item.status === "auto_blocked").length;
+const SAFETY_CONTROLS: SafetyControl[] = [
+  {
+    id: "profanity",
+    title: "Profanity Filter",
+    description: "Auto-hide slurs and abusive language",
+    enabled: true,
+  },
+  {
+    id: "ai-image",
+    title: "AI Image Filtering",
+    description: "Scan uploads for gore, nudity, and violence",
+    enabled: true,
+  },
+  {
+    id: "spam",
+    title: "Spam/Scam Detection",
+    description: "Detect link baiting and repetitive blasts",
+    enabled: true,
+  },
+  { id: "banlist", title: "Word Ban List", description: "28 blocked terms", actionLabel: "Manage" },
+];
 
 export const metadata: Metadata = {
-  title: "Moderation & Safety Studio - Capsules",
-  description:
-    "Review flagged posts, tune safety policies, and keep your Capsule feeling welcoming without slowing down conversation.",
+  title: "Moderation & Safety - Capsules",
+  description: "Automate protection and keep your community safe with Capsules.",
 };
 
 export default function ModerationStudioPage() {
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
-      <div className={styles.shell} data-surface="moderation">
-        <header className={styles.header}>
-          <div className={styles.headerMain}>
-            <div className={styles.pill}>Moderation &amp; Safety</div>
-            <h1 className={styles.title}>Moderation Studio</h1>
-            <p className={styles.subtitle}>
-              A focused queue for model flags and moderator actions. Review edge cases, override AI, and keep
-              your Capsule feeling welcoming.
-            </p>
-            <div className={styles.headerActions}>
-              <button type="button" className={styles.primaryButton}>
-                Open full queue
-              </button>
-              <button type="button" className={styles.secondaryButton}>
-                Configure rules
-              </button>
-            </div>
+      <div className={styles.page} data-surface="moderation">
+        <header className={styles.pageHeader}>
+          <div className={styles.pageTitles}>
+            <p className={styles.eyebrow}>Moderation</p>
+            <h1 className={styles.pageTitle}>Moderation &amp; Safety</h1>
+            <p className={styles.pageLead}>Automate protection and keep your community safe.</p>
           </div>
-          <div className={styles.headerMeta}>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Pending review</div>
-              <div className={styles.metricValue}>{pendingCount} item{pendingCount === 1 ? "" : "s"}</div>
-              <div className={styles.metricHint}>Across posts, comments, and DMs</div>
-            </div>
-            <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>Auto-blocked (24h)</div>
-              <div className={styles.metricValue}>{autoBlockedCount}</div>
-              <div className={styles.metricHint}>Severe violations caught by AI</div>
-            </div>
+          <div className={styles.headerActions}>
+            <button type="button" className={styles.primaryButton}>
+              + Create Alert
+            </button>
           </div>
         </header>
 
         <main className={styles.layout}>
-          <section className={styles.columnPrimary} aria-label="Moderation queue">
-            <section className={styles.cardAccent} aria-label="Flagged content queue">
-              <header className={styles.cardHeaderRow}>
-                <div>
-                  <h2 className={styles.cardTitle}>Queue preview</h2>
-                  <p className={styles.cardSubtitle}>
-                    Items Capsules held for review. When this wires to your data, each row will map to a{" "}
-                    <code>moderation_events</code> record.
-                  </p>
-                </div>
-                <div className={styles.queueHeaderMeta}>
-                  <span className={styles.queueBadge}>Realtime view</span>
-                  <button type="button" className={styles.chipButton}>
-                    Queue settings
-                  </button>
-                </div>
+          <section className={styles.column} aria-label="Alerts and recent activity">
+            <section className={styles.card} aria-label="Alerts summary">
+              <header className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Alerts Summary</h2>
+                <span className={styles.cardTag}>Today</span>
               </header>
-
-              <div className={styles.queueFilters} aria-label="Queue filters">
-                <div className={styles.queueFilterGroup} aria-label="Content types">
-                  <button type="button" className={styles.filterChip} data-state="active">
-                    All types
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Posts
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Comments
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Messages
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Uploads
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Live
-                  </button>
-                </div>
-                <div className={styles.queueFilterGroup} aria-label="Decision state">
-                  <button type="button" className={styles.filterChip}>
-                    Needs review
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Auto-blocked
-                  </button>
-                  <button type="button" className={styles.filterChip}>
-                    Allowed
-                  </button>
-                </div>
+              <div className={styles.statGrid}>
+                {ALERT_METRICS.map((metric) => (
+                  <div key={metric.id} className={styles.statCard}>
+                    <div className={styles.statLabel}>{metric.label}</div>
+                    <div className={styles.statValue}>{metric.value}</div>
+                    <div className={styles.statDelta} data-trend={metric.trend}>
+                      {metric.delta}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </section>
 
-              <ul className={styles.flagList}>
-                {MOCK_QUEUE.map((item) => (
-                  <li
-                    key={item.id}
-                    className={styles.flagItem}
-                    data-event-id={item.id}
-                    data-content-type={item.contentType}
-                    data-status={item.status}
-                  >
-                    <div className={styles.flagTypeColumn}>
-                      <span className={styles.flagType}>{item.contentType.toUpperCase()}</span>
-                      <span className={styles.flagMeta}>{item.capsuleName}</span>
-                    </div>
-                    <div className={styles.flagBody}>
-                      <div className={styles.flagSnippet}>{item.snippet}</div>
-                      <p className={styles.flagHint}>
-                        {item.reason} Reported by <span className={styles.flagActor}>{item.actorHandle}</span>.
-                      </p>
-                      <div className={styles.flagTags}>
-                        {item.tags.map((tag) => (
-                          <span key={tag} className={styles.flagTag}>
-                            {tag}
-                          </span>
-                        ))}
+            <section className={styles.card} aria-label="Recent alerts">
+              <header className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Recent Alerts</h2>
+                <button type="button" className={styles.linkButton}>
+                  View all
+                </button>
+              </header>
+              <div className={styles.tableHead}>
+                <span>Alert</span>
+                <span>Stream/Post</span>
+                <span>Creator</span>
+                <span className={styles.alignRight}>Flagged</span>
+                <span className={styles.alignRight}>Resolved</span>
+              </div>
+              <ul className={styles.tableBody}>
+                {RECENT_ALERTS.map((alert) => (
+                  <li key={alert.id} className={styles.tableRow}>
+                    <div className={styles.alertCell}>
+                      <span className={styles.alertThumb} data-accent={alert.accent} />
+                      <div className={styles.alertText}>
+                        <div className={styles.alertLabel}>{alert.label}</div>
                       </div>
                     </div>
-                    <div className={styles.flagActionsColumn}>
-                      <span className={styles.flagStatus} data-tone={QUEUE_STATUS_TONE[item.status]}>
-                        {QUEUE_STATUS_LABEL[item.status]}
-                      </span>
-                      <div className={styles.flagActions}>
-                        <button type="button" className={styles.queueAction} disabled>
-                          Allow
-                        </button>
-                        <button type="button" className={styles.queueAction} disabled>
-                          Remove
-                        </button>
-                        <button type="button" className={styles.queueActionSecondary} disabled>
-                          Open details
-                        </button>
-                      </div>
-                    </div>
+                    <div className={styles.subtle}>{alert.stream}</div>
+                    <div className={styles.subtle}>{alert.creator}</div>
+                    <div className={`${styles.subtle} ${styles.alignRight}`}>{alert.flaggedAt}</div>
+                    <div className={`${styles.subtle} ${styles.alignRight}`}>{alert.resolvedAt}</div>
                   </li>
                 ))}
               </ul>
             </section>
           </section>
 
-          <section className={styles.columnSecondary} aria-label="Overview and audit trail">
-            <section className={styles.card} aria-label="Moderation overview">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>Moderation overview</h2>
-                <p className={styles.cardSubtitle}>
-                  High-level picture of how Capsules is stepping in and where humans are spending time.
-                </p>
+          <section className={styles.column} aria-label="Content review center">
+            <section className={`${styles.card} ${styles.queueCard}`} aria-label="Flagged content">
+              <header className={styles.cardHeader}>
+                <div>
+                  <h2 className={styles.cardTitle}>Content Review Center</h2>
+                  <p className={styles.cardSubtitle}>Flagged content for immediate review</p>
+                </div>
+                <button type="button" className={styles.filterButton}>
+                  Recent
+                </button>
               </header>
-              <dl className={styles.overviewGrid}>
-                <div className={styles.overviewItem}>
-                  <dt className={styles.overviewLabel}>Open for review</dt>
-                  <dd className={styles.overviewValue}>{pendingCount}</dd>
-                </div>
-                <div className={styles.overviewItem}>
-                  <dt className={styles.overviewLabel}>Auto-blocked last 24h</dt>
-                  <dd className={styles.overviewValue}>{autoBlockedCount}</dd>
-                </div>
-                <div className={styles.overviewItem}>
-                  <dt className={styles.overviewLabel}>Top category</dt>
-                  <dd className={styles.overviewValue}>Harassment &amp; toxicity</dd>
-                </div>
-                <div className={styles.overviewItem}>
-                  <dt className={styles.overviewLabel}>Spike detected</dt>
-                  <dd className={styles.overviewValue}>Post-match salt after scrim night</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section className={styles.card} aria-label="Recent decisions">
-              <header className={styles.cardHeaderStacked}>
-                <h2 className={styles.cardTitle}>Recent decisions</h2>
-                <p className={styles.cardSubtitle}>
-                  A short audit trail of what happened, what Capsules did, and what you decided next.
-                </p>
-              </header>
-              <ul className={styles.incidentList}>
-                {MOCK_DECISIONS.map((item) => (
-                  <li key={item.id} className={styles.incidentItem}>
-                    <div className={styles.incidentMeta}>
-                      <div className={styles.incidentTitle}>{item.title}</div>
-                      <p className={styles.incidentHint}>{item.detail}</p>
+              <div className={styles.queueHeadings}>
+                <span>Issue</span>
+                <span>Content Type</span>
+                <span className={styles.alignRight}>Status</span>
+              </div>
+              <ul className={styles.queueList}>
+                {REVIEW_QUEUE.map((item) => (
+                  <li key={item.id} className={styles.queueRow}>
+                    <div className={styles.queueIssue}>
+                      <span className={styles.queueThumb} data-accent={item.accent} />
+                      <div>
+                        <div className={styles.issueTitle}>{item.issue}</div>
+                        <p className={styles.issueMeta}>{item.user}</p>
+                      </div>
                     </div>
-                    <div className={styles.incidentBadges}>
-                      <span
-                        className={styles.incidentBadge}
-                        data-tone={
-                          item.tone === "blocked" ? "blocked" : item.tone === "urgent" ? "urgent" : undefined
-                        }
-                      >
-                        {item.primaryOutcome}
-                      </span>
-                      {item.secondaryOutcome ? (
-                        <span className={styles.incidentBadge}>{item.secondaryOutcome}</span>
-                      ) : null}
-                    </div>
+                    <div className={styles.queueType}>{item.contentType}</div>
+                    <span className={styles.statusBadge} data-tone={item.status}>
+                      {item.status === "pending"
+                        ? "Pending"
+                        : item.status === "flagged"
+                          ? "Flagged"
+                          : "Removed"}
+                    </span>
                   </li>
                 ))}
               </ul>
+            </section>
+          </section>
+
+          <section className={styles.column} aria-label="Safety controls">
+            <section className={styles.card} aria-label="Safety settings">
+              <header className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Safety Settings</h2>
+              </header>
+              <ul className={styles.settingsList}>
+                {SAFETY_CONTROLS.map((setting) => (
+                  <li key={setting.id} className={styles.settingRow}>
+                    <div>
+                      <div className={styles.settingTitle}>{setting.title}</div>
+                      {setting.description ? (
+                        <p className={styles.settingHint}>{setting.description}</p>
+                      ) : null}
+                    </div>
+                    {setting.actionLabel ? (
+                      <button type="button" className={styles.manageButton}>
+                        {setting.actionLabel}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.switch}
+                        role="switch"
+                        aria-checked={Boolean(setting.enabled)}
+                      >
+                        <span className={styles.switchTrack} data-state={setting.enabled ? "on" : "off"}>
+                          <span className={styles.switchLabel}>{setting.enabled ? "ON" : "OFF"}</span>
+                          <span className={styles.switchThumb} />
+                        </span>
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section className={styles.beaconCard} aria-label="Smart Beacon">
+              <div>
+                <div className={styles.beaconTitle}>Smart Beacon</div>
+                <p className={styles.beaconHint}>
+                  Continuous safety monitoring &amp; automatic keyword filtering
+                </p>
+              </div>
+              <button type="button" className={styles.primaryButton}>
+                + Create Alert
+              </button>
             </section>
           </section>
         </main>

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { postOpenAIJson } from "@/adapters/ai/openai/server";
 import { getChatConversationId } from "@/lib/chat/channels";
-import { ASSISTANT_DISPLAY_NAME, ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { ASSISTANT_DISPLAY_NAME } from "@/shared/assistant/constants";
 import type {
   ChatMessageRecord,
   ChatParticipantSummary,
@@ -36,8 +36,9 @@ export type AssistantDependencies = {
   sendAssistantMessage: (options: {
     conversationId: string;
     body: string;
+    messageId?: string;
     task?: { id: string; title?: string | null } | null;
-  }) => Promise<void>;
+  }) => Promise<{ messageId: string } | void>;
   sendUserMessage: (options: {
     conversationId: string;
     senderId: string;
@@ -445,12 +446,21 @@ async function runTool(
         };
       }
 
+      const rawFromName = (payload as Record<string, unknown>).from_name;
+      const fromNameRaw =
+        typeof rawFromName === "string" && rawFromName.trim().length ? rawFromName.trim() : null;
+      const fromName = fromNameRaw ?? ctx.ownerUserId;
+      const annotatedMessage = messageText.toLowerCase().includes((fromName ?? "").toLowerCase())
+        ? messageText
+        : `${messageText}\n\nFrom: ${fromName}`;
+
       const task = await createMessagingTask({
         ownerUserId: ctx.ownerUserId,
         kind: payload.kind && typeof payload.kind === "string" ? payload.kind : "assistant_broadcast",
-        prompt: messageText,
+        prompt: annotatedMessage,
         recipients,
         payload: {
+          fromName,
           recipients: recipients.map((recipient) => ({
             userId: recipient.userId,
             name: recipient.name ?? null,
@@ -511,10 +521,9 @@ async function runTool(
         const clientMessageId = randomUUID();
 
         try {
-          const sendResult = await deps.sendUserMessage({
+          const sendResult = await deps.sendAssistantMessage({
             conversationId,
-            senderId: ctx.ownerUserId,
-            body: messageText,
+            body: annotatedMessage,
             messageId: clientMessageId,
             task: taskMeta,
           });
@@ -1152,22 +1161,23 @@ export async function handleAssistantMessage(
 
 export async function handleAssistantTaskResponse(
   params: {
-    ownerUserId: string;
     conversationId: string;
     message: ChatMessageRecord;
+    ownerUserId?: string;
   },
   deps: AssistantDependencies,
 ): Promise<void> {
   const targets = await findAwaitingTargetsForConversation({
-    ownerUserId: params.ownerUserId,
     conversationId: params.conversationId,
+    ...(params.ownerUserId ? { ownerUserId: params.ownerUserId } : {}),
   });
   if (!targets.length) return;
 
   for (const target of targets) {
-    if (target.target_user_id !== params.message.senderId) {
+    if (target.target_user_id !== params.message.senderId && target.owner_user_id !== params.message.senderId) {
       continue;
     }
+    const isMirrorOwnedBySender = target.owner_user_id === params.message.senderId;
     const record = await recordRecipientResponse({
       target,
       messageId: params.message.id,
@@ -1175,6 +1185,9 @@ export async function handleAssistantTaskResponse(
       receivedAt: params.message.sentAt,
     });
     if (!record) continue;
+    if (isMirrorOwnedBySender) {
+      continue;
+    }
 
     const cited = record.snippet.split("\n")[0] ?? record.snippet;
     const remaining =
@@ -1189,7 +1202,7 @@ export async function handleAssistantTaskResponse(
       remaining,
     ];
     await deps.sendAssistantMessage({
-      conversationId: getConversationId(record.ownerUserId, ASSISTANT_USER_ID),
+      conversationId: getConversationId(record.ownerUserId, record.assistantUserId),
       body: summaryLines.join("\n"),
       task: { id: record.taskId, title: record.targetName ?? null },
     });

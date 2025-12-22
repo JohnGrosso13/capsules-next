@@ -12,6 +12,7 @@ import styles from "./chat.module.css";
 import { ChatConversation } from "./ChatConversation";
 import { ChatList } from "./ChatList";
 import { ChatStartOverlay } from "./ChatStartOverlay";
+import { isAssistantUserId } from "@/shared/assistant/constants";
 
 type ChatPanelVariant = "page" | "rail";
 
@@ -35,7 +36,6 @@ export function ChatPanel({
   const {
     sessions,
     activeSession,
-    activeSessionId,
     currentUserId,
     selfClientId,
     startChat,
@@ -182,6 +182,21 @@ export function ChatPanel({
     [friendTargetMap, startChat, startGroupChat],
   );
 
+  const filteredSessions = React.useMemo(
+    () =>
+      sessions.filter(
+        (session) => !session.participants.some((participant) => isAssistantUserId(participant.id)),
+      ),
+    [sessions],
+  );
+
+  const assistantSessionActive =
+    activeSession && activeSession.participants.some((participant) => isAssistantUserId(participant.id));
+  const filteredActiveSessionId =
+    !assistantSessionActive && activeSession && filteredSessions.some((session) => session.id === activeSession.id)
+      ? activeSession.id
+      : null;
+
   if (!isReady && sessions.length === 0) {
     return (
       <div className={styles.chatPanel} data-variant={variant}>
@@ -265,8 +280,8 @@ export function ChatPanel({
           </div>
         ) : null}
         <ChatList
-          sessions={sessions}
-          activeSessionId={activeSessionId}
+          sessions={filteredSessions}
+          activeSessionId={filteredActiveSessionId ?? null}
           onSelect={handleSelect}
           onDelete={handleDelete}
           emptyNotice={emptyNotice}

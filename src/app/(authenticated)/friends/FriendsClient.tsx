@@ -35,7 +35,7 @@ import railStyles from "@/components/rail/connections-rail.module.css";
 import { usePartyContext } from "@/components/providers/PartyProvider";
 import { FriendsList } from "@/components/friends/FriendsList";
 import { buildProfileHref } from "@/lib/profile/routes";
-import { ASSISTANT_USER_ID } from "@/shared/assistant/constants";
+import { ASSISTANT_USER_ID, isAssistantUserId } from "@/shared/assistant/constants";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { useAssistantTasks } from "@/hooks/useAssistantTasks";
 import type { GlobalSearchSection, UserSearchResult } from "@/types/search";
@@ -170,7 +170,7 @@ export function FriendsClient() {
     includeCompleted: true,
     pollIntervalMs: assistantTabActive ? 60_000 : 0,
     idlePollIntervalMs: assistantTabActive ? 5 * 60_000 : 0,
-    enabled: assistantTabActive,
+    enabled: true,
     limit: 50,
   });
   const assistantError = assistantActionError ?? assistantTasksError;
@@ -249,7 +249,7 @@ export function FriendsClient() {
     if (loading) return;
     if (focusParam === lastFocusRef.current && highlightId) return;
 
-    const match = friends.find((friend) => {
+          const match = friends.find((friend) => {
       const identifiers = [
         friend.userId ?? null,
         friend.key ?? null,
@@ -796,10 +796,6 @@ export function FriendsClient() {
       ? (chatSessions.find((entry) => entry.id === groupFlow.sessionId) ?? null)
       : null;
 
-  const assistantFriends = React.useMemo(
-    () => friends.filter((friend) => friend.userId === ASSISTANT_USER_ID),
-    [friends],
-  );
   const realFriends = React.useMemo(
     () => friends.filter((friend) => friend.userId && friend.userId !== ASSISTANT_USER_ID),
     [friends],
@@ -822,18 +818,25 @@ export function FriendsClient() {
   const tabCounters = React.useMemo(
     () =>
       mergeCounters(
-        assistantFriends.length,
+        assistantTasks?.filter(
+          (task) =>
+            task.direction === "incoming" &&
+            task.status !== "completed" &&
+            task.status !== "partial" &&
+            task.status !== "canceled" &&
+            task.totals.responded === 0,
+        ).length || 0,
         friendsBadge,
         partyBadgeCount,
         chatUnreadCount,
         counters.requests,
       ),
     [
-      assistantFriends.length,
       friendsBadge,
       chatUnreadCount,
       counters.requests,
       partyBadgeCount,
+      assistantTasks,
     ],
   );
 
@@ -1051,8 +1054,10 @@ export function FriendsClient() {
                       <div className={railStyles.friendSuggestionEmpty}>Searching...</div>
                     ) : friendSearchError ? (
                       <div className={railStyles.friendSuggestionEmpty}>{friendSearchError}</div>
-                    ) : friendSearchResults.length > 0 ? (
-                      friendSearchResults.map((entry) => {
+                    ) : friendSearchResults.filter((entry) => !isAssistantUserId(entry.id)).length > 0 ? (
+                      friendSearchResults
+                        .filter((entry) => !isAssistantUserId(entry.id))
+                        .map((entry) => {
                         const added = addedSuggestionIds.has(entry.id);
                         const subtitle = entry.subtitle ?? "";
                         return (
