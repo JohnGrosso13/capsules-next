@@ -137,6 +137,12 @@
   justify-content: center;
 }
 
+.layout[data-columns="wide-two"] {
+  --app-feed-width: clamp(900px, 72vw, 1120px);
+  grid-template-columns: minmax(0, var(--app-rail-width))
+    minmax(0, var(--app-feed-width, clamp(900px, 72vw, 1120px)));
+}
+
 .layout[data-columns="with-right"] {
   grid-template-columns: minmax(0, var(--app-rail-width)) minmax(0, var(--app-feed-width))
     minmax(0, var(--app-rail-width));

@@ -87,4 +87,7 @@ export type SearchSelectionPayload = {
 export type SearchOpenDetail = {
   mode?: "default" | "composer";
   onSelect?: (payload: SearchSelectionPayload) => void;
+  initialQuery?: string;
+  placeholder?: string;
+  scope?: "memories" | "capsule_records";
 };

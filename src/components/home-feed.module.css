@@ -1598,8 +1598,8 @@
 
   .pollOptionThumbnail {
     flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
+    width: var(--poll-thumb-size, 32px);
+    height: var(--poll-thumb-size, 32px);
     border-radius: 8px;
     background: color-mix(
       in srgb,

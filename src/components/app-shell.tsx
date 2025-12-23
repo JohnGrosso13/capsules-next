@@ -61,6 +61,7 @@ type AppShellProps = {
   liveChatRailProps?: LiveChatRailProps;
   showDiscoveryRightRail?: boolean;
   layoutVariant?: "default" | "capsule" | "studio";
+  wideWithoutRightRail?: boolean;
 };
 
 function AppShellContent({
@@ -73,6 +74,7 @@ function AppShellContent({
   liveChatRailProps,
   showDiscoveryRightRail = false,
   layoutVariant = "default",
+  wideWithoutRightRail = false,
 }: AppShellProps) {
   const pathname = usePathname();
   const composer = useComposerActions();
@@ -142,12 +144,15 @@ function AppShellContent({
           ? "home"
           : "default";
   const nonCapsuleHasRightRail = !usesCapsuleLayout && (isHome || showDiscoveryRightRail);
+  const wantsWideTwoColumn = wideWithoutRightRail && !usesCapsuleLayout;
   const layoutColumns =
     usesCapsuleLayout && !capsuleHasRightRail
       ? "two"
       : capsuleHasRightRail || nonCapsuleHasRightRail
         ? "with-right"
-        : "two";
+        : wantsWideTwoColumn
+          ? "wide-two"
+          : "two";
 
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
   const prompterRef = React.useRef<HTMLDivElement | null>(null);

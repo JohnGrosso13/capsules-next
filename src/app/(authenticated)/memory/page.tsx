@@ -12,6 +12,7 @@ import {
   CapsuleAssetsCarousel,
   SavedCreationsCarousel,
 } from "@/components/memory/asset-carousel";
+import { MemorySearchCta } from "@/components/memory/memory-search-cta";
 import { PartyRecapsCarousel } from "@/components/memory/party-recaps-carousel";
 import { PollsCarousel } from "@/components/memory/polls-carousel";
 import { PostMemoriesCarousel } from "@/components/memory/post-memories-carousel";
@@ -105,6 +106,7 @@ export default async function MemoryPage() {
           <h1>Memory</h1>
           <p>Upload files, media, and documents. Your assistant will recall them instantly.</p>
         </header>
+        <MemorySearchCta />
         <PartyRecapsCarousel initialItems={seeds.partyRecaps} />
         <PollsCarousel initialItems={seeds.polls} />
         <PostMemoriesCarousel initialItems={seeds.savedPosts} />

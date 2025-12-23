@@ -25,6 +25,7 @@ import {
 import type {
   SummaryConversationContext,
   SummaryConversationEntry,
+  SummaryPresentationOptions,
 } from "@/lib/composer/summary-context";
 import { resolveToAbsoluteUrl } from "@/lib/url";
 import type { SummaryAttachmentInput, SummaryResult } from "@/types/summary";
@@ -40,6 +41,12 @@ type UseFeedSummaryOptions = {
   displayedPosts: HomeFeedPost[];
   timeAgo: (iso?: string | null) => string;
   onHighlightPost?: (postId: string, options?: { focusComment?: boolean }) => void;
+  onSummaryReady?: (payload: {
+    result: SummaryResult;
+    entries: SummaryConversationEntry[];
+    options: SummaryPresentationOptions;
+    attachments: PrompterAttachment[];
+  }) => void;
 };
 
 type UseFeedSummaryResult = {
@@ -58,6 +65,7 @@ export function useFeedSummary({
   displayedPosts,
   timeAgo,
   onHighlightPost,
+  onSummaryReady,
 }: UseFeedSummaryOptions): UseFeedSummaryResult {
   const composer = useComposer();
   const [documentSummaryPending, setDocumentSummaryPending] = React.useState<Record<string, boolean>>(
@@ -182,24 +190,31 @@ export function useFeedSummary({
       const conversationAttachments: PrompterAttachment[] = [];
 
       const presentSummary = (result: SummaryResult) => {
-        const summaryContext: SummaryConversationContext = {
-          source: result.source,
+        const summaryOptions: SummaryPresentationOptions = {
           title: "Feed recap",
-          entries: summaryEntries,
+          sourceLabel: "Current feed",
+          sourceType: result.source,
         };
 
-        composer.showSummary(
-          result,
-          {
+        if (onSummaryReady) {
+          onSummaryReady({
+            result,
+            entries: summaryEntries,
+            options: summaryOptions,
+            attachments: conversationAttachments,
+          });
+        } else {
+          const summaryContext: SummaryConversationContext = {
+            source: result.source,
             title: "Feed recap",
-            sourceLabel: "Current feed",
-            sourceType: result.source,
-          },
-          {
+            entries: summaryEntries,
+          };
+
+          composer.showSummary(result, summaryOptions, {
             context: summaryContext,
             attachments: conversationAttachments,
-          },
-        );
+          });
+        }
 
         if (typeof window !== "undefined") {
           window.dispatchEvent(
@@ -449,7 +464,7 @@ export function useFeedSummary({
       setFeedSummaryPending(false);
       summaryOriginRef.current = "external";
     }
-  }, [composer, displayedPosts, feedSummaryPending, timeAgo]);
+  }, [composer, displayedPosts, feedSummaryPending, onSummaryReady, timeAgo]);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !onHighlightPost) return undefined;

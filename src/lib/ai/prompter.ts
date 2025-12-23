@@ -498,7 +498,7 @@ const pollSchema: JsonSchema = {
         properties: {
           question: { type: "string" },
 
-          options: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+          options: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
         },
       },
     },
@@ -606,7 +606,7 @@ export async function createPollDraft(
   const system = [
     "You are Capsules AI. Create a concise poll from the user instruction.",
 
-    "Return JSON with a friendly message and a poll containing a question and 2-6 short, distinct options.",
+    "Return JSON with a friendly message and a poll containing a question and 2-4 short, distinct options.",
 
     "Derive specific options from the topic (e.g., days of the week, product names); do not default to Yes/No unless explicitly requested.",
 
@@ -667,7 +667,7 @@ export async function createPollDraft(
   if ((!question || !question.trim()) || options.length < 2) {
     const retry = await callOpenAIChat(
       [
-        { role: "system", content: `${system} Do not return empty polls. Include a clear question and 3-6 concrete options.` },
+        { role: "system", content: `${system} Do not return empty polls. Include a clear question and 2-4 concrete options.` },
         ...messages.slice(1),
       ],
       pollSchema,
@@ -695,7 +695,7 @@ export async function createPollDraft(
 
   const deduped = Array.from(new Set(options));
 
-  options = deduped.length >= 2 ? deduped.slice(0, 6) : options.slice(0, 6);
+  options = deduped.length >= 2 ? deduped.slice(0, 4) : options.slice(0, 4);
 
   const rawMessage =
     typeof parsed.message === "string" && parsed.message.trim()

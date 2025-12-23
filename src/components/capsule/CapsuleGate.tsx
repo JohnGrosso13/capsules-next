@@ -347,22 +347,41 @@ export function CapsuleGate({
     () => new Set(capsuleList.map((capsule) => capsule.id)),
     [capsuleList],
   );
-  const startInSelector = forceSelector || !hasOwnedCapsule;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsString = searchParams?.toString() ?? "";
+  const requestedCapsuleId = React.useMemo(() => {
+    if (!searchParamsString) return null;
+    const params = new URLSearchParams(searchParamsString);
+    const raw = params.get("capsuleId");
+    const value = raw?.trim() ?? "";
+    if (!value.length) return null;
+    return value;
+  }, [searchParamsString]);
   const resolvedDefaultId = React.useMemo(() => {
     if (!capsuleList.length) return null;
     if (defaultCapsuleId && knownCapsuleIds.has(defaultCapsuleId)) return defaultCapsuleId;
     if (hasOwnedCapsule) return ownedCapsules[0]?.id ?? null;
     return capsuleList[0]?.id ?? null;
   }, [capsuleList, defaultCapsuleId, hasOwnedCapsule, knownCapsuleIds, ownedCapsules]);
+  const preferredInitialId = React.useMemo(() => {
+    if (requestedCapsuleId && knownCapsuleIds.has(requestedCapsuleId)) {
+      return requestedCapsuleId;
+    }
+    if (resolvedDefaultId && knownCapsuleIds.has(resolvedDefaultId)) {
+      return resolvedDefaultId;
+    }
+    return null;
+  }, [knownCapsuleIds, requestedCapsuleId, resolvedDefaultId]);
+  const startInSelector = React.useMemo(() => {
+    return forceSelector || (!preferredInitialId && capsuleList.length > 1);
+  }, [capsuleList.length, forceSelector, preferredInitialId]);
   const [activeId, setActiveId] = React.useState<string | null>(() =>
-    startInSelector ? null : resolvedDefaultId,
+    startInSelector ? null : preferredInitialId,
   );
   const canSwitchCapsules = startInSelector || capsuleList.length > 1;
   const shouldAutoActivate = autoActivate !== false;
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const searchParamsString = searchParams?.toString() ?? "";
 
   const handleSelect = React.useCallback(
     (capsuleId: string) => {
@@ -445,15 +464,21 @@ export function CapsuleGate({
       const hasPrevious = Boolean(previous);
       const isValidPrevious =
         hasPrevious && capsuleList.some((capsule) => capsule.id === previous);
+      const nextPreferred =
+        preferredInitialId && knownCapsuleIds.has(preferredInitialId)
+          ? preferredInitialId
+          : null;
       if (startInSelector) {
-        return isValidPrevious ? previous : null;
+        if (isValidPrevious) return previous;
+        if (nextPreferred) return nextPreferred;
+        return null;
       }
       if (isValidPrevious) {
         return previous;
       }
-      return resolvedDefaultId;
+      return nextPreferred ?? resolvedDefaultId;
     });
-  }, [capsuleList, resolvedDefaultId, startInSelector]);
+  }, [capsuleList, knownCapsuleIds, preferredInitialId, resolvedDefaultId, startInSelector]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

@@ -249,6 +249,12 @@ export function useComposerPromptActions({
       const workingMessageId = safeRandomUUID();
       const attachmentForChat =
         effectiveAttachments?.map((attachment) => mapPrompterAttachmentToChat(attachment)) ?? [];
+      const workingCopy =
+        expectVideo
+          ? "Rendering your clip..."
+          : requestedComposeKind === "image"
+            ? "Rendering your visual..."
+            : "Working on your request...";
       const pendingMessage: ComposerChatMessage = {
         id: safeRandomUUID(),
         role: "user",
@@ -274,7 +280,7 @@ export function useComposerPromptActions({
         const workingAssistant: ComposerChatMessage = {
           id: workingMessageId,
           role: "assistant",
-          content: "Working on your request...",
+          content: workingCopy,
           createdAt,
           attachments: null,
         };
@@ -318,6 +324,24 @@ export function useComposerPromptActions({
         });
       };
 
+      const normalizeStreamStatus = (status: string): string | null => {
+        if (!status || typeof status !== "string") return null;
+        const trimmed = status.trim();
+        if (!trimmed.length) return null;
+        const lowered = trimmed.toLowerCase();
+        if (lowered.includes("render_image")) return "Rendering your visual...";
+        if (lowered.includes("render_video")) return "Rendering your clip...";
+        if (lowered.includes("context")) return null;
+        if (lowered.includes("working on your request")) return workingCopy;
+        return trimmed;
+      };
+
+      const handleStreamStatus = (status: string) => {
+        const friendly = normalizeStreamStatus(status);
+        if (!friendly) return;
+        updateWorking(friendly);
+      };
+
       try {
         const stateSnapshot = getState();
         const rawPostForRequest = stateSnapshot.rawPost;
@@ -334,6 +358,7 @@ export function useComposerPromptActions({
           useContext: smartContextEnabled,
           stream: true,
           onStreamMessage: updateWorking,
+          onStreamStatus: handleStreamStatus,
           signal: controller.signal,
           ...(timeoutMs ? { timeoutMs } : {}),
         });

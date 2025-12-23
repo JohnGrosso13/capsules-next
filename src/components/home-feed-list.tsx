@@ -18,6 +18,7 @@ import { useSupabaseUserId } from "@/components/providers/SupabaseSessionProvide
 import { buildPrompterAttachment, type DocumentCardData } from "@/components/documents/document-card";
 import { PostCard } from "@/components/home-feed/cards/PostCard";
 import { FeedPostViewer } from "@/components/home-feed/FeedPostViewer";
+import { HomeHighlightsOverlay } from "@/components/home-feed/HomeHighlightsOverlay";
 import { useFeedSummary } from "@/components/home-feed/useFeedSummary";
 import { useFeedComments } from "@/components/home-feed/useFeedComments";
 import { useFeedCommentUI } from "@/components/home-feed/useFeedCommentUI";
@@ -31,6 +32,8 @@ import {
 import { PromoRow } from "@/components/promo-row";
 import { useCurrentUser } from "@/services/auth/client";
 import { EMPTY_THREAD_STATE } from "@/components/comments/types";
+import type { SummaryConversationEntry, SummaryPresentationOptions } from "@/lib/composer/summary-context";
+import type { SummaryResult } from "@/types/summary";
 import { buildPostShareMessage, buildPostShareUrl, getPostCapsuleId } from "@/lib/share";
 
 const CommentPanel = dynamic(
@@ -253,6 +256,24 @@ export function HomeFeedList({
   }, [hasFetched, homeLoading]);
 
   const followingIdentifierSet = friendsData?.followingIds ?? null;
+  const friendIdentifierSet = React.useMemo(() => {
+    if (!friendsData?.hasRealFriends) return null;
+    const identifiers = new Set<string>();
+    const friends = friendsData.friends ?? [];
+    friends.forEach((friend) => {
+      [
+        friend.userId,
+        friend.key,
+        friend.id,
+      ].forEach((value) => {
+        const normalized = normalizeIdentifier(value);
+        if (normalized) {
+          identifiers.add(normalized);
+        }
+      });
+    });
+    return identifiers;
+  }, [friendsData?.friends, friendsData?.hasRealFriends]);
 
   const showSkeletons = !hasFetched || (homeLoading?.isPending ?? false);
   const baseItems = React.useMemo<HomeFeedItem[]>(() => {
@@ -273,6 +294,16 @@ export function HomeFeedList({
     () => baseItems.filter((entry): entry is Extract<HomeFeedItem, { type: "post" }> => entry.type === "post").map((entry) => entry.post),
     [baseItems],
   );
+
+  const postLookup = React.useMemo(() => {
+    const map = new Map<string, HomeFeedPost>();
+    baseItems.forEach((entry) => {
+      if (entry.type === "post" && entry.post) {
+        map.set(entry.post.id, entry.post);
+      }
+    });
+    return map;
+  }, [baseItems]);
 
   const feedItems = React.useMemo<FeedRenderItem[]>(() => {
     if (showSkeletons) return [];
@@ -739,6 +770,29 @@ export function HomeFeedList({
 
   );
 
+  const [highlightSummary, setHighlightSummary] = React.useState<{
+    result: SummaryResult;
+    entries: SummaryConversationEntry[];
+    options: SummaryPresentationOptions;
+  } | null>(null);
+  const [highlightsOpen, setHighlightsOpen] = React.useState(false);
+
+  const handleFeedSummaryReady = React.useCallback(
+    ({
+      attachments: _attachments,
+      ...payload
+    }: {
+      result: SummaryResult;
+      entries: SummaryConversationEntry[];
+      options: SummaryPresentationOptions;
+      attachments: unknown;
+    }) => {
+      setHighlightSummary(payload);
+      setHighlightsOpen(true);
+    },
+    [],
+  );
+
 
 
   const {
@@ -758,6 +812,7 @@ export function HomeFeedList({
     timeAgo,
 
     onHighlightPost: highlightPost,
+    onSummaryReady: handleFeedSummaryReady,
 
   });
 
@@ -772,6 +827,34 @@ export function HomeFeedList({
     navigate: navigateLightbox,
 
   } = useFeedLightbox();
+
+  const handleOpenHighlightPost = React.useCallback(
+    (postId: string | null | undefined) => {
+      if (!postId) return;
+      const post = postLookup.get(postId);
+      if (!post) return;
+      const items = getLightboxItemsForPost(post);
+      if (items.length) {
+        openLightbox({
+          postId: post.id,
+          index: 0,
+          items,
+          post,
+        });
+      } else {
+        highlightPost(post.id);
+      }
+    },
+    [getLightboxItemsForPost, highlightPost, openLightbox, postLookup],
+  );
+
+  const handleFocusHighlight = React.useCallback(
+    (postId: string | null | undefined) => {
+      if (!postId) return;
+      highlightPost(postId);
+    },
+    [highlightPost],
+  );
 
   const [sharePayload, setSharePayload] = React.useState<{
     url: string | null;
@@ -950,9 +1033,13 @@ export function HomeFeedList({
 
   const handleSummarizeFeed = React.useCallback(() => {
 
+    if (!postItems.length) return;
+
+    setHighlightsOpen(true);
+
     void summarizeFeed();
 
-  }, [summarizeFeed]);
+  }, [postItems.length, summarizeFeed]);
 
   const activeCommentPost = React.useMemo(
 
@@ -1083,7 +1170,11 @@ export function HomeFeedList({
 
       normalizedAuthorIds.some((id) => viewerIdentifierSet.has(id));
 
-    const allowFollowActions = canTarget && !viewerOwnsPost;
+    if (!canTarget || viewerOwnsPost) {
+      return null;
+    }
+
+    const allowFollowActions = !viewerOwnsPost;
 
     const isFollowing = normalizedAuthorIds.some((id) =>
 
@@ -1117,6 +1208,12 @@ export function HomeFeedList({
 
           : null;
 
+    const friendState: "friend" | "not_friend" | null = (() => {
+      if (!allowFollowActions) return null;
+      if (!friendIdentifierSet || !normalizedAuthorIds.length) return "not_friend";
+      return normalizedAuthorIds.some((id) => friendIdentifierSet.has(id)) ? "friend" : "not_friend";
+    })();
+
     return {
 
       canTarget,
@@ -1125,9 +1222,11 @@ export function HomeFeedList({
 
       followState,
 
-      onRequest: bind(onFriendRequest),
+      friendState,
 
-      onRemove: bind(onRemoveFriend),
+      onRequest: friendState === "friend" ? null : bind(onFriendRequest),
+
+      onRemove: friendState === "friend" ? bind(onRemoveFriend) : null,
 
       onFollow: followState === "not_following" ? bind(onFollowUser) : null,
 
@@ -1152,6 +1251,8 @@ export function HomeFeedList({
     onFollowUser,
 
     onUnfollowUser,
+
+    friendIdentifierSet,
 
   ]);
 
@@ -1230,6 +1331,17 @@ export function HomeFeedList({
   return (
 
     <>
+      <HomeHighlightsOverlay
+        open={highlightsOpen}
+        loading={feedSummaryPending && highlightsOpen}
+        entries={highlightSummary?.entries ?? []}
+        highlights={highlightSummary?.result.highlights ?? []}
+        title={highlightSummary?.options.title ?? "Highlights"}
+        posts={postItems}
+        onClose={() => setHighlightsOpen(false)}
+        onOpenPost={handleOpenHighlightPost}
+        onViewInFeed={handleFocusHighlight}
+      />
 
       {showSkeletons ? (
 

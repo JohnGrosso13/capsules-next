@@ -26,6 +26,13 @@ export function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
     () => poll.options.map((option) => option.trim()).filter((option) => option.length > 0),
     [poll.options],
   );
+  const pollStyle = React.useMemo(
+    () =>
+      ({
+        "--poll-thumb-size": options.length <= 4 ? "48px" : "32px",
+      }) as React.CSSProperties,
+    [options.length],
+  );
 
   const [counts, setCounts] = React.useState<number[] | null>(() =>
     sanitizeCounts(poll.counts ?? null, options.length),
@@ -138,7 +145,7 @@ export function FeedPoll({ postId, poll, formatCount }: FeedPollProps) {
   return (
     <div className={styles.pollCard}>
       <h3 className={styles.pollQuestion}>{question}</h3>
-      <div className={styles.pollOptions}>
+      <div className={styles.pollOptions} style={pollStyle}>
         {options.map((option, index) => {
           const count = normalizedCounts[index] ?? 0;
           const isSelected = selection === index;

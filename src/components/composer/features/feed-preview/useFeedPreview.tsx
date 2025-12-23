@@ -107,7 +107,7 @@ export function useFeedPreview({
           <div className={styles.previewPostCard} data-editable="true">
             <div className={styles.previewPostField}>
               <label className={styles.previewPostLabel} htmlFor="composer-preview-post-body">
-                Post copy
+                Post preview
               </label>
               <textarea
                 id="composer-preview-post-body"

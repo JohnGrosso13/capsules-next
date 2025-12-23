@@ -1,0 +1,175 @@
+.searchGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.searchCard {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  border-radius: 20px;
+  border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+  padding: 18px 18px 16px;
+  background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface-elevated, rgba(12, 18, 36, 0.94)) 92%, var(--color-brand, #6366f1) 8%),
+      color-mix(in srgb, var(--surface-muted, rgba(8, 12, 26, 0.9)) 92%, transparent)
+    );
+  box-shadow: var(
+    --shadow-lg,
+    0 22px 48px color-mix(in srgb, var(--color-brand, #6366f1) 20%, rgba(5, 10, 30, 0.42))
+  );
+  overflow: hidden;
+}
+
+.searchCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      120% 120% at 78% 16%,
+      color-mix(in srgb, var(--brand-gradient, #8b5cf6) 24%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      140% 140% at 18% 18%,
+      color-mix(in srgb, var(--card-highlight, rgba(118, 111, 255, 0.22)) 90%, transparent),
+      transparent 58%
+    );
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.personalCard {
+  --card-highlight: color-mix(in srgb, var(--color-brand, #6366f1) 60%, #9fb2ff);
+}
+
+.capsuleCard {
+  --card-highlight: color-mix(in srgb, var(--color-brand, #6366f1) 68%, #c6b4ff);
+}
+
+.cardContent {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 520px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.7vw, 1.3rem);
+  font-weight: 700;
+  color: var(--text, rgba(255, 255, 255, 0.94));
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-2, rgba(255, 255, 255, 0.74));
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.illustration {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  background: var(--cta-gradient, linear-gradient(120deg, #7b5cff 0%, #6366f1 55%, #22d3ee 100%));
+  color: #f5f7ff;
+  border: 1px solid color-mix(in srgb, var(--color-brand, #6366f1) 55%, rgba(255, 255, 255, 0.24));
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--color-brand, #6366f1) 35%, rgba(5, 10, 30, 0.35)),
+    inset 0 0 0 1px color-mix(in srgb, rgba(255, 255, 255, 0.6) 40%, transparent);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.searchBar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 48px;
+  margin-top: auto;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--card-border, rgba(255, 255, 255, 0.14)) 85%, var(--color-brand, #6366f1) 15%);
+  background: linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--surface-elevated, rgba(12, 18, 36, 0.9)) 90%, var(--color-brand, #6366f1) 10%),
+      color-mix(in srgb, var(--surface-muted, rgba(8, 12, 26, 0.86)) 92%, transparent)
+    );
+  color: var(--text, rgba(255, 255, 255, 0.94));
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms var(--motion-ease-standard, ease),
+    box-shadow 160ms var(--motion-ease-standard, ease),
+    background 160ms var(--motion-ease-standard, ease),
+    transform 160ms var(--motion-ease-standard, ease);
+}
+
+.searchBar:hover {
+  border-color: color-mix(in srgb, var(--color-brand, #6366f1) 35%, var(--card-border, rgba(255, 255, 255, 0.14)));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgba(255, 255, 255, 0.12) 22%, var(--surface-elevated, rgba(12, 18, 36, 0.94))),
+    color-mix(in srgb, var(--card-highlight, rgba(118, 111, 255, 0.3)) 20%, var(--surface-muted, rgba(8, 12, 26, 0.9)))
+  );
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--card-highlight, rgba(118, 111, 255, 0.36)) 60%, transparent);
+  transform: translateY(-1px);
+}
+
+.searchBar:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand, #6366f1) 65%, transparent);
+  outline-offset: 2px;
+}
+
+.searchBar span {
+  flex: 1;
+  color: var(--text-2, rgba(255, 255, 255, 0.76));
+  font-size: 0.97rem;
+  line-height: 1.45;
+}
+
+.searchBar svg {
+  color: color-mix(in srgb, var(--card-highlight, rgba(118, 111, 255, 0.36)) 70%, var(--text-2, rgba(255, 255, 255, 0.72)));
+}
+
+@media (min-width: 900px) {
+  .searchGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .cardContent {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .copy {
+    max-width: none;
+  }
+
+  .illustration {
+    width: 68px;
+    height: 68px;
+  }
+}

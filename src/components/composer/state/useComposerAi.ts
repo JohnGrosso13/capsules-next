@@ -53,7 +53,34 @@ export function useComposerAi({
         isDraftResponse && payload.post && typeof payload.post === "object"
           ? (payload.post as Record<string, unknown>)
           : null;
-      const rawPost = rawSource ? appendCapsuleContext({ ...rawSource }, activeCapsuleId) : null;
+
+      const splitAssistantAside = (content: string) => {
+        const trimmed = content.trim();
+        if (!trimmed.length) return { body: trimmed, aside: null };
+        const blocks = trimmed.split(/\n+/).map((block) => block.trim()).filter(Boolean);
+        if (!blocks.length) return { body: trimmed, aside: null };
+        const last = blocks[blocks.length - 1];
+        if (!last) return { body: trimmed, aside: null };
+        const asidePattern =
+          /\b(let me know if you'd like(?: me to)?|want me to|i can (?:tweak|adjust|customiz|remix|change|swap|revise|iterate))/i;
+        if (!asidePattern.test(last)) return { body: trimmed, aside: null };
+        const bodyBlocks = blocks.slice(0, -1);
+        const body = bodyBlocks.join("\n\n");
+        if (!body.trim().length) return { body: trimmed, aside: null };
+        return { body, aside: last };
+      };
+
+      let rawPost = rawSource ? appendCapsuleContext({ ...rawSource }, activeCapsuleId) : null;
+      let extractedAside: string | null = null;
+      if (isDraftResponse && rawPost && typeof (rawPost as { content?: unknown }).content === "string") {
+        const current = (rawPost as { content: string }).content;
+        const { body, aside } = splitAssistantAside(current);
+        if (aside && body !== current) {
+          rawPost = { ...rawPost, content: body };
+          extractedAside = aside;
+        }
+      }
+
       const baseDraftForKind = isDraftResponse
         ? normalizeDraftFromPost(rawPost ?? {})
         : normalizeDraftFromPost({});
@@ -99,6 +126,9 @@ export function useComposerAi({
         typeof payload.message === "string" && payload.message.trim().length
           ? payload.message.trim()
           : null;
+      if (extractedAside) {
+        messageText = messageText ? `${messageText}\n\n${extractedAside}` : extractedAside;
+      }
       if (draftPostContent) {
         messageText = messageText ? `${messageText}\n\n${draftPostContent}` : draftPostContent;
       }

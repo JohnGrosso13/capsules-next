@@ -311,7 +311,7 @@ export function FriendsClient() {
     friendSearchAbortRef.current = controller;
     const timer = window.setTimeout(async () => {
       try {
-        const response = await fetch("/api/search", {
+        const response = await fetch("/api/search/quick", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ q: term, limit: 10 }),

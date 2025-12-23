@@ -30,7 +30,7 @@ export default function MemoryUploadsPage({ searchParams }: MemoryUploadsPagePro
   const initialTab = resolveTabParam(searchParams);
 
   return (
-    <AppPage activeNav="memory" showPrompter={false}>
+    <AppPage activeNav="memory" showPrompter={false} wideWithoutRightRail>
       <section className={styles.wrapper}>
         <header className={styles.hero}>
           <h1>Uploads</h1>

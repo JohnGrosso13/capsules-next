@@ -19,6 +19,7 @@ export type CallAiPromptParams = {
   useContext?: boolean;
   stream?: boolean;
   onStreamMessage?: (content: string) => void;
+  onStreamStatus?: (content: string) => void;
   endpoint?: string;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -35,6 +36,7 @@ export async function callAiPrompt({
   useContext = true,
   stream = false,
   onStreamMessage,
+  onStreamStatus,
   endpoint = "/api/ai/prompt",
   signal,
   timeoutMs,
@@ -158,12 +160,12 @@ export async function callAiPrompt({
               };
               if (event.event === "partial" && typeof event.content === "string" && onStreamMessage) {
                 onStreamMessage(event.content);
-              } else if (
-                event.event === "status" &&
-                typeof event.message === "string" &&
-                onStreamMessage
-              ) {
-                onStreamMessage(event.message);
+              } else if (event.event === "status" && typeof event.message === "string") {
+                if (onStreamStatus) {
+                  onStreamStatus(event.message);
+                } else if (onStreamMessage) {
+                  onStreamMessage(event.message);
+                }
               } else if (event.event === "done" && event.payload) {
                 finalPayload = promptResponseSchema.parse(event.payload);
               } else if (event.event === "error") {

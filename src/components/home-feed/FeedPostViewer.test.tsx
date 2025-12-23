@@ -152,6 +152,36 @@ describe("FeedPostViewer sidebar controls", () => {
     expect(onRequest).toHaveBeenCalledTimes(1);
   });
 
+  it("routes friend removal when already friends", async () => {
+    const onRemove = vi.fn();
+    await act(async () => {
+      root.render(
+        <FeedPostViewer
+          {...baseProps}
+          friendControls={{
+            canTarget: true,
+            pending: false,
+            followState: null,
+            friendState: "friend",
+            onRequest: null,
+            onRemove,
+            onFollow: null,
+            onUnfollow: null,
+          }}
+        />,
+      );
+    });
+
+    const removeButton = container.querySelector(
+      'button[aria-label="Remove friend"]',
+    ) as HTMLButtonElement | null;
+    expect(removeButton).not.toBeNull();
+    await act(async () => {
+      removeButton?.click();
+    });
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
   it("invokes onShare when share action is clicked", async () => {
     const onShare = vi.fn();
     await act(async () => {

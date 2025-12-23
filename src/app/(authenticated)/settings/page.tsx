@@ -72,7 +72,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   };
 
   return (
-    <AppPage showPrompter={true} activeNav="settings" showDiscoveryRightRail>
+    <AppPage showPrompter={true} activeNav="settings" wideWithoutRightRail>
       <SettingsShell
         initialCapsules={ownedCapsules}
         accountProfile={accountProfile}

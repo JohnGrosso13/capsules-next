@@ -39,7 +39,11 @@ export const NameField = ({ index, participant, onChangeName, onSelectSuggestion
         const response = await fetch("/api/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q: term, limit: SUGGESTION_LIMIT }),
+          body: JSON.stringify({
+            q: term,
+            limit: SUGGESTION_LIMIT,
+            scopes: ["users", "capsules"],
+          }),
           signal: controller.signal,
         });
         if (!response.ok) {

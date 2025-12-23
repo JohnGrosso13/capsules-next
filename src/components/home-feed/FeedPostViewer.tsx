@@ -65,6 +65,7 @@ type FeedPostViewerFriendControls = {
   canTarget: boolean;
   pending: boolean;
   followState: "following" | "not_following" | null;
+  friendState?: "friend" | "not_friend" | null;
   onRequest?: (() => void) | null;
   onRemove?: (() => void) | null;
   onFollow?: (() => void) | null;
@@ -176,16 +177,23 @@ export function FeedPostViewer({
       : followButtonState === "not_following"
         ? !friendControls.onFollow
         : true);
-  const addFriendDisabled =
+  const friendButtonState =
+    friendControls && friendControls.canTarget
+      ? friendControls.onRemove
+        ? "friend"
+        : friendControls.onRequest
+          ? "not_friend"
+          : null
+      : null;
+  const friendButtonDisabled =
     !friendControls ||
     friendControls.pending ||
     !friendControls.canTarget ||
-    !friendControls.onRequest;
-  const removeFriendDisabled =
-    !friendControls ||
-    friendControls.pending ||
-    !friendControls.canTarget ||
-    !friendControls.onRemove;
+    (friendButtonState === "friend"
+      ? !friendControls.onRemove
+      : friendButtonState === "not_friend"
+        ? !friendControls.onRequest
+        : true);
 
   React.useEffect(() => {
     if (!post?.id) return;
@@ -364,6 +372,15 @@ export function FeedPostViewer({
       friendControls.onUnfollow?.();
     } else if (friendControls.followState === "not_following") {
       friendControls.onFollow?.();
+    }
+  }, [friendControls]);
+
+  const handleFriendClick = React.useCallback(() => {
+    if (!friendControls) return;
+    if (friendControls.onRemove) {
+      friendControls.onRemove();
+    } else if (friendControls.onRequest) {
+      friendControls.onRequest();
     }
   }, [friendControls]);
 
@@ -610,28 +627,20 @@ export function FeedPostViewer({
                   {followButtonState === "following" ? "Following" : "Follow"}
                 </button>
               ) : null}
-              {friendControls?.onRequest ? (
+              {friendButtonState ? (
                 <button
                   type="button"
                   className={styles.postViewerControlBtn}
-                  data-variant="friend"
-                  aria-label="Send friend request"
-                  onClick={() => friendControls.onRequest?.()}
-                  disabled={addFriendDisabled}
+                  data-variant={friendButtonState === "friend" ? "danger" : "friend"}
+                  aria-label={friendButtonState === "friend" ? "Remove friend" : "Send friend request"}
+                  onClick={handleFriendClick}
+                  disabled={friendButtonDisabled}
                 >
-                  Add Friend
-                </button>
-              ) : null}
-              {friendControls?.onRemove ? (
-                <button
-                  type="button"
-                  className={styles.postViewerControlBtn}
-                  data-variant="danger"
-                  aria-label="Remove friend"
-                  onClick={() => friendControls.onRemove?.()}
-                  disabled={removeFriendDisabled}
-                >
-                  Remove
+                  {friendControls?.pending
+                    ? "Working..."
+                    : friendButtonState === "friend"
+                      ? "Remove"
+                      : "Add Friend"}
                 </button>
               ) : null}
             </div>

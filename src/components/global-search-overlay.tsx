@@ -93,6 +93,8 @@ const SECTION_LABEL: Record<GlobalSearchSection["type"], string> = {
   capsule_records: "Capsule records",
 };
 
+const DEFAULT_PLACEHOLDER = "Search memories, capsules, or friends...";
+
 type SelectionMode = "default" | "composer";
 
 const formatPromptText = (...segments: Array<string | null | undefined>) =>
@@ -292,6 +294,8 @@ export function GlobalSearchOverlay() {
   const [error, setError] = useState<string | null>(null);
   const [sections, setSections] = useState<GlobalSearchSection[]>([]);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("default");
+  const [placeholder, setPlaceholder] = useState(DEFAULT_PLACEHOLDER);
+  const [activeScope, setActiveScope] = useState<SearchOpenDetail["scope"] | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const quickAbortRef = useRef<AbortController | null>(null);
   const fullAbortRef = useRef<AbortController | null>(null);
@@ -302,6 +306,17 @@ export function GlobalSearchOverlay() {
   const selectionHandlerRef = useRef<SearchOpenDetail["onSelect"] | null>(null);
   const trimmedQuery = useMemo(() => query.trim(), [query]);
   const intent = useMemo(() => resolveIntent(trimmedQuery), [trimmedQuery]);
+
+  const applyScopePriority = useCallback(
+    (list: GlobalSearchSection[]) => {
+      if (!activeScope) return list;
+      const prioritized = list.filter((section) => section.type === activeScope);
+      const remainder = list.filter((section) => section.type !== activeScope);
+      if (!prioritized.length) return list;
+      return [...prioritized, ...remainder];
+    },
+    [activeScope],
+  );
 
   const formatter = useMemo(() => {
     try {
@@ -314,12 +329,19 @@ export function GlobalSearchOverlay() {
     }
   }, []);
 
+  useEffect(() => {
+    setSections((current) => applyScopePriority(current));
+  }, [applyScopePriority]);
+
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
     setSections([]);
     setError(null);
     setSelectionMode("default");
+    setPlaceholder(DEFAULT_PLACEHOLDER);
+    setActiveScope(null);
+    setLoading(false);
     selectionHandlerRef.current = null;
   }, []);
 
@@ -335,6 +357,17 @@ export function GlobalSearchOverlay() {
   useEffect(() => {
     const handleOpen = (event: Event) => {
       const detail = (event as CustomEvent<SearchOpenDetail | undefined>).detail;
+      const nextQuery = typeof detail?.initialQuery === "string" ? detail.initialQuery : "";
+      const nextPlaceholder =
+        detail?.placeholder && detail.placeholder.trim().length
+          ? detail.placeholder.trim()
+          : DEFAULT_PLACEHOLDER;
+      setPlaceholder(nextPlaceholder);
+      setActiveScope(detail?.scope ?? null);
+      setQuery(nextQuery);
+      setSections([]);
+      setError(null);
+      setLoading(false);
       if (detail?.mode === "composer" && typeof detail.onSelect === "function") {
         selectionHandlerRef.current = detail.onSelect;
         setSelectionMode("composer");
@@ -418,7 +451,7 @@ export function GlobalSearchOverlay() {
       const key = cacheKey(scopes);
       const cached = cacheRef.current.get(key);
       if (cached) {
-        setSections(cached);
+        setSections(applyScopePriority(cached));
         return true;
       }
       return false;
@@ -456,7 +489,7 @@ export function GlobalSearchOverlay() {
         const data = (await response.json()) as GlobalSearchResponse;
         const nextSections = rerankSections(normalizeSections(data.sections), trimmedQuery);
         setCache(fastPathScopes, nextSections);
-        setSections(nextSections);
+        setSections(applyScopePriority(nextSections));
         if (started) {
           logMetric("quick", {
             durationMs: Math.round((performance.now() - started) * 100) / 100,
@@ -517,7 +550,7 @@ export function GlobalSearchOverlay() {
           const data = (await response.json()) as GlobalSearchResponse;
           const nextSections = rerankSections(normalizeSections(data.sections), trimmedQuery);
           setCache(fullScopes, nextSections);
-          setSections(nextSections);
+          setSections(applyScopePriority(nextSections));
           if (started) {
             logMetric("full", {
               durationMs: Math.round((performance.now() - started) * 100) / 100,
@@ -554,9 +587,23 @@ export function GlobalSearchOverlay() {
       quickAbortRef.current?.abort();
       fullAbortRef.current?.abort();
     };
-  }, [close, intent.allowFull, intent.fullDelayMs, intent.memoryLikely, open, trimmedQuery]);
+  }, [
+    applyScopePriority,
+    close,
+    intent.allowFull,
+    intent.fullDelayMs,
+    intent.memoryLikely,
+    open,
+    trimmedQuery,
+  ]);
 
   const hasResults = sections.some((section) => section.items.length > 0);
+  const headingSubtitle =
+    activeScope === "memories"
+      ? "Search your personal memories."
+      : activeScope === "capsule_records"
+        ? "Search Capsule recaps and history."
+        : "Find memories, capsules, and friends with one search.";
 
   const renderMemoryHighlight = (item: MemorySearchItem) => {
     const meta = item.meta ?? {};
@@ -994,9 +1041,7 @@ export function GlobalSearchOverlay() {
         <header className={styles.header}>
           <div className={styles.headingGroup}>
             <h2 id="global-search-heading">Search Capsules</h2>
-            <p className={styles.subheading}>
-              Find memories, capsules, and friends with one search.
-            </p>
+            <p className={styles.subheading}>{headingSubtitle}</p>
           </div>
           <button
             type="button"
@@ -1012,7 +1057,7 @@ export function GlobalSearchOverlay() {
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search memories, capsules, or friends..."
+            placeholder={placeholder}
             className={styles.searchInput}
             autoComplete="off"
             spellCheck={false}
