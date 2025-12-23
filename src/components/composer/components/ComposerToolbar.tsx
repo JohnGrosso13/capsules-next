@@ -10,6 +10,7 @@ type ComposerToolbarProps = {
   disabled: boolean;
   onSearchSelect?: (payload: SearchSelectionPayload) => void;
   onClose: () => void;
+  onSearchOpen?: () => void;
 };
 
 const SEARCH_EVENT_NAME = "capsules:search:open";
@@ -18,8 +19,13 @@ export function ComposerToolbar({
   disabled,
   onSearchSelect,
   onClose,
+  onSearchOpen,
 }: ComposerToolbarProps) {
   const handleSearchClick = React.useCallback(() => {
+    if (typeof onSearchOpen === "function") {
+      onSearchOpen();
+      return;
+    }
     if (typeof window === "undefined") return;
     const detail: SearchOpenDetail | undefined =
       typeof onSearchSelect === "function"
@@ -30,7 +36,7 @@ export function ComposerToolbar({
         ? new CustomEvent<SearchOpenDetail>(SEARCH_EVENT_NAME, { detail })
         : new CustomEvent(SEARCH_EVENT_NAME),
     );
-  }, [onSearchSelect]);
+  }, [onSearchOpen, onSearchSelect]);
 
   return (
     <div className={styles.panelToolbar}>

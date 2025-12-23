@@ -1753,6 +1753,17 @@
   .requirementAction {
     justify-self: end;
   }
+
+  .namingBody {
+    padding-inline: 2px;
+    gap: 10px;
+  }
+
+  .namingOr {
+    max-width: 320px;
+    margin: 0 auto;
+    gap: 8px;
+  }
 }
 
 .stepControls {

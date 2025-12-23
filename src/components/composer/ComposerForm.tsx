@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Brain, Eye, List, MagnifyingGlass, X } from "@phosphor-icons/react/dist/ssr";
 import dynamic from "next/dynamic";
 import styles from "./styles";
 
@@ -39,7 +40,7 @@ import type {
   SummaryPresentationOptions,
 } from "@/lib/composer/summary-context";
 import type { SummaryResult } from "@/types/summary";
-import type { SearchSelectionPayload } from "@/types/search";
+import type { SearchOpenDetail, SearchSelectionPayload } from "@/types/search";
 import { useCurrentUser } from "@/services/auth/client";
 import {
   useAttachmentRail,
@@ -69,6 +70,8 @@ const ASSET_KIND_OPTIONS = [
   { key: "video", label: "Video" },
   { key: "poll", label: "Poll" },
 ];
+
+const SEARCH_EVENT_NAME = "capsules:search:open";
 
 const normalizeComposerKind = (kind?: string | null): "text" | "image" | "video" | "poll" => {
   const normalized = (kind ?? "").toLowerCase();
@@ -518,6 +521,12 @@ export function ComposerForm({
     },
     [attachmentUploading, attachRemoteAttachment, promptInputRef, setPromptValue],
   );
+
+  const handleSearchOpen = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    const detail: SearchOpenDetail = { mode: "composer", onSelect: handleSearchSelection };
+    window.dispatchEvent(new CustomEvent<SearchOpenDetail>(SEARCH_EVENT_NAME, { detail }));
+  }, [handleSearchSelection]);
 
   const summarySidebar = useSummarySidebar({
     summaryEntries,
@@ -1119,6 +1128,35 @@ export function ComposerForm({
     />
   );
 
+  const mobileActionsSection = (
+    <section className={styles.mobileSheetSection}>
+      <header>
+        <span className={styles.mobileSheetSectionTitle}>Quick actions</span>
+      </header>
+      <ul className={styles.mobileSheetList} role="list">
+        <li>
+          <button
+            type="button"
+            onClick={() => {
+              handleSearchOpen();
+              closeMobileRail();
+            }}
+          >
+            <span className={styles.mobileSheetListIcon}>
+              <MagnifyingGlass size={18} weight="bold" />
+            </span>
+            <span className={styles.mobileSheetListMeta}>
+              <span className={styles.mobileSheetListTitle}>Search memories</span>
+              <span className={styles.mobileSheetListCaption}>
+                Find chats, drafts, and assets.
+              </span>
+            </span>
+          </button>
+        </li>
+      </ul>
+    </section>
+  );
+
 
   // Intent chips are disabled inside Composer Studio.
   const showPromptPresetsInComposer = false;
@@ -1234,8 +1272,64 @@ export function ComposerForm({
             onItemSelect={closeMobileRail}
             sections={mobileSections}
             {...(mobileMemoriesSection ? { memoriesSection: mobileMemoriesSection } : {})}
-            extraSections={mobileSettingsSection}
+            extraSections={
+              <>
+                {mobileActionsSection}
+                {mobileSettingsSection}
+              </>
+            }
           />
+        );
+
+  const mobileToolbar =
+    !isMobileLayout
+      ? null
+      : (
+          <div className={styles.mobileToolbar} role="toolbar" aria-label="Composer controls">
+            <div className={styles.mobileMenuWrap}>
+              <button
+                type="button"
+                className={styles.mobileMenuButton}
+                aria-label="Open composer menu"
+                aria-haspopup="dialog"
+                aria-expanded={mobileRailOpen}
+                aria-controls="composer-mobile-menu"
+                onClick={() => actions.setMobileRailOpen(!mobileRailOpen)}
+              >
+                <List size={18} weight="bold" />
+                <span className={styles.srOnly}>Open composer menu</span>
+              </button>
+            </div>
+
+            <div className={styles.mobileHeadingRow}>
+              <div className={styles.memoryLogo} aria-hidden="true">
+                <Brain weight="duotone" />
+              </div>
+              <span className={styles.srOnly}>AI Composer</span>
+            </div>
+
+            <div className={styles.mobileToolbarActions}>
+              <button
+                type="button"
+                className={styles.mobileHeaderButton}
+                onClick={handlePreviewToggle}
+                aria-pressed={previewOpen}
+                data-active={previewOpen ? "true" : undefined}
+                disabled={loading || attachmentUploading}
+              >
+                <Eye size={18} weight={previewOpen ? "fill" : "duotone"} />
+                <span>{previewOpen ? "Hide preview" : "Preview"}</span>
+              </button>
+              <button
+                type="button"
+                className={styles.mobilePreviewBtn}
+                onClick={onClose}
+                aria-label="Close composer"
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+          </div>
         );
 
   const startLeftResize = React.useCallback(
@@ -1256,11 +1350,16 @@ export function ComposerForm({
     <div className={styles.overlay}>
       <div className={styles.backdrop} />
       <aside className={styles.panel} role="dialog" aria-label="AI Composer">
-        <ComposerToolbar
-          disabled={loading}
-          onSearchSelect={handleSearchSelection}
-          onClose={onClose}
-        />
+        {isMobileLayout ? (
+          mobileToolbar
+        ) : (
+          <ComposerToolbar
+            disabled={loading}
+            onSearchSelect={handleSearchSelection}
+            onSearchOpen={handleSearchOpen}
+            onClose={onClose}
+          />
+        )}
 
         <div className={styles.panelBody}>
           {themePreview ? (
@@ -1276,6 +1375,7 @@ export function ComposerForm({
             mainRef={mainRef}
             layout={layout}
             previewOpen={isMobileLayout ? false : previewOpen}
+            isMobileLayout={isMobileLayout}
             leftCollapsed={layout.leftCollapsed}
             leftRail={leftRail}
             mainContent={mainContent}

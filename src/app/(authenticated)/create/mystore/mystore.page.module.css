@@ -3,6 +3,9 @@
   flex-direction: column;
   gap: 18px;
   padding: 12px 4px 32px;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }
 
 .shell[data-surface="store"] {
@@ -93,6 +96,14 @@
 .headerBare .headerBottom {
   padding-top: 0;
   border-top: none;
+}
+
+.storeNavHeader {
+  padding: 4px 2px 12px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  align-items: flex-start;
 }
 
 .headerTop {
@@ -215,19 +226,10 @@
 .storeTabStrip {
   width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: clamp(10px, 1.2vw, 16px);
 }
 
 .storeTab {
   width: 100%;
-  min-height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 0.98rem;
-  letter-spacing: 0.01em;
-  color: var(--text);
   text-decoration: none;
 }
 
@@ -1873,7 +1875,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .storeTabStrip {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
   .wizardGrid {
     grid-template-columns: minmax(0, 1fr);
@@ -1911,6 +1913,6 @@
     border-radius: 0;
   }
   .storeTabStrip {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }

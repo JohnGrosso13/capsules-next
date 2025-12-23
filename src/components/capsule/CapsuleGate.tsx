@@ -460,6 +460,7 @@ export function CapsuleGate({
   );
 
   React.useEffect(() => {
+    if (!shouldAutoActivate) return;
     setActiveId((previous) => {
       const hasPrevious = Boolean(previous);
       const isValidPrevious =
@@ -478,7 +479,14 @@ export function CapsuleGate({
       }
       return nextPreferred ?? resolvedDefaultId;
     });
-  }, [capsuleList, knownCapsuleIds, preferredInitialId, resolvedDefaultId, startInSelector]);
+  }, [
+    capsuleList,
+    knownCapsuleIds,
+    preferredInitialId,
+    resolvedDefaultId,
+    shouldAutoActivate,
+    startInSelector,
+  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;

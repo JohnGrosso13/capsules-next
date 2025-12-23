@@ -798,12 +798,14 @@
   }
   .mainColumn {
     gap: 0.75rem;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
   }
   .colResizer {
     display: none;
   }
   .panelBody {
     padding: 0;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
   }
 }
 
@@ -840,6 +842,13 @@
     border: 1px solid var(--composer-panel-border, var(--card-border, rgba(255, 255, 255, 0.14)));
     backdrop-filter: blur(8px);
     z-index: 4;
+  }
+
+  .mobileToolbarActions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.6rem;
   }
 
   .mobileMenuWrap {

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import Link from "next/link";
 
 import { AppPage } from "@/components/app-page";
 import { ensureSupabaseUser } from "@/lib/auth/payload";
@@ -17,7 +16,6 @@ import { listOrdersForCapsuleOwner } from "@/server/store/service";
 
 import { StoreCapsuleGate } from "../StoreCapsuleGate";
 import { StoreNavigation } from "../StoreNavigation";
-import { resolveCapsuleAvatar } from "../resolveCapsuleAvatar";
 import styles from "../mystore.page.module.css";
 
 export const metadata: Metadata = {
@@ -265,11 +263,8 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
       : ownedCapsules.length === 1
         ? ownedCapsules[0]
         : null) ?? null;
-  const { avatarUrl: selectedCapsuleLogo, avatarInitial: selectedCapsuleInitial } =
-    resolveCapsuleAvatar(selectedCapsule, requestOrigin);
   const selectedCapsuleId = selectedCapsule?.id ?? null;
   const showSelector = !selectedCapsule && !requestedCapsuleId;
-  const switchHref = selectedCapsuleId ? `?capsuleId=${selectedCapsuleId}&switch=1` : "?switch=1";
 
   let orders: OwnerOrderEntry[] = [];
   let ordersError: string | null = null;
@@ -312,56 +307,13 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.shell} data-surface="store">
-        <header className={styles.header}>
-          <div className={styles.headerTop}>
-            <div className={styles.brand}>
-              <div
-                className={styles.brandMark}
-                aria-hidden="true"
-                style={
-                  selectedCapsuleLogo
-                    ? {
-                        backgroundImage: `url("${selectedCapsuleLogo}"), var(--store-brand-gradient)`,
-                      }
-                    : undefined
-                }
-              >
-                <span className={styles.brandMarkInitial}>{selectedCapsuleInitial}</span>
-              </div>
-              <div className={styles.brandMeta}>
-                  <div className={styles.brandTitle}>My Store</div>
-                <div className={styles.brandSubtitle}>
-                  {selectedCapsule
-                    ? selectedCapsule.name ?? "Capsule store"
-                    : "Use Capsule Gate to pick your store"}
-                </div>
-              </div>
-            </div>
-            <div className={styles.headerActions}>
-            <Link href={switchHref} className={styles.chipButton} data-variant="ghost">
-              Open Capsule Gate
-            </Link>
-              <button className={styles.iconButtonSimple} type="button" aria-label="Notifications">
-                <span className={styles.iconDot} />
-              </button>
-            </div>
-          </div>
-          <div className={styles.headerBottom}>
-            {showSelector ? (
-              <StoreCapsuleGate
-                capsules={ownedCapsules}
-                selectedCapsuleId={selectedCapsuleId}
-              />
-            ) : (
-              <div className={styles.storeNavCard}>
-                <StoreNavigation
-                  capsuleId={selectedCapsuleId}
-                  active="orders"
-                  disabled={!selectedCapsule}
-                />
-              </div>
-            )}
-          </div>
+        <header className={`${styles.header} ${styles.storeNavHeader}`}>
+          <StoreNavigation
+            capsuleId={selectedCapsuleId}
+            capsuleName={selectedCapsule?.name ?? null}
+            active="orders"
+            disabled={!selectedCapsule}
+          />
         </header>
 
         <main className={styles.ordersPage} aria-label="Store orders">

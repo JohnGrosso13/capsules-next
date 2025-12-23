@@ -5,6 +5,7 @@
 .surface {
   width: 100%;
   max-width: 860px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-lg, 18px);
@@ -152,7 +153,28 @@
 }
 
 @media (max-width: 600px) {
+  .surface {
+    max-width: 100%;
+    gap: 12px;
+  }
+  .chatShell {
+    padding: 0 2px;
+  }
   .chatLog {
-    padding: var(--space-md, 16px);
+    padding: 12px;
+    min-height: 320px;
+    max-height: none;
+    border: none;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--ladder-chat-surface) 70%, transparent);
+  }
+  .chatBubble {
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--ladder-chat-border) 55%, transparent);
+    box-shadow: none;
+  }
+  .chatLabel {
+    margin-bottom: 4px;
   }
 }

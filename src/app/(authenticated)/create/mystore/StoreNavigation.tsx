@@ -49,6 +49,7 @@ const NAV_ITEMS: StoreNavItem[] = [
 
 type StoreNavigationProps = {
   capsuleId: string | null;
+  capsuleName?: string | null;
   active: StoreNavKey;
   disabled?: boolean;
 };
@@ -67,11 +68,20 @@ function buildHref(item: StoreNavItem, capsuleId: string | null): string {
   return query ? `${item.path}?${query}` : item.path;
 }
 
-export function StoreNavigation({ capsuleId, active, disabled = false }: StoreNavigationProps) {
+export function StoreNavigation({
+  capsuleId,
+  capsuleName,
+  active,
+  disabled = false,
+}: StoreNavigationProps) {
+  const navItems = NAV_ITEMS.map((item) =>
+    item.id === "home" ? { ...item, label: capsuleName?.trim() || item.label } : item,
+  );
+
   return (
     <nav className={styles.storeNav} aria-label="My Store navigation">
       <div className={`${capTheme.tabStrip} ${styles.storeTabStrip}`}>
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = item.id === active;
           const isDisabled = disabled;
           const className = [

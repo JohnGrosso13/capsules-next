@@ -880,9 +880,12 @@
     z-index: 1000;
     display: grid;
     place-items: center;
+    align-content: center;
+    justify-content: center;
     --lightbox-pad: clamp(var(--space-lg), 4vw, var(--space-4xl, 2.75rem));
     --lightbox-vertical-allowance: clamp(72px, 10vh, 128px);
     --lightbox-max-height: calc(100vh - var(--lightbox-pad) * 2 - var(--lightbox-vertical-allowance));
+    min-height: 100dvh;
     padding: var(--lightbox-pad);
     background: var(--modal-overlay, rgba(3, 6, 18, 0.9));
     backdrop-filter: blur(26px);
@@ -894,7 +897,7 @@
     gap: clamp(var(--space-md), 1.6vw, var(--space-xl));
     width: min(100%, calc(100vw - var(--lightbox-pad) * 2));
     max-width: min(1200px, calc(100vw - var(--lightbox-pad) * 2));
-    max-height: calc(100vh - var(--lightbox-pad) * 2);
+    max-height: min(calc(100vh - var(--lightbox-pad) * 2), 96dvh);
     padding: 0;
     background: transparent;
     border: none;
@@ -1012,10 +1015,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: min(100%, var(--lightbox-media-max-width));
+    width: 100%;
     max-width: min(100%, var(--lightbox-media-max-width));
     height: auto;
-    max-height: var(--lightbox-max-height);
+    max-height: min(var(--lightbox-max-height), 92dvh);
     padding: clamp(var(--space-sm), 1.6vw, var(--space-lg));
     border-radius: var(--radius-2xl, 32px);
     background: color-mix(in srgb, var(--surface-overlay, rgba(15, 23, 42, 0.92)) 96%, transparent);
@@ -1040,7 +1043,7 @@
 
   .lightboxImage,
   .lightboxVideo {
-    width: auto;
+    width: 100%;
     height: auto;
     max-width: 100%;
     max-height: calc(var(--lightbox-max-height) - 2 * clamp(var(--space-sm), 1.6vw, var(--space-lg)));
@@ -1075,6 +1078,7 @@
     color: var(--text, rgba(255, 255, 255, 0.9));
     margin-top: clamp(var(--space-sm), 2vw, var(--space-lg));
     max-width: min(84vw, 980px);
+    padding: 0 clamp(var(--space-sm), 3vw, var(--space-xl));
   }
 
   .postViewerOverlay {
@@ -1085,6 +1089,7 @@
     align-items: center;
     justify-content: center;
     padding: clamp(1rem, 4vw, 3rem);
+    min-height: 100dvh;
     background: rgba(2, 4, 15, 0.88);
     backdrop-filter: blur(32px);
   }
@@ -1493,26 +1498,34 @@
     .lightboxOverlay {
       --lightbox-vertical-allowance: clamp(84px, 14vh, 148px);
       --lightbox-max-height: calc(100vh - var(--lightbox-pad) * 2 - var(--lightbox-vertical-allowance));
-      padding: clamp(var(--space-md), 4vw, var(--space-2xl, 1.5rem));
+      padding: clamp(var(--space-sm), 4vw, var(--space-2xl, 1.5rem));
+      min-height: 100dvh;
     }
 
     .lightboxContent {
+      width: min(100%, 100vw);
       max-width: calc(100vw - var(--lightbox-pad) * 2);
-      max-height: calc(100vh - var(--lightbox-pad) * 2);
+      max-height: min(calc(100vh - var(--lightbox-pad) * 2), 96dvh);
     }
 
     .lightboxBody {
       max-height: var(--lightbox-max-height);
-      padding: clamp(var(--space-xs), 3vw, var(--space-md));
+      padding: clamp(var(--space-2xs), 3vw, var(--space-sm));
     }
 
     .lightboxMedia {
-      padding: clamp(var(--space-xs), 3.5vw, var(--space-md));
+      padding: clamp(var(--space-2xs), 3vw, var(--space-sm));
+      border-radius: 22px;
+      width: 100%;
+      max-width: 100%;
     }
 
     .lightboxNav {
       width: 44px;
       height: 44px;
+      top: auto;
+      bottom: clamp(var(--space-sm), 3vw, var(--space-lg));
+      transform: none;
     }
 
     .lightboxNav[data-direction="prev"] {
@@ -1523,21 +1536,38 @@
       right: var(--space-sm);
     }
 
+    .lightboxImage,
+    .lightboxVideo {
+      max-height: calc(var(--lightbox-max-height) - 2 * clamp(var(--space-sm), 3vw, var(--space-lg)));
+    }
+
+    .lightboxCaption {
+      max-width: 100%;
+    }
+
+    .postViewerOverlay {
+      align-items: flex-start;
+      justify-content: center;
+      padding: clamp(0.75rem, 3vw, 1.5rem);
+      overflow-y: auto;
+    }
+
     .postViewerShell {
       flex-direction: column;
-      width: min(96vw, 640px);
+      width: min(100%, 640px);
       max-height: none;
-      height: min(96vh, 100%);
+      height: auto;
+      border-radius: 24px;
     }
 
     .postViewerStage {
       width: 100%;
-      min-height: 240px;
+      min-height: 220px;
     }
 
     .postViewerSidebar {
       width: 100%;
-      max-height: 60vh;
+      max-height: none;
     }
 
     .postViewerAttachmentNav {

@@ -208,6 +208,14 @@
   .layout[data-layout="default"] .rail[data-side="left"] {
     display: none;
   }
+  .layout[data-layout="capsule"],
+  .layout[data-layout="studio"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .layout[data-layout="capsule"] .rail,
+  .layout[data-layout="studio"] .rail {
+    display: none;
+  }
 }
 
 .content {

@@ -16,6 +16,7 @@ type ComposerLayoutProps = {
   leftRail: React.ReactNode;
   mainContent: React.ReactNode;
   previewContent?: React.ReactNode;
+  isMobileLayout?: boolean;
   mobileRailOpen: boolean;
   onToggleMobileRail: () => void;
   mobileMenu?: React.ReactNode;
@@ -32,6 +33,7 @@ export function ComposerLayout({
   leftRail,
   mainContent,
   previewContent,
+  isMobileLayout = false,
   mobileRailOpen,
   onToggleMobileRail,
   mobileMenu,
@@ -40,6 +42,13 @@ export function ComposerLayout({
 }: ComposerLayoutProps) {
   const collapsedRailWidth = 76;
   const renderWidth = leftCollapsed ? collapsedRailWidth : layout.leftWidth;
+  const columnStyle = isMobileLayout
+    ? undefined
+    : {
+        gridTemplateColumns: previewOpen
+          ? `${renderWidth}px minmax(0, 1fr) ${layout.rightWidth}px`
+          : `${renderWidth}px minmax(0, 1fr)`,
+      };
 
   return (
     <>
@@ -58,11 +67,7 @@ export function ComposerLayout({
         ref={columnsRef}
         className={styles.columns}
         data-preview={previewOpen ? "open" : "closed"}
-        style={{
-          gridTemplateColumns: previewOpen
-            ? `${renderWidth}px minmax(0, 1fr) ${layout.rightWidth}px`
-            : `${renderWidth}px minmax(0, 1fr)`,
-        }}
+        style={columnStyle}
       >
         <aside
           className={styles.rail}
