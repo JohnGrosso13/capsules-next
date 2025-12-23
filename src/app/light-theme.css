@@ -2,9 +2,29 @@
 @layer base {
   :root[data-theme="light"] {
     --accent-glow: rgba(37, 99, 235, 0.18);
+    --alert-bg: color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 94%, transparent);
+    --alert-border: color-mix(in srgb, var(--color-border, rgba(14,23,42,0.12)) 80%, transparent);
     --alert-fg: rgba(14, 16, 36, 0.96);
     --app-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 255, 0.92));
+    --assistant-shadow-lg: 0 24px 60px color-mix(in srgb, var(--color-brand, #2563eb) 24%, transparent);
+    --brand-from: var(--color-brand);
     --brand-gradient: var(--gradient-brand);
+    --brand-mid: var(--color-brand);
+    --brand-to: var(--color-brand-strong);
+    --calendar-border: var(--card-border);
+    --calendar-border-strong: var(--color-border-strong);
+    --calendar-glow: color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent);
+    --calendar-grid-glass-1: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+    --calendar-grid-glass-2: color-mix(in srgb, var(--surface-overlay) 88%, transparent);
+    --calendar-pill-bg-1: var(--pill-bg-1);
+    --calendar-pill-bg-2: var(--pill-bg-2);
+    --calendar-shadow-lg: var(--shadow-lg);
+    --calendar-shadow-md: var(--shadow-md);
+    --calendar-shadow-sm: var(--shadow-sm);
+    --calendar-surface: var(--surface-elevated);
+    --calendar-surface-deep: var(--surface-overlay);
+    --calendar-surface-strong: var(--card-bg-1);
+    --capsule-logo-radius-md: 14px;
     --card-bg-1: rgba(255, 255, 255, 0.96);
     --card-bg-2: rgba(255, 255, 255, 0.9);
     --card-border: rgba(14, 23, 42, 0.12);
@@ -14,6 +34,9 @@
     --card-hover-shadow: 0 22px 48px rgba(37, 99, 235, 0.18);
     --card-radius: var(--radius-lg, 1rem);
     --card-shadow: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.14));
+    --chat-color-accent-base: var(--color-accent);
+    --chat-color-brand-base: var(--color-brand);
+    --chat-color-brand-strong-base: var(--color-brand-strong);
     --chats-control-text: var(--text-on-brand, #041021);
     --chats-gif-empty-text: color-mix(
       in srgb,
@@ -21,12 +44,16 @@
       transparent
     );
     --chats-message-attachment-border: color-mix(in srgb, var(--color-border) 88%, transparent);
+    --chats-message-background: var(--card-bg-1);
     --chats-message-emoji-color: color-mix(
       in srgb,
       var(--header-brand-strong, #2563eb) 55%,
       rgba(24, 32, 62, 0.92)
     );
     --chats-message-emoji-filter: drop-shadow(0 6px 12px rgba(37, 99, 235, 0.16));
+    --chats-message-self-background: var(--gradient-brand);
+    --chats-message-self-text: var(--text-on-brand, #041021);
+    --chats-message-shadow: var(--shadow-sm);
     --chats-send-button-background: var(
       --cta-button-gradient,
       linear-gradient(
@@ -35,9 +62,11 @@
         color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 90%, rgba(14, 116, 230, 0.2))
       )
     );
+    --chats-send-button-gradient: var(--cta-button-gradient, var(--cta-gradient));
     --chats-send-button-hover-filter: brightness(1.03);
     --chip-active-border: rgba(14, 23, 42, 0.22);
     --chip-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 24px rgba(15, 23, 42, 0.16);
+    --chip-bg: var(--pill-bg-1);
     --chip-border: var(--pill-border, rgba(14, 23, 42, 0.16));
     --chip-hover-border: var(--card-hover-border, rgba(14, 23, 42, 0.2));
     --chip-hover-shadow: var(--card-hover-shadow, 0 18px 36px rgba(15, 23, 42, 0.18));
@@ -47,10 +76,12 @@
     --color-border-strong: rgba(14, 23, 42, 0.22);
     --color-brand: #2563eb;
     --color-brand-foreground: #041021;
+    --color-brand-muted: color-mix(in srgb, var(--color-brand) 55%, transparent);
     --color-brand-strong: #1d4ed8;
     --color-fg: rgba(14, 16, 36, 0.96);
     --color-fg-muted: rgba(14, 16, 36, 0.76);
     --color-fg-subtle: rgba(14, 16, 36, 0.6);
+    --color-link: var(--color-brand);
     --comment-border: rgba(255, 255, 255, 0.12);
     --comment-border-faint: rgba(255, 255, 255, 0.1);
     --comment-border-strong: rgba(255, 255, 255, 0.18);
@@ -58,6 +89,17 @@
     --comment-glow-soft: rgba(255, 255, 255, 0.06);
     --comment-glow-strong: rgba(255, 255, 255, 0.08);
     --comment-glow-veil: rgba(255, 255, 255, 0.04);
+    --composer-surface: var(--surface-elevated);
+    --connections-assistant-icon-bg: var(--connections-friends-icon-bg);
+    --connections-assistant-icon-fg: var(--connections-friends-icon-fg);
+    --connections-chats-icon-bg: var(--connections-friends-icon-bg);
+    --connections-chats-icon-fg: var(--connections-friends-icon-fg);
+    --connections-friends-icon-bg: linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%);
+    --connections-friends-icon-fg: #e8f3ff;
+    --connections-party-icon-bg: var(--connections-friends-icon-bg);
+    --connections-party-icon-fg: var(--connections-friends-icon-fg);
+    --connections-requests-icon-bg: var(--connections-friends-icon-bg);
+    --connections-requests-icon-fg: var(--connections-friends-icon-fg);
     --create-rows-height: clamp(520px, calc(100dvh - 260px), 920px);
     --cta-button-gradient: var(--cta-chip-gradient, var(--cta-gradient));
     --cta-chip-border: rgba(14, 23, 42, 0.16);
@@ -69,111 +111,15 @@
     --feed-action-bg-2: #fbfdff;
     --feed-action-border: color-mix(in srgb, var(--color-border) 85%, transparent);
     --feed-action-shadow-hover: 0 14px 28px rgba(15, 23, 42, 0.12);
+    --friend-overlay-strong: color-mix(in srgb, var(--color-brand) 18%, transparent);
+    --friends-primary-background: var(--card-bg-1);
+    --friends-primary-border: var(--card-border);
+    --friends-row-border: var(--card-border);
     --glass-bg-1: rgba(255, 255, 255, 0.9);
     --glass-bg-2: rgba(255, 255, 255, 0.78);
+    --glow-1: color-mix(in srgb, var(--color-brand) 18%, transparent);
+    --glow-2: color-mix(in srgb, var(--color-accent) 18%, transparent);
     --gradient-brand: linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #1d4ed8 100%);
-    /* Connections tiles: match all icons to Friends gradient in light mode */
-    --connections-friends-icon-bg: linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%);
-    --connections-friends-icon-fg: #e8f3ff;
-    --connections-party-icon-bg: var(--connections-friends-icon-bg);
-    --connections-chats-icon-bg: var(--connections-friends-icon-bg);
-    --connections-requests-icon-bg: var(--connections-friends-icon-bg);
-    --connections-assistant-icon-bg: var(--connections-friends-icon-bg);
-    --connections-party-icon-fg: var(--connections-friends-icon-fg);
-    --connections-chats-icon-fg: var(--connections-friends-icon-fg);
-    --connections-requests-icon-fg: var(--connections-friends-icon-fg);
-    --connections-assistant-icon-fg: var(--connections-friends-icon-fg);
-    /* Direct Messages: light-mode surfaces */
-    --chats-panel-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card-bg-1, #ffffff) 96%, transparent),
-      color-mix(in srgb, var(--card-bg-2, #f7f9ff) 92%, transparent)
-    );
-    --chats-panel-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
-    --chats-empty-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffffff 94%, transparent),
-      color-mix(in srgb, #eef3ff 90%, transparent)
-    );
-    --chats-thread-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffffff 95%, transparent),
-      color-mix(in srgb, #eff4ff 90%, transparent)
-    );
-    --chats-thread-active-shadow: 0 14px 28px rgba(37, 99, 235, 0.18);
-    --chats-avatar-background: var(
-      --style-chats-icon-bg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 18%, #e9f1ff)
-    );
-    --chats-thread-badge-background: var(
-      --style-chats-badge-bg,
-      color-mix(in srgb, var(--color-brand, #2563eb) 22%, #e9f3ff)
-    );
-    --chats-thread-badge-text: var(--style-chats-badge-color, var(--color-brand-strong, #1d4ed8));
-    --chats-conversation-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #f9fbff 92%, transparent),
-      color-mix(in srgb, #eef3ff 88%, transparent)
-    );
-    --chats-conversation-header-background: color-mix(
-      in srgb,
-      #ffffff 96%,
-      var(--surface-muted, #f7f9ff) 8%
-    );
-    --chats-control-background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffffff 94%, transparent),
-      color-mix(in srgb, #f2f6ff 88%, transparent)
-    );
-    --chats-message-attachment-background: var(--chats-message-background);
-    --chats-message-attachment-border: color-mix(
-      in srgb,
-      var(--color-border, rgba(14, 23, 42, 0.12)) 88%,
-      transparent
-    );
-    --chats-message-attachment-self-background: var(--chats-message-self-background);
-    --chats-message-background: color-mix(in srgb, #eef3ff 78%, #ffffff);
-    --chats-message-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
-    --chats-message-self-background: linear-gradient(
-      135deg,
-      color-mix(in srgb, #60a5fa 82%, #2563eb),
-      color-mix(in srgb, #2563eb 76%, #0ea5e9 62%)
-    );
-    --chats-message-self-text: var(--text-on-brand, #ffffff);
-    --chats-error-border: color-mix(in srgb, #ef4444 55%, transparent);
-    --chats-error-background: color-mix(in srgb, #fee2e2 85%, #ffffff);
-    --chats-error-text: #7f1d1d;
-    --chats-composer-background: color-mix(in srgb, #ffffff 95%, var(--surface-muted, #f7f9ff));
-    --chats-input-border: color-mix(
-      in srgb,
-      var(--color-border, rgba(14, 23, 42, 0.12)) 90%,
-      transparent
-    );
-    --chats-input-background: color-mix(in srgb, #ffffff 94%, #eef2ff 82%);
-    --chats-send-button-border: color-mix(in srgb, var(--color-brand, #2563eb) 55%, transparent);
-    --chats-send-button-background: var(
-      --cta-button-gradient,
-      linear-gradient(135deg, #60a5fa 0%, #2563eb 55%, #0ea5e9 100%)
-    );
-    --chats-send-button-text: var(--text-on-brand, #ffffff);
-    --chats-reaction-background: color-mix(in srgb, #f8fbff 92%, #ffffff);
-    --chats-reaction-border: color-mix(in srgb, var(--pill-border, rgba(14, 23, 42, 0.16)) 85%, transparent);
-    --chats-reaction-active-background: color-mix(in srgb, #2563eb 26%, #0ea5e9 18%);
-    --chats-reaction-active-shadow: 0 12px 24px rgba(37, 99, 235, 0.16);
-    --chats-reaction-add-background: var(
-      --cta-button-gradient,
-      linear-gradient(120deg, #60a5fa 0%, #2563eb 55%, #0ea5e9 100%)
-    );
-    --chats-reaction-add-icon-color: var(--text-on-brand, #ffffff);
-    --chats-reaction-picker-border: color-mix(
-      in srgb,
-      var(--card-border, rgba(14, 23, 42, 0.12)) 88%,
-      transparent
-    );
-    --chats-reaction-picker-background: color-mix(in srgb, #ffffff 96%, #eef2ff 90%);
-    --chats-reaction-picker-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
-    --chats-menu-panel-background: color-mix(in srgb, #ffffff 96%, #f3f6ff 92%);
-    --chats-menu-panel-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
     --header-accent: var(--color-accent);
     --header-border-color: rgba(14, 23, 42, 0.08);
     --header-brand: #0ea5e9;
@@ -191,19 +137,26 @@
     --icon-plate-bg-2: rgba(255, 255, 255, 0.8);
     --icon-plate-border: rgba(14, 23, 42, 0.14);
     --icon-plate-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --ladder-prompter-status: var(--color-success);
+    --link-color: var(--color-link);
     --live-chat-border: rgba(148, 163, 184, 0.22);
     --live-chat-divider: rgba(148, 163, 184, 0.26);
     --live-chat-send-disabled-opacity: 0.6;
+    --party-code-background: var(--surface-elevated);
     --party-control-hover-border: color-mix(in srgb, var(--header-brand, var(--color-brand)) 45%, var(--card-border));
     --party-input-focus-border: color-mix(in srgb, var(--header-brand, var(--color-brand)) 55%, transparent);
     --party-panel-border: var(--card-border);
     --party-participant-speaking-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+    --party-privacy-accent: var(--color-brand);
+    --party-setting-accent: var(--color-brand);
     --party-status-pill-background: color-mix(in srgb, var(--header-brand, var(--color-brand)) 18%, transparent);
     --party-status-pill-border: color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 35%, transparent);
+    --party-summary-accent: var(--color-brand);
     --party-tile-shadow: var(--card-shadow);
     --pill-bg-1: rgba(255, 255, 255, 0.9);
     --pill-bg-2: rgba(255, 255, 255, 0.78);
     --pill-border: rgba(14, 23, 42, 0.16);
+    --privacy-active-color: var(--color-accent);
     --prompt-glow-blur: 18px;
     --prompt-glow-opacity: 0.3;
     --prompter-bar-focus-border: color-mix(
@@ -226,20 +179,48 @@
         color-mix(in srgb, var(--color-info) 24%, rgba(255, 255, 255, 0.75)),
         transparent 70%
       );
-    --prompter-drop-card-border: 1px solid
-      color-mix(in srgb, var(--color-brand) 28%, rgba(14, 23, 42, 0.16));
-    --prompter-drop-overlay: radial-gradient(120% 120% at 50% 50%, rgba(0, 0, 0, 0.06), transparent 70%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.9));
+    --prompter-drop-card-border: 1px solid color-mix(in srgb, #60a5fa 28%, rgba(14, 23, 42, 0.12));
+    --prompter-drop-card-shadow: 0 18px 36px rgba(15, 23, 42, 0.26);
+    --prompter-drop-overlay: color-mix(in srgb, #60a5fa 22%, rgba(255, 255, 255, 0.86));
+    --prompter-drop-overlay-shadow: 0 20px 40px rgba(15, 23, 42, 0.26);
+    --prompter-intent-navigate: #0ea5e9;
+    --prompter-intent-navigate-text: #0f172a;
+    --prompter-intent-post: linear-gradient(120deg, #60a5fa 0%, #22d3ee 55%, #34d399 100%);
+    --prompter-intent-post-text: #0f172a;
+    --prompter-intent-style: #0ea5e9;
+    --prompter-intent-style-text: #0f172a;
     --prompter-primary-button-background: var(--cta-button-gradient, var(--cta-gradient));
     --prompter-primary-button-text: var(--cta-button-text, var(--text-on-brand, var(--text)));
     --rail-bg-1: rgba(255, 255, 255, 0.95);
     --rail-bg-2: rgba(255, 255, 255, 0.86);
+    --setting-active-color: var(--color-brand);
     --settings-active-badge-border: color-mix(
       in srgb,
       var(--header-brand-strong, #2563eb) 62%,
       transparent
     );
+    --store-border-soft: var(--card-border);
+    --store-border-strong: var(--color-border-strong);
+    --store-brand-gradient: var(--brand-gradient);
+    --store-brand-highlight: var(--surface-overlay);
+    --store-control-bg: var(--store-surface-soft);
+    --store-control-highlight: var(--store-surface-strong);
+    --store-cta-foreground: var(--cta-button-text);
+    --store-cta-gradient: var(--cta-gradient);
+    --store-danger: var(--color-danger);
+    --store-info: var(--color-info);
+    --store-positive: var(--color-success);
+    --store-shadow-soft: var(--shadow-md);
+    --store-shadow-strong: var(--shadow-lg);
+    --store-surface-base: var(--surface-elevated);
+    --store-surface-deep: var(--card-bg-2);
+    --store-surface-soft: var(--card-bg-1);
+    --store-surface-solid: var(--card-bg-1);
+    --store-surface-strong: var(--card-bg-1);
+    --store-warning: var(--color-warning);
+    --studio-pill-muted: var(--pill-bg-1);
     --style-chats-icon-bg: var(--tile-icon-bg-base);
+    --summary-active-color: var(--color-brand);
     --surface-elevated: rgba(255, 255, 255, 0.92);
     --surface-muted: rgba(255, 255, 255, 0.86);
     --surface-outline: rgba(14, 23, 42, 0.12);
@@ -262,5 +243,6 @@
     --tile-icon-color-base: rgba(14, 16, 36, 0.82);
     --tile-shadow-base: var(--shadow-sm, 0 4px 12px rgba(15, 23, 42, 0.16));
     --tile-shadow-hover-base: var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.2));
+    --tile-text-base: var(--text);
   }
 }

@@ -32,6 +32,38 @@
     "exposeToStyler": false
   },
   {
+    "id": "alert.background",
+    "cssVar": "--alert-bg",
+    "label": "Alert Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "alert",
+      "surface"
+    ],
+    "semantics": "Alert Background",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 92%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--surface-overlay, var(--surface-elevated)) 94%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "alert.border",
+    "cssVar": "--alert-border",
+    "label": "Alert Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "alert",
+      "border"
+    ],
+    "semantics": "Alert Border",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, var(--color-border, rgba(255,255,255,0.16)) 80%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--color-border, rgba(14,23,42,0.12)) 80%, transparent)",
+    "exposeToStyler": false
+  },
+  {
     "id": "feedback.alert.fg",
     "cssVar": "--alert-fg",
     "label": "Feedback / Alert Foreground",
@@ -96,6 +128,22 @@
     "exposeToStyler": false
   },
   {
+    "id": "assistant.shadow.lg",
+    "cssVar": "--assistant-shadow-lg",
+    "label": "Assistant Shadow Large",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "assistant",
+      "shadow"
+    ],
+    "semantics": "Assistant Shadow Large",
+    "layer": "component",
+    "fallback": "0 24px 60px color-mix(in srgb, var(--color-brand, #6366f1) 26%, transparent)",
+    "lightFallback": "0 24px 60px color-mix(in srgb, var(--color-brand, #2563eb) 24%, transparent)",
+    "exposeToStyler": false
+  },
+  {
     "id": "utility.header-blur",
     "cssVar": "--blur-amount",
     "label": "Utility / Header Blur Amount",
@@ -108,6 +156,22 @@
     "semantics": "Utility / Header Blur Amount",
     "layer": "utility",
     "fallback": "14px",
+    "exposeToStyler": true
+  },
+  {
+    "id": "brand.gradient.from",
+    "cssVar": "--brand-from",
+    "label": "Brand Gradient From",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "brand",
+      "gradient"
+    ],
+    "semantics": "Brand Gradient From",
+    "layer": "foundation",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
     "exposeToStyler": true
   },
   {
@@ -125,6 +189,246 @@
     "fallback": "var(--gradient-brand)",
     "lightFallback": "var(--gradient-brand)",
     "exposeToStyler": true
+  },
+  {
+    "id": "brand.gradient.mid",
+    "cssVar": "--brand-mid",
+    "label": "Brand Gradient Mid",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "brand",
+      "gradient"
+    ],
+    "semantics": "Brand Gradient Mid",
+    "layer": "foundation",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "brand.gradient.to",
+    "cssVar": "--brand-to",
+    "label": "Brand Gradient To",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "brand",
+      "gradient"
+    ],
+    "semantics": "Brand Gradient To",
+    "layer": "foundation",
+    "fallback": "var(--color-brand-strong)",
+    "lightFallback": "var(--color-brand-strong)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "calendar.border",
+    "cssVar": "--calendar-border",
+    "label": "Calendar Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "border"
+    ],
+    "semantics": "Calendar Border",
+    "layer": "component",
+    "fallback": "var(--card-border)",
+    "lightFallback": "var(--card-border)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.border.strong",
+    "cssVar": "--calendar-border-strong",
+    "label": "Calendar Border Strong",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "border"
+    ],
+    "semantics": "Calendar Border Strong",
+    "layer": "component",
+    "fallback": "var(--color-border-strong)",
+    "lightFallback": "var(--color-border-strong)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.glow",
+    "cssVar": "--calendar-glow",
+    "label": "Calendar Glow",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "glow"
+    ],
+    "semantics": "Calendar Glow",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, var(--color-brand, #6366f1) 35%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--color-brand, #2563eb) 30%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.grid.glass.1",
+    "cssVar": "--calendar-grid-glass-1",
+    "label": "Calendar Grid Glass 1",
+    "category": "glass",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "glass"
+    ],
+    "semantics": "Calendar Grid Glass 1",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, var(--surface-elevated) 88%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.grid.glass.2",
+    "cssVar": "--calendar-grid-glass-2",
+    "label": "Calendar Grid Glass 2",
+    "category": "glass",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "glass"
+    ],
+    "semantics": "Calendar Grid Glass 2",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, var(--surface-overlay) 82%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--surface-overlay) 88%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.pill.bg.1",
+    "cssVar": "--calendar-pill-bg-1",
+    "label": "Calendar Pill Background 1",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "pill"
+    ],
+    "semantics": "Calendar Pill Background 1",
+    "layer": "component",
+    "fallback": "var(--pill-bg-1)",
+    "lightFallback": "var(--pill-bg-1)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.pill.bg.2",
+    "cssVar": "--calendar-pill-bg-2",
+    "label": "Calendar Pill Background 2",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "pill"
+    ],
+    "semantics": "Calendar Pill Background 2",
+    "layer": "component",
+    "fallback": "var(--pill-bg-2)",
+    "lightFallback": "var(--pill-bg-2)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.shadow.lg",
+    "cssVar": "--calendar-shadow-lg",
+    "label": "Calendar Shadow Large",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "calendar",
+      "shadow"
+    ],
+    "semantics": "Calendar Shadow Large",
+    "layer": "component",
+    "fallback": "var(--shadow-lg)",
+    "lightFallback": "var(--shadow-lg)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.shadow.md",
+    "cssVar": "--calendar-shadow-md",
+    "label": "Calendar Shadow Medium",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "calendar",
+      "shadow"
+    ],
+    "semantics": "Calendar Shadow Medium",
+    "layer": "component",
+    "fallback": "var(--shadow-md)",
+    "lightFallback": "var(--shadow-md)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.shadow.sm",
+    "cssVar": "--calendar-shadow-sm",
+    "label": "Calendar Shadow Small",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "calendar",
+      "shadow"
+    ],
+    "semantics": "Calendar Shadow Small",
+    "layer": "component",
+    "fallback": "var(--shadow-sm)",
+    "lightFallback": "var(--shadow-sm)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.surface",
+    "cssVar": "--calendar-surface",
+    "label": "Calendar Surface",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "surface"
+    ],
+    "semantics": "Calendar Surface",
+    "layer": "component",
+    "fallback": "var(--surface-elevated)",
+    "lightFallback": "var(--surface-elevated)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.surface.deep",
+    "cssVar": "--calendar-surface-deep",
+    "label": "Calendar Surface Deep",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "surface"
+    ],
+    "semantics": "Calendar Surface Deep",
+    "layer": "component",
+    "fallback": "var(--surface-overlay)",
+    "lightFallback": "var(--surface-overlay)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "calendar.surface.strong",
+    "cssVar": "--calendar-surface-strong",
+    "label": "Calendar Surface Strong",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "calendar",
+      "surface"
+    ],
+    "semantics": "Calendar Surface Strong",
+    "layer": "component",
+    "fallback": "var(--card-bg-1)",
+    "lightFallback": "var(--card-bg-1)",
+    "exposeToStyler": false
   },
   {
     "id": "capsule.accent",
@@ -283,6 +587,22 @@
     "exposeToStyler": true
   },
   {
+    "id": "capsule.logo.radius.md",
+    "cssVar": "--capsule-logo-radius-md",
+    "label": "Capsule Logo Radius MD",
+    "category": "radius",
+    "valueKind": "radius",
+    "tags": [
+      "logo",
+      "radius"
+    ],
+    "semantics": "Capsule Logo Radius MD",
+    "layer": "component",
+    "fallback": "14px",
+    "lightFallback": "14px",
+    "exposeToStyler": false
+  },
+  {
     "id": "shadow.capsule-logo",
     "cssVar": "--capsule-logo-shadow",
     "label": "Shadow / Capsule Logo",
@@ -313,6 +633,21 @@
     "layer": "foundation",
     "fallback": "var(--capsule-logo-size-md)",
     "exposeToStyler": true
+  },
+  {
+    "id": "capsule.logo.src",
+    "cssVar": "--capsule-logo-src",
+    "label": "Capsule Logo Source",
+    "category": "utility",
+    "valueKind": "other",
+    "tags": [
+      "logo",
+      "src"
+    ],
+    "semantics": "Capsule Logo Source",
+    "layer": "component",
+    "fallback": "none",
+    "exposeToStyler": false
   },
   {
     "id": "layout.capsule.rail-width",
@@ -623,6 +958,54 @@
     "exposeToStyler": true
   },
   {
+    "id": "chat.color.accent.base",
+    "cssVar": "--chat-color-accent-base",
+    "label": "Chat Accent Base",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "chat",
+      "accent"
+    ],
+    "semantics": "Chat Accent Base",
+    "layer": "component",
+    "fallback": "var(--color-accent)",
+    "lightFallback": "var(--color-accent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "chat.color.brand.base",
+    "cssVar": "--chat-color-brand-base",
+    "label": "Chat Brand Base",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "chat",
+      "brand"
+    ],
+    "semantics": "Chat Brand Base",
+    "layer": "component",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "chat.color.brand.strong.base",
+    "cssVar": "--chat-color-brand-strong-base",
+    "label": "Chat Brand Strong Base",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "chat",
+      "brand"
+    ],
+    "semantics": "Chat Brand Strong Base",
+    "layer": "component",
+    "fallback": "var(--color-brand-strong)",
+    "lightFallback": "var(--color-brand-strong)",
+    "exposeToStyler": false
+  },
+  {
     "id": "text.chats.control",
     "cssVar": "--chats-control-text",
     "label": "Chats / Control Text",
@@ -692,6 +1075,22 @@
     "exposeToStyler": true
   },
   {
+    "id": "chats.message.background",
+    "cssVar": "--chats-message-background",
+    "label": "Chats Message Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "chats",
+      "message"
+    ],
+    "semantics": "Chats Message Background",
+    "layer": "component",
+    "fallback": "var(--card-bg-1)",
+    "lightFallback": "var(--card-bg-1)",
+    "exposeToStyler": false
+  },
+  {
     "id": "text.chats.message.emoji.color",
     "cssVar": "--chats-message-emoji-color",
     "label": "Chats Message Emoji Color",
@@ -728,6 +1127,56 @@
     "exposeToStyler": true
   },
   {
+    "id": "chats.message.self.background",
+    "cssVar": "--chats-message-self-background",
+    "label": "Chats Message Self Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "chats",
+      "message"
+    ],
+    "semantics": "Chats Message Self Background",
+    "layer": "component",
+    "fallback": "var(--brand-gradient)",
+    "lightFallback": "var(--gradient-brand)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "chats.message.self.text",
+    "cssVar": "--chats-message-self-text",
+    "label": "Chats Message Self Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "chats",
+      "message",
+      "text"
+    ],
+    "semantics": "Chats Message Self Text",
+    "layer": "component",
+    "fallback": "var(--text-on-brand, #ffffff)",
+    "lightFallback": "var(--text-on-brand, #041021)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "chats.message.shadow",
+    "cssVar": "--chats-message-shadow",
+    "label": "Chats Message Shadow",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "chats",
+      "message",
+      "shadow"
+    ],
+    "semantics": "Chats Message Shadow",
+    "layer": "component",
+    "fallback": "var(--shadow-sm)",
+    "lightFallback": "var(--shadow-sm)",
+    "exposeToStyler": false
+  },
+  {
     "id": "surface.chats.send-button-background",
     "cssVar": "--chats-send-button-background",
     "label": "Chats / Send Button Background",
@@ -743,6 +1192,23 @@
     "fallback": "var(\n      --cta-button-gradient,\n      linear-gradient(\n        135deg,\n        color-mix(in srgb, var(--color-brand) 80%, rgba(76, 81, 219, 0.95)),\n        color-mix(in srgb, rgba(66, 71, 194, 0.9) 70%, rgba(48, 52, 148, 0.9))\n      )\n    )",
     "lightFallback": "var(\r\n      --cta-button-gradient,\r\n      linear-gradient(\r\n        135deg,\r\n        color-mix(in srgb, var(--color-brand) 92%, rgba(59, 130, 246, 0.25)),\r\n        color-mix(in srgb, var(--color-brand-strong, var(--color-brand)) 90%, rgba(14, 116, 230, 0.2))\r\n      )\r\n    )",
     "exposeToStyler": true
+  },
+  {
+    "id": "chats.send.button.gradient",
+    "cssVar": "--chats-send-button-gradient",
+    "label": "Chats Send Button Gradient",
+    "category": "brand",
+    "valueKind": "gradient",
+    "tags": [
+      "chats",
+      "send",
+      "button"
+    ],
+    "semantics": "Chats Send Button Gradient",
+    "layer": "component",
+    "fallback": "var(--cta-button-gradient, var(--cta-gradient))",
+    "lightFallback": "var(--cta-button-gradient, var(--cta-gradient))",
+    "exposeToStyler": false
   },
   {
     "id": "utility.chats.send.button.hover.filter",
@@ -796,6 +1262,22 @@
     "fallback": "inset 0 1px 0 rgba(255, 255, 255, 0.18),\r\n      0 10px 20px color-mix(in srgb, var(--color-brand) 18%, rgba(5, 10, 30, 0.2))",
     "lightFallback": "inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 24px rgba(15, 23, 42, 0.16)",
     "exposeToStyler": true
+  },
+  {
+    "id": "chip.background",
+    "cssVar": "--chip-bg",
+    "label": "Chip Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "chip",
+      "background"
+    ],
+    "semantics": "Chip Background",
+    "layer": "component",
+    "fallback": "var(--pill-bg-1)",
+    "lightFallback": "var(--pill-bg-1)",
+    "exposeToStyler": false
   },
   {
     "id": "border.chip",
@@ -977,6 +1459,21 @@
     }
   },
   {
+    "id": "color.brand.muted",
+    "cssVar": "--color-brand-muted",
+    "label": "Color Brand Muted",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "brand"
+    ],
+    "semantics": "Color Brand Muted",
+    "layer": "foundation",
+    "fallback": "color-mix(in srgb, var(--color-brand) 65%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--color-brand) 55%, transparent)",
+    "exposeToStyler": true
+  },
+  {
     "id": "brand.strong",
     "cssVar": "--color-brand-strong",
     "label": "Brand / Strong",
@@ -1109,6 +1606,22 @@
         "info"
       ]
     }
+  },
+  {
+    "id": "color.link",
+    "cssVar": "--color-link",
+    "label": "Color Link",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "link",
+      "text"
+    ],
+    "semantics": "Color Link",
+    "layer": "foundation",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": true
   },
   {
     "id": "feedback.success",
@@ -1696,6 +2209,22 @@
     "exposeToStyler": false
   },
   {
+    "id": "composer.surface",
+    "cssVar": "--composer-surface",
+    "label": "Composer Surface",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "composer",
+      "surface"
+    ],
+    "semantics": "Composer Surface",
+    "layer": "component",
+    "fallback": "var(--surface-elevated)",
+    "lightFallback": "var(--surface-elevated)",
+    "exposeToStyler": false
+  },
+  {
     "id": "composer.vibe.btn.bg",
     "cssVar": "--composer-vibe-btn-bg",
     "label": "Composer Vibe Btn Bg",
@@ -1804,6 +2333,7 @@
     "semantics": "Connections Assistant Icon Background",
     "layer": "component",
     "fallback": "linear-gradient(135deg, #4f46e5 0%, #60a5fa 100%)",
+    "lightFallback": "var(--connections-friends-icon-bg)",
     "exposeToStyler": false
   },
   {
@@ -1821,6 +2351,7 @@
     "semantics": "Connections Assistant Icon Foreground",
     "layer": "component",
     "fallback": "#eef2ff",
+    "lightFallback": "var(--connections-friends-icon-fg)",
     "exposeToStyler": false
   },
   {
@@ -1888,6 +2419,7 @@
     "semantics": "Connections Chats Icon Background",
     "layer": "component",
     "fallback": "linear-gradient(135deg, #1d4ed8 0%, #22c4ee 100%)",
+    "lightFallback": "var(--connections-friends-icon-bg)",
     "exposeToStyler": false
   },
   {
@@ -1905,6 +2437,7 @@
     "semantics": "Connections Chats Icon Foreground",
     "layer": "component",
     "fallback": "#e8f4ff",
+    "lightFallback": "var(--connections-friends-icon-fg)",
     "exposeToStyler": false
   },
   {
@@ -1956,6 +2489,7 @@
     "semantics": "Connections Friends Icon Background",
     "layer": "component",
     "fallback": "linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%)",
+    "lightFallback": "linear-gradient(135deg, #1f4ed8 0%, #38bdf8 100%)",
     "exposeToStyler": false
   },
   {
@@ -1973,6 +2507,7 @@
     "semantics": "Connections Friends Icon Foreground",
     "layer": "component",
     "fallback": "#e8f3ff",
+    "lightFallback": "#e8f3ff",
     "exposeToStyler": false
   },
   {
@@ -2024,6 +2559,7 @@
     "semantics": "Connections Party Icon Background",
     "layer": "component",
     "fallback": "linear-gradient(135deg, #4f46e5 0%, #22c4ff 100%)",
+    "lightFallback": "var(--connections-friends-icon-bg)",
     "exposeToStyler": false
   },
   {
@@ -2041,6 +2577,7 @@
     "semantics": "Connections Party Icon Foreground",
     "layer": "component",
     "fallback": "#f8edff",
+    "lightFallback": "var(--connections-friends-icon-fg)",
     "exposeToStyler": false
   },
   {
@@ -2108,6 +2645,7 @@
     "semantics": "Connections Requests Icon Background",
     "layer": "component",
     "fallback": "linear-gradient(\n      135deg,\n      #1d4ed8 0%,\n      #38bdf8 100%\n    )",
+    "lightFallback": "var(--connections-friends-icon-bg)",
     "exposeToStyler": false
   },
   {
@@ -2125,6 +2663,7 @@
     "semantics": "Connections Requests Icon Foreground",
     "layer": "component",
     "fallback": "var(--text-on-brand, #f9fafb)",
+    "lightFallback": "var(--connections-friends-icon-fg)",
     "exposeToStyler": false
   },
   {
@@ -2521,6 +3060,70 @@
     }
   },
   {
+    "id": "friend.overlay.strong",
+    "cssVar": "--friend-overlay-strong",
+    "label": "Friend Overlay Strong",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "friend",
+      "overlay"
+    ],
+    "semantics": "Friend Overlay Strong",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, var(--color-brand) 22%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--color-brand) 18%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "friends.primary.background",
+    "cssVar": "--friends-primary-background",
+    "label": "Friends Primary Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "friends",
+      "background"
+    ],
+    "semantics": "Friends Primary Background",
+    "layer": "component",
+    "fallback": "var(--card-bg-1)",
+    "lightFallback": "var(--card-bg-1)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "friends.primary.border",
+    "cssVar": "--friends-primary-border",
+    "label": "Friends Primary Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "friends",
+      "border"
+    ],
+    "semantics": "Friends Primary Border",
+    "layer": "component",
+    "fallback": "var(--card-border)",
+    "lightFallback": "var(--card-border)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "friends.row.border",
+    "cssVar": "--friends-row-border",
+    "label": "Friends Row Border",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "friends",
+      "border"
+    ],
+    "semantics": "Friends Row Border",
+    "layer": "component",
+    "fallback": "var(--card-border)",
+    "lightFallback": "var(--card-border)",
+    "exposeToStyler": false
+  },
+  {
     "id": "glass.bg-1",
     "cssVar": "--glass-bg-1",
     "label": "Glass / Background 1",
@@ -2580,6 +3183,36 @@
     "semantics": "Glass / Saturation",
     "layer": "semantic",
     "fallback": "120%",
+    "exposeToStyler": true
+  },
+  {
+    "id": "glow.1",
+    "cssVar": "--glow-1",
+    "label": "Glow 1",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "glow"
+    ],
+    "semantics": "Glow 1",
+    "layer": "foundation",
+    "fallback": "color-mix(in srgb, var(--color-brand) 24%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--color-brand) 18%, transparent)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "glow.2",
+    "cssVar": "--glow-2",
+    "label": "Glow 2",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "glow"
+    ],
+    "semantics": "Glow 2",
+    "layer": "foundation",
+    "fallback": "color-mix(in srgb, var(--color-accent) 24%, transparent)",
+    "lightFallback": "color-mix(in srgb, var(--color-accent) 18%, transparent)",
     "exposeToStyler": true
   },
   {
@@ -3096,11 +3729,16 @@
     "label": "Ladder Prompter Status",
     "category": "feedback",
     "valueKind": "color",
-    "tags": [],
+    "tags": [
+      "ladder",
+      "prompter",
+      "status"
+    ],
     "semantics": "Ladder Prompter Status",
-    "layer": "foundation",
-    "fallback": "var(--color-success, #7df7c5)",
-    "exposeToStyler": true
+    "layer": "component",
+    "fallback": "var(--color-success)",
+    "lightFallback": "var(--color-success)",
+    "exposeToStyler": false
   },
   {
     "id": "layout.ladder.stepper.basis",
@@ -3360,6 +3998,22 @@
     "exposeToStyler": true
   },
   {
+    "id": "link.color",
+    "cssVar": "--link-color",
+    "label": "Link Color",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "link",
+      "text"
+    ],
+    "semantics": "Link Color",
+    "layer": "foundation",
+    "fallback": "var(--color-link)",
+    "lightFallback": "var(--color-link)",
+    "exposeToStyler": true
+  },
+  {
     "id": "border.live.chat.border",
     "cssVar": "--live-chat-border",
     "label": "Live Chat Border",
@@ -3583,6 +4237,22 @@
     "exposeToStyler": true
   },
   {
+    "id": "party.code.background",
+    "cssVar": "--party-code-background",
+    "label": "Party Code Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "party",
+      "code"
+    ],
+    "semantics": "Party Code Background",
+    "layer": "component",
+    "fallback": "var(--surface-elevated)",
+    "lightFallback": "var(--surface-elevated)",
+    "exposeToStyler": false
+  },
+  {
     "id": "border.party.control-hover",
     "cssVar": "--party-control-hover-border",
     "label": "Party / Control Hover Border",
@@ -3654,6 +4324,38 @@
     "exposeToStyler": false
   },
   {
+    "id": "party.privacy.accent",
+    "cssVar": "--party-privacy-accent",
+    "label": "Party Privacy Accent",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "party",
+      "accent"
+    ],
+    "semantics": "Party Privacy Accent",
+    "layer": "component",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "party.setting.accent",
+    "cssVar": "--party-setting-accent",
+    "label": "Party Setting Accent",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "party",
+      "accent"
+    ],
+    "semantics": "Party Setting Accent",
+    "layer": "component",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": false
+  },
+  {
     "id": "surface.party.status-pill-background",
     "cssVar": "--party-status-pill-background",
     "label": "Party / Status Pill Background",
@@ -3687,6 +4389,22 @@
     "layer": "component",
     "fallback": "color-mix(\r\n      in srgb,\r\n      var(--header-brand-strong, var(--color-brand)) 60%,\r\n      transparent\r\n    )",
     "lightFallback": "color-mix(in srgb, var(--header-brand-strong, var(--color-brand)) 35%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "party.summary.accent",
+    "cssVar": "--party-summary-accent",
+    "label": "Party Summary Accent",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "party",
+      "accent"
+    ],
+    "semantics": "Party Summary Accent",
+    "layer": "component",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
     "exposeToStyler": false
   },
   {
@@ -3827,6 +4545,22 @@
     "exposeToStyler": true
   },
   {
+    "id": "privacy.active.color",
+    "cssVar": "--privacy-active-color",
+    "label": "Privacy Active Color",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "privacy",
+      "active"
+    ],
+    "semantics": "Privacy Active Color",
+    "layer": "component",
+    "fallback": "var(--color-accent)",
+    "lightFallback": "var(--color-accent)",
+    "exposeToStyler": false
+  },
+  {
     "id": "utility.prompt-glow.blur",
     "cssVar": "--prompt-glow-blur",
     "label": "Utility / Prompt Glow Blur",
@@ -3896,38 +4630,169 @@
     "exposeToStyler": true
   },
   {
-    "id": "border.prompter.drop-card",
+    "id": "prompter.drop.card.border",
     "cssVar": "--prompter-drop-card-border",
-    "label": "Border / Prompter Drop Card",
+    "label": "Prompter Drop Card Border",
     "category": "border",
     "valueKind": "color",
     "tags": [
       "prompter",
       "drop",
-      "card",
       "border"
     ],
-    "semantics": "Border / Prompter Drop Card",
-    "layer": "foundation",
-    "fallback": "1px solid rgba(255, 255, 255, 0.28)",
-    "lightFallback": "1px solid\r\n      color-mix(in srgb, var(--color-brand) 28%, rgba(14, 23, 42, 0.16))",
+    "semantics": "Prompter Drop Card Border",
+    "layer": "component",
+    "fallback": "1px solid color-mix(in srgb, #2563eb 28%, rgba(15, 23, 42, 0.16))",
+    "lightFallback": "1px solid color-mix(in srgb, #60a5fa 28%, rgba(14, 23, 42, 0.12))",
     "exposeToStyler": true
   },
   {
-    "id": "surface.prompter.drop-overlay",
-    "cssVar": "--prompter-drop-overlay",
-    "label": "Prompter / Drop Overlay",
-    "category": "surface",
-    "valueKind": "gradient",
+    "id": "prompter.drop.card.shadow",
+    "cssVar": "--prompter-drop-card-shadow",
+    "label": "Prompter Drop Card Shadow",
+    "category": "shadow",
+    "valueKind": "shadow",
     "tags": [
       "prompter",
       "drop",
-      "overlay"
+      "shadow"
     ],
-    "semantics": "Prompter / Drop Overlay",
-    "layer": "foundation",
-    "fallback": "radial-gradient(120% 120% at 50% 50%, rgba(99, 102, 241, 0.22), transparent 70%),\r\n      linear-gradient(180deg, rgba(8, 12, 34, 0.86), rgba(8, 10, 26, 0.62))",
-    "lightFallback": "radial-gradient(120% 120% at 50% 50%, rgba(0, 0, 0, 0.06), transparent 70%),\r\n      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.9))",
+    "semantics": "Prompter Drop Card Shadow",
+    "layer": "component",
+    "fallback": "0 18px 36px rgba(5, 10, 30, 0.32)",
+    "lightFallback": "0 18px 36px rgba(15, 23, 42, 0.26)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.drop.overlay",
+    "cssVar": "--prompter-drop-overlay",
+    "label": "Prompter Drop Overlay",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "drop"
+    ],
+    "semantics": "Prompter Drop Overlay",
+    "layer": "component",
+    "fallback": "color-mix(in srgb, #2563eb 22%, rgba(16, 24, 40, 0.6))",
+    "lightFallback": "color-mix(in srgb, #60a5fa 22%, rgba(255, 255, 255, 0.86))",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.drop.overlay.shadow",
+    "cssVar": "--prompter-drop-overlay-shadow",
+    "label": "Prompter Drop Overlay Shadow",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "prompter",
+      "drop",
+      "shadow"
+    ],
+    "semantics": "Prompter Drop Overlay Shadow",
+    "layer": "component",
+    "fallback": "0 20px 40px rgba(5, 10, 30, 0.35)",
+    "lightFallback": "0 20px 40px rgba(15, 23, 42, 0.26)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.intent.navigate",
+    "cssVar": "--prompter-intent-navigate",
+    "label": "Prompter Intent Navigate",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "intent"
+    ],
+    "semantics": "Prompter Intent Navigate",
+    "layer": "component",
+    "fallback": "#2563eb",
+    "lightFallback": "#0ea5e9",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.intent.navigate.text",
+    "cssVar": "--prompter-intent-navigate-text",
+    "label": "Prompter Intent Navigate Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "intent",
+      "text"
+    ],
+    "semantics": "Prompter Intent Navigate Text",
+    "layer": "component",
+    "fallback": "#ffffff",
+    "lightFallback": "#0f172a",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.intent.post",
+    "cssVar": "--prompter-intent-post",
+    "label": "Prompter Intent Post",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "intent"
+    ],
+    "semantics": "Prompter Intent Post",
+    "layer": "component",
+    "fallback": "linear-gradient(120deg, #2563eb 0%, #22c55e 55%, #0ea5e9 100%)",
+    "lightFallback": "linear-gradient(120deg, #60a5fa 0%, #22d3ee 55%, #34d399 100%)",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.intent.post.text",
+    "cssVar": "--prompter-intent-post-text",
+    "label": "Prompter Intent Post Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "intent",
+      "text"
+    ],
+    "semantics": "Prompter Intent Post Text",
+    "layer": "component",
+    "fallback": "#ffffff",
+    "lightFallback": "#0f172a",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.intent.style",
+    "cssVar": "--prompter-intent-style",
+    "label": "Prompter Intent Style",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "intent"
+    ],
+    "semantics": "Prompter Intent Style",
+    "layer": "component",
+    "fallback": "#22c55e",
+    "lightFallback": "#0ea5e9",
+    "exposeToStyler": true
+  },
+  {
+    "id": "prompter.intent.style.text",
+    "cssVar": "--prompter-intent-style-text",
+    "label": "Prompter Intent Style Text",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "prompter",
+      "intent",
+      "text"
+    ],
+    "semantics": "Prompter Intent Style Text",
+    "layer": "component",
+    "fallback": "#ffffff",
+    "lightFallback": "#0f172a",
     "exposeToStyler": true
   },
   {
@@ -4162,6 +5027,22 @@
     "layer": "foundation",
     "fallback": "0 0 0 1px rgba(79, 70, 229, 0.45)",
     "exposeToStyler": true
+  },
+  {
+    "id": "setting.active.color",
+    "cssVar": "--setting-active-color",
+    "label": "Setting Active Color",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "setting",
+      "active"
+    ],
+    "semantics": "Setting Active Color",
+    "layer": "component",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": false
   },
   {
     "id": "border.settings.active.badge.border",
@@ -4586,6 +5467,158 @@
     "exposeToStyler": false
   },
   {
+    "id": "store.border.soft",
+    "cssVar": "--store-border-soft",
+    "label": "Store Border Soft",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "border",
+      "soft"
+    ],
+    "semantics": "Store Border Soft",
+    "layer": "component",
+    "fallback": "var(--card-border)",
+    "lightFallback": "var(--card-border)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.border.strong",
+    "cssVar": "--store-border-strong",
+    "label": "Store Border Strong",
+    "category": "border",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "border",
+      "strong"
+    ],
+    "semantics": "Store Border Strong",
+    "layer": "component",
+    "fallback": "var(--color-border-strong)",
+    "lightFallback": "var(--color-border-strong)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.brand.gradient",
+    "cssVar": "--store-brand-gradient",
+    "label": "Store Brand Gradient",
+    "category": "brand",
+    "valueKind": "gradient",
+    "tags": [
+      "store",
+      "brand",
+      "gradient"
+    ],
+    "semantics": "Store Brand Gradient",
+    "layer": "component",
+    "fallback": "var(--brand-gradient)",
+    "lightFallback": "var(--brand-gradient)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.brand.highlight",
+    "cssVar": "--store-brand-highlight",
+    "label": "Store Brand Highlight",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "brand",
+      "highlight"
+    ],
+    "semantics": "Store Brand Highlight",
+    "layer": "component",
+    "fallback": "var(--surface-overlay)",
+    "lightFallback": "var(--surface-overlay)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.control.bg",
+    "cssVar": "--store-control-bg",
+    "label": "Store Control Background",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "control",
+      "background"
+    ],
+    "semantics": "Store Control Background",
+    "layer": "component",
+    "fallback": "var(--store-surface-soft)",
+    "lightFallback": "var(--store-surface-soft)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.control.highlight",
+    "cssVar": "--store-control-highlight",
+    "label": "Store Control Highlight",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "control",
+      "highlight"
+    ],
+    "semantics": "Store Control Highlight",
+    "layer": "component",
+    "fallback": "var(--store-surface-strong)",
+    "lightFallback": "var(--store-surface-strong)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.cta.foreground",
+    "cssVar": "--store-cta-foreground",
+    "label": "Store CTA Foreground",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "cta",
+      "text"
+    ],
+    "semantics": "Store CTA Foreground",
+    "layer": "component",
+    "fallback": "var(--cta-button-text)",
+    "lightFallback": "var(--cta-button-text)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.cta.gradient",
+    "cssVar": "--store-cta-gradient",
+    "label": "Store CTA Gradient",
+    "category": "brand",
+    "valueKind": "gradient",
+    "tags": [
+      "store",
+      "cta"
+    ],
+    "semantics": "Store CTA Gradient",
+    "layer": "component",
+    "fallback": "var(--cta-gradient)",
+    "lightFallback": "var(--cta-gradient)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.danger",
+    "cssVar": "--store-danger",
+    "label": "Store Danger",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "feedback",
+      "danger"
+    ],
+    "semantics": "Store Danger",
+    "layer": "component",
+    "fallback": "var(--color-danger)",
+    "lightFallback": "var(--color-danger)",
+    "exposeToStyler": false
+  },
+  {
     "id": "surface.store.filter-pill-bg",
     "cssVar": "--store-filter-pill-bg",
     "label": "Store / Filter Pill Background",
@@ -4600,6 +5633,23 @@
     "semantics": "Store / Filter Pill Background",
     "layer": "component",
     "fallback": "color-mix(\r\n    in srgb,\r\n    var(--surface-muted, rgba(17, 22, 45, 0.8)) 80%,\r\n    transparent\r\n  )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.info",
+    "cssVar": "--store-info",
+    "label": "Store Info",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "feedback",
+      "info"
+    ],
+    "semantics": "Store Info",
+    "layer": "component",
+    "fallback": "var(--color-info)",
+    "lightFallback": "var(--color-info)",
     "exposeToStyler": false
   },
   {
@@ -4636,6 +5686,23 @@
     "exposeToStyler": false
   },
   {
+    "id": "store.positive",
+    "cssVar": "--store-positive",
+    "label": "Store Positive",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "feedback",
+      "positive"
+    ],
+    "semantics": "Store Positive",
+    "layer": "component",
+    "fallback": "var(--color-success)",
+    "lightFallback": "var(--color-success)",
+    "exposeToStyler": false
+  },
+  {
     "id": "shadow.store.primary",
     "cssVar": "--store-primary-shadow",
     "label": "Store / Primary Shadow",
@@ -4665,6 +5732,142 @@
     "semantics": "Store / Product Card Shadow",
     "layer": "component",
     "fallback": "inset 0 1px 0\r\n    color-mix(in srgb, var(--text, rgba(255, 255, 255, 0.92)) 6%, transparent)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.shadow.soft",
+    "cssVar": "--store-shadow-soft",
+    "label": "Store Shadow Soft",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "store",
+      "shadow",
+      "soft"
+    ],
+    "semantics": "Store Shadow Soft",
+    "layer": "component",
+    "fallback": "var(--shadow-md)",
+    "lightFallback": "var(--shadow-md)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.shadow.strong",
+    "cssVar": "--store-shadow-strong",
+    "label": "Store Shadow Strong",
+    "category": "shadow",
+    "valueKind": "shadow",
+    "tags": [
+      "store",
+      "shadow",
+      "strong"
+    ],
+    "semantics": "Store Shadow Strong",
+    "layer": "component",
+    "fallback": "var(--shadow-lg)",
+    "lightFallback": "var(--shadow-lg)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.surface.base",
+    "cssVar": "--store-surface-base",
+    "label": "Store Surface Base",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "surface",
+      "base"
+    ],
+    "semantics": "Store Surface Base",
+    "layer": "component",
+    "fallback": "var(--surface-elevated)",
+    "lightFallback": "var(--surface-elevated)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.surface.deep",
+    "cssVar": "--store-surface-deep",
+    "label": "Store Surface Deep",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "store",
+      "surface",
+      "deep"
+    ],
+    "semantics": "Store Surface Deep",
+    "layer": "component",
+    "fallback": "var(--card-bg-2)",
+    "lightFallback": "var(--card-bg-2)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.surface.soft",
+    "cssVar": "--store-surface-soft",
+    "label": "Store Surface Soft",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "store",
+      "surface",
+      "soft"
+    ],
+    "semantics": "Store Surface Soft",
+    "layer": "component",
+    "fallback": "var(--card-bg-1)",
+    "lightFallback": "var(--card-bg-1)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.surface.solid",
+    "cssVar": "--store-surface-solid",
+    "label": "Store Surface Solid",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "surface",
+      "solid"
+    ],
+    "semantics": "Store Surface Solid",
+    "layer": "component",
+    "fallback": "var(--card-bg-1)",
+    "lightFallback": "var(--card-bg-1)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.surface.strong",
+    "cssVar": "--store-surface-strong",
+    "label": "Store Surface Strong",
+    "category": "surface",
+    "valueKind": "gradient",
+    "tags": [
+      "store",
+      "surface",
+      "strong"
+    ],
+    "semantics": "Store Surface Strong",
+    "layer": "component",
+    "fallback": "var(--card-bg-1)",
+    "lightFallback": "var(--card-bg-1)",
+    "exposeToStyler": false
+  },
+  {
+    "id": "store.warning",
+    "cssVar": "--store-warning",
+    "label": "Store Warning",
+    "category": "feedback",
+    "valueKind": "color",
+    "tags": [
+      "store",
+      "feedback",
+      "warning"
+    ],
+    "semantics": "Store Warning",
+    "layer": "component",
+    "fallback": "var(--color-warning)",
+    "lightFallback": "var(--color-warning)",
     "exposeToStyler": false
   },
   {
@@ -4713,6 +5916,22 @@
     "semantics": "Studio / Pill Background",
     "layer": "component",
     "fallback": "color-mix(\r\n    in srgb,\r\n    var(--surface-muted, rgba(24, 28, 68, 0.8)) 70%,\r\n    transparent\r\n  )",
+    "exposeToStyler": false
+  },
+  {
+    "id": "studio.pill.muted",
+    "cssVar": "--studio-pill-muted",
+    "label": "Studio Pill Muted",
+    "category": "surface",
+    "valueKind": "color",
+    "tags": [
+      "studio",
+      "pill"
+    ],
+    "semantics": "Studio Pill Muted",
+    "layer": "component",
+    "fallback": "var(--pill-bg-1)",
+    "lightFallback": "var(--pill-bg-1)",
     "exposeToStyler": false
   },
   {
@@ -4907,6 +6126,22 @@
     "fallback": "var(--tile-icon-bg-base)",
     "lightFallback": "var(--tile-icon-bg-base)",
     "exposeToStyler": true
+  },
+  {
+    "id": "summary.active.color",
+    "cssVar": "--summary-active-color",
+    "label": "Summary Active Color",
+    "category": "brand",
+    "valueKind": "color",
+    "tags": [
+      "summary",
+      "active"
+    ],
+    "semantics": "Summary Active Color",
+    "layer": "component",
+    "fallback": "var(--color-brand)",
+    "lightFallback": "var(--color-brand)",
+    "exposeToStyler": false
   },
   {
     "id": "surface.app",
@@ -5292,6 +6527,22 @@
     "fallback": "var(--shadow-md, 0 12px 32px rgba(5, 10, 30, 0.34))",
     "lightFallback": "var(--shadow-md, 0 12px 32px rgba(15, 23, 42, 0.2))",
     "exposeToStyler": true
+  },
+  {
+    "id": "tile.text.base",
+    "cssVar": "--tile-text-base",
+    "label": "Tile Text Base",
+    "category": "text",
+    "valueKind": "color",
+    "tags": [
+      "tile",
+      "text"
+    ],
+    "semantics": "Tile Text Base",
+    "layer": "component",
+    "fallback": "var(--text)",
+    "lightFallback": "var(--text)",
+    "exposeToStyler": false
   },
   {
     "id": "layout.tile.width",

@@ -309,10 +309,6 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
   );
   const displayOrders = sortedOrders.length ? sortedOrders : MOCK_ORDER_ENTRIES;
 
-  const brandGradient =
-    "radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.9), transparent 55%), " +
-    "linear-gradient(135deg, color-mix(in srgb, var(--color-brand-strong) 78%, var(--color-accent) 22%), color-mix(in srgb, var(--color-accent) 68%, var(--color-brand) 32%))";
-
   return (
     <AppPage activeNav="create" showPrompter={false} layoutVariant="capsule">
       <div className={styles.shell} data-surface="store">
@@ -325,7 +321,7 @@ export default async function MyStoreOrdersPage({ searchParams }: MyStoreOrdersP
                 style={
                   selectedCapsuleLogo
                     ? {
-                        backgroundImage: `url("${selectedCapsuleLogo}"), ${brandGradient}`,
+                        backgroundImage: `url("${selectedCapsuleLogo}"), var(--store-brand-gradient)`,
                       }
                     : undefined
                 }

@@ -71,14 +71,27 @@ function firstSentence(value: string, limit = 140): string {
   return truncate(base, limit);
 }
 
+function readThemeVar(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name)?.trim();
+    return value?.length ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function buildPollPlaceholderImage(): string {
+  const stopA = readThemeVar("--color-brand", "#2563eb");
+  const stopB = readThemeVar("--color-brand-strong", "#1d4ed8");
+  const stopC = readThemeVar("--card-bg-2", "#0a1024");
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="640" height="960" viewBox="0 0 640 960">
       <defs>
         <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#141c3a"/>
-          <stop offset="50%" stop-color="#0f162e"/>
-          <stop offset="100%" stop-color="#0a1024"/>
+          <stop offset="0%" stop-color="${stopA}"/>
+          <stop offset="52%" stop-color="${stopB}"/>
+          <stop offset="100%" stop-color="${stopC}"/>
         </linearGradient>
       </defs>
       <rect width="640" height="960" rx="48" fill="url(#g)" />

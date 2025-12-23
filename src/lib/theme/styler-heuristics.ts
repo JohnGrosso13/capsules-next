@@ -5,11 +5,13 @@ import {
   summarizeGroupLabels,
   type ThemeTokenGroupUsage,
 } from "@/lib/theme/token-groups";
+import { themeTokenRegistry } from "@/lib/theme/token-registry";
 import { PRESET_THEME_CONFIGS, type PresetThemeConfig } from "@/lib/theme/preset-config";
 import {
   normalizeThemeVariantsInput,
   expandThemeVariants,
   isVariantEmpty,
+  type ThemeMode,
   type ThemeVariants,
 } from "@/lib/theme/variants";
 export type StylerPlan = {
@@ -132,6 +134,42 @@ const ACTION_KEYWORDS = [
   "run",
 ];
 
+const MODE_DEFAULTS_CACHE = new Map<ThemeMode, Record<string, string>>();
+const DEFAULT_CATEGORIES = new Set([
+  "surface",
+  "text",
+  "border",
+  "brand",
+  "feedback",
+  "glass",
+  "card",
+  "dock",
+  "presence",
+  "shadow",
+  "ring",
+]);
+
+function buildModeDefaults(mode: ThemeMode): Record<string, string> {
+  const cached = MODE_DEFAULTS_CACHE.get(mode);
+  if (cached) return cached;
+  const entries: Record<string, string> = {};
+  for (const token of themeTokenRegistry) {
+    if (!DEFAULT_CATEGORIES.has(token.category)) continue;
+    const value =
+      mode === "light" && typeof token.lightFallback === "string" ? token.lightFallback : token.fallback;
+    if (typeof value === "string") {
+      entries[token.cssVar] = value;
+    }
+  }
+  const normalized = normalizeThemeVars(entries);
+  MODE_DEFAULTS_CACHE.set(mode, normalized);
+  return normalized;
+}
+
+function mergeWithModeDefaults(mode: ThemeMode, vars: Record<string, string>): Record<string, string> {
+  return Object.assign({}, buildModeDefaults(mode), vars);
+}
+
 export function buildPresetThemeVariants(config: PresetThemeConfig): ThemeVariants {
   const variantsInput: Record<string, Record<string, string>> = {};
   (["light", "dark"] as const).forEach((mode) => {
@@ -143,7 +181,8 @@ export function buildPresetThemeVariants(config: PresetThemeConfig): ThemeVarian
       ...(variantConfig.accentGlow !== undefined ? { accentGlow: variantConfig.accentGlow } : {}),
       label,
     });
-    variantsInput[mode] = Object.assign({}, base, variantConfig.overrides ?? {});
+    const merged = Object.assign({}, base, variantConfig.overrides ?? {});
+    variantsInput[mode] = mergeWithModeDefaults(mode, merged);
   });
   return normalizeThemeVariantsInput(variantsInput);
 }
@@ -170,7 +209,10 @@ function buildModePlan(mode: "dark" | "light", prompt: string): StylerPlan {
     ...(preset.glowAlpha !== undefined ? { accentGlow: preset.glowAlpha } : {}),
     label: preset.label,
   });
-  const variants = normalizeThemeVariantsInput({ light: base, dark: base });
+  const variants = normalizeThemeVariantsInput({
+    light: mergeWithModeDefaults("light", base),
+    dark: mergeWithModeDefaults("dark", base),
+  });
   const summary = mode === "dark" ? "Switched to the dark theme." : "Switched to the light theme.";
   const plan: StylerPlan = { summary, variants, source: "heuristic" };
   const details = buildPlanDetails(prompt, variants);
@@ -340,6 +382,7 @@ export function buildThemeVarsFromSeed(
 ): Record<string, string> {
   const label = options?.label ?? "Preset";
   const seed = colorSpecFromHex(seedHex, label);
+  const seedIsLight = luminance(seed.rgb) > 0.55;
   const vars = buildSiteThemeVars(seed);
   Object.assign(vars, buildFeedActionVars(seed));
   if (options?.accentHex) {
@@ -366,15 +409,148 @@ export function buildThemeVarsFromSeed(
   if (!vars["--presence-offline-dot"]) vars["--presence-offline-dot"] = rgba(seed.rgb, 0.36);
   if (!vars["--presence-offline-ring"]) vars["--presence-offline-ring"] = rgba(seed.rgb, 0.24);
 
+  const brand = vars["--color-brand"] ?? seed.hex;
+  const brandStrong = vars["--color-brand-strong"] ?? rgba(shade(seed.rgb, seedIsLight ? 0.32 : 0.22), 1);
+  const brandGradient =
+    vars["--brand-gradient"] ??
+    vars["--cta-gradient"] ??
+    vars["--gradient-brand"] ??
+    `linear-gradient(120deg, ${brand} 0%, ${brandStrong} 55%, ${brand} 100%)`;
+  const text = vars["--text"] ?? vars["--color-fg"] ?? (seedIsLight ? "rgba(14,16,36,0.94)" : "rgba(242,250,255,0.94)");
+
+  vars["--text"] ??= text;
+  vars["--color-fg"] ??= text;
+  vars["--color-brand"] ??= brand;
+  vars["--color-brand-strong"] ??= typeof brandStrong === "string" ? brandStrong : brand;
+  vars["--color-brand-foreground"] ??= vars["--text-on-brand"] ?? (seedIsLight ? "#0f172a" : "#f8fafc");
+  vars["--text-on-brand"] ??= vars["--color-brand-foreground"];
+
+  // Keep header surfaces keyed to the current brand palette
+  vars["--header-brand"] ??= vars["--color-brand"];
+  vars["--header-brand-color"] ??= vars["--color-brand"];
+  vars["--header-brand-strong"] ??= vars["--color-brand-strong"] ?? vars["--color-brand"];
+  vars["--header-brand-strong-color"] ??= vars["--header-brand-strong"];
+  vars["--header-brand-gradient"] ??= brandGradient;
+  vars["--header-accent"] ??= vars["--color-accent"] ?? vars["--color-brand"];
+  vars["--header-foreground-strong"] ??= text;
+
+  // Provide consistent header button styling without relying on defaults
+  const pillBg1 =
+    vars["--pill-bg-1"] ?? vars["--surface-elevated"] ?? vars["--card-bg-1"] ?? "#ffffff";
+  const pillBg2 = vars["--pill-bg-2"] ?? vars["--surface-overlay"] ?? vars["--card-bg-2"] ?? pillBg1;
+  const pillBorder = vars["--pill-border"] ?? vars["--color-border"] ?? "#cccccc";
+  const hoverBorder = vars["--card-hover-border"] ?? pillBorder;
+  const headerBtnText = vars["--color-fg"] ?? text;
+
+  vars["--header-button-bg"] ??= pillBg1;
+  vars["--header-button-hover-bg"] ??= pillBg2;
+  vars["--header-button-border"] ??= pillBorder;
+  vars["--header-button-hover-border"] ??= hoverBorder;
+  vars["--header-button-text"] ??= headerBtnText;
+  vars["--header-button-hover-text"] ??= headerBtnText;
+  vars["--header-button-shadow"] ??= "var(--shadow-sm)";
+  vars["--header-button-hover-shadow"] ??= "var(--shadow-md)";
+  vars["--comment-media-bg"] ??= vars["--surface-overlay"] ?? "transparent";
+
+  // Connections rail + tiles: align badges/icons to the brand palette so they respond to presets
+  const textOnBrand = vars["--text-on-brand"] ?? (seedIsLight ? "#0f172a" : "#f8fafc");
+  const connectionsAccentA = vars["--color-brand"] ?? brand;
+  const connectionsAccentB = vars["--color-accent"] ?? vars["--brand-mid"] ?? brand;
+  const connectionsAccentC = vars["--color-brand-strong"] ?? brandStrong ?? brand;
+  const makeGradient = (from: string, to: string) =>
+    `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
+  const badgeBg = (hex: string, alpha: number) => {
+    const rgb = hexToRgb(hex);
+    return rgba(rgb, alpha);
+  };
+
+  vars["--connections-accent-a"] ??= connectionsAccentA;
+  vars["--connections-accent-b"] ??= connectionsAccentB;
+  vars["--connections-accent-c"] ??= connectionsAccentC;
+  vars["--connections-border-hover"] ??= rgba(hexToRgb(connectionsAccentA), 0.65);
+  vars["--connections-shadow-hover"] ??= rgba(hexToRgb(connectionsAccentA), 0.35);
+
+  const friendsBg = makeGradient(connectionsAccentA, connectionsAccentB);
+  const chatsBg = makeGradient(connectionsAccentA, connectionsAccentC);
+  const partyBg = makeGradient(connectionsAccentB, connectionsAccentC);
+  const requestsBg = makeGradient(connectionsAccentC, connectionsAccentA);
+  const assistantBg = makeGradient(connectionsAccentB, connectionsAccentA);
+
+  vars["--connections-friends-icon-bg"] ??= friendsBg;
+  vars["--connections-chats-icon-bg"] ??= chatsBg;
+  vars["--connections-party-icon-bg"] ??= partyBg;
+  vars["--connections-requests-icon-bg"] ??= requestsBg;
+  vars["--connections-assistant-icon-bg"] ??= assistantBg;
+
+  vars["--connections-friends-icon-fg"] ??= textOnBrand;
+  vars["--connections-chats-icon-fg"] ??= textOnBrand;
+  vars["--connections-party-icon-fg"] ??= textOnBrand;
+  vars["--connections-requests-icon-fg"] ??= textOnBrand;
+  vars["--connections-assistant-icon-fg"] ??= textOnBrand;
+
+  vars["--connections-friends-badge-bg"] ??= badgeBg(connectionsAccentA, seedIsLight ? 0.16 : 0.22);
+  vars["--connections-chats-badge-bg"] ??= badgeBg(connectionsAccentB, seedIsLight ? 0.16 : 0.22);
+  vars["--connections-party-badge-bg"] ??= badgeBg(connectionsAccentC, seedIsLight ? 0.16 : 0.22);
+  vars["--connections-requests-badge-bg"] ??= badgeBg(connectionsAccentC, seedIsLight ? 0.18 : 0.26);
+  vars["--connections-assistant-badge-bg"] ??= badgeBg(connectionsAccentB, seedIsLight ? 0.18 : 0.26);
+
+  vars["--connections-friends-badge-fg"] ??= textOnBrand;
+  vars["--connections-chats-badge-fg"] ??= textOnBrand;
+  vars["--connections-party-badge-fg"] ??= textOnBrand;
+  vars["--connections-requests-badge-fg"] ??= textOnBrand;
+  vars["--connections-assistant-badge-fg"] ??= textOnBrand;
+
+  // Store component surfaces: derive from brand/surfaces so store UI follows presets
+  const brandMid = vars["--brand-mid"] ?? vars["--color-brand"] ?? brand;
+  const brandTo = vars["--brand-to"] ?? vars["--color-brand-strong"] ?? brandStrong ?? brand;
+  const panelBase =
+    vars["--surface-elevated"] ?? vars["--card-bg-1"] ?? vars["--surface-app"] ?? "#0f172a";
+  const panelDepth =
+    vars["--surface-muted"] ?? vars["--card-bg-2"] ?? vars["--surface-overlay"] ?? panelBase;
+  vars["--store-action-bg"] ??= rgba(hexToRgb(brandMid), seedIsLight ? 0.18 : 0.28);
+  vars["--store-filter-pill-bg"] ??= panelDepth;
+  vars["--store-panel-bg"] ??= panelBase;
+  vars["--store-panel-highlight-bg"] ??= `linear-gradient(160deg, ${rgba(
+    hexToRgb(brandMid),
+    seedIsLight ? 0.28 : 0.36,
+  )}, transparent), ${panelDepth}`;
+  vars["--store-primary-shadow"] ??= `0 16px 32px ${rgba(hexToRgb(brandMid), seedIsLight ? 0.28 : 0.34)}`;
+  vars["--store-product-shadow"] ??= `0 24px 36px ${rgba(
+    hexToRgb(brandTo),
+    seedIsLight ? 0.22 : 0.3,
+  )}`;
+
+  // Ladder prompter status indicator
+  vars["--ladder-prompter-status"] ??= vars["--color-success"] ?? successHex;
+
+  // Prompter intent + drop overlay tokens so active chips/attachment affordances follow the palette
+  vars["--prompter-intent-post"] ??= vars["--cta-gradient"] ?? brandGradient;
+  vars["--prompter-intent-post-text"] ??= vars["--text-on-brand"] ?? textOnBrand;
+  vars["--prompter-intent-navigate"] ??= vars["--color-brand"] ?? brand;
+  vars["--prompter-intent-navigate-text"] ??= vars["--text-on-brand"] ?? textOnBrand;
+  vars["--prompter-intent-style"] ??= vars["--color-accent"] ?? brand;
+  vars["--prompter-intent-style-text"] ??= vars["--text-on-brand"] ?? textOnBrand;
+  vars["--prompter-drop-overlay"] ??= `color-mix(in srgb, ${
+    vars["--color-brand"] ?? brand
+  } 22%, ${vars["--surface-overlay"] ?? vars["--surface-elevated"] ?? "transparent"})`;
+  vars["--prompter-drop-overlay-shadow"] ??=
+    vars["--card-hover-shadow"] ?? vars["--shadow-lg"] ?? "0 20px 40px rgba(0,0,0,0.35)";
+  vars["--prompter-drop-card-border"] ??=
+    vars["--card-border"] ??
+    `1px solid color-mix(in srgb, ${vars["--color-brand"] ?? brand} 28%, transparent)`;
+  vars["--prompter-drop-card-shadow"] ??=
+    vars["--card-shadow"] ?? vars["--shadow-md"] ?? "0 18px 36px rgba(0,0,0,0.32)";
+
   return normalizeThemeVars(vars);
 }
 
 function buildThemePresetVars(preset: ThemePreset): Record<string, string> {
-  return buildThemeVarsFromSeed(preset.seedHex, {
+  const mode: ThemeMode = luminance(colorSpecFromHex(preset.seedHex, preset.label).rgb) > 0.55 ? "light" : "dark";
+  return mergeWithModeDefaults(mode, buildThemeVarsFromSeed(preset.seedHex, {
     ...(preset.accentHex ? { accentHex: preset.accentHex } : {}),
     ...(preset.glowAlpha !== undefined ? { accentGlow: preset.glowAlpha } : {}),
     label: preset.label,
-  });
+  }));
 }
 
 export function getDefaultStylerThemeVars(): Record<string, string> {
@@ -382,11 +558,12 @@ export function getDefaultStylerThemeVars(): Record<string, string> {
   if (!defaultPreset) {
     throw new Error("No theme presets configured");
   }
-  return buildThemeVarsFromSeed(defaultPreset.seedHex, {
+  const base = buildThemeVarsFromSeed(defaultPreset.seedHex, {
     ...(defaultPreset.accentHex ? { accentHex: defaultPreset.accentHex } : {}),
     ...(defaultPreset.glowAlpha !== undefined ? { accentGlow: defaultPreset.glowAlpha } : {}),
     label: defaultPreset.label,
   });
+  return mergeWithModeDefaults("dark", base);
 }
 
 const SIMPLE_COLOR_STOPWORDS = new Set([

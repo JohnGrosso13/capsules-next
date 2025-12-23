@@ -43,6 +43,17 @@
   --store-warning: var(--color-warning, #f59e0b);
   --store-danger: var(--color-danger, #dc2626);
   --store-info: var(--color-info, #0284c7);
+  --store-brand-highlight: color-mix(
+    in srgb,
+    var(--surface-overlay, var(--surface-elevated)) 78%,
+    transparent
+  );
+  --store-brand-gradient: radial-gradient(120% 120% at 20% 0%, var(--store-brand-highlight), transparent 58%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand-strong) 72%, var(--color-accent) 28%),
+      color-mix(in srgb, var(--color-accent) 68%, var(--color-brand) 32%)
+    );
 }
 
 .header {
@@ -118,13 +129,7 @@
   aspect-ratio: 1 / 1;
   border-radius: var(--capsule-logo-radius);
   overflow: hidden;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.9), transparent 55%),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-brand-strong) 78%, var(--color-accent) 22%),
-      color-mix(in srgb, var(--color-accent) 68%, var(--color-brand) 32%)
-    );
+  background: var(--store-brand-gradient);
   border: 1px solid color-mix(in srgb, var(--surface-outline) 72%, rgba(255, 255, 255, 0.1));
   box-shadow:
     0 10px 24px color-mix(in srgb, var(--store-surface-base) 48%, transparent),

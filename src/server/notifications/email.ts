@@ -73,7 +73,7 @@ function renderNotificationEmailHtml(params: {
       <p style="margin:0 0 18px 0; line-height:1.6; color:#cbd5e1;">${safeBody || ""}</p>
       ${
         buttonHref
-          ? `<a href="${buttonHref}" style="display:inline-block; padding:12px 18px; background:#22d3ee; color:#0b1222; border-radius:10px; font-weight:700; text-decoration:none;">Open in Capsules</a>`
+          ? `<a href="${buttonHref}" style="display:inline-block; padding:12px 18px; background:linear-gradient(120deg,#2563eb,#22d3ee); color:#0b1222; border-radius:10px; font-weight:700; text-decoration:none;">Open in Capsules</a>`
           : ""
       }
       <p style="margin:18px 0 0 0; color:#64748b; font-size:12px;">You can manage email preferences in Settings &gt; Notifications.</p>

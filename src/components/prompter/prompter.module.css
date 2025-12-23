@@ -35,8 +35,15 @@
     position: absolute;
     inset: 8px;
     border-radius: var(--radius-2xl, 24px);
-    background: var(--prompter-drop-overlay);
-    box-shadow: var(--prompter-drop-overlay-shadow);
+    background: var(
+      --prompter-drop-overlay,
+      color-mix(
+        in srgb,
+        var(--color-brand, #2563eb) 22%,
+        var(--surface-overlay, var(--surface-elevated, transparent))
+      )
+    );
+    box-shadow: var(--prompter-drop-overlay-shadow, var(--card-hover-shadow, 0 20px 40px rgba(5,10,30,0.26)));
     display: grid;
     place-items: center;
     opacity: 0;
@@ -54,8 +61,11 @@
     gap: var(--space-md);
     padding: var(--space-lg) var(--space-xl);
     border-radius: var(--radius-xl, 28px);
-    border: var(--prompter-drop-card-border);
-    box-shadow: var(--prompter-drop-card-shadow);
+    border: var(
+      --prompter-drop-card-border,
+      1px solid color-mix(in srgb, var(--color-brand, #2563eb) 28%, var(--card-border, transparent))
+    );
+    box-shadow: var(--prompter-drop-card-shadow, var(--card-shadow));
     background: linear-gradient(
       145deg,
       color-mix(
@@ -1025,18 +1035,18 @@
   }
 
 .intentChipActive[data-intent="post"] {
-    background: var(--prompter-intent-post);
-    color: var(--prompter-intent-post-text);
+    background: var(--prompter-intent-post, var(--cta-gradient, var(--brand-gradient)));
+    color: var(--prompter-intent-post-text, var(--text-on-brand, var(--color-fg)));
   }
 
   .intentChipActive[data-intent="navigate"] {
-    background: var(--prompter-intent-navigate);
-    color: var(--prompter-intent-navigate-text);
+    background: var(--prompter-intent-navigate, var(--color-brand, #2563eb));
+    color: var(--prompter-intent-navigate-text, var(--text-on-brand, var(--color-fg)));
   }
 
   .intentChipActive[data-intent="style"] {
-    background: var(--prompter-intent-style);
-    color: var(--prompter-intent-style-text);
+    background: var(--prompter-intent-style, var(--color-accent, #22d3ee));
+    color: var(--prompter-intent-style-text, var(--text-on-brand, var(--color-fg)));
   }
 
   .intentCaret {

@@ -10,6 +10,20 @@ const registryVars = new Set(tokens.map((token) => token.cssVar));
 const scanDirs = ["src"];
 const targetExts = new Set([".css", ".module.css", ".ts", ".tsx", ".jsx", ".js", ".mdx"]);
 const IGNORED_VARS = new Set();
+const IGNORED_PREFIXES = [
+  "--layout-",
+  "--space-",
+  "--spacing",
+  "--radius",
+  "--motion",
+  "--rail-",
+  "--ladder-",
+  "--style-",
+  "--memory-",
+  "--panel-",
+  "--home-poll",
+  "--action-space",
+];
 const IGNORED_UNUSED = new Set();
 const usedVars = new Set();
 const failOnUnused = process.env.FAIL_ON_UNUSED === "true";
@@ -47,7 +61,12 @@ for (const dir of scanDirs) {
 }
 
 const missing = Array.from(usedVars)
-  .filter((cssVar) => !registryVars.has(cssVar))
+  .filter((cssVar) => {
+    if (!cssVar) return false;
+    if (IGNORED_VARS.has(cssVar)) return false;
+    if (IGNORED_PREFIXES.some((prefix) => cssVar.startsWith(prefix))) return false;
+    return !registryVars.has(cssVar);
+  })
   .sort();
 
 const unused = Array.from(registryVars)

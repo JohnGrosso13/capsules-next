@@ -1,8 +1,8 @@
 ﻿import { THEME_TOKEN_CSS_VARS, themeTokenMetaByCssVar } from "./token-registry";
 
 export const MAX_THEME_VAR_KEY_LENGTH = 80;
-export const MAX_THEME_VAR_VALUE_LENGTH = 400;
-export const MAX_THEME_VAR_ENTRIES = 256;
+export const MAX_THEME_VAR_VALUE_LENGTH = 800;
+export const MAX_THEME_VAR_ENTRIES = 512;
 
 const ALLOWED_THEME_VAR_KEYS_ARRAY = Object.freeze(Array.from(THEME_TOKEN_CSS_VARS));
 const ALLOWED_THEME_VAR_SET = new Set<string>(ALLOWED_THEME_VAR_KEYS_ARRAY);
@@ -32,7 +32,7 @@ const normalizeThemeVarsImpl: NormalizeThemeVarsImpl = (
   if (!entries.length) return {};
 
   const safeValueRegex = /^[A-Za-z0-9#(),.%\/_\-\s:+*'"!]+$/;
-  const cssVarReferenceRegex = /^var\(--[a-z0-9\-_]+\)$/i;
+  const cssVarReferenceRegex = /^var\(--[a-z0-9\-_]+(?:\s*,\s*[\s\S]+)?\)$/i;
   const hexColorRegex = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
   const rgbColorRegex =
     /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}(?:\s*,\s*(?:0|1|0?\.\d+))?\s*\)$/i;
@@ -41,11 +41,15 @@ const normalizeThemeVarsImpl: NormalizeThemeVarsImpl = (
   const colorMixRegex = /^color-mix\(/i;
   const colorFunctionRegex = /^(?:color|lab|lch|oklab|oklch|hwb)\(/i;
   const gradientRegex = /\bgradient\(/i;
-  const shadowRegex =
-    /(?:^|,)\s*(?:inset\s+)?-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)\s+-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)/i;
+  const lengthWithOptionalUnit = "-?\\d+(?:\\.\\d+)?(?:px|rem|em|vh|vw|%)?";
+  const shadowRegex = new RegExp(
+    `(?:^|,)\\s*(?:inset\\s+)?${lengthWithOptionalUnit}\\s+${lengthWithOptionalUnit}(?:\\s+${lengthWithOptionalUnit}){0,4}`,
+    "i",
+  );
   const dimensionRegex = /^-?\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%)$/i;
+  const dimensionFunctionRegex = /^(?:clamp|min|max)\([\s\S]*\)$/i;
   const timeRegex = /^-?\d+(?:\.\d+)?(?:ms|s)$/i;
-  const calcRegex = /^calc\([^)]*\)$/i;
+  const calcRegex = /^calc\([\s\S]*\)$/i;
   const timingFunctionKeywords = new Set([
     "linear",
     "ease",
@@ -64,8 +68,10 @@ const normalizeThemeVarsImpl: NormalizeThemeVarsImpl = (
     rgbColorRegex.test(value) ||
     hslColorRegex.test(value) ||
     colorMixRegex.test(value) ||
+    value.includes("color-mix(") ||
     colorFunctionRegex.test(value) ||
     isCssVarReference(value) ||
+    /(?:^|\s)(solid|dashed|dotted)\s+/i.test(value) ||
     /^(transparent|currentcolor|inherit)$/i.test(value);
 
   const isGradientValue = (value: string): boolean =>
@@ -73,7 +79,12 @@ const normalizeThemeVarsImpl: NormalizeThemeVarsImpl = (
   const isShadowValue = (value: string): boolean =>
     shadowRegex.test(value) || value.includes("shadow") || isCssVarReference(value);
   const isDimensionValue = (value: string): boolean =>
-    dimensionRegex.test(value) || calcRegex.test(value) || isCssVarReference(value);
+    dimensionRegex.test(value) ||
+    /^\d+\s*\/\s*\d+$/.test(value) ||
+    /^-?\d+(?:\.\d+)?$/.test(value) ||
+    calcRegex.test(value) ||
+    dimensionFunctionRegex.test(value) ||
+    isCssVarReference(value);
   const isRadiusValue = (value: string): boolean =>
     isDimensionValue(value) || /^999px$/i.test(value);
   const isTimeValue = (value: string): boolean =>

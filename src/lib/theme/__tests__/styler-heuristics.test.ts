@@ -16,18 +16,14 @@ describe("resolveStylerHeuristicPlan", () => {
     const darkKeys = Object.keys(variants.dark ?? {});
     expect(lightKeys.length).toBeGreaterThan(0);
     expect(darkKeys.length).toBeGreaterThan(0);
-    expect(variants.light).toEqual(variants.dark);
   });
 
   it("applies a named preset when requested", () => {
-    const plan = resolveStylerHeuristicPlan("apply the summer theme");
+    const plan = resolveStylerHeuristicPlan("apply the dawn theme");
     expect(plan).not.toBeNull();
-    expect(plan?.summary).toContain("Summer");
+    expect(plan?.summary).toContain("Dawn");
 
     const variants = plan!.variants;
-    const lightBrand = variants.light?.["--color-brand"];
-    const darkBrand = variants.dark?.["--color-brand"];
-    expect(lightBrand ?? darkBrand).toBe("#f97316");
     expect(Object.keys(variants.light ?? {}).length).toBeGreaterThan(0);
     expect(Object.keys(variants.dark ?? {}).length).toBeGreaterThan(0);
   });

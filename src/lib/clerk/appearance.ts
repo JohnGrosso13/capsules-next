@@ -52,7 +52,8 @@ export const clerkAppearance: Appearance = {
     colorText: "var(--color-fg, #f8fafc)",
     colorTextSecondary: "var(--color-fg-muted, rgba(255,255,255,0.78))",
     colorBackground: "transparent",
-    colorModalBackdrop: "rgba(5,10,26,0.78)",
+    colorModalBackdrop:
+      "var(--modal-overlay, color-mix(in srgb, var(--surface-overlay, rgba(10,14,30,0.9)) 92%, transparent))",
     colorInputBackground:
       "color-mix(in srgb, var(--surface-elevated, rgba(17,22,45,0.86)) 90%, rgba(255,255,255,0.08) 10%)",
     colorInputText: "var(--color-fg, #f8fafc)",
@@ -136,7 +137,7 @@ export const clerkAppearance: Appearance = {
     },
     modalBackdrop: {
       background:
-        "radial-gradient(120% 120% at 50% 20%, rgba(12,16,32,0.66), transparent 65%), rgba(5,10,26,0.82)",
+        "radial-gradient(120% 120% at 50% 20%, color-mix(in srgb, var(--color-brand, #6366f1) 18%, transparent), transparent 65%), color-mix(in srgb, var(--surface-overlay, rgba(10,14,30,0.9)) 94%, transparent)",
       backdropFilter: "blur(14px)",
       WebkitBackdropFilter: "blur(14px)",
     },
