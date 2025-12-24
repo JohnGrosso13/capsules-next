@@ -679,6 +679,63 @@ function sanitizePollDraftResponse(
   delete cleanedPost.videoRunError;
   delete cleanedPost.memoryId;
 
+  const pollValue = (cleanedPost as { poll?: unknown }).poll;
+  if (pollValue && typeof pollValue === "object") {
+    const pollRecord = pollValue as {
+      question?: unknown;
+      options?: unknown;
+      thumbnails?: unknown;
+    };
+    const question =
+      typeof pollRecord.question === "string" ? pollRecord.question : "";
+    const optionsRaw = Array.isArray(pollRecord.options)
+      ? pollRecord.options
+      : [];
+    const options = optionsRaw
+      .map((option: unknown) => {
+        if (typeof option === "string") return option;
+        if (option == null) return "";
+        return String(option);
+      })
+      .map((option) => option.trim())
+      .filter((option) => option.length > 0);
+    const thumbnailsRaw = Array.isArray(pollRecord.thumbnails)
+      ? pollRecord.thumbnails
+      : [];
+    const thumbnails = thumbnailsRaw.map((thumb: unknown) => {
+      if (typeof thumb === "string") return thumb.trim();
+      if (thumb == null) return "";
+      return String(thumb).trim();
+    });
+
+    const structured = ensurePollStructure({
+      kind: "poll",
+      content:
+        typeof cleanedPost.content === "string" ? cleanedPost.content : "",
+      mediaUrl: null,
+      mediaPrompt: null,
+      poll: { question, options, thumbnails },
+    });
+
+    const clampedOptions = structured.options.slice(0, 4);
+    const clampedThumbnails = structured.thumbnails.slice(
+      0,
+      clampedOptions.length,
+    );
+
+    const hasThumbs = clampedThumbnails.some(
+      (thumb) => typeof thumb === "string" && thumb.trim().length > 0,
+    );
+
+    (cleanedPost as {
+      poll: { question: string; options: string[]; thumbnails?: (string | null)[] };
+    }).poll = {
+      question: structured.question,
+      options: clampedOptions,
+      ...(hasThumbs ? { thumbnails: clampedThumbnails } : {}),
+    };
+  }
+
   return {
     response: { ...response, post: cleanedPost },
     attachments: null,
@@ -1834,7 +1891,7 @@ function buildSystemPrompt({
         "User wants a poll: always return action:'draft_post' with post.kind:'poll' and post.poll:{question,options[]} plus any intro/CTA in post.content. Do not return chat_reply for poll requests.",
       );
       base.push(
-        "Poll hygiene: keep 2-6 short, distinct options (no overlaps or yes/no unless asked), avoid stale picks older than last year, and prefer timely releases using search_web with freshness_days when the topic depends on current events.",
+        "Poll hygiene: keep 2-4 short, distinct options (no overlaps or yes/no unless asked), avoid stale picks older than last year, and prefer timely releases using search_web with freshness_days when the topic depends on current events.",
       );
       base.push(
         "For polls whose options are specific entities (games, shows, products, teams, etc.), also attach post.poll.thumbnails as an array of image URLs matching each option in order. Use search_images for each option name to find a representative square thumbnail; prefer thumbnailUrl when available, otherwise url. If image search fails or images would be misleading, omit post.poll.thumbnails instead of inventing URLs.",
