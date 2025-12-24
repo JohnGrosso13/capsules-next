@@ -416,6 +416,24 @@ export async function POST(req: Request) {
 
   const attachments = sanitizeAttachments(parsed.data.attachments);
   const previousHistory = sanitizeComposerChatHistory(parsed.data.history ?? []);
+
+  // Make prior image attachments available to tools like edit_image so users can reference
+  // “that photo from earlier” without reattaching.
+  const historyImageAttachments = previousHistory
+    .flatMap((entry) => entry.attachments ?? [])
+    .filter((attachment): attachment is ComposerChatAttachment => {
+      if (!attachment?.id || !attachment.url) return false;
+      const mime = (attachment.mimeType ?? "").toLowerCase();
+      return mime.startsWith("image/");
+    });
+  const mergedAttachmentsMap = new Map<string, ComposerChatAttachment>();
+  [...attachments, ...historyImageAttachments].forEach((attachment) => {
+    if (!attachment?.id) return;
+    if (!mergedAttachmentsMap.has(attachment.id)) {
+      mergedAttachmentsMap.set(attachment.id, attachment);
+    }
+  });
+  const mergedAttachments = Array.from(mergedAttachmentsMap.values());
   const threadId = coerceThreadId(parsed.data.threadId);
   const contextStart = Date.now();
   const streaming = parsed.data.stream === true || streamOption === true;
@@ -437,9 +455,9 @@ export async function POST(req: Request) {
       history: previousHistory,
     });
 
-  const shouldBuildAttachmentContext = contextEnabled && attachments.length > 0;
+  const shouldBuildAttachmentContext = contextEnabled && mergedAttachments.length > 0;
   const attachmentContexts = shouldBuildAttachmentContext
-    ? await buildAttachmentContext(attachments)
+    ? await buildAttachmentContext(mergedAttachments)
     : [];
   const formattedAttachmentContext = shouldBuildAttachmentContext
     ? formatAttachmentContextForPrompt(attachmentContexts)
@@ -455,7 +473,7 @@ export async function POST(req: Request) {
 
   let composeOptions: ComposeDraftOptions = {
     history: previousHistory,
-    attachments,
+    attachments: mergedAttachments,
     capsuleId,
     rawOptions: sanitizedOptions,
     ownerId,
@@ -674,7 +692,7 @@ export async function POST(req: Request) {
             role: "user",
             content: message,
             createdAt: new Date().toISOString(),
-            attachments: attachments.length ? attachments : null,
+            attachments: mergedAttachments.length ? mergedAttachments : null,
           };
 
           const toolRun = await runComposerToolSession(
@@ -804,7 +822,7 @@ export async function POST(req: Request) {
             contextMs: contextStart ? Date.now() - contextStart : null,
             modelMs: Date.now() - modelStart,
             totalMs: Date.now() - startedAt,
-            attachments: attachments.length,
+            attachments: mergedAttachments.length,
             stream: true,
           });
 
@@ -844,7 +862,7 @@ export async function POST(req: Request) {
       role: "user",
       content: message,
       createdAt: new Date().toISOString(),
-      attachments: attachments.length ? attachments : null,
+      attachments: mergedAttachments.length ? mergedAttachments : null,
     };
 
     const validated: PromptResponse = promptResponseSchema.parse(payload);
@@ -935,13 +953,13 @@ export async function POST(req: Request) {
       return returnError(500, "billing_error", "Failed to record AI usage");
     }
 
-    console.info("composer_prompt_latency", {
-      ownerId,
-      contextMs: contextStart ? Date.now() - contextStart : null,
-      modelMs: Date.now() - modelStart,
-      totalMs: Date.now() - startedAt,
-      attachments: attachments.length,
-    });
+          console.info("composer_prompt_latency", {
+            ownerId,
+            contextMs: contextStart ? Date.now() - contextStart : null,
+            modelMs: Date.now() - modelStart,
+            totalMs: Date.now() - startedAt,
+            attachments: mergedAttachments.length,
+          });
 
     return validatedJson(promptResponseSchema, finalResponse);
   } catch (error) {

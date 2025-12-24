@@ -69,6 +69,7 @@ export type {
 } from "@/components/providers/chat-store/types";
 export { ChatStorePersistence } from "@/components/providers/chat-store/persistence";
 export type { ChatStorePersistenceOptions } from "@/components/providers/chat-store/persistence";
+export { ChatStateMachine } from "@/components/providers/chat-store/state-machine";
 
 type SelfParticipantOptions = Parameters<ChatStateMachine["applySelfParticipant"]>[0];
 type MessageAckOptions = Parameters<ChatStateMachine["acknowledgeMessage"]>[2];

@@ -101,9 +101,10 @@ export function PrompterInputBar({
         : "Dictate message");
   const voiceButtonDisabled = voiceDisabled || !voiceSupported || voiceStatus === "stopping";
   const useIconSubmit = submitVariant === "icon";
-  const showCompactSendButton = isCompact;
+  const showCompactSendButton = isCompact && useIconSubmit;
   const compactSendDisabled = buttonDisabled || value.trim().length === 0;
   const [actionsOpen, setActionsOpen] = React.useState(false);
+  const [actionsPlacement, setActionsPlacement] = React.useState<"above" | "below">("below");
   const actionsRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -135,8 +136,30 @@ export function PrompterInputBar({
 
   const handleToggleActions = React.useCallback(() => {
     if (uploading) return;
+
+    if (!actionsOpen && typeof window !== "undefined") {
+      const root = actionsRef.current;
+      const trigger = root ? (root.querySelector("button") as HTMLButtonElement | null) : null;
+      const rect = trigger ? trigger.getBoundingClientRect() : null;
+      if (rect) {
+        const viewportHeight =
+          typeof window.innerHeight === "number"
+            ? window.innerHeight
+            : document.documentElement.clientHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const estimatedMenuHeight = 180; // approximate context menu height
+        if (spaceBelow < estimatedMenuHeight && rect.top > estimatedMenuHeight) {
+          setActionsPlacement("above");
+        } else {
+          setActionsPlacement("below");
+        }
+      } else {
+        setActionsPlacement("below");
+      }
+    }
+
     setActionsOpen((open) => !open);
-  }, [uploading]);
+  }, [actionsOpen, uploading]);
 
   const handleAttachmentSelect = React.useCallback(() => {
     setActionsOpen(false);
@@ -166,7 +189,11 @@ export function PrompterInputBar({
           <Plus size={20} weight="bold" className={styles.promptAttachIcon} />
         </button>
         {actionsOpen ? (
-          <div className={`${cm.menu} ${styles.promptActionsMenu}`.trim()} role="menu">
+          <div
+            className={`${cm.menu} ${styles.promptActionsMenu}`.trim()}
+            role="menu"
+            data-placement={actionsPlacement}
+          >
             {showAttachmentButton ? (
               <button
                 type="button"
@@ -265,7 +292,7 @@ export function PrompterInputBar({
         >
           <ArrowUp size={18} weight="bold" />
         </button>
-      ) : !isCompact && showIntentMenu ? (
+      ) : !useIconSubmit && showIntentMenu ? (
         <div className={styles.genSplit} role="group">
           <button
             className={`${buttonClassName} ${styles.genSplitMain}`.trim()}
@@ -301,7 +328,7 @@ export function PrompterInputBar({
             renderTrigger={false}
           />
         </div>
-      ) : !isCompact ? (
+      ) : !useIconSubmit ? (
         <button
           className={buttonClassName}
           type="button"

@@ -67,7 +67,6 @@ export function ComposerToolbar({
           type="button"
           className={styles.closeIcon}
           onClick={onClose}
-          disabled={disabled}
           aria-label="Close composer"
         >
           <X weight="bold" />

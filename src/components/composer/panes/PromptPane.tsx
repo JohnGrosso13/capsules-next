@@ -183,6 +183,7 @@ export function PromptPane({
 }: PromptPaneProps) {
   const chatScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shouldStickRef = React.useRef(true);
+  const initializedScrollRef = React.useRef(false);
   const isLoadingImage = loading && loadingKind === "image";
   const isLoadingVideo = loading && loadingKind === "video";
   const [brainProgress, setBrainProgress] = React.useState(0);
@@ -240,22 +241,8 @@ export function PromptPane({
   const attachmentCaptionForPanel =
     activeAttachment?.status === "ready" ? attachmentCaption : null;
   const filteredHistory = history;
-  const lastUserIndex = React.useMemo(() => {
-    for (let index = filteredHistory.length - 1; index >= 0; index -= 1) {
-      if (filteredHistory[index]?.role === "user") {
-        return index;
-      }
-    }
-    return -1;
-  }, [filteredHistory]);
-  const historyBeforeAttachment =
-    !activeAttachment || isAiAttachment || lastUserIndex === -1
-      ? filteredHistory
-      : filteredHistory.slice(0, lastUserIndex + 1);
-  const historyAfterAttachment =
-    !activeAttachment || isAiAttachment || lastUserIndex === -1
-      ? []
-      : filteredHistory.slice(lastUserIndex + 1);
+  const historyBeforeAttachment = filteredHistory;
+  const historyAfterAttachment: ComposerChatMessage[] = [];
 
   React.useEffect(() => {
     const scrollNode = chatScrollRef.current;
@@ -268,7 +255,16 @@ export function PromptPane({
     };
 
     scrollNode.addEventListener("scroll", handleScroll);
-    handleScroll();
+
+    if (!initializedScrollRef.current) {
+      // On first mount (e.g., when reopening the Composer) jump to the latest message.
+      scrollNode.scrollTop = scrollNode.scrollHeight;
+      shouldStickRef.current = true;
+      initializedScrollRef.current = true;
+    } else {
+      handleScroll();
+    }
+
     return () => {
       scrollNode.removeEventListener("scroll", handleScroll);
     };

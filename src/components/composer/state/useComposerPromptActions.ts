@@ -331,6 +331,7 @@ export function useComposerPromptActions({
         const lowered = trimmed.toLowerCase();
         if (lowered.includes("render_image")) return "Rendering your visual...";
         if (lowered.includes("render_video")) return "Rendering your clip...";
+        if (lowered.includes("edit_image")) return "Applying your edits...";
         if (lowered.includes("context")) return null;
         if (lowered.includes("working on your request")) return workingCopy;
         return trimmed;

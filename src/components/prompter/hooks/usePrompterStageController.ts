@@ -554,7 +554,8 @@ export function usePrompterStageController({
     if (!input) return null;
     const trimmedHint = input.trim();
     if (!trimmedHint) return null;
-    if (trimmedHint === "Defaulting to post intent.") return "Ready when you are.";
+    if (trimmedHint === "Defaulting to post intent.") return null;
+    if (trimmedHint === "Ready when you are.") return null;
     if (trimmedHint === "Handing off to AI to infer the right intent.") return "Analyzing your request...";
     return trimmedHint;
   };

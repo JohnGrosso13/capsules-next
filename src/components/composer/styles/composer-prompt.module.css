@@ -264,12 +264,15 @@
 
 .promptActions {
   position: relative;
+  overflow: visible;
 }
 
 .promptActionsMenu {
-  top: calc(100% + 12px);
+  top: auto;
+  bottom: calc(100% + 12px);
   left: 0;
   min-width: 220px;
+  transform-origin: bottom left;
 }
 
 .promptActionsMenu [role="menuitem"] {

@@ -235,13 +235,23 @@
 
   .promptActions {
     position: relative;
+    overflow: visible;
   }
 
   .promptActionsMenu {
     top: calc(100% + 10px);
+    bottom: auto;
     left: 0;
     min-width: 220px;
+    transform-origin: top left;
   }
+
+  .promptActionsMenu[data-placement="above"] {
+    top: auto;
+    bottom: calc(100% + 10px);
+    transform-origin: bottom left;
+  }
+
 
   .promptActionsMenu [role="menuitem"] {
     width: 100%;

@@ -11,6 +11,17 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    include: [
+      "tests/**/*.{test,spec}.{js,ts,jsx,tsx}",
+      "src/**/*.{test,spec}.{js,ts,jsx,tsx}",
+    ],
+    exclude: [
+      "node_modules/**",
+      "tests/e2e/**",
+      "playwright-report/**",
+      "test-results/**",
+      "blob-report/**",
+    ],
   },
   esbuild: {
     jsx: "automatic",
