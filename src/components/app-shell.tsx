@@ -97,6 +97,12 @@ function AppShellContent({
   const homeLoading = useHomeLoading();
   const syncHomeLoading = derivedActive === "home" && homeLoading;
   const homePending = Boolean(syncHomeLoading && homeLoading?.isPending);
+  const showPrompterSuggestedActions =
+    derivedActive !== "settings" &&
+    derivedActive !== "explore" &&
+    derivedActive !== "create" &&
+    derivedActive !== "memory" &&
+    derivedActive !== "market";
 
   const { chips: prompterChips } = usePrompterChips(
     derivedActive,
@@ -258,6 +264,7 @@ function AppShellContent({
                 chips={prompterChips ?? []}
                 statusMessage={statusMessage}
                 surface={derivedActive}
+                showSuggestedActions={showPrompterSuggestedActions}
               />
             </div>
           ) : null}

@@ -366,7 +366,7 @@ export async function globalSearch({
   const allowEmbeddings = shouldSearchMemories && canUseEmbeddings(ownerId);
   if (shouldSearchMemories && !allowEmbeddings) {
     if (process.env.NODE_ENV === "development") {
-      console.info("search:skip-memories", { ownerId, reason: "embed-budget" });
+      console.info("search:memories-embed-disabled", { ownerId, reason: "embed-budget" });
     }
   }
 
@@ -379,7 +379,7 @@ export async function globalSearch({
           origin: origin ?? null,
           useEmbedding: allowEmbeddings,
         })
-      : Promise.resolve([]),
+      : Promise.resolve([] as MemorySearchItem[]),
     includeCapsules
       ? searchCapsulesForUser(ownerId, trimmed, tokens, origin, CAPSULE_SECTION_LIMIT)
       : Promise.resolve([]),

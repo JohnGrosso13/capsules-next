@@ -71,6 +71,7 @@ export type WalletTransactionInput = {
 };
 
 const db = getDatabaseAdminClient();
+const RETIRED_PLAN_CODES = new Set(["user_studio"]);
 
 function mapWallet(row: Record<string, unknown>): WalletRecord {
   return {
@@ -293,7 +294,9 @@ export async function listPlans(scope: WalletOwnerType): Promise<BillingPlan[]> 
     .order("price_cents", { ascending: true, nullsFirst: true })
     .fetch();
   if (result.error) throw result.error;
-  return (result.data ?? []).map((row) => mapPlan(row as Record<string, unknown>));
+  return (result.data ?? [])
+    .map((row) => mapPlan(row as Record<string, unknown>))
+    .filter((plan) => !RETIRED_PLAN_CODES.has(plan.code));
 }
 
 export async function getPlanByCode(code: string): Promise<BillingPlan | null> {

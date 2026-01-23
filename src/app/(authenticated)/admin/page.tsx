@@ -177,8 +177,7 @@ function buildEconomyMetrics(economy: EconomyOverview): EconomyMetric[] {
 
   const paidUserSubs =
     (economy.userSubscriptionCounts["user_creator"] ?? 0) +
-    (economy.userSubscriptionCounts["user_pro"] ?? 0) +
-    (economy.userSubscriptionCounts["user_studio"] ?? 0);
+    (economy.userSubscriptionCounts["user_pro"] ?? 0);
 
   const capsuleUpgradesTotal = Object.values(economy.capsuleSubscriptionCounts).reduce(
     (sum, value) => sum + value,
@@ -203,8 +202,6 @@ function buildEconomyMetrics(economy: EconomyOverview): EconomyMetric[] {
       value: formatCount(paidUserSubs),
       hint: `Plus: ${formatCount(economy.userSubscriptionCounts["user_creator"] ?? 0)}, Pro: ${formatCount(
         economy.userSubscriptionCounts["user_pro"] ?? 0,
-      )}, Studio: ${formatCount(
-        economy.userSubscriptionCounts["user_studio"] ?? 0,
       )}`,
       icon: <UsersThree size={16} weight="bold" />,
     },

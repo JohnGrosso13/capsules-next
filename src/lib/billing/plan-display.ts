@@ -38,10 +38,6 @@ const PLAN_COPY: Record<
   user_pro: {
     tagline: "Captain tier for weekly streams, clips, and posts.",
   },
-  user_studio: {
-    tagline: "Legend tier: a production pipeline that ships for you.",
-    badge: "Legend",
-  },
   personal_default: {
     tagline: "Personal subscription placeholder tier.",
   },
@@ -71,12 +67,6 @@ const PLAN_ALLOWANCES: Record<string, string[]> = {
     "Stream/Creator Studio: auto recaps, clip suggestions, titles, and thumbnails",
     "Own up to 3 Capsules with stronger moderation, bundles, and promo tools",
     "Sharper AI models for images and analysis so posts feel on-brand",
-  ],
-  user_studio: [
-    "Built for teams who ship content every week, not once in a while",
-    "Priority Creation Studio with high-volume image gen and bulk PDF/PPT packs",
-    "Full Stream Studio automations, clip pipelines, and wiki updates",
-    "Own up to 4 Capsules plus a monthly Capsule Power drop for big events",
   ],
 };
 

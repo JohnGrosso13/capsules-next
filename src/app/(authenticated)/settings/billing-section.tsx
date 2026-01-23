@@ -71,7 +71,7 @@ type UsageStat = {
   nearlyOut: boolean;
 };
 
-type PlanTierId = "starter" | "plus" | "pro" | "studio";
+type PlanTierId = "starter" | "plus" | "pro";
 
 type PlanTierMeta = {
   id: PlanTierId;
@@ -96,7 +96,6 @@ const PLAN_TIERS: PlanTierMeta[] = [
   { id: "starter", label: "Starter", code: "user_free" },
   { id: "plus", label: "Plus", code: "user_creator" },
   { id: "pro", label: "Pro", code: "user_pro" },
-  { id: "studio", label: "Studio", code: "user_studio" },
 ];
 
 const PLAN_SUMMARIES: PlanSummary[] = [
@@ -127,15 +126,6 @@ const PLAN_SUMMARIES: PlanSummary[] = [
       "Great for teams and communities that expect regular output.",
     ],
   },
-  {
-    id: "studio",
-    title: "Studio · Legend",
-    bullets: [
-      "Treat Capsules like your production studio, not a side project.",
-      "High-volume image gen, bulk decks, and deep automations.",
-      "Best for orgs running multiple Capsules, events, and drops.",
-    ],
-  },
 ];
 
 const PLAN_DETAILS_ROWS: PlanDetailsRow[] = [
@@ -143,49 +133,43 @@ const PLAN_DETAILS_ROWS: PlanDetailsRow[] = [
     id: "ai_compose",
     label: "AI Composer & Personal Coach",
     description: "Chat with AI to brainstorm ideas, captions, and content plans.",
-    tiers: ["starter", "plus", "pro", "studio"],
+    tiers: ["starter", "plus", "pro"],
   },
   {
     id: "image_gen",
     label: "Image generation",
     description: "Create visuals for posts, banners, and announcements.",
-    tiers: ["starter", "plus", "pro", "studio"],
+    tiers: ["starter", "plus", "pro"],
   },
   {
     id: "image_quality",
     label: "Higher image quality models",
     description: "Medium + high quality options for sharper outputs.",
-    tiers: ["plus", "pro", "studio"],
+    tiers: ["plus", "pro"],
   },
   {
     id: "pdf_ppt",
     label: "PDF & PPT exports",
     description: "Turn drafts into shareable decks, kits, and one-pagers.",
-    tiers: ["plus", "pro", "studio"],
+    tiers: ["plus", "pro"],
   },
   {
     id: "go_live",
     label: "Go Live with chat",
     description: "Host streams inside your Capsule with live chat.",
-    tiers: ["plus", "pro", "studio"],
+    tiers: ["plus", "pro"],
   },
   {
     id: "stream_automation",
     label: "Stream Studio automations",
     description: "Auto recaps, clip suggestions, titles, and thumbnails from streams.",
-    tiers: ["pro", "studio"],
+    tiers: ["pro"],
   },
   {
     id: "capsule_ownership",
     label: "Own Capsules",
     description: "Create and run your own Capsules home base.",
-    tiers: ["starter", "plus", "pro", "studio"],
-  },
-  {
-    id: "power_drop",
-    label: "Monthly Capsule Power drop",
-    description: "Extra Capsule Power to fund automations and community upgrades.",
-    tiers: ["studio"],
+    tiers: ["starter", "plus", "pro"],
   },
 ];
 
@@ -317,7 +301,7 @@ function PlanDetailsOverlay({
           <div className={styles.planDetailsDrawerTitleGroup}>
             <h4 className={styles.planDetailsDrawerTitle}>Plan details &amp; comparison</h4>
             <p className={styles.planDetailsDrawerSubtitle}>
-              See what Starter, Plus, Pro, and Studio include before you commit. You can always change
+              See what Starter, Plus, and Pro include before you commit. You can always change
               plans later.
             </p>
           </div>
@@ -596,7 +580,10 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
 
   const personalPlansRaw = React.useMemo(() => plans?.personal ?? [], [plans]);
   const personalPlans = React.useMemo(
-    () => personalPlansRaw.filter((plan) => plan.code !== "personal_default"),
+    () =>
+      personalPlansRaw.filter(
+        (plan) => plan.code !== "personal_default" && plan.code !== "user_studio",
+      ),
     [personalPlansRaw],
   );
   const capsulePlan = plans?.capsule?.[0] ?? null;
@@ -678,12 +665,6 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
                       Feature tier: {currentPlanDisplay.featureTier.toUpperCase()}
                     </p>
                   ) : null}
-                  {bypass ? (
-                    <p className={styles.devNote}>
-                      Development credits are enabled. Usage is topped up for testing, and upgrades are
-                      optional.
-                    </p>
-                  ) : null}
                   {computeUsage.nearlyOut || storageUsage.nearlyOut ? (
                     <p className={styles.warning}>
                       You are nearing your included limits. Consider upgrading to avoid interruptions.
@@ -738,11 +719,6 @@ export function BillingSection({ capsules }: BillingSectionProps): React.JSX.Ele
 
             <div className={styles.tierIntro}>
               <p className={styles.tierEyebrow}>Personal plans</p>
-              <p className={styles.tierTitle}>Pick how hard Capsules should work for you.</p>
-              <p className={styles.tierSubtitle}>
-                Starter lets you vibe for free; Plus, Pro, and Studio layer in higher-quality AI models,
-                streaming, and automation without exposing raw credit counts.
-              </p>
             </div>
 
             <div className={styles.tiersGrid} role="list" aria-label="Subscription plans">

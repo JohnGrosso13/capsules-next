@@ -12,16 +12,11 @@ const USER_PLAN_PRESETS = {
   starter: { compute: 30_000, storage: 10 * BYTES_IN_GB, featureTier: "starter" },
   plus: { compute: 250_000, storage: 150 * BYTES_IN_GB, featureTier: "plus" },
   pro: { compute: 750_000, storage: 600 * BYTES_IN_GB, featureTier: "pro" },
-  studio: {
-    compute: 1_800_000,
-    storage: 2_000 * BYTES_IN_GB,
-    featureTier: "legend",
-    powerDrop: 300_000,
-  },
 } as const;
 
 const DEFAULT_CAPSULE_COMPUTE = 1_000_000;
 const DEFAULT_CAPSULE_STORAGE = 40 * BYTES_IN_GB;
+const RETIRED_PLAN_CODES = new Set(["user_studio"]);
 
 type PlanTemplate = {
   code: string;
@@ -104,30 +99,6 @@ function buildPlanTemplates(): PlanTemplate[] {
       },
     },
     {
-      code: "user_studio",
-      scope: "user",
-      name: "Studio (Legend)",
-      description: "A production pipeline that ships content for you.",
-      priceCents: 4900,
-      billingInterval: "monthly",
-      includedCompute: USER_PLAN_PRESETS.studio.compute,
-      includedStorageBytes: USER_PLAN_PRESETS.studio.storage,
-      stripePriceId: stripe.priceStudio,
-      featureTier: USER_PLAN_PRESETS.studio.featureTier,
-      modelTier: "premium",
-      features: {
-        capsuleOwnershipLimit: 4,
-        imageQuality: ["low", "medium", "high"],
-        goLive: true,
-        streamStudio: true,
-        powerDrop: USER_PLAN_PRESETS.studio.powerDrop,
-        bulkExports: true,
-        wikiAdvanced: true,
-        includesVideoGen: true,
-        creationPriority: true,
-      },
-    },
-    {
       code: "personal_default",
       scope: "user",
       name: "Personal",
@@ -193,7 +164,7 @@ export async function resolvePlanForScope(
   await ensureDefaultPlans();
   if (code) {
     const byCode = await getPlanByCode(code);
-    if (byCode) return byCode;
+    if (byCode && byCode.active && !RETIRED_PLAN_CODES.has(byCode.code)) return byCode;
   }
   const plans = await listPlans(scope);
   return plans[0] ?? null;

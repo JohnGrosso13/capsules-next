@@ -13,6 +13,7 @@ import { getSearchIndex } from "@/config/search-index";
 import type { SearchIndexRecord } from "@/ports/search-index";
 import { serverEnv } from "@/lib/env/server";
 import { ensureAccessibleMediaUrl } from "@/server/posts/media";
+import type { MemorySearchItem } from "@/types/search";
 
 const db = getDatabaseAdminClient();
 const DEFAULT_LIST_LIMIT = 200;
@@ -571,16 +572,109 @@ function buildEmbeddingText(options: {
 }
 
 const TOKEN_MIN_LENGTH = 3;
+const SEARCH_STOPWORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "if",
+  "then",
+  "else",
+  "when",
+  "what",
+  "which",
+  "who",
+  "whom",
+  "this",
+  "that",
+  "these",
+  "those",
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "can",
+  "could",
+  "will",
+  "would",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "my",
+  "your",
+  "our",
+  "their",
+  "about",
+  "for",
+  "from",
+  "into",
+  "onto",
+  "over",
+  "under",
+  "with",
+  "without",
+  "please",
+  "find",
+  "show",
+  "tell",
+  "search",
+]);
 const RRF_K = 60;
 const VECTOR_RRF_WEIGHT = 1;
 const ALGOLIA_RRF_WEIGHT = 0.9;
-const LEXICAL_RRF_WEIGHT = 0.55;
+const LEXICAL_RRF_WEIGHT = 2.5;
 const VECTOR_SCORE_WEIGHT = 0.02;
-const TOKEN_SCORE_WEIGHT = 0.0035;
-const TOKEN_SCORE_CAP = 0.06;
+const TOKEN_SCORE_WEIGHT = 0.008;
+const TOKEN_SCORE_CAP = 0.24;
 const INTENT_BOOST = 0.02;
 const MAX_CANDIDATE_POOL = 120;
 const CANDIDATE_MULTIPLIER = 5;
+const LEXICAL_STOPWORDS = new Set([
+  "post",
+  "posts",
+  "memory",
+  "memories",
+  "photo",
+  "photos",
+  "image",
+  "images",
+  "pic",
+  "pics",
+  "file",
+  "files",
+  "video",
+  "videos",
+  "clip",
+  "clips",
+  "record",
+  "recording",
+]);
 
 function normalizeSearchToken(value: string): string | null {
   const cleaned = value.toLowerCase().replace(/[^a-z0-9#@]/g, "");
@@ -607,6 +701,7 @@ function tokenizeSearchQuery(query: string): string[] {
     .forEach((token) => {
       const normalized = normalizeSearchToken(token);
       if (!normalized) return;
+      if (SEARCH_STOPWORDS.has(normalized)) return;
       tokens.add(normalized);
       const singular = singularizeToken(normalized);
       if (singular) tokens.add(singular);
@@ -759,6 +854,79 @@ function scoreMemoryTokens(item: Record<string, unknown>, tokens: string[]): num
   if (typeof meta.ai_caption === "string") {
     score += scoreTokenMatches(meta.ai_caption, tokens);
   }
+  return score;
+}
+
+function scoreStrongContentMatches(
+  item: Record<string, unknown>,
+  lexicalTokens: string[],
+): number {
+  if (!lexicalTokens.length) return 0;
+  const meta = (item.meta ?? {}) as Record<string, unknown>;
+  const haystacks: Array<string | null | undefined> = [
+    typeof item.title === "string" ? item.title : null,
+    typeof item.description === "string" ? item.description : null,
+    typeof meta.post_excerpt === "string" ? meta.post_excerpt : null,
+    typeof meta.raw_text === "string" ? meta.raw_text : null,
+    typeof meta.original_text === "string" ? meta.original_text : null,
+    typeof meta.caption === "string" ? meta.caption : null,
+    typeof meta.ai_caption === "string" ? meta.ai_caption : null,
+  ];
+
+  let score = 0;
+  lexicalTokens.forEach((token) => {
+    const needle = token.toLowerCase();
+    const matched = haystacks.some((hay) => hay && hay.toLowerCase().includes(needle));
+    if (matched) {
+      // Strong deterministic boost for literal content hits
+      score += 5;
+    }
+  });
+
+  // Cap to keep within reasonable range while still dominant
+  return Math.min(score, 25);
+}
+
+function scoreManualTextMatch(
+  item: Record<string, unknown>,
+  tokens: string[],
+  lexicalTokens: string[],
+): number {
+  if (!tokens.length) return 0;
+  const meta = (item.meta ?? {}) as Record<string, unknown>;
+  const haystacks: Array<string | null | undefined> = [
+    typeof item.title === "string" ? item.title : null,
+    typeof item.description === "string" ? item.description : null,
+    typeof meta.post_excerpt === "string" ? meta.post_excerpt : null,
+    typeof meta.raw_text === "string" ? meta.raw_text : null,
+    typeof meta.original_text === "string" ? meta.original_text : null,
+    typeof meta.caption === "string" ? meta.caption : null,
+    typeof meta.ai_caption === "string" ? meta.ai_caption : null,
+    typeof meta.transcript === "string" ? meta.transcript : null,
+  ];
+
+  let score = 0;
+  tokens.forEach((token) => {
+    const needle = token.toLowerCase();
+    haystacks.forEach((hay) => {
+      if (!hay) return;
+      const lower = hay.toLowerCase();
+      if (lower === needle) score += 8;
+      else if (lower.startsWith(needle)) score += 5;
+      else if (lower.includes(needle)) score += 3;
+    });
+  });
+
+  lexicalTokens.forEach((token) => {
+    const needle = token.toLowerCase();
+    haystacks.forEach((hay) => {
+      if (!hay) return;
+      if (hay.toLowerCase().includes(needle)) {
+        score += 10;
+      }
+    });
+  });
+
   return score;
 }
 
@@ -1386,6 +1554,139 @@ export async function listMemories({
   );
 }
 
+export async function semanticSearchMemoriesForGlobal({
+  ownerId,
+  ownerType = "user",
+  query,
+  limit,
+  origin,
+}: {
+  ownerId: string;
+  ownerType?: MemoryOwnerType | null;
+  query: string;
+  limit: number;
+  origin?: string | null;
+}): Promise<MemorySearchItem[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const owner = normalizeMemoryOwner({ ownerId, ownerType });
+
+  let embedding: number[] | null = null;
+  try {
+    embedding = await embedText(trimmed);
+  } catch (error) {
+    console.warn("semantic memory embed failed", error);
+  }
+  if (!embedding) return [];
+
+  let matches: Awaited<ReturnType<typeof queryMemoryVectors>> = [];
+  try {
+    matches = await queryMemoryVectors(
+      owner.ownerId,
+      embedding,
+      Math.max(limit * 3, limit),
+      owner.ownerType === "capsule" ? owner.ownerType : undefined,
+    );
+  } catch (error) {
+    console.warn("semantic memory vector query failed", error);
+    return [];
+  }
+
+  if (!matches.length) return [];
+
+  const candidateIds = matches.map((match) => match.id).filter(Boolean);
+  const scoreMap = new Map<string, number>();
+  matches.forEach((match, index) => {
+    const id = typeof match.id === "string" ? match.id : String(match.id ?? "");
+    if (!id) return;
+    const score = typeof match.score === "number" && Number.isFinite(match.score) ? match.score : 0;
+    const existing = scoreMap.get(id) ?? 0;
+    // Keep max score in case of duplicates
+    scoreMap.set(id, Math.max(existing, score || 0) || 0);
+  });
+
+  try {
+    const result = await db
+      .from("memories")
+      .select<Record<string, unknown>>(MEMORY_FIELDS)
+      .in("id", candidateIds)
+      .eq("is_latest", true)
+      .fetch();
+
+    if (result.error || !Array.isArray(result.data)) {
+      if (result.error) {
+        console.warn("semantic memory hydrate query failed", result.error);
+      }
+      return [];
+    }
+
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const row of result.data) {
+      if (!row || typeof row !== "object") continue;
+      const id = toStringId((row as { id?: unknown }).id);
+      if (id) {
+        byId.set(id, row as Record<string, unknown>);
+      }
+    }
+
+    const rankedRows: Array<{ id: string; row: Record<string, unknown>; score: number }> = [];
+    candidateIds.forEach((id) => {
+      const row = byId.get(id);
+      if (!row) return;
+      const score = scoreMap.get(id) ?? 0;
+      rankedRows.push({ id, row, score });
+    });
+
+    if (!rankedRows.length) return [];
+
+    rankedRows.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aCreated =
+        typeof (a.row as { created_at?: unknown }).created_at === "string"
+          ? (a.row as { created_at?: string }).created_at
+          : null;
+      const bCreated =
+        typeof (b.row as { created_at?: unknown }).created_at === "string"
+          ? (b.row as { created_at?: string }).created_at
+          : null;
+      const aTs = aCreated ? Date.parse(aCreated) : NaN;
+      const bTs = bCreated ? Date.parse(bCreated) : NaN;
+      if (Number.isFinite(aTs) && Number.isFinite(bTs) && bTs !== aTs) {
+        return bTs - aTs;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    const topRanked = rankedRows.slice(0, Math.max(1, limit));
+    const sanitized = await Promise.all(
+      topRanked.map((entry) => sanitizeMemoryItem(entry.row, origin ?? null)),
+    );
+
+    return sanitized.map((item, index) => {
+      const id = (item as { id?: string }).id ?? candidateIds[index] ?? "";
+      const baseMeta =
+        item.meta && typeof item.meta === "object" && !Array.isArray(item.meta)
+          ? (item.meta as Record<string, unknown>)
+          : {};
+      const score = scoreMap.get(id) ?? 0;
+      const meta = {
+        ...baseMeta,
+        search_score: score,
+        search_rank: index + 1,
+      };
+      return {
+        ...(item as MemorySearchItem),
+        meta,
+        relevanceScore: score,
+      };
+    });
+  } catch (error) {
+    console.warn("semantic memory sanitize failed", error);
+    return [];
+  }
+}
+
 export async function searchMemories({
   ownerId,
   ownerType = "user",
@@ -1516,47 +1817,44 @@ export async function searchMemories({
     }
   }
 
-  const desiredCandidates = Math.max(limit * 3, 24);
+  const lexicalTokens = tokens.filter((token) => !LEXICAL_STOPWORDS.has(token));
+  const clauses: string[] = [];
+  lexicalTokens.forEach((token) => {
+    const escaped = escapeLike(token);
+    clauses.push(`title.ilike.%${escaped}%`);
+    clauses.push(`description.ilike.%${escaped}%`);
+  });
 
-  if (candidateScores.size < desiredCandidates) {
-    const clauses: string[] = [];
-    tokens.forEach((token) => {
-      const escaped = escapeLike(token);
-      clauses.push(`title.ilike.%${escaped}%`);
-      clauses.push(`description.ilike.%${escaped}%`);
-    });
+  if (clauses.length) {
+    try {
+      let builder = applyOwnerScope(
+        db.from("memories").select<{ id: string }>("id").eq("is_latest", true),
+        owner,
+      );
 
-        if (clauses.length) {
-      try {
-        let builder = applyOwnerScope(
-          db.from("memories").select<{ id: string }>("id").eq("is_latest", true),
-          owner,
-        );
-
-        if (timeRange.since) {
-          builder = builder.gte("created_at", timeRange.since);
-        }
-        if (timeRange.until) {
-          builder = builder.lte("created_at", timeRange.until);
-        }
-
-        const result = await builder
-          .or(clauses.join(","))
-          .order("created_at", { ascending: false })
-          .limit(Math.max(limit * 2, limit))
-          .fetch();
-
-        if (!result.error && Array.isArray(result.data)) {
-          (result.data as Array<{ id: string | null | undefined }>).forEach((row, index) => {
-            const id = typeof row?.id === "string" ? row.id : null;
-            if (id) {
-              recordCandidate(id, index + 1, LEXICAL_RRF_WEIGHT, "lexical");
-            }
-          });
-        }
-      } catch (error) {
-        console.warn("memory lexical search fallback failed", error);
+      if (timeRange.since) {
+        builder = builder.gte("created_at", timeRange.since);
       }
+      if (timeRange.until) {
+        builder = builder.lte("created_at", timeRange.until);
+      }
+
+      const result = await builder
+        .or(clauses.join(","))
+        .order("created_at", { ascending: false })
+        .limit(Math.max(limit * 2, limit))
+        .fetch();
+
+      if (!result.error && Array.isArray(result.data)) {
+        (result.data as Array<{ id: string | null | undefined }>).forEach((row, index) => {
+          const id = typeof row?.id === "string" ? row.id : null;
+          if (id) {
+            recordCandidate(id, index + 1, LEXICAL_RRF_WEIGHT, "lexical");
+          }
+        });
+      }
+    } catch (error) {
+      console.warn("memory lexical search fallback failed", error);
     }
   }
 
@@ -1647,6 +1945,57 @@ export async function searchMemories({
   const candidateIds = sortedCandidates.slice(0, poolSize).map((entry) => entry.id);
 
   if (!candidateIds.length) {
+    // No candidates from vector/algolia/lexical — do a local content pass before falling back.
+    const windowSize = Math.min(Math.max(limit * 5, 100), 400);
+    try {
+      const result = await applyOwnerScope(
+        db
+          .from("memories")
+          .select<Record<string, unknown>>(MEMORY_FIELDS)
+          .eq("is_latest", true)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(windowSize),
+        owner,
+      ).fetch();
+
+      if (!result.error && Array.isArray(result.data)) {
+        const scored = (result.data as Record<string, unknown>[]).map((row) => {
+          const tokenScore = scoreMemoryTokens(row, tokens);
+          const strong = scoreStrongContentMatches(row, lexicalTokens);
+          const manual = scoreManualTextMatch(row, tokens, lexicalTokens);
+          const createdAt =
+            typeof row.created_at === "string"
+              ? row.created_at
+              : typeof row.createdAt === "string"
+                ? row.createdAt
+                : null;
+          const score = tokenScore * TOKEN_SCORE_WEIGHT + strong + manual;
+          return { row, score, createdAt };
+        });
+
+        scored.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          const aTs = a.createdAt ? Date.parse(a.createdAt) : NaN;
+          const bTs = b.createdAt ? Date.parse(b.createdAt) : NaN;
+          if (Number.isFinite(aTs) && Number.isFinite(bTs) && bTs !== aTs) {
+            return bTs - aTs;
+          }
+          return 0;
+        });
+
+        const sliced = scored.slice(start, start + limit).map((entry) => ({
+          ...entry.row,
+          relevanceScore: entry.score,
+        }));
+        return Promise.all(
+          sliced.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
+        );
+      }
+    } catch (manualError) {
+      console.warn("memory manual fallback failed", manualError);
+    }
+
     const fallback = await listMemories({
       ownerId: owner.ownerId,
       ownerType: owner.ownerType,
@@ -1715,8 +2064,9 @@ export async function searchMemories({
 
       const tokenScore = scoreMemoryTokens(resolvedRow, tokens);
       const tokenBoost = Math.min(tokenScore * TOKEN_SCORE_WEIGHT, TOKEN_SCORE_CAP);
+      const strongMatchBoost = scoreStrongContentMatches(resolvedRow, lexicalTokens);
       const intentBoost = scoreIntentBoost(intent, resolvedRow);
-      const finalScore = baseScore + tokenBoost + intentBoost;
+      const finalScore = baseScore + tokenBoost + intentBoost + strongMatchBoost;
 
       const meta =
         resolvedRow.meta && typeof resolvedRow.meta === "object" && !Array.isArray(resolvedRow.meta)
@@ -1768,6 +2118,60 @@ export async function searchMemories({
     }
   } catch (error) {
     console.warn("memory search hydrate failed", error);
+  }
+
+  // Final manual scoring fallback: fetch a larger window and score locally.
+  try {
+    const windowSize = Math.min(Math.max(limit * 5, 100), 400);
+    const result = await applyOwnerScope(
+      db
+        .from("memories")
+        .select<Record<string, unknown>>(MEMORY_FIELDS)
+        .eq("is_latest", true)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(windowSize),
+      owner,
+    ).fetch();
+
+    if (!result.error && Array.isArray(result.data)) {
+      const scored = (result.data as Record<string, unknown>[]).map((row) => {
+        const tokenScore = scoreMemoryTokens(row, tokens);
+        const strong = scoreStrongContentMatches(row, lexicalTokens);
+        const manual = scoreManualTextMatch(row, tokens, lexicalTokens);
+        const createdAt =
+          typeof row.created_at === "string"
+            ? row.created_at
+            : typeof row.createdAt === "string"
+              ? row.createdAt
+              : null;
+        return {
+          row,
+          score: tokenScore * TOKEN_SCORE_WEIGHT + strong + manual,
+          createdAt,
+        };
+      });
+
+      scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const aTs = a.createdAt ? Date.parse(a.createdAt) : NaN;
+        const bTs = b.createdAt ? Date.parse(b.createdAt) : NaN;
+        if (Number.isFinite(aTs) && Number.isFinite(bTs) && bTs !== aTs) {
+          return bTs - aTs;
+        }
+        return 0;
+      });
+
+      const sliced = scored.slice(start, start + limit).map((entry) => ({
+        ...entry.row,
+        relevanceScore: entry.score,
+      }));
+      return Promise.all(
+        sliced.map((row) => sanitizeMemoryItem(row as Record<string, unknown>, origin ?? null)),
+      );
+    }
+  } catch (manualError) {
+    console.warn("memory manual fallback failed", manualError);
   }
 
   const fallback = await listMemories({
